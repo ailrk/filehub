@@ -1,0 +1,10 @@
+dist/
+dist-newstyle/
+result
+result/
+build/
+_cache/
+_site/
+.env
+result
+profile*

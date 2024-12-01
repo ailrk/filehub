@@ -1,0 +1,298 @@
+:root {
+	--fuji-white: #DCD7BA;
+	--sumi-ink1: #1F1F28;
+  --sumi-ink2: #1f1f26;
+  --sumi-ink3: #2b2b36;
+	--carp-yellow: #E6C384;
+	--wave-red: #E46876;
+	--surimi-orange: #FFA066;
+  --tree-width: 20%;
+  --view-width: 80%;
+  --control-panel-height: 5vh;
+  --content-height: 90vh;
+}
+
+
+body {
+	background: var(--sumi-ink1);
+	font-family: 'Monaco', monospace;
+	color: var(--fuji-white);
+}
+
+
+.filehub {
+	display: grid;
+  grid-template-columns: var(--tree-width) var(--view-width);
+  grid-template-rows: var(--control-panel-height) var(--content-height);
+  overflow: hidden;
+  border-bottom: 1px solid var(--fuji-white); /* debug */
+}
+
+
+#control-panel {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  border-bottom: 1px solid var(--fuji-white); /* debug */
+}
+
+
+#tree {
+  grid-column: 1 / 2;
+  overflow-x: hidden;
+  overflow-y: scroll;
+  scrollbar-width: none;
+  grid-row: 2;
+  padding: 0 1rem;
+  box-shadow: 3px 0px 0px #0000007F;
+}
+
+
+#view {
+  grid-column: 2 / -1;
+  grid-row: 2;
+  overflow-y: scroll;
+  scrollbar-width: none;
+  border-left: 1px solid var(--fuji-white);
+  box-shadow: 4px 4px 8px #0000007F, -4px -4px 4px #FFFFFF0B;
+}
+
+
+#view #tool-bar {
+  position: sticky;
+  top: 0;
+  background: var(--sumi-ink2);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--fuji-white); /* debug */
+  box-shadow: 4px 4px 8px #0000007F, -4px -4px 4px #FFFFFF0B;
+  overflow: hidden;
+}
+
+
+#view #tool-bar #path-breadcrumb {
+  white-space: nowrap;
+  scrollbar-width: none;
+  overflow-y: auto;
+  width: 50%;
+  padding-left: 1rem;
+}
+
+
+#view #tool-bar #search-bar {
+  padding: 0 2rem;
+}
+
+
+#view #table {
+  padding: 1rem 1rem;
+  width: 100%;
+  border-spacing: 5px 0.2rem;
+}
+
+
+#view #table #table-name {
+  width: 50%;
+  text-align: left;
+}
+
+
+#view #table #table-modified {
+  width: 40%;
+  text-align: left;
+}
+
+
+#view #table #table-size {
+  width: 10%;
+  text-align: left;
+}
+
+
+/* breadcrumb */
+.breadcrumb {
+  cursor: pointer;
+  padding: 0 0.5rem;
+}
+
+
+.breadcrumb ol {
+  margin: 0;
+  padding: 0;
+  align-items: center;
+}
+
+
+.breadcrumb li {
+  display: inline-block;
+  margin: 1rem 0rem;
+}
+
+
+.breadcrumb li:not(:last-child)::after {
+  margin: 0.1rem;
+  color: var(--surimi-orange);
+  content: "/";
+}
+
+
+.breadcrumb li.active{
+  color: var(--surimi-orange);
+}
+
+
+.dirtree-entry {
+  cursor: pointer;
+  padding: 0.1rem 0;
+  list-style: none;
+}
+
+
+.dirtree-entry[indent="0"] {
+  padding-left: 0px;
+}
+
+.dirtree-entry[indent="1"] {
+  padding-left: 10px;
+}
+
+.dirtree-entry[indent="2"] {
+  padding-left: 20px;
+}
+
+.dirtree-entry[indent="3"] {
+  padding-left: 30px;
+}
+
+.dirtree-entry[indent="4"] {
+  padding-left: 40px;
+}
+
+.dirtree-entry[indent="5"] {
+  padding-left: 50px;
+}
+
+.dirtree-entry[indent="6"] {
+  padding-left: 60px;
+}
+
+.dirtree-entry[indent="7"] {
+  padding-left: 70px;
+}
+
+.dirtree-entry[indent="8"] {
+  padding-left: 80px;
+}
+
+.dirtree-entry[indent="9"] {
+  padding-left: 90px;
+}
+
+.dirtree-entry[indent="10"] {
+  padding-left: 100px;
+}
+
+.dirtree-entry[indent="11"] {
+  padding-left: 110px;
+}
+
+.dirtree-entry[indent="12"] {
+  padding-left: 120px;
+}
+
+.dirtree-entry[indent="13"] {
+  padding-left: 130px;
+}
+
+.dirtree-entry[indent="14"] {
+  padding-left: 140px;
+}
+
+.dirtree-entry[indent="15"] {
+  padding-left: 150px;
+}
+
+.dirtree-entry[indent="16"] {
+  padding-left: 160px;
+}
+
+.dirtree-entry[indent="17"] {
+  padding-left: 170px;
+}
+
+.dirtree-entry[indent="18"] {
+  padding-left: 180px;
+}
+
+.dirtree-entry:hover {
+  background: var(--sumi-ink3);
+}
+
+
+.dir {
+  cursor: pointer;
+  color: var(--surimi-orange);
+}
+
+
+.btn {
+  cursor: pointer;
+  padding: 0.5rem 0.5rem;
+}
+
+
+.btn:hover {
+  background: var(--sumi-ink3);
+}
+
+
+.btn-control {
+  background: var(--sumi-ink2);
+  color: var(--fuji-white);
+  border: none;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+
+.btn-search::after {
+  padding-right: 10px;
+}
+
+
+.form-control {
+  padding: 0.8rem 0.5rem;
+  box-shadow: 4px 4px 8px #0000007F, -4px -4px 4px #FFFFFF0B;
+  border-radius: 0.5rem 0.5rem;
+}
+
+
+tr {
+  cursor: pointer;
+}
+
+
+tr:hover {
+  background: var(--sumi-ink3);
+}
+
+
+.file-name {
+  display: flex;
+  gap: 5px;
+}
+
+
+.bxs-folder {
+  color: var(--wave-red);
+}
+
+
+.bx-caret-right:hover {
+  color: var(--wave-red);
+}
+
+
+.bx-caret-down:hover {
+  color: var(--wave-red);
+}
