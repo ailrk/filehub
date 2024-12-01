@@ -29,7 +29,7 @@ import Data.Text qualified as Text
 import Data.Maybe (fromMaybe, listToMaybe)
 import Lens.Micro
 import Data.Text (Text)
-import Servant.Multipart (Mem, MultipartForm, MultipartData(..))
+import Servant.Multipart (Mem, MultipartForm, MultipartData(..), FileData(..))
 import Data.Time.Format (formatTime, defaultTimeLocale)
 import Text.Fuzzy (simpleFilter)
 import Web.FormUrlEncoded
@@ -44,13 +44,14 @@ data Api mode = Api
   -- ^ render the directory tree
   , newFile :: mode :- "files" S.:> "new" S.:> ReqBody '[FormUrlEncoded] NewFile S.:> Put '[HTML] (Html ())
   -- ^ create a new file
-  , upload :: mode :- "files" S.:> "upload" S.:> MultipartForm Mem (MultipartData Mem) S.:> Post '[HTML] (Html ())
-  -- ^ upload a new file/folder
   , newFolder :: mode :- "folders" S.:> "new" S.:> ReqBody '[FormUrlEncoded] NewFolder S.:> Put '[HTML] (Html ())
   -- ^ create a new folder
+  , upload :: mode :- "upload" S.:> MultipartForm Mem (MultipartData Mem) S.:> Post '[HTML] (Html ())
+  -- ^ upload a new file/folder
   , infoModal :: mode :- "modal" S.:> "info" S.:> Get '[HTML] (Html ())
   , newFileModal :: mode :- "modal" S.:> "new-file" S.:> Get '[HTML] (Html ())
   , newFolderModal :: mode :- "modal" S.:> "new-folder" S.:> Get '[HTML] (Html ())
+  , uploadModal :: mode :- "modal" S.:> "upload" S.:> Get '[HTML] (Html ())
   , search :: mode :- "search" S.:> ReqBody '[FormUrlEncoded] SearchWord S.:> Post '[HTML] (Html ())
   -- ^ server side search
   }
@@ -84,6 +85,7 @@ server = Api
   , infoModal = infoModal
   , newFileModal = newFileModal
   , newFolderModal = newFolderModal
+  , uploadModal = uploadModal
   , search = search
   }
 
@@ -157,8 +159,19 @@ newFolder (NewFolder path) = do
   index
 
 
-upload :: MultipartData Mem -> Eff es (Html ())
-upload multipartForm  = undefined
+upload
+  :: ( Reader Env :> es
+     , Error ServerError :> es
+     , IOE :> es
+     , FileSystem :> es
+     )
+  => MultipartData Mem -> Eff es (Html ())
+upload multipart = do
+  forM_ multipart.files $ \file -> do
+    let name = Text.unpack file.fdFileName
+    let content = file.fdPayload
+    withServerError $ Domain.writeFile name content
+  index
 
 
 infoModal :: Eff es (Html ())
@@ -180,7 +193,6 @@ search (SearchWord searchWord) = do
   let isMatched file = Text.pack file.path `elem` matched
   let filteredFiles = files ^.. each . filtered isMatched
   pure $ table filteredFiles
-
 
 
 ------------------------------------
@@ -238,10 +250,14 @@ controlPanel = do
               ] "New File"
 
     uploadBtn :: Html ()
-    uploadBtn =
+    uploadBtn = do
       button_ [ class_ "btn btn-control"
               , type_ "submit"
+              , term "hx-get" "/modal/upload"
+              , term "hx-target" "body"
+              , term "hx-swap" "beforeend"
               ] "Upload"
+
 
     sortByBtn :: Html ()
     sortByBtn = button_ [class_ "btn btn-control", type_ "submit"] "Sort By"
@@ -478,6 +494,32 @@ newFolderModal = pure do
             ] "CLOSE"
 
 
+uploadModal :: Eff es (Html ())
+uploadModal = pure do
+  modal [ id_ componentIds.updateModal ] do
+    "Upload"
+    br_ mempty >> br_ mempty
+    form_ [ term "hx-encoding" "multipart/form-data"
+          , term "hx-post" "/upload"
+          , term "_" "on htmx:xhr:progress(loaded, total) set #progress.value to (loaded/total)*100"
+          ] do
+      input_ [ class_ "btn btn-control"
+             , type_ "file"
+             , name_ "file"
+             ]
+
+      br_ mempty >> br_ mempty
+
+      button_ [ class_ "btn btn-modal-confirm mr-2"
+              , term "_" "on click trigger closeModal"
+              ] "UPLOAD"
+
+      button_ [ class_ "btn btn-modal-close"
+              , term "_" "on click trigger closeModal"
+              ] "CLOSE"
+
+
+
 modal :: [Attribute] -> Html () -> Html ()
 modal attrs body = do
   div_ ([ class_ "modal ", closeModalScript ] <> attrs) do
@@ -504,6 +546,7 @@ data ComponentIds = ComponentIds
   , table :: Text
   , newFileModal :: Text
   , newFolderModal :: Text
+  , updateModal :: Text
   }
   deriving Show
 
@@ -517,5 +560,6 @@ componentIds = ComponentIds
   , pathBreadcrumb = "path-breadcrumb"
   , table = "table"
   , newFileModal = "new-file-modal"
-  , newFolderModal = "new-modal-modal"
+  , newFolderModal = "new-folder-modal"
+  , updateModal = "update-modal"
   }

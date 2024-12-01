@@ -339,7 +339,7 @@ tr:hover {
 
 	/* Sizing for visible dialog */
 	width: 30%;
-	max-width: 200px;
+	max-width: 300px;
 
 	/* Display properties for visible dialog*/
 	border: solid 1px #999;
@@ -406,6 +406,17 @@ tr:hover {
 	100% {transform: scale(0.9);}
 }
 
+
 .mr-2 {
   margin-right: 10px;
+}
+
+
+#new-file-modal input {
+  width: 100%;
+}
+
+
+#new-folder-modal input {
+  width: 100%;
 }

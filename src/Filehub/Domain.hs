@@ -8,16 +8,18 @@ import Effectful.FileSystem
 import Effectful.Reader.Dynamic (Reader, asks)
 import Effectful ((:>), Eff, IOE)
 import Effectful.Error.Dynamic (throwError, Error)
+import Effectful.FileSystem.IO (withFile, IOMode (..))
+import Effectful.FileSystem.IO.ByteString.Lazy (hPut)
 import Control.Monad (unless, when)
 import Text.Printf
 import Data.ByteString (ByteString)
+import Data.ByteString.Lazy qualified as LBS
 import Filehub.Env (Env(..))
 import UnliftIO (modifyIORef', readIORef)
 import GHC.Generics
 import Lens.Micro
 import Data.Generics.Labels ()
-import System.FilePath (takeDirectory, (</>))
-import Effectful.FileSystem.IO (withFile, IOMode (..))
+import System.FilePath ((</>))
 
 
 data FileContent
@@ -75,24 +77,39 @@ dirtree f = \case
     modify <$> file' <*> fs
 
 
+
+toFilePath :: (Reader Env :> es, IOE :> es, FileSystem :> es) => FilePath -> Eff es FilePath
+toFilePath name = do
+  currentDir <- asks @Env (.currentDir) >>= readIORef
+  makeAbsolute (currentDir </> name)
+
+
 newFolder :: (Reader Env :> es, FileSystem :> es, Error String :> es, IOE :> es) => String -> Eff es ()
 newFolder name = do
-  currentDir <- asks @Env (.currentDir) >>= readIORef
-  filePath <- makeAbsolute (currentDir </> name)
-  exists <- doesDirectoryExist filePath
+  filePath <- toFilePath name
+  exists <- doesFileExist filePath
   when exists do
     throwError @String (printf "%s already exists" filePath)
+  withFile filePath ReadWriteMode (\_ -> pure ())
   createDirectoryIfMissing True filePath
 
 
 newFile :: (Reader Env :> es, FileSystem :> es, Error String :> es, IOE :> es) => String -> Eff es ()
 newFile name = do
-  currentDir <- asks @Env (.currentDir) >>= readIORef
-  filePath <- makeAbsolute (currentDir </> name)
+  filePath <- toFilePath name
   exists <- doesFileExist filePath
   when exists do
     throwError @String (printf "%s already exists" filePath)
   withFile filePath ReadWriteMode (\_ -> pure ())
+
+
+writeFile :: (Reader Env :> es, FileSystem :> es, Error String :> es, IOE :> es) => String -> LBS.ByteString -> Eff es ()
+writeFile name content = do
+  filePath <- toFilePath name
+  exists <- doesFileExist filePath
+  when exists do
+    throwError @String (printf "%s already exists" filePath)
+  withFile filePath ReadWriteMode (\h -> hPut h content)
 
 
 lsDir :: (FileSystem :> es, Error String :> es) => FilePath -> Eff es [File]
