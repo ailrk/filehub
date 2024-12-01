@@ -8,7 +8,7 @@ import Effectful.FileSystem
 import Effectful.Reader.Dynamic (Reader, asks)
 import Effectful ((:>), Eff, IOE)
 import Effectful.Error.Dynamic (throwError, Error)
-import Control.Monad (unless)
+import Control.Monad (unless, when)
 import Text.Printf
 import Data.ByteString (ByteString)
 import Filehub.Env (Env(..))
@@ -16,6 +16,8 @@ import UnliftIO (modifyIORef', readIORef)
 import GHC.Generics
 import Lens.Micro
 import Data.Generics.Labels ()
+import System.FilePath (takeDirectory, (</>))
+import Effectful.FileSystem.IO (withFile, IOMode (..))
 
 
 data FileContent
@@ -73,16 +75,24 @@ dirtree f = \case
     modify <$> file' <*> fs
 
 
-newFolder :: (FileSystem :> es, Error String :> es) => FilePath -> Eff es [File]
-newFolder filePath = do
-  undefined
+newFolder :: (Reader Env :> es, FileSystem :> es, Error String :> es, IOE :> es) => String -> Eff es ()
+newFolder name = do
+  currentDir <- asks @Env (.currentDir) >>= readIORef
+  filePath <- makeAbsolute (currentDir </> name)
+  exists <- doesDirectoryExist filePath
+  when exists do
+    throwError @String (printf "%s already exists" filePath)
+  createDirectoryIfMissing True filePath
 
 
-newFile :: (FileSystem :> es, Error String :> es) => FilePath -> Eff es [File]
-newFile filePath = do
-  undefined
-
-
+newFile :: (Reader Env :> es, FileSystem :> es, Error String :> es, IOE :> es) => String -> Eff es ()
+newFile name = do
+  currentDir <- asks @Env (.currentDir) >>= readIORef
+  filePath <- makeAbsolute (currentDir </> name)
+  exists <- doesFileExist filePath
+  when exists do
+    throwError @String (printf "%s already exists" filePath)
+  withFile filePath ReadWriteMode (\_ -> pure ())
 
 
 lsDir :: (FileSystem :> es, Error String :> es) => FilePath -> Eff es [File]

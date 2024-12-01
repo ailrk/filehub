@@ -37,21 +37,36 @@ import Web.FormUrlEncoded
 
 data Api mode = Api
   { index :: mode :- Get '[HTML] (Html ())
+  -- ^ entrance
   , cd :: mode :- "cd" S.:> QueryParam "dir" FilePath S.:> Get '[HTML] (Html ())
+  -- ^ change the current directory
   , dirs :: mode :- "dirs" S.:> QueryParam "path" FilePath S.:> Get '[HTML] (Html ())
-  , newFile :: mode :- "files" S.:> "new" S.:> Put '[HTML] (Html ())
+  -- ^ render the directory tree
+  , newFile :: mode :- "files" S.:> "new" S.:> ReqBody '[FormUrlEncoded] NewFile S.:> Put '[HTML] (Html ())
+  -- ^ create a new file
   , upload :: mode :- "files" S.:> "upload" S.:> MultipartForm Mem (MultipartData Mem) S.:> Post '[HTML] (Html ())
-  , newFolder :: mode :- "folder" S.:> "new" S.:> Put '[HTML] (Html ())
-  , info :: mode :- "info" S.:> Get '[HTML] (Html ())
+  -- ^ upload a new file/folder
+  , newFolder :: mode :- "folders" S.:> "new" S.:> ReqBody '[FormUrlEncoded] NewFolder S.:> Put '[HTML] (Html ())
+  -- ^ create a new folder
+  , infoModal :: mode :- "modal" S.:> "info" S.:> Get '[HTML] (Html ())
+  , newFileModal :: mode :- "modal" S.:> "new-file" S.:> Get '[HTML] (Html ())
+  , newFolderModal :: mode :- "modal" S.:> "new-folder" S.:> Get '[HTML] (Html ())
   , search :: mode :- "search" S.:> ReqBody '[FormUrlEncoded] SearchWord S.:> Post '[HTML] (Html ())
+  -- ^ server side search
   }
   deriving (Generic)
 
 
 newtype SearchWord = SearchWord Text deriving (Show, Eq, Generic)
+instance FromForm SearchWord where fromForm f = SearchWord <$> parseUnique "search" f
 
-instance FromForm SearchWord where
-  fromForm f = SearchWord <$> parseUnique "search" f
+
+newtype NewFile = NewFile Text deriving (Show, Eq, Generic)
+instance FromForm NewFile where fromForm f = NewFile <$> parseUnique "new-file" f
+
+
+newtype NewFolder = NewFolder Text deriving (Show, Eq, Generic)
+instance FromForm NewFolder where fromForm f = NewFolder <$> parseUnique "new-folder" f
 
 
 server
@@ -66,7 +81,9 @@ server = Api
   , newFile = newFile
   , newFolder = newFolder
   , upload = upload
-  , info = info
+  , infoModal = infoModal
+  , newFileModal = newFileModal
+  , newFolderModal = newFolderModal
   , search = search
   }
 
@@ -116,20 +133,38 @@ dirs (Just path) = do
     fileL = Domain.dirtree . filtered (\s -> s.path == path)
 
 
-newFile :: Eff es (Html ())
-newFile = undefined
+newFile
+  :: ( Reader Env :> es
+     , Error ServerError :> es
+     , IOE :> es
+     , FileSystem :> es
+     )
+  => NewFile -> Eff es (Html ())
+newFile (NewFile path) = do
+  withServerError $ Domain.newFile (Text.unpack path)
+  index
 
 
-newFolder :: Eff es (Html ())
-newFolder = undefined
+newFolder
+  :: ( Reader Env :> es
+     , Error ServerError :> es
+     , IOE :> es
+     , FileSystem :> es
+     )
+  => NewFolder -> Eff es (Html ())
+newFolder (NewFolder path) = do
+  withServerError $ Domain.newFolder (Text.unpack path)
+  index
 
 
 upload :: MultipartData Mem -> Eff es (Html ())
 upload multipartForm  = undefined
 
 
-info :: Eff es (Html ())
-info = undefined
+infoModal :: Eff es (Html ())
+infoModal = pure do
+  modal [ id_ componentIds.newFileModal ] do
+    "Storage"
 
 
 search
@@ -185,13 +220,28 @@ controlPanel = do
     elementId = componentIds.controlPanel
 
     newFolderBtn :: Html ()
-    newFolderBtn = button_ [class_ "btn btn-control", type_ "submit"] "New Folder"
+    newFolderBtn =
+      button_ [ class_ "btn btn-control"
+              , type_ "submit"
+              , term "hx-get" "/modal/new-folder"
+              , term "hx-target" "body"
+              , term "hx-swap" "beforeend"
+              ] "New Folder"
 
     newFileBtn :: Html ()
-    newFileBtn  = button_ [class_ "btn btn-control", type_ "submit"] "New File"
+    newFileBtn  =
+      button_ [ class_ "btn btn-control"
+              , type_ "submit"
+              , term "hx-get" "/modal/new-file"
+              , term "hx-target" "body"
+              , term "hx-swap" "beforeend"
+              ] "New File"
 
     uploadBtn :: Html ()
-    uploadBtn = button_ [class_ "btn btn-control", type_ "submit"] "Upload"
+    uploadBtn =
+      button_ [ class_ "btn btn-control"
+              , type_ "submit"
+              ] "Upload"
 
     sortByBtn :: Html ()
     sortByBtn = button_ [class_ "btn btn-control", type_ "submit"] "Sort By"
@@ -200,7 +250,13 @@ controlPanel = do
     viewTypeBtn = button_ [class_ "btn btn-control", type_ "submit"] "view"
 
     infoBtn :: Html ()
-    infoBtn = button_ [class_ "btn btn-control", type_ "submit"] "info"
+    infoBtn =
+      button_ [ class_ "btn btn-control"
+              , type_ "submit"
+              , term "hx-get" "/modal/info"
+              , term "hx-target" "body"
+              , term "hx-swap" "beforeend"
+              ] "info"
 
 
 view
@@ -375,6 +431,65 @@ tree = do
           traverse_ (renderFile (n + 1)) files
 
 
+sortByDropDown :: Html ()
+sortByDropDown = do
+  pure ()
+
+
+newFileModal :: Eff es (Html ())
+newFileModal = pure do
+  modal [ id_ componentIds.newFileModal ] do
+    "File"
+    br_ mempty >> br_ mempty
+    input_ [ class_ "form-control "
+           , type_ "text"
+           , name_ "new-file"
+           , placeholder_ "Search as you type"
+           , term "hx-put" "/files/new"
+           ]
+    br_ mempty >> br_ mempty
+    button_ [ class_ "btn btn-modal-confirm mr-2"
+            , term "_" "on click trigger closeModal"
+            ] "CREATE"
+
+    button_ [ class_ "btn btn-modal-close"
+            , term "_" "on click trigger closeModal"
+            ] "CLOSE"
+
+
+newFolderModal :: Eff es (Html ())
+newFolderModal = pure do
+  modal [ id_ componentIds.newFolderModal ] do
+    "Folder"
+    br_ mempty >> br_ mempty
+    input_ [ class_ "form-control "
+           , type_ "text"
+           , name_ "new-folder"
+           , placeholder_ "Search as you type"
+           , term "hx-put" "/folders/new"
+           ]
+    br_ mempty >> br_ mempty
+    button_ [ class_ "btn btn-modal-confirm mr-2"
+            , term "_" "on click trigger closeModal"
+            ] "CREATE"
+
+    button_ [ class_ "btn btn-modal-close"
+            , term "_" "on click trigger closeModal"
+            ] "CLOSE"
+
+
+modal :: [Attribute] -> Html () -> Html ()
+modal attrs body = do
+  div_ ([ class_ "modal ", closeModalScript ] <> attrs) do
+    div_ [ class_ "modal-underlay"
+         , term "_" "on click trigger closeModal"
+         ] mempty
+    div_ [ class_ "modal-content" ] do
+      body
+  where
+    closeModalScript = term "_" "on closeModal add .closing then wait for animationend then remove me"
+
+
 ------------------------------------
 -- index
 ------------------------------------
@@ -387,6 +502,8 @@ data ComponentIds = ComponentIds
   , searchBar :: Text
   , pathBreadcrumb :: Text
   , table :: Text
+  , newFileModal :: Text
+  , newFolderModal :: Text
   }
   deriving Show
 
@@ -399,4 +516,6 @@ componentIds = ComponentIds
   , searchBar = "search-bar"
   , pathBreadcrumb = "path-breadcrumb"
   , table = "table"
+  , newFileModal = "new-file-modal"
+  , newFolderModal = "new-modal-modal"
   }
