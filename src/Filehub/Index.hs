@@ -9,10 +9,11 @@ import Lucid
 import Filehub.Template (withDefault)
 import Effectful.Reader.Dynamic (Reader, asks)
 import Filehub.Env (Env(..))
-import Filehub.Domain (lsCurrentDir, changeDir, File(..), FileContent (..), loadDirContents, dirtree)
+import Filehub.Domain (File(..), FileContent (..))
+import Filehub.Domain qualified as Domain
 import Effectful.Error.Dynamic (Error, runErrorNoCallStack, throwError)
 import Effectful.FileSystem (FileSystem)
-import Servant (Get, errBody, err500, (:-), ServerError (..), QueryParam, Post, Put, ReqBody, PlainText, FormUrlEncoded)
+import Servant (Get, errBody, err500, (:-), ServerError (..), QueryParam, Post, Put, ReqBody, FormUrlEncoded)
 import Servant qualified as S
 import Servant.HTML.Lucid (HTML)
 import Data.String (IsString(..))
@@ -84,7 +85,7 @@ cd
      , FileSystem :> es)
   => Maybe FilePath -> Eff es (Html ())
 cd path = do
-  withServerError $ changeDir (fromMaybe "/" path)
+  withServerError $ Domain.changeDir (fromMaybe "/" path)
   view
 
 
@@ -101,7 +102,7 @@ dirs (Just path) = do
   case listToMaybe (root ^.. fileL) of
     Nothing -> pure ()
     Just f@File { content = Dir Nothing } -> do
-      f' <- withServerError $ loadDirContents f
+      f' <- withServerError $ Domain.loadDirContents f
       let root' = root & fileL .~ f'
       ref `writeIORef` root'
     Just f@File { content = Dir (Just _)} -> do
@@ -112,7 +113,7 @@ dirs (Just path) = do
   tree
   where
     fileL :: Traversal' File File
-    fileL = dirtree . filtered (\s -> s.path == path)
+    fileL = Domain.dirtree . filtered (\s -> s.path == path)
 
 
 newFile :: Eff es (Html ())
@@ -139,7 +140,7 @@ search
      )
   => SearchWord -> Eff es (Html ())
 search (SearchWord searchWord) = do
-  files <- withServerError lsCurrentDir
+  files <- withServerError Domain.lsCurrentDir
   let matched = files <&> Text.pack . (.path) & simpleFilter searchWord
   let isMatched file = Text.pack file.path `elem` matched
   let filteredFiles = files ^.. each . filtered isMatched
@@ -210,7 +211,7 @@ view
      )
   => Eff es (Html ())
 view = do
-  files <- withServerError lsCurrentDir
+  files <- withServerError Domain.lsCurrentDir
   let table' = table files
   pathBreadcrumb' <- pathBreadcrumb
   pure do

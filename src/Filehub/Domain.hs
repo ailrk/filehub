@@ -73,6 +73,18 @@ dirtree f = \case
     modify <$> file' <*> fs
 
 
+newFolder :: (FileSystem :> es, Error String :> es) => FilePath -> Eff es [File]
+newFolder filePath = do
+  undefined
+
+
+newFile :: (FileSystem :> es, Error String :> es) => FilePath -> Eff es [File]
+newFile filePath = do
+  undefined
+
+
+
+
 lsDir :: (FileSystem :> es, Error String :> es) => FilePath -> Eff es [File]
 lsDir path = do
   exists <- doesDirectoryExist path
