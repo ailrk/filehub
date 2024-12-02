@@ -80,6 +80,7 @@ executable filehub
       , clay
       , containers
       , fuzzy
+      , string-interpolate
 
     other-modules:
       Filehub.Template

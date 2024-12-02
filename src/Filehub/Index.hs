@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE QuasiQuotes #-}
 
 module Filehub.Index where
 
@@ -33,6 +34,7 @@ import Servant.Multipart (Mem, MultipartForm, MultipartData(..), FileData(..))
 import Data.Time.Format (formatTime, defaultTimeLocale)
 import Text.Fuzzy (simpleFilter)
 import Web.FormUrlEncoded
+import Data.String.Interpolate (iii)
 
 
 data Api mode = Api
@@ -54,6 +56,8 @@ data Api mode = Api
   , uploadModal :: mode :- "modal" S.:> "upload" S.:> Get '[HTML] (Html ())
   , search :: mode :- "search" S.:> ReqBody '[FormUrlEncoded] SearchWord S.:> Post '[HTML] (Html ())
   -- ^ server side search
+  , sortByDropdownOn :: mode :- "dropdown" S.:> "sortby" S.:> "on" S.:> Get '[HTML] (Html ())
+  , sortByDropdownOff :: mode :- "dropdown" S.:> "sortby" S.:> "off" S.:> Get '[HTML] (Html ())
   }
   deriving (Generic)
 
@@ -87,6 +91,8 @@ server = Api
   , newFolderModal = newFolderModal
   , uploadModal = uploadModal
   , search = search
+  , sortByDropdownOn = sortByDropdownOn
+  , sortByDropdownOff = sortByDropdownOff
   }
 
 
@@ -231,48 +237,102 @@ controlPanel = do
   where
     elementId = componentIds.controlPanel
 
-    newFolderBtn :: Html ()
-    newFolderBtn =
-      button_ [ class_ "btn btn-control"
-              , type_ "submit"
-              , term "hx-get" "/modal/new-folder"
-              , term "hx-target" "body"
-              , term "hx-swap" "beforeend"
-              ] "New Folder"
 
-    newFileBtn :: Html ()
-    newFileBtn  =
-      button_ [ class_ "btn btn-control"
-              , type_ "submit"
-              , term "hx-get" "/modal/new-file"
-              , term "hx-target" "body"
-              , term "hx-swap" "beforeend"
-              ] "New File"
-
-    uploadBtn :: Html ()
-    uploadBtn = do
-      button_ [ class_ "btn btn-control"
-              , type_ "submit"
-              , term "hx-get" "/modal/upload"
-              , term "hx-target" "body"
-              , term "hx-swap" "beforeend"
-              ] "Upload"
+newFolderBtn :: Html ()
+newFolderBtn =
+  button_ [ class_ "btn btn-control"
+          , type_ "submit"
+          , term "hx-get" "/modal/new-folder"
+          , term "hx-target" "body"
+          , term "hx-swap" "beforeend"
+          ] "New Folder"
 
 
-    sortByBtn :: Html ()
-    sortByBtn = button_ [class_ "btn btn-control", type_ "submit"] "Sort By"
+newFileBtn :: Html ()
+newFileBtn  =
+  button_ [ class_ "btn btn-control"
+          , type_ "submit"
+          , term "hx-get" "/modal/new-file"
+          , term "hx-target" "body"
+          , term "hx-swap" "beforeend"
+          ] "New File"
 
-    viewTypeBtn :: Html ()
-    viewTypeBtn = button_ [class_ "btn btn-control", type_ "submit"] "view"
 
-    infoBtn :: Html ()
-    infoBtn =
-      button_ [ class_ "btn btn-control"
-              , type_ "submit"
-              , term "hx-get" "/modal/info"
-              , term "hx-target" "body"
-              , term "hx-swap" "beforeend"
-              ] "info"
+uploadBtn :: Html ()
+uploadBtn = do
+  button_ [ class_ "btn btn-control"
+          , type_ "submit"
+          , term "hx-get" "/modal/upload"
+          , term "hx-target" "body"
+          , term "hx-swap" "beforeend"
+          ] "Upload"
+
+
+sortByBtn :: Html ()
+sortByBtn = do
+  button_ [ class_ "btn btn-control"
+          , type_ "submit"
+          , term "hx-get" "/dropdown/sortby/on"
+          , term "hx-swap" "outerHTML"
+          ] "Sort By"
+
+
+sortByDropdownOn :: Eff es (Html ())
+sortByDropdownOn = pure do
+  button_ [ class_ "btn btn-control"
+          , id_ "sortby-btn-with-dropdown"
+          , type_ "submit"
+          , term "_" "on click trigger closeDropdown on the next .dropdown"
+          ] "Sort By"
+
+  dropdown [ id_ componentIds.sortByDropdown
+           , term "hx-get" "/dropdown/sortby/off"
+           , term "hx-swap" "outerHTML"
+           , term "hx-target" "#sortby-btn-with-dropdown"
+           ] do
+    dropdownItem $ span_
+      [ term "_"
+          [iii|
+            on click
+            trigger closeDropdown
+          |]
+      ] "Name"
+    dropdownItem $ span_
+      [ term "_"
+          [iii|
+            on click
+            trigger closeDropdown
+          |]
+      ] "Size"
+    dropdownItem $ span_
+      [ term "_"
+          [iii|
+            on click
+            trigger closeDropdown
+          |]
+      ] "Modified"
+
+
+dropdownItem :: Html () -> Html ()
+dropdownItem body = div_ [ class_ "dropdown-item" ] body
+
+
+sortByDropdownOff :: Eff es (Html ())
+sortByDropdownOff = pure sortByBtn
+
+
+viewTypeBtn :: Html ()
+viewTypeBtn = button_ [class_ "btn btn-control", type_ "submit"] "view"
+
+
+infoBtn :: Html ()
+infoBtn =
+  button_ [ class_ "btn btn-control"
+          , type_ "submit"
+          , term "hx-get" "/modal/info"
+          , term "hx-target" "body"
+          , term "hx-swap" "beforeend"
+          ] "info"
 
 
 view
@@ -447,11 +507,6 @@ tree = do
           traverse_ (renderFile (n + 1)) files
 
 
-sortByDropDown :: Html ()
-sortByDropDown = do
-  pure ()
-
-
 newFileModal :: Eff es (Html ())
 newFileModal = pure do
   modal [ id_ componentIds.newFileModal ] do
@@ -529,7 +584,35 @@ modal attrs body = do
     div_ [ class_ "modal-content" ] do
       body
   where
-    closeModalScript = term "_" "on closeModal add .closing then wait for animationend then remove me"
+    closeModalScript = term "_"
+      [iii|
+        on closeModal
+        add .closing
+        then wait for animationend
+        then remove me
+      |]
+
+
+dropdown :: [Attribute] -> Html () -> Html ()
+dropdown attrs body = do
+  div_ [ class_ "dropdown-wrapper" ] do
+    div_ [ class_ "dropdown-underlay"
+         , term "_" "on click trigger closeDropdown on the next .dropdown"
+         ] mempty
+    div_ ([ class_ "dropdown", closeDropdownScript
+          , term "hx-trigger" "epilogue"
+          ] <> attrs) do
+      div_ [ class_ "dropdown-content "
+           ] body
+  where
+    closeDropdownScript = term "_"
+      [iii|
+        on closeDropdown
+        trigger epilogue
+        then add .closing
+        then wait for animationend
+        then remove the closest .dropdown-wrapper
+      |]
 
 
 ------------------------------------
@@ -547,6 +630,7 @@ data ComponentIds = ComponentIds
   , newFileModal :: Text
   , newFolderModal :: Text
   , updateModal :: Text
+  , sortByDropdown :: Text
   }
   deriving Show
 
@@ -562,4 +646,5 @@ componentIds = ComponentIds
   , newFileModal = "new-file-modal"
   , newFolderModal = "new-folder-modal"
   , updateModal = "update-modal"
+  , sortByDropdown = "sortby-dropdown"
   }

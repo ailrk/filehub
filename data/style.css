@@ -6,10 +6,16 @@
 	--carp-yellow: #E6C384;
 	--wave-red: #E46876;
 	--surimi-orange: #FFA066;
+
   --tree-width: 20%;
   --view-width: 80%;
   --control-panel-height: 5vh;
   --content-height: 90vh;
+
+  --component-layer1-zindex: 500;
+  --component-layer2-zindex: 750;
+  --component-layer3-zindex: 999;
+  --modal-zindex: 1000;
 }
 
 
@@ -66,6 +72,7 @@ body {
   align-items: center;
   border-bottom: 1px solid var(--fuji-white); /* debug */
   box-shadow: 4px 4px 8px #0000007F, -4px -4px 4px #FFFFFF0B;
+  z-index: var(--component-layer1-zindex);
   overflow: hidden;
 }
 
@@ -302,21 +309,21 @@ tr:hover {
 .modal {
 	/* Underlay covers entire screen. */
 	position: fixed;
-	top:0px;
+	top: 0px;
 	bottom: 0px;
-	left:0px;
-	right:0px;
+	left: 0px;
+	right: 0px;
 	background-color: rgba(0,0,0,0.6);
-	z-index:1000;
+	z-index: var(--modal-zindex);
 
 	/* Flexbox centers the .modal-content vertically and horizontally */
-	display:flex;
-	flex-direction:column;
-	align-items:center;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
 
 	/* Animate when opening */
 	animation-name: fadeIn;
-	animation-duration:150ms;
+	animation-duration: 150ms;
 	animation-timing-function: ease;
 }
 
@@ -338,8 +345,8 @@ tr:hover {
 	margin-top:10vh;
 
 	/* Sizing for visible dialog */
-	width: 30%;
-	max-width: 300px;
+	width: 50%;
+	max-width: 400px;
 
 	/* Display properties for visible dialog*/
 	border: solid 1px #999;
@@ -420,3 +427,76 @@ tr:hover {
 #new-folder-modal input {
   width: 100%;
 }
+
+
+#sortby-dropdown {
+  transform: translateY(40px) translateX(275px);
+}
+
+
+.dropdown-wrapper {
+  position: fixed;
+	top: 0px;
+	bottom: 0px;
+	left: 0px;
+	right: 0px;
+  z-index: var(--component-layer2-zindex);
+}
+
+
+.dropdown {
+  position: fixed;
+
+  background: var(--sumi-ink2);
+  padding: 0.5rem 0;
+  border: 1px solid var(--fuji-white);
+  border-radius : 0.1rem;
+  text-align: left;
+  box-shadow: 3px 0px 0px #0000007F;
+
+	animation-name: fadeIn;
+	animation-duration: 150ms;
+	animation-timing-function: ease;
+}
+
+
+.dropdown.closing {
+	animation-name: fadeOut;
+	animation-duration: 150ms;
+	animation-timing-function: ease;
+}
+
+
+.dropdown.closing > .dropdown-content {
+	animation-name: zoomOut;
+	animation-duration: 150ms;
+	animation-timing-function: ease;
+}
+
+
+.dropdown-wrapper > .dropdown-underlay {
+	/* underlay takes up the entire viewport. */
+	position: absolute;
+	z-index: -1;
+	top:0px;
+	bottom:0px;
+	left: 0px;
+	right: 0px;
+}
+
+
+.dropdown-item {
+  padding: 0.3rem 0;
+}
+
+
+.dropdown-item span {
+  display: inline-block;
+  padding: 0 0.5rem;
+}
+
+
+.dropdown-item:hover {
+  background: var(--sumi-ink3);
+}
+

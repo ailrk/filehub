@@ -22,6 +22,11 @@ import Data.Generics.Labels ()
 import System.FilePath ((</>))
 
 
+------------------------------------
+-- files related
+------------------------------------
+
+
 data FileContent
   = Content (Maybe ByteString)
   | Dir (Maybe [File])
@@ -140,3 +145,8 @@ lsCurrentDir = do
   unless exists do
     throwError @String (printf "%s is not a valid directory" path)
   lsDir path
+
+
+------------------------------------
+-- Connection state
+------------------------------------
