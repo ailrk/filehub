@@ -3,23 +3,30 @@
 {-# LANGUAGE ApplicativeDo #-}
 module Filehub.Domain where
 
-import Data.Time (UTCTime)
 import Effectful.FileSystem
 import Effectful.Reader.Dynamic (Reader, asks)
 import Effectful ((:>), Eff, IOE)
 import Effectful.Error.Dynamic (throwError, Error)
 import Effectful.FileSystem.IO (withFile, IOMode (..))
 import Effectful.FileSystem.IO.ByteString.Lazy (hPut)
-import Control.Monad (unless, when)
+import Control.Monad (unless, when, forM_)
 import Text.Printf
-import Data.ByteString (ByteString)
-import Data.ByteString.Lazy qualified as LBS
 import Filehub.Env (Env(..))
 import UnliftIO (modifyIORef', readIORef)
 import GHC.Generics
 import Lens.Micro
+import Data.Time (UTCTime)
+import Data.ByteString (ByteString)
+import Data.ByteString.Lazy qualified as LBS
 import Data.Generics.Labels ()
-import System.FilePath ((</>))
+import Data.Text (Text)
+import Data.Text qualified as Text
+import System.FilePath ((</>), takeFileName)
+import Web.FormUrlEncoded (FromForm (..), parseUnique)
+import Servant.Multipart (MultipartData(..), Mem, FileData (..))
+import Prelude hiding (writeFile)
+import Data.List (sortOn)
+import Web.HttpApiData (FromHttpApiData(..), ToHttpApiData(..))
 
 
 ------------------------------------
@@ -147,6 +154,57 @@ lsCurrentDir = do
   lsDir path
 
 
+upload :: (Reader Env :> es, Error String :> es, IOE :> es, FileSystem :> es) => MultipartData Mem -> Eff es ()
+upload multipart = do
+  forM_ multipart.files $ \file -> do
+    let name = Text.unpack file.fdFileName
+    let content = file.fdPayload
+    writeFile name content
+
+
 ------------------------------------
--- Connection state
+-- new types
 ------------------------------------
+
+
+newtype SearchWord = SearchWord Text deriving (Show, Eq, Generic)
+instance FromForm SearchWord where fromForm f = SearchWord <$> parseUnique "search" f
+
+
+newtype NewFile = NewFile Text deriving (Show, Eq, Generic)
+instance FromForm NewFile where fromForm f = NewFile <$> parseUnique "new-file" f
+
+
+newtype NewFolder = NewFolder Text deriving (Show, Eq, Generic)
+instance FromForm NewFolder where fromForm f = NewFolder <$> parseUnique "new-folder" f
+
+
+------------------------------------
+-- table sort
+------------------------------------
+
+
+data SortFileBy
+  = ByName
+  | ByModified
+  | BySize
+  deriving (Show)
+
+
+instance ToHttpApiData SortFileBy where
+  toUrlPiece ByName = "name"
+  toUrlPiece ByModified = "modified"
+  toUrlPiece BySize = "size"
+
+
+instance FromHttpApiData SortFileBy where
+  parseUrlPiece "name" = pure ByName
+  parseUrlPiece "modified" = pure ByModified
+  parseUrlPiece "size" = pure BySize
+  parseUrlPiece _ = Left "Unknown order"
+
+
+sortFiles :: SortFileBy -> [File] -> [File]
+sortFiles ByName = sortOn (takeFileName . (.path))
+sortFiles ByModified = sortOn (.mtime)
+sortFiles BySize = sortOn (.size)

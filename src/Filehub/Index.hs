@@ -1,40 +1,29 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE QuasiQuotes #-}
 
 module Filehub.Index where
 
-import Effectful (Eff, (:>), IOE)
 import Lucid
-import Filehub.Template (withDefault)
-import Effectful.Reader.Dynamic (Reader, asks)
+import Lens.Micro
+import Filehub.Template qualified as Template
 import Filehub.Env (Env(..))
-import Filehub.Domain (File(..), FileContent (..))
+import Filehub.Domain (File(..), FileContent (..), NewFile (..), NewFolder(..), SearchWord(..), SortFileBy (..), sortFiles)
 import Filehub.Domain qualified as Domain
+import Effectful (Eff, (:>), IOE)
+import Effectful.Reader.Dynamic (Reader, asks)
 import Effectful.Error.Dynamic (Error, runErrorNoCallStack, throwError)
 import Effectful.FileSystem (FileSystem)
+import UnliftIO (readIORef, writeIORef)
+import GHC.Generics (Generic)
+import Data.String (IsString(..))
+import Data.Text qualified as Text
+import Data.Maybe (fromMaybe, listToMaybe)
+import Servant.Multipart (Mem, MultipartForm, MultipartData(..))
+import Servant.Server.Generic (AsServerT)
 import Servant (Get, errBody, err500, (:-), ServerError (..), QueryParam, Post, Put, ReqBody, FormUrlEncoded)
 import Servant qualified as S
 import Servant.HTML.Lucid (HTML)
-import Data.String (IsString(..))
-import Data.Foldable
-import UnliftIO (readIORef, writeIORef)
-import System.FilePath (splitPath, takeFileName)
-import Servant.Server.Generic (AsServerT)
-import GHC.Generics (Generic)
-import Data.Sequence qualified as Seq
-import Data.Bifunctor (Bifunctor(..))
-import Data.Sequence (Seq(..))
-import Data.Text qualified as Text
-import Data.Maybe (fromMaybe, listToMaybe)
-import Lens.Micro
-import Data.Text (Text)
-import Servant.Multipart (Mem, MultipartForm, MultipartData(..), FileData(..))
-import Data.Time.Format (formatTime, defaultTimeLocale)
-import Text.Fuzzy (simpleFilter)
-import Web.FormUrlEncoded
-import Data.String.Interpolate (iii)
 
 
 data Api mode = Api
@@ -58,20 +47,9 @@ data Api mode = Api
   -- ^ server side search
   , sortByDropdownOn :: mode :- "dropdown" S.:> "sortby" S.:> "on" S.:> Get '[HTML] (Html ())
   , sortByDropdownOff :: mode :- "dropdown" S.:> "sortby" S.:> "off" S.:> Get '[HTML] (Html ())
+  , sortTable :: mode :- "table" S.:> "sort" S.:> QueryParam "by" SortFileBy S.:> Get '[HTML] (Html ())
   }
   deriving (Generic)
-
-
-newtype SearchWord = SearchWord Text deriving (Show, Eq, Generic)
-instance FromForm SearchWord where fromForm f = SearchWord <$> parseUnique "search" f
-
-
-newtype NewFile = NewFile Text deriving (Show, Eq, Generic)
-instance FromForm NewFile where fromForm f = NewFile <$> parseUnique "new-file" f
-
-
-newtype NewFolder = NewFolder Text deriving (Show, Eq, Generic)
-instance FromForm NewFolder where fromForm f = NewFolder <$> parseUnique "new-folder" f
 
 
 server
@@ -81,18 +59,19 @@ server
   => Api (AsServerT (Eff es))
 server = Api
   { index = index
-  , cd = cd
+  , cd = \path -> Domain.changeDir (fromMaybe "/" path) & withServerError >> view ByName
   , dirs = dirs
-  , newFile = newFile
-  , newFolder = newFolder
-  , upload = upload
-  , infoModal = infoModal
-  , newFileModal = newFileModal
-  , newFolderModal = newFolderModal
-  , uploadModal = uploadModal
-  , search = search
-  , sortByDropdownOn = sortByDropdownOn
-  , sortByDropdownOff = sortByDropdownOff
+  , newFile = \(NewFile path) -> Domain.newFile (Text.unpack path) & withServerError >> index
+  , newFolder = \(NewFolder path) -> Domain.newFolder (Text.unpack path) & withServerError >> index
+  , upload = \multipart -> Domain.upload multipart & withServerError >> index
+  , infoModal = pure Template.infoModal
+  , newFileModal = pure Template.newFileModal
+  , newFolderModal = pure Template.newFolderModal
+  , uploadModal = pure Template.uploadModal
+  , search = \searchWord -> Template.search searchWord <$> withServerError Domain.lsCurrentDir
+  , sortByDropdownOn = pure Template.sortByDropdownOn
+  , sortByDropdownOff = pure Template.sortByDropdownOff
+  , sortTable = \order -> view (fromMaybe ByName order)
   }
 
 
@@ -101,17 +80,6 @@ withServerError action = do
   runErrorNoCallStack @String action >>= \case
     Left err -> throwError err500 { errBody = fromString  err }
     Right res -> pure res
-
-
-cd
-  :: ( Reader Env :> es
-     , Error ServerError :> es
-     , IOE :> es
-     , FileSystem :> es)
-  => Maybe FilePath -> Eff es (Html ())
-cd path = do
-  withServerError $ Domain.changeDir (fromMaybe "/" path)
-  view
 
 
 dirs
@@ -141,510 +109,21 @@ dirs (Just path) = do
     fileL = Domain.dirtree . filtered (\s -> s.path == path)
 
 
-newFile
-  :: ( Reader Env :> es
-     , Error ServerError :> es
-     , IOE :> es
-     , FileSystem :> es
-     )
-  => NewFile -> Eff es (Html ())
-newFile (NewFile path) = do
-  withServerError $ Domain.newFile (Text.unpack path)
-  index
+index :: (Reader Env :> es, Error ServerError :> es, FileSystem :> es, IOE :> es) => Eff es (Html ())
+index = Template.index <$> view ByName <*> tree
 
 
-newFolder
-  :: ( Reader Env :> es
-     , Error ServerError :> es
-     , IOE :> es
-     , FileSystem :> es
-     )
-  => NewFolder -> Eff es (Html ())
-newFolder (NewFolder path) = do
-  withServerError $ Domain.newFolder (Text.unpack path)
-  index
+view :: (Error ServerError :> es, FileSystem :> es, Reader Env :> es, IOE :> es) => SortFileBy -> Eff es (Html ())
+view byOrder = Template.view <$> table <*> pathBreadcrumb
+  where table = Template.table <$> (sortFiles byOrder <$> withServerError Domain.lsCurrentDir)
 
 
-upload
-  :: ( Reader Env :> es
-     , Error ServerError :> es
-     , IOE :> es
-     , FileSystem :> es
-     )
-  => MultipartData Mem -> Eff es (Html ())
-upload multipart = do
-  forM_ multipart.files $ \file -> do
-    let name = Text.unpack file.fdFileName
-    let content = file.fdPayload
-    withServerError $ Domain.writeFile name content
-  index
-
-
-infoModal :: Eff es (Html ())
-infoModal = pure do
-  modal [ id_ componentIds.newFileModal ] do
-    "Storage"
-
-
-search
-  :: ( Error ServerError :> es
-     , FileSystem :> es
-     , Reader Env :> es
-     , IOE :> es
-     )
-  => SearchWord -> Eff es (Html ())
-search (SearchWord searchWord) = do
-  files <- withServerError Domain.lsCurrentDir
-  let matched = files <&> Text.pack . (.path) & simpleFilter searchWord
-  let isMatched file = Text.pack file.path `elem` matched
-  let filteredFiles = files ^.. each . filtered isMatched
-  pure $ table filteredFiles
-
-
-------------------------------------
--- index
-------------------------------------
-
-
-index
-  :: ( Reader Env :> es
-     , Error ServerError :> es
-     , FileSystem :> es
-     , IOE :> es )
-  => Eff es (Html ())
-index = do
-  controlPanel' <- controlPanel
-  view' <- view
-  tree' <- tree
-  pure do
-    withDefault do
-      div_ [ class_ "filehub " ] do
-        controlPanel'
-        tree'
-        view'
-
-
-controlPanel :: Eff es (Html ())
-controlPanel = do
-  pure $ do
-    div_ [ id_ elementId ] do
-      newFolderBtn
-      newFileBtn
-      uploadBtn
-      sortByBtn
-      viewTypeBtn
-      infoBtn
+pathBreadcrumb :: (Reader Env :> es, IOE :> es) => Eff es (Html ())
+pathBreadcrumb = Template.pathBreadcrumb <$>  currentDir <*> root
   where
-    elementId = componentIds.controlPanel
+    currentDir = asks @Env (.currentDir) >>= readIORef
+    root = asks @Env (.root)
 
 
-newFolderBtn :: Html ()
-newFolderBtn =
-  button_ [ class_ "btn btn-control"
-          , type_ "submit"
-          , term "hx-get" "/modal/new-folder"
-          , term "hx-target" "body"
-          , term "hx-swap" "beforeend"
-          ] "New Folder"
-
-
-newFileBtn :: Html ()
-newFileBtn  =
-  button_ [ class_ "btn btn-control"
-          , type_ "submit"
-          , term "hx-get" "/modal/new-file"
-          , term "hx-target" "body"
-          , term "hx-swap" "beforeend"
-          ] "New File"
-
-
-uploadBtn :: Html ()
-uploadBtn = do
-  button_ [ class_ "btn btn-control"
-          , type_ "submit"
-          , term "hx-get" "/modal/upload"
-          , term "hx-target" "body"
-          , term "hx-swap" "beforeend"
-          ] "Upload"
-
-
-sortByBtn :: Html ()
-sortByBtn = do
-  button_ [ class_ "btn btn-control"
-          , type_ "submit"
-          , term "hx-get" "/dropdown/sortby/on"
-          , term "hx-swap" "outerHTML"
-          ] "Sort By"
-
-
-sortByDropdownOn :: Eff es (Html ())
-sortByDropdownOn = pure do
-  button_ [ class_ "btn btn-control"
-          , id_ "sortby-btn-with-dropdown"
-          , type_ "submit"
-          , term "_" "on click trigger closeDropdown on the next .dropdown"
-          ] "Sort By"
-
-  dropdown [ id_ componentIds.sortByDropdown
-           , term "hx-get" "/dropdown/sortby/off"
-           , term "hx-swap" "outerHTML"
-           , term "hx-target" "#sortby-btn-with-dropdown"
-           ] do
-    dropdownItem $ span_
-      [ term "_"
-          [iii|
-            on click
-            trigger closeDropdown
-          |]
-      ] "Name"
-    dropdownItem $ span_
-      [ term "_"
-          [iii|
-            on click
-            trigger closeDropdown
-          |]
-      ] "Size"
-    dropdownItem $ span_
-      [ term "_"
-          [iii|
-            on click
-            trigger closeDropdown
-          |]
-      ] "Modified"
-
-
-dropdownItem :: Html () -> Html ()
-dropdownItem body = div_ [ class_ "dropdown-item" ] body
-
-
-sortByDropdownOff :: Eff es (Html ())
-sortByDropdownOff = pure sortByBtn
-
-
-viewTypeBtn :: Html ()
-viewTypeBtn = button_ [class_ "btn btn-control", type_ "submit"] "view"
-
-
-infoBtn :: Html ()
-infoBtn =
-  button_ [ class_ "btn btn-control"
-          , type_ "submit"
-          , term "hx-get" "/modal/info"
-          , term "hx-target" "body"
-          , term "hx-swap" "beforeend"
-          ] "info"
-
-
-view
-  :: ( Error ServerError :> es
-     , FileSystem :> es
-     , Reader Env :> es
-     , IOE :> es
-     )
-  => Eff es (Html ())
-view = do
-  files <- withServerError Domain.lsCurrentDir
-  let table' = table files
-  pathBreadcrumb' <- pathBreadcrumb
-  pure do
-    div_ [ id_ componentIds.view ] do
-      div_ [ id_ "tool-bar" ] do
-        pathBreadcrumb'
-        searchBar
-      table'
-
-
-pathBreadcrumb
-  :: ( Reader Env :> es
-     , IOE :> es
-     )
-  => Eff es (Html ())
-pathBreadcrumb = do
-  currentDir <- asks @Env (.currentDir) >>= readIORef
-  root <- asks @Env (.root)
-  let afterRoot path = length (splitPath path) >= length (splitPath root)
-      breadcrumbItems =
-        currentDir
-        & splitPath
-        & scanl1 (++)
-        & (\xs -> if null xs then ["/"] else xs)
-        & filter afterRoot
-        & fmap toAttrsTuple
-        & Seq.fromList
-        & adjustLast (addAttr " active")
-        & fmap toLi
-        & sequence_
-  pure do
-    div_ [ class_ "breadcrumb", id_ componentIds.pathBreadcrumb ] do
-      ol_ breadcrumbItems
-  where
-    adjustLast f xs = Seq.adjust f (length xs - 1) xs
-
-    toAttrsTuple p = (attrs, p)
-      where
-        attrs =
-          [ term "hx-get" ("/cd?dir=" <> Text.pack p)
-          , term "hx-target" ("#" <> componentIds.view)
-          , term "hx-swap" "outerHTML"
-          ]
-
-    addAttr a = first (class_ a :)
-
-    toLi :: ([Attribute], FilePath) -> Html ()
-    toLi (attrs, p) = li_ attrs . toHtml . pathShow $ p
-
-    pathShow p =
-      case Seq.fromList (splitPath p) of
-        "/" :<| Seq.Empty  -> "Files"
-        _ :|> l ->
-          case Seq.fromList l of
-            xs :|> '/' -> toList xs
-            xs -> toList xs
-        _ -> ""
-
-
-table :: [File] -> Html ()
-table files = do
-  table_ [ id_ componentIds.table ] do
-    thead_ do
-      tr_ do
-        th_ [ id_ "table-name" ] "Name"
-        th_ [ id_ "table-modified" ] "Modified"
-        th_ [ id_ "table-size" ] "Size"
-    tbody_ $ do
-      traverse_
-        (\file@(File { size = size, mtime = mtime }) -> do
-          tr_ do
-            td_
-              (fileNameElement file)
-            td_ (toHtml $ formatTime defaultTimeLocale "%F %R" mtime)
-            td_ (toHtml . show $ size))
-        files
-  where
-    fileNameElement :: File -> Html ()
-    fileNameElement file = do
-      span_ [ class_ "file-name" ] do
-        icon
-        span_ attrs do
-          toHtml . takeFileName $ file.path
-      where
-        icon =
-          case file.content of
-            Dir _ -> i_ [ class_ "bx bxs-folder"] mempty
-            Content _ -> i_ [ class_ "bx bxs-file-blank"] mempty
-        cdAttrs =
-          [ class_ "breadcrumb-item "
-          , term "hx-get" ("/cd?dir=" <> Text.pack file.path)
-          , term "hx-target" ("#" <> componentIds.view)
-          , term "hx-swap" "outerHTML"
-          ]
-        otherAttrs =
-          case file.content of
-            Dir _ -> [ class_ "dir " ]
-            _ -> []
-        attrs = mconcat [ cdAttrs, otherAttrs ]
-
-
-searchBar :: Html ()
-searchBar = do
-  div_ [ id_ componentIds.searchBar ] do
-    input_ [ class_ "form-control "
-           , type_ "search"
-           , name_ "search"
-           , placeholder_ "Search as you type"
-           , term "hx-post" "/search"
-           , term "hx-trigger" "input changed delay:200ms, search"
-           , term "hx-target" "#table"
-           , term "hx-swap" "outerHTML"
-           , term "hx-indicator" ".htmx-indicator"
-           ]
-
-tree
-  :: ( Reader Env :> es
-     , IOE :> es
-     )
-  => Eff es (Html ())
-tree = do
-  root <- asks @Env (.rootTree) >>= readIORef
-  pure do
-    ul_ [ id_ elementId ] $ renderFile 0 root
-  where
-    elementId = componentIds.tree
-
-    cdAttrs p =
-      [ term "hx-get" ("/cd?dir=" <> Text.pack p)
-      , term "hx-target" ("#" <> componentIds.view)
-      , term "hx-swap" "outerHTML"
-      ]
-
-    treeFoldAttrs p =
-      [ term "hx-get" ("/dirs?path=" <> Text.pack p)
-      , term "hx-swap" "outerHTML"
-      , term "hx-target" ("#" <> elementId)
-      ]
-
-    indent n = term "indent" (Text.pack . show $ n)
-
-    renderFile :: Int -> File -> Html ()
-    renderFile n file = do
-      let path = file.path
-      let name = toHtml . takeFileName $ path
-      case file.content of
-        Content _ -> do
-          li_ [ class_ "dirtree-entry file-name", indent n ] name
-
-        Dir Nothing -> do
-          let icon = i_ [ class_ "bx bx-caret-right"] mempty
-          li_ [ class_ "dirtree-entry dir file-name", indent n ] do
-            span_ (treeFoldAttrs path) icon
-            span_ (cdAttrs path) name
-
-        Dir (Just files) -> do
-          let icon = i_ [ class_ "bx bx-caret-down"] mempty
-          li_ [ class_ "dirtree-entry dir file-name", indent n ] do
-            span_ (treeFoldAttrs path) icon
-            span_ (cdAttrs path) name
-          traverse_ (renderFile (n + 1)) files
-
-
-newFileModal :: Eff es (Html ())
-newFileModal = pure do
-  modal [ id_ componentIds.newFileModal ] do
-    "File"
-    br_ mempty >> br_ mempty
-    input_ [ class_ "form-control "
-           , type_ "text"
-           , name_ "new-file"
-           , placeholder_ "Search as you type"
-           , term "hx-put" "/files/new"
-           ]
-    br_ mempty >> br_ mempty
-    button_ [ class_ "btn btn-modal-confirm mr-2"
-            , term "_" "on click trigger closeModal"
-            ] "CREATE"
-
-    button_ [ class_ "btn btn-modal-close"
-            , term "_" "on click trigger closeModal"
-            ] "CLOSE"
-
-
-newFolderModal :: Eff es (Html ())
-newFolderModal = pure do
-  modal [ id_ componentIds.newFolderModal ] do
-    "Folder"
-    br_ mempty >> br_ mempty
-    input_ [ class_ "form-control "
-           , type_ "text"
-           , name_ "new-folder"
-           , placeholder_ "Search as you type"
-           , term "hx-put" "/folders/new"
-           ]
-    br_ mempty >> br_ mempty
-    button_ [ class_ "btn btn-modal-confirm mr-2"
-            , term "_" "on click trigger closeModal"
-            ] "CREATE"
-
-    button_ [ class_ "btn btn-modal-close"
-            , term "_" "on click trigger closeModal"
-            ] "CLOSE"
-
-
-uploadModal :: Eff es (Html ())
-uploadModal = pure do
-  modal [ id_ componentIds.updateModal ] do
-    "Upload"
-    br_ mempty >> br_ mempty
-    form_ [ term "hx-encoding" "multipart/form-data"
-          , term "hx-post" "/upload"
-          , term "_" "on htmx:xhr:progress(loaded, total) set #progress.value to (loaded/total)*100"
-          ] do
-      input_ [ class_ "btn btn-control"
-             , type_ "file"
-             , name_ "file"
-             ]
-
-      br_ mempty >> br_ mempty
-
-      button_ [ class_ "btn btn-modal-confirm mr-2"
-              , term "_" "on click trigger closeModal"
-              ] "UPLOAD"
-
-      button_ [ class_ "btn btn-modal-close"
-              , term "_" "on click trigger closeModal"
-              ] "CLOSE"
-
-
-
-modal :: [Attribute] -> Html () -> Html ()
-modal attrs body = do
-  div_ ([ class_ "modal ", closeModalScript ] <> attrs) do
-    div_ [ class_ "modal-underlay"
-         , term "_" "on click trigger closeModal"
-         ] mempty
-    div_ [ class_ "modal-content" ] do
-      body
-  where
-    closeModalScript = term "_"
-      [iii|
-        on closeModal
-        add .closing
-        then wait for animationend
-        then remove me
-      |]
-
-
-dropdown :: [Attribute] -> Html () -> Html ()
-dropdown attrs body = do
-  div_ [ class_ "dropdown-wrapper" ] do
-    div_ [ class_ "dropdown-underlay"
-         , term "_" "on click trigger closeDropdown on the next .dropdown"
-         ] mempty
-    div_ ([ class_ "dropdown", closeDropdownScript
-          , term "hx-trigger" "epilogue"
-          ] <> attrs) do
-      div_ [ class_ "dropdown-content "
-           ] body
-  where
-    closeDropdownScript = term "_"
-      [iii|
-        on closeDropdown
-        trigger epilogue
-        then add .closing
-        then wait for animationend
-        then remove the closest .dropdown-wrapper
-      |]
-
-
-------------------------------------
--- index
-------------------------------------
-
-
-data ComponentIds = ComponentIds
-  { tree :: Text
-  , view :: Text
-  , controlPanel :: Text
-  , searchBar :: Text
-  , pathBreadcrumb :: Text
-  , table :: Text
-  , newFileModal :: Text
-  , newFolderModal :: Text
-  , updateModal :: Text
-  , sortByDropdown :: Text
-  }
-  deriving Show
-
-
-componentIds :: ComponentIds
-componentIds = ComponentIds
-  { tree = "tree"
-  , view = "view"
-  , controlPanel = "control-panel"
-  , searchBar = "search-bar"
-  , pathBreadcrumb = "path-breadcrumb"
-  , table = "table"
-  , newFileModal = "new-file-modal"
-  , newFolderModal = "new-folder-modal"
-  , updateModal = "update-modal"
-  , sortByDropdown = "sortby-dropdown"
-  }
+tree :: (Reader Env :> es, IOE :> es) => Eff es (Html ())
+tree = Template.tree <$> (asks @Env (.rootTree) >>= readIORef)
