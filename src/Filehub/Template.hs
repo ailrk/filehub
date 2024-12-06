@@ -4,9 +4,12 @@ module Filehub.Template where
 
 import Lucid
 import Lens.Micro
+import Lens.Micro.Platform ()
 import System.FilePath (splitPath, takeFileName)
 import Data.Text (Text)
 import Data.Text qualified as Text
+import Data.Text.Lazy.Encoding qualified as LText
+import Data.ByteString.Lazy qualified as LBS
 import Data.String.Interpolate (iii)
 import Data.Foldable (traverse_, Foldable (..))
 import Data.Time.Format (formatTime, defaultTimeLocale)
@@ -14,8 +17,11 @@ import Data.Sequence qualified as Seq
 import Data.Sequence (Seq(..))
 import Data.Bifunctor (Bifunctor(..))
 import Text.Fuzzy (simpleFilter)
-import Filehub.Domain (File (..), FileContent (..), SearchWord (..), SortFileBy (..), sortFiles)
+import Filehub.Domain (File (..), FileContent (..), SearchWord (..), SortFileBy (..), sortFiles, ClientPath (..))
 import Servant (ToHttpApiData(..))
+import Filehub.Domain qualified as Domain
+import Data.Aeson qualified as Aeson
+import Data.Aeson ((.=))
 
 
 ------------------------------------
@@ -28,7 +34,7 @@ index :: Html ()
       -> Html ()
 index view' tree' = do
   withDefault do
-    div_ [ class_ "filehub " ] do
+    div_ [ id_ "index" ] do
       controlPanel
       tree'
       view'
@@ -41,7 +47,6 @@ controlPanel = do
       newFileBtn
       uploadBtn
       sortByBtn
-      viewTypeBtn
       infoBtn
   where
     elementId = componentIds.controlPanel
@@ -78,7 +83,7 @@ pathBreadcrumb currentDir root = do
     toAttrsTuple p = (attrs, p)
       where
         attrs =
-          [ term "hx-get" ("/cd?dir=" <> Text.pack p)
+          [ term "hx-get" ("/cd?dir=" <> toClientPath root p)
           , term "hx-target" ("#" <> componentIds.view)
           , term "hx-swap" "outerHTML"
           ]
@@ -98,7 +103,6 @@ pathBreadcrumb currentDir root = do
         _ -> ""
 
 
-
 tree :: File -> Html ()
 tree root = do
   ul_ [ id_ elementId ] $ renderFile 0 root
@@ -106,13 +110,13 @@ tree root = do
     elementId = componentIds.tree
 
     cdAttrs p =
-      [ term "hx-get" ("/cd?dir=" <> Text.pack p)
+      [ term "hx-get" ("/cd?dir=" <> toClientPath root.path p)
       , term "hx-target" ("#" <> componentIds.view)
       , term "hx-swap" "outerHTML"
       ]
 
     treeFoldAttrs p =
-      [ term "hx-get" ("/dirs?path=" <> Text.pack p)
+      [ term "hx-get" ("/dirs?path=" <> toClientPath root.path p)
       , term "hx-swap" "outerHTML"
       , term "hx-target" ("#" <> elementId)
       ]
@@ -124,7 +128,7 @@ tree root = do
       let path = file.path
       let name = toHtml . takeFileName $ path
       case file.content of
-        Content _ -> do
+        Content -> do
           li_ [ class_ "dirtree-entry file-name", indent n ] name
 
         Dir Nothing -> do
@@ -148,12 +152,15 @@ tree root = do
 
 newFolderBtn :: Html ()
 newFolderBtn =
-  button_ [ class_ "btn btn-control"
+  button_ [ class_ "btn btn-control "
           , type_ "submit"
           , term "hx-get" "/modal/new-folder"
           , term "hx-target" "body"
           , term "hx-swap" "beforeend"
-          ] "New Folder"
+          ] do
+    span_ [ class_ "field " ] do
+      i_ [ class_ "bx bx-folder-plus" ] mempty
+      "New Folder"
 
 
 newFileBtn :: Html ()
@@ -163,7 +170,10 @@ newFileBtn  =
           , term "hx-get" "/modal/new-file"
           , term "hx-target" "body"
           , term "hx-swap" "beforeend"
-          ] "New File"
+          ] do
+    span_ [ class_ "field " ] do
+      i_ [ class_ "bx bxs-file-plus" ] mempty
+      "New File"
 
 
 uploadBtn :: Html ()
@@ -173,7 +183,10 @@ uploadBtn = do
           , term "hx-get" "/modal/upload"
           , term "hx-target" "body"
           , term "hx-swap" "beforeend"
-          ] "Upload"
+          ] do
+    span_ [ class_ "field " ] do
+      i_ [ class_ "bx bx-upload" ] mempty
+      "Upload"
 
 
 sortByBtn :: Html ()
@@ -182,7 +195,11 @@ sortByBtn = do
           , type_ "submit"
           , term "hx-get" "/dropdown/sortby/on"
           , term "hx-swap" "outerHTML"
-          ] "Sort By"
+          ] do
+    span_ [ class_ "field " ] do
+      i_ [ class_ "bx bx-sort" ] mempty
+      "Sort"
+
 
 
 sortByDropdownOn :: Html ()
@@ -191,28 +208,23 @@ sortByDropdownOn = do
           , id_ "sortby-btn-with-dropdown"
           , type_ "submit"
           , term "_" "on click trigger closeDropdown on the next .dropdown"
-          ] "Sort By"
+          ] do
+    span_ [ class_ "field " ] do
+      i_ [ class_ "bx bx-sort" ] mempty
+      "Sort"
+
   dropdown [ id_ componentIds.sortByDropdown
            , term "hx-get" "/dropdown/sortby/off"
            , term "hx-swap" "outerHTML"
            , term "hx-target" "#sortby-btn-with-dropdown"
            ] do
-
     dropdownItem $ span_ [ term "hx-get" ("/table/sort?by=" <> toUrlPiece ByName), term "hx-swap" "outerHTML", term "hx-target" "#view" ] "Name"
     dropdownItem $ span_ [ term "hx-get" ("/table/sort?by=" <> toUrlPiece ByModified), term "hx-swap" "outerHTML", term "hx-target" "#view" ] "Modified"
     dropdownItem $ span_ [ term "hx-get" ("/table/sort?by=" <> toUrlPiece BySize), term "hx-swap" "outerHTML", term "hx-target" "#view" ]"Size"
 
 
-dropdownItem :: Html () -> Html ()
-dropdownItem body = div_ [ class_ "dropdown-item" ] body
-
-
 sortByDropdownOff :: Html ()
 sortByDropdownOff = sortByBtn
-
-
-viewTypeBtn :: Html ()
-viewTypeBtn = button_ [class_ "btn btn-control", type_ "submit"] "view"
 
 
 infoBtn :: Html ()
@@ -222,7 +234,53 @@ infoBtn =
           , term "hx-get" "/modal/info"
           , term "hx-target" "body"
           , term "hx-swap" "beforeend"
-          ] "info"
+          ] do
+    span_ [ class_ "field " ] do
+      i_ [ class_ "bx bxs-info-circle" ] mempty
+      "Info"
+
+
+
+contextMenu :: ClientPath -> Html ()
+contextMenu (ClientPath clientPath) = do
+  dropdown [ class_ "file-contextmenu " ] do
+    dropdownItem do
+      span_ [ term "hx-get" ("/modal/editor?file=" <> Text.pack clientPath)
+            , term "hx-target" "body"
+            , term "hx-swap" "beforeend"
+            ]
+            "Open"
+
+
+    dropdownItem do
+      span_ [ term "hx-get" ("/table/sort?by=" <> toUrlPiece ByModified)
+            , term "hx-swap" "outerHTML"
+            , term "hx-target" "#view"
+            ]
+            "Rename"
+
+    dropdownItem do
+      span_ [ term "hx-delete" "/files/delete"
+            , term "hx-swap" "outerHTML"
+            , term "hx-encoding""application/x-www-form-urlencoded"
+            , term "hx-target" "#index"
+            , term "hx-vals" $ ([ "file" .= Text.pack clientPath ]
+                                & Aeson.object
+                                & Aeson.encode
+                                & LText.decodeUtf8
+                               ) ^. strict
+            , name_ "delete-file"
+            ]
+            "Delete"
+
+    dropdownItem $ a_ [ href_ ("/download?file=" <> Text.pack clientPath ) ] "Download"
+
+    dropdownItem do
+      span_ [ term "hx-get" ("/table/sort?by=" <> toUrlPiece ByName)
+            , term "hx-swap" "outerHTML"
+            , term "hx-target" "#view"
+            ]
+            "Details"
 
 
 ------------------------------------
@@ -230,12 +288,12 @@ infoBtn =
 ------------------------------------
 
 
-search :: SearchWord -> [File] -> Html ()
-search (SearchWord searchWord) files = do
+search :: SearchWord -> FilePath -> [File] -> Html ()
+search (SearchWord searchWord) root files = do
   let matched = files <&> Text.pack . (.path) & simpleFilter searchWord
   let isMatched file = Text.pack file.path `elem` matched
   let filteredFiles = files ^.. each . filtered isMatched
-  table (sortFiles ByName filteredFiles)
+  table root (sortFiles ByName filteredFiles)
 
 
 
@@ -273,15 +331,15 @@ newFileModal = do
     input_ [ class_ "form-control "
            , type_ "text"
            , name_ "new-file"
-           , placeholder_ "Search as you type"
-           , term "hx-put" "/files/new"
+           , placeholder_ "New file name"
+           , term "hx-post" "/files/new"
            ]
     br_ mempty >> br_ mempty
-    button_ [ class_ "btn btn-modal-confirm mr-2"
+    button_ [ class_ "btn btn-modal-confirm mr-2 "
             , term "_" "on click trigger closeModal"
             ] "CREATE"
 
-    button_ [ class_ "btn btn-modal-close"
+    button_ [ class_ "btn btn-modal-close "
             , term "_" "on click trigger closeModal"
             ] "CLOSE"
 
@@ -294,15 +352,15 @@ newFolderModal = do
     input_ [ class_ "form-control "
            , type_ "text"
            , name_ "new-folder"
-           , placeholder_ "Search as you type"
-           , term "hx-put" "/folders/new"
+           , placeholder_ "New folder name"
+           , term "hx-post" "/folders/new"
            ]
     br_ mempty >> br_ mempty
-    button_ [ class_ "btn btn-modal-confirm mr-2"
+    button_ [ class_ "btn btn-modal-confirm mr-2 "
             , term "_" "on click trigger closeModal"
             ] "CREATE"
 
-    button_ [ class_ "btn btn-modal-close"
+    button_ [ class_ "btn btn-modal-close "
             , term "_" "on click trigger closeModal"
             ] "CLOSE"
 
@@ -314,20 +372,58 @@ uploadModal = do
     br_ mempty >> br_ mempty
     form_ [ term "hx-encoding" "multipart/form-data"
           , term "hx-post" "/upload"
-          , term "_" "on htmx:xhr:progress(loaded, total) set #progress.value to (loaded/total)*100"
           ] do
-      input_ [ class_ "btn btn-control"
+      input_ [ class_ "btn btn-control "
              , type_ "file"
              , name_ "file"
              ]
 
       br_ mempty >> br_ mempty
 
-      button_ [ class_ "btn btn-modal-confirm mr-2"
+      button_ [ class_ "btn btn-modal-confirm mr-2 "
               , term "_" "on click trigger closeModal"
               ] "UPLOAD"
 
-      button_ [ class_ "btn btn-modal-close"
+      button_ [ class_ "btn btn-modal-close "
+              , term "_" "on click trigger closeModal"
+              ] "CLOSE"
+
+
+
+editorModal :: FilePath -> LBS.ByteString -> Html ()
+editorModal filename content = do
+
+  modal [ id_ componentIds.editorModal ] do
+    "Edit"
+
+    br_ mempty >> br_ mempty
+
+    form_ [ term "hx-put" "/files/update"
+          ] do
+      input_ [ class_ "form-control "
+             , type_ "text"
+             , name_ "path"
+             , value_ (Text.pack filename)
+             , placeholder_ "Filename"
+             ]
+
+      br_ mempty >> br_ mempty
+
+      textarea_
+        [ class_ "form-control "
+        , type_ "text"
+        , name_ "content"
+        , placeholder_ "Empty File"
+        ]
+        (toHtml $ LText.decodeUtf8 content)
+
+      br_ mempty >> br_ mempty
+
+      button_ [ class_ "btn btn-modal-confirm mr-2 "
+              , term "_" "on click trigger closeModal"
+              ] "UPLOAD"
+
+      button_ [ class_ "btn btn-modal-close "
               , term "_" "on click trigger closeModal"
               ] "CLOSE"
 
@@ -356,10 +452,10 @@ withDefault html = do
 modal :: [Attribute] -> Html () -> Html ()
 modal attrs body = do
   div_ ([ class_ "modal ", closeModalScript ] <> attrs) do
-    div_ [ class_ "modal-underlay"
+    div_ [ class_ "modal-underlay "
          , term "_" "on click trigger closeModal"
          ] mempty
-    div_ [ class_ "modal-content" ] do
+    div_ [ class_ "modal-content " ] do
       body
   where
     closeModalScript = term "_"
@@ -371,17 +467,17 @@ modal attrs body = do
       |]
 
 
+-- | Dropdown's underlay and content are sibiling so we can have the underlay
+--   cover the entire page while has the content being positioned relative to the parent.
 dropdown :: [Attribute] -> Html () -> Html ()
 dropdown attrs body = do
-  div_ [ class_ "dropdown-wrapper" ] do
-    div_ [ class_ "dropdown-underlay"
-         , term "_" "on click trigger closeDropdown on the next .dropdown"
-         ] mempty
-    div_ ([ class_ "dropdown", closeDropdownScript
-          , term "hx-trigger" "epilogue"
-          ] <> attrs) do
-      div_ [ class_ "dropdown-content "
-           ] body
+  div_ [ class_ "dropdown-underlay "
+       , term "_" "on click trigger closeDropdown on the next .dropdown"
+       ] mempty
+  div_ ([ class_ "dropdown ", closeDropdownScript
+        , term "hx-trigger" "epilogue"
+        ] <> attrs) do
+    div_ [ class_ "dropdown-content " ] body
   where
     closeDropdownScript = term "_"
       [iii|
@@ -389,8 +485,13 @@ dropdown attrs body = do
         trigger epilogue
         then add .closing
         then wait for animationend
-        then remove the closest .dropdown-wrapper
+        then remove the previous .dropdown-underlay
+        then remove me
       |]
+
+
+dropdownItem :: Html () -> Html ()
+dropdownItem body = div_ [ class_ "dropdown-item " ] body
 
 
 ------------------------------------
@@ -398,8 +499,8 @@ dropdown attrs body = do
 ------------------------------------
 
 
-table :: [File] -> Html ()
-table files = do
+table :: FilePath -> [File] -> Html ()
+table root files = do
   table_ [ id_ componentIds.table ] do
     thead_ do
       tr_ do
@@ -408,36 +509,64 @@ table files = do
         th_ [ id_ "table-size" ] "Size"
     tbody_ $ do
       traverse_
-        (\file@(File { size = size, mtime = mtime }) -> do
-          tr_ do
-            td_
-              (fileNameElement file)
-            td_ (toHtml $ formatTime defaultTimeLocale "%F %R" mtime)
-            td_ (toHtml . show $ size))
+        (\file -> do
+          tr_  do
+            td_ $ fileNameElement file
+            td_ $ modifiedDateElement file
+            td_ $ sizeElement file)
         files
   where
+    contextMenuTrigger file =
+      [ term "_"
+          [iii|
+            on contextmenu
+            halt the event
+            then trigger filhubContextmenu
+          |]
+       , term "hx-get" ("/contextmenu/file?path=" <> toClientPath root file.path)
+       , term "hx-swap" "afterend"
+       , term "hx-trigger" "filhubContextmenu"
+       ]
+
+    sizeElement :: File -> Html ()
+    sizeElement file =
+      span_ (toHtml . show $ file.size)
+        `with` [ class_ "field "]
+        `with` contextMenuTrigger file
+
+    modifiedDateElement :: File -> Html ()
+    modifiedDateElement file =
+      span_ (toHtml $ formatTime defaultTimeLocale "%F %R" file.mtime)
+        `with` [ class_ "field "]
+        `with` contextMenuTrigger file
+
     fileNameElement :: File -> Html ()
     fileNameElement file = do
-      span_ [ class_ "file-name" ] do
-        icon
-        span_ attrs do
-          toHtml . takeFileName $ file.path
+      span_ (icon >> name)
+        `with` [ class_ "field " ]
+        `with` contextMenuTrigger file
       where
+        name = span_ (mconcat [ cdAttrs, otherAttrs ]) (toHtml . takeFileName $ file.path)
+
         icon =
           case file.content of
-            Dir _ -> i_ [ class_ "bx bxs-folder"] mempty
-            Content _ -> i_ [ class_ "bx bxs-file-blank"] mempty
+            Dir _ -> i_ [ class_ "bx bxs-folder "] mempty
+            Content -> i_ [ class_ "bx bxs-file-blank "] mempty
         cdAttrs =
-          [ class_ "breadcrumb-item "
-          , term "hx-get" ("/cd?dir=" <> Text.pack file.path)
-          , term "hx-target" ("#" <> componentIds.view)
-          , term "hx-swap" "outerHTML"
-          ]
+          mconcat
+            [ case file.content of
+                Dir _ ->
+                  [ term "hx-get" ("/cd?dir=" <> toClientPath root file.path)
+                  , term "hx-target" ("#" <> componentIds.view)
+                  , term "hx-swap" "outerHTML"
+                  ]
+                Content -> mempty
+            ]
         otherAttrs =
           case file.content of
             Dir _ -> [ class_ "dir " ]
             _ -> []
-        attrs = mconcat [ cdAttrs, otherAttrs ]
+
 
 
 
@@ -457,6 +586,7 @@ data ComponentIds = ComponentIds
   , newFolderModal :: Text
   , updateModal :: Text
   , sortByDropdown :: Text
+  , editorModal :: Text
   }
   deriving Show
 
@@ -473,4 +603,14 @@ componentIds = ComponentIds
   , newFolderModal = "new-folder-modal"
   , updateModal = "update-modal"
   , sortByDropdown = "sortby-dropdown"
+  , editorModal = "editor-modal"
   }
+
+
+------------------------------------
+-- helpers
+------------------------------------
+
+
+toClientPath :: FilePath -> FilePath -> Text
+toClientPath root p = Text.pack . (.unClientPath) $ Domain.toClientPath root p

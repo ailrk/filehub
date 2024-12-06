@@ -1,11 +1,10 @@
-{ mkDerivation, aeson, async, aws, base, bytestring, clay, conduit
-, containers, directory, effectful, effectful-th, envparse
-, filepath, fuzzy, generic-lens, http-api-data, http-conduit
-, http-types, lib, log-base, log-effectful, lucid, microlens
-, modern-uri, optparse-applicative, pandoc, pretty-simple
-, resourcet-effectful, servant, servant-client, servant-lucid
-, servant-multipart, servant-server, string-interpolate, text, time
-, transformers, unliftio, wai, wai-app-static, wai-extra, warp
+{ mkDerivation, aeson, async, base, bytestring, clay, containers
+, directory, effectful, filepath, fuzzy, generic-lens
+, http-api-data, lib, log-base, log-effectful, lucid, microlens
+, microlens-platform, modern-uri, optparse-applicative
+, servant-lucid, servant-multipart, servant-server
+, string-interpolate, text, time, transformers, unliftio, wai-extra
+, warp, zip-archive
 }:
 mkDerivation {
   pname = "filehub";
@@ -15,13 +14,11 @@ mkDerivation {
   isExecutable = true;
   enableSeparateDataOutput = true;
   executableHaskellDepends = [
-    aeson async aws base bytestring clay conduit containers directory
-    effectful effectful-th envparse filepath fuzzy generic-lens
-    http-api-data http-conduit http-types log-base log-effectful lucid
-    microlens modern-uri optparse-applicative pandoc pretty-simple
-    resourcet-effectful servant servant-client servant-lucid
-    servant-multipart servant-server string-interpolate text time
-    transformers unliftio wai wai-app-static wai-extra warp
+    aeson async base bytestring clay containers directory effectful
+    filepath fuzzy generic-lens http-api-data log-base log-effectful
+    lucid microlens microlens-platform modern-uri optparse-applicative
+    servant-lucid servant-multipart servant-server string-interpolate
+    text time transformers unliftio wai-extra warp zip-archive
   ];
   license = "unknown";
   mainProgram = "filehub";

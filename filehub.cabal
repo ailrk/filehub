@@ -68,6 +68,8 @@ executable filehub
       , bytestring
       , lucid
       , microlens
+      , microlens-platform
+      , aeson
       , generic-lens
       , async
       , modern-uri
@@ -81,6 +83,7 @@ executable filehub
       , containers
       , fuzzy
       , string-interpolate
+      , zip-archive
 
     other-modules:
       Filehub.Template

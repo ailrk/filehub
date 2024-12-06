@@ -9,7 +9,7 @@ module Main where
 
 import Data.Text (Text)
 import Text.Printf (printf)
-import UnliftIO (SomeException, hFlush, stdout, catch, newIORef)
+import UnliftIO (SomeException, hFlush, stdout, catch)
 import Network.Wai.Middleware.RequestLogger (logStdout)
 import Network.Wai.Handler.Warp (setPort, defaultSettings, runSettings)
 import Servant ((:>), Get, PlainText, serveWithContextT, Context (..), NamedRoutes, Application, (:-), Raw, serveDirectoryWebApp, (:<|>) (..))
@@ -26,6 +26,7 @@ import Effectful.Error.Dynamic (runErrorNoCallStack)
 import Effectful.FileSystem (runFileSystem)
 import Paths_filehub qualified
 import Data.Functor ((<&>))
+import UnliftIO.STM (newTVarIO)
 
 
 data Api mode = Api
@@ -60,14 +61,14 @@ main :: IO ()
 main = do
   options <- parseOptions
   root <- makeAbsolute options.root
-  currentDir <- newIORef root
+  currentDir <- newTVarIO root
 
   dir <- do
     eFile <- runEff . runFileSystem . runErrorNoCallStack @String $ do
       getFile root >>= loadDirContents
     case eFile of
       Left err -> fail err
-      Right d -> newIORef d
+      Right d -> newTVarIO d
 
   dataDir <- Paths_filehub.getDataDir >>= makeAbsolute  <&> (++ "/data")
 

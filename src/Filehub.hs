@@ -16,15 +16,17 @@ import Effectful.Log (Log, runLog)
 import Effectful.Error.Dynamic (Error, runErrorNoCallStack)
 import Effectful.FileSystem (FileSystem, runFileSystem)
 import Log (defaultLogLevel)
+import Effectful.Concurrent
 
 
-type Filehub a = Eff [Reader Env, Log, Error ServerError, FileSystem, IOE] a
+type Filehub = Eff [Reader Env, Log, Error ServerError, FileSystem, Concurrent, IOE]
 
 
 runFilehub :: Env -> Filehub a -> IO (Either ServerError a)
 runFilehub env eff =
   runEff $ withStdOutLogger \logger ->
-    runFileSystem
+    runConcurrent
+  . runFileSystem
   . runErrorNoCallStack
   . runLog "main" logger defaultLogLevel
   . runReader env
@@ -37,4 +39,3 @@ toServantHandler env eff =
   . ExceptT
   . runFilehub env
   $ eff
-

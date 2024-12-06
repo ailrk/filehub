@@ -12,7 +12,7 @@ in
         '';
     };
 
-    secretFile = lib.mkOption {
+    root = lib.mkOption {
       type = lib.types.path;
       default = "";
       description = ''
