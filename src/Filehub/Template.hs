@@ -32,12 +32,10 @@ import Data.Aeson.Types (Pair)
 
 index :: Html ()
       -> Html ()
-      -> Html ()
-index view' tree' = do
+index view' = do
   withDefault do
     div_ [ id_ "index" ] do
       controlPanel
-      tree'
       view'
 
 
@@ -102,48 +100,6 @@ pathBreadcrumb currentDir root = do
             xs :|> '/' -> toList xs
             xs -> toList xs
         _ -> ""
-
-
-tree :: File -> Html ()
-tree root = do
-  ul_ [ id_ elementId ] $ renderFile 0 root
-  where
-    elementId = componentIds.tree
-
-    cdAttrs p =
-      [ term "hx-get" ("/cd?dir=" <> toClientPath root.path p)
-      , term "hx-target" ("#" <> componentIds.view)
-      , term "hx-swap" "outerHTML"
-      ]
-
-    treeFoldAttrs p =
-      [ term "hx-get" ("/dirs?path=" <> toClientPath root.path p)
-      , term "hx-swap" "outerHTML"
-      , term "hx-target" ("#" <> elementId)
-      ]
-
-    indent n = term "indent" (Text.pack . show $ n)
-
-    renderFile :: Int -> File -> Html ()
-    renderFile n file = do
-      let path = file.path
-      let name = toHtml . takeFileName $ path
-      case file.content of
-        Content -> do
-          li_ [ class_ "dirtree-entry file-name", indent n ] name
-
-        Dir Nothing -> do
-          let icon = i_ [ class_ "bx bx-caret-right"] mempty
-          li_ [ class_ "dirtree-entry dir file-name", indent n ] do
-            span_ (treeFoldAttrs path) icon
-            span_ (cdAttrs path) name
-
-        Dir (Just files) -> do
-          let icon = i_ [ class_ "bx bx-caret-down"] mempty
-          li_ [ class_ "dirtree-entry dir file-name", indent n ] do
-            span_ (treeFoldAttrs path) icon
-            span_ (cdAttrs path) name
-          traverse_ (renderFile (n + 1)) files
 
 
 ------------------------------------
@@ -602,8 +558,7 @@ table root files = do
 
 
 data ComponentIds = ComponentIds
-  { tree :: Text
-  , view :: Text
+  { view :: Text
   , controlPanel :: Text
   , searchBar :: Text
   , pathBreadcrumb :: Text
@@ -620,8 +575,7 @@ data ComponentIds = ComponentIds
 
 componentIds :: ComponentIds
 componentIds = ComponentIds
-  { tree = "tree"
-  , view = "view"
+  { view = "view"
   , controlPanel = "control-panel"
   , searchBar = "search-bar"
   , pathBreadcrumb = "path-breadcrumb"

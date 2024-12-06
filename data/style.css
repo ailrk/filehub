@@ -7,7 +7,6 @@
     --wave-red: #E46876;
     --surimi-orange: #FFA066;
 
-    --tree-width: 20%;
     --view-width: 80%;
     --content-height: 90vh;
 
@@ -27,7 +26,6 @@ body {
 
 #index {
     display: grid;
-    grid-template-columns: var(--tree-width) var(--view-width);
     grid-template-rows: auto var(--content-height);
     overflow: hidden;
     border-bottom: 1px solid var(--fuji-white); /* debug */
@@ -41,23 +39,11 @@ body {
 }
 
 
-#tree {
-    grid-column: 1 / 2;
-    overflow-x: hidden;
-    overflow-y: scroll;
-    scrollbar-width: none;
-    grid-row: 2;
-    padding: 0 1rem;
-    box-shadow: 3px 0px 0px #0000007F;
-}
-
-
 #view {
     grid-column: 2 / -1;
     grid-row: 2;
     overflow-y: scroll;
     scrollbar-width: none;
-    border-left: 1px solid var(--fuji-white);
     box-shadow: 4px 4px 8px #0000007F, -4px -4px 4px #FFFFFF0B;
 }
 
@@ -144,95 +130,6 @@ body {
 
 .breadcrumb li.active{
     color: var(--surimi-orange);
-}
-
-
-.dirtree-entry {
-    cursor: pointer;
-    padding: 0.1rem 0;
-    list-style: none;
-    display: flex;
-}
-
-
-.dirtree-entry[indent="0"] {
-    padding-left: 0px;
-}
-
-.dirtree-entry[indent="1"] {
-    padding-left: 10px;
-}
-
-.dirtree-entry[indent="2"] {
-    padding-left: 20px;
-}
-
-.dirtree-entry[indent="3"] {
-    padding-left: 30px;
-}
-
-.dirtree-entry[indent="4"] {
-    padding-left: 40px;
-}
-
-.dirtree-entry[indent="5"] {
-    padding-left: 50px;
-}
-
-.dirtree-entry[indent="6"] {
-    padding-left: 60px;
-}
-
-.dirtree-entry[indent="7"] {
-    padding-left: 70px;
-}
-
-.dirtree-entry[indent="8"] {
-    padding-left: 80px;
-}
-
-.dirtree-entry[indent="9"] {
-    padding-left: 90px;
-}
-
-.dirtree-entry[indent="10"] {
-    padding-left: 100px;
-}
-
-.dirtree-entry[indent="11"] {
-    padding-left: 110px;
-}
-
-.dirtree-entry[indent="12"] {
-    padding-left: 120px;
-}
-
-.dirtree-entry[indent="13"] {
-    padding-left: 130px;
-}
-
-.dirtree-entry[indent="14"] {
-    padding-left: 140px;
-}
-
-.dirtree-entry[indent="15"] {
-    padding-left: 150px;
-}
-
-.dirtree-entry[indent="16"] {
-    padding-left: 160px;
-}
-
-.dirtree-entry[indent="17"] {
-    padding-left: 170px;
-}
-
-.dirtree-entry[indent="18"] {
-    padding-left: 180px;
-}
-
-.dirtree-entry:hover {
-    background: var(--sumi-ink3);
 }
 
 

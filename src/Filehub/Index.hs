@@ -10,7 +10,7 @@ import Lens.Micro
 import Lens.Micro.Platform ()
 import Filehub.Template qualified as Template
 import Filehub.Env (Env(..))
-import Filehub.Domain (File(..), FileContent (..), NewFile (..), NewFolder(..), SearchWord(..), SortFileBy (..), sortFiles, ClientPath (..), UpdatedFile (..))
+import Filehub.Domain (NewFile (..), NewFolder(..), SearchWord(..), SortFileBy (..), sortFiles, ClientPath (..), UpdatedFile (..))
 import Filehub.Domain qualified as Domain
 import Effectful (Eff, (:>))
 import Effectful.Reader.Dynamic (asks)
@@ -21,14 +21,14 @@ import Data.String (IsString(..))
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.ByteString.Lazy qualified as LBS
-import Data.Maybe (fromMaybe, listToMaybe)
+import Data.Maybe (fromMaybe)
 import Servant.Multipart (Mem, MultipartForm, MultipartData(..))
 import Servant.Server.Generic (AsServerT)
 import Servant (Get, errBody, err500, (:-), ServerError (..), QueryParam, Post, Put, ReqBody, FormUrlEncoded, OctetStream, addHeader, Delete)
 import Servant qualified as S
 import Servant.HTML.Lucid (HTML)
 import Servant.Server (err400)
-import Effectful.Concurrent.STM (readTVarIO, writeTVar, atomically)
+import Effectful.Concurrent.STM (readTVarIO)
 import Text.Printf (printf)
 import Filehub (Filehub)
 
@@ -36,7 +36,6 @@ import Filehub (Filehub)
 data Api mode = Api
   { index             :: mode :- Get '[HTML] (Html ())
   , cd                :: mode :- "cd" S.:> QueryParam "dir" ClientPath S.:> Get '[HTML] (Html ())
-  , dirs              :: mode :- "dirs" S.:> QueryParam "path" ClientPath S.:> Get '[HTML] (Html ())
   , newFile           :: mode :- "files" S.:> "new" S.:> ReqBody '[FormUrlEncoded] NewFile S.:> Post '[HTML] (Html ())
   , updateFile        :: mode :- "files" S.:> "update" S.:> ReqBody '[FormUrlEncoded] UpdatedFile S.:> Put '[HTML] (Html ())
   , deleteFile        :: mode :- "files" S.:> "delete" S.:> QueryParam "file" ClientPath S.:> Delete '[HTML] (Html ())
@@ -66,8 +65,6 @@ server = Api
   , cd = \path -> do
       root <- asks @Env (.root)
       Domain.changeDir (maybe "/" (Domain.fromClientPath root) path) & withServerError >> view ByName
-
-  , dirs = dirs
 
   , newFile = \(NewFile path) -> do
       Domain.newFile (Text.unpack path) & withServerError
@@ -141,30 +138,8 @@ withServerError action = do
     Right res -> pure res
 
 
-dirs :: Maybe ClientPath -> Filehub (Html ())
-dirs Nothing = tree
-dirs (Just clientPath) = do
-  ref <- asks @Env (.rootTree)
-  root <- readTVarIO ref
-  let fileL :: Traversal' File File
-      fileL = Domain.dirtree
-            . filtered (\s -> s.path == Domain.fromClientPath root.path  clientPath)
-  case listToMaybe (root ^.. fileL) of
-    Nothing -> pure ()
-    Just f@File { content = Dir Nothing } -> do
-      f' <- withServerError $ Domain.loadDirContents f
-      let root' = root & fileL .~ f'
-      atomically $ ref `writeTVar` root'
-    Just f@File { content = Dir (Just _)} -> do
-      let f' = f & #content .~ Dir Nothing
-      let root' = root & fileL .~ f'
-      atomically $ ref `writeTVar` root'
-    _ -> pure ()
-  tree
-
-
 index :: Filehub (Html ())
-index = Template.index <$> view ByName <*> tree
+index = Template.index <$> view ByName
 
 
 view :: SortFileBy -> Filehub (Html ())
@@ -177,7 +152,3 @@ pathBreadcrumb = Template.pathBreadcrumb <$>  currentDir <*> root
   where
     currentDir = asks @Env (.currentDir) >>= readTVarIO
     root = asks @Env (.root)
-
-
-tree :: Filehub (Html ())
-tree = Template.tree <$> (asks @Env (.rootTree) >>= readTVarIO)
