@@ -31,7 +31,6 @@ import Servant.Server (err400)
 import Effectful.Concurrent.STM (readTVarIO, writeTVar, atomically)
 import Text.Printf (printf)
 import Filehub (Filehub)
-import Debug.Trace
 
 
 data Api mode = Api
@@ -45,6 +44,7 @@ data Api mode = Api
   , infoModal         :: mode :- "modal" S.:> "info" S.:> Get '[HTML] (Html ())
   , newFileModal      :: mode :- "modal" S.:> "new-file" S.:> Get '[HTML] (Html ())
   , newFolderModal    :: mode :- "modal" S.:> "new-folder" S.:> Get '[HTML] (Html ())
+  , fileDetailModal   :: mode :- "modal" S.:> "file" S.:> "detail" S.:> QueryParam "file" ClientPath S.:> Get '[HTML] (Html ())
   , uploadModal       :: mode :- "modal" S.:> "upload" S.:> Get '[HTML] (Html ())
   , editorModal       :: mode :- "modal" S.:> "editor" S.:> QueryParam "file" ClientPath S.:> Get '[HTML] (Html ())
   , search            :: mode :- "search" S.:> ReqBody '[FormUrlEncoded] SearchWord S.:> Post '[HTML] (Html ())
@@ -69,7 +69,9 @@ server = Api
 
   , dirs = dirs
 
-  , newFile = \(NewFile path) -> Domain.newFile (Text.unpack path) & withServerError >> index
+  , newFile = \(NewFile path) -> do
+      Domain.newFile (Text.unpack path) & withServerError
+      index
 
   , updateFile = \(UpdatedFile clientPath content) -> do
       root <- asks @Env (.root)
@@ -80,7 +82,8 @@ server = Api
   , deleteFile = \case
       Just path -> do
         p <- Domain.fromClientPath <$> asks @Env (.root) <*> pure path
-        Domain.deleteFile p & withServerError >> index
+        Domain.deleteFile p & withServerError
+        index
       Nothing -> throwError err400
 
   , newFolder = \(NewFolder path) -> Domain.newFolder (Text.unpack path) & withServerError >> index
@@ -90,6 +93,13 @@ server = Api
   , newFileModal = pure Template.newFileModal
 
   , newFolderModal = pure Template.newFolderModal
+
+  , fileDetailModal = \case
+      Just path -> do
+        p <- Domain.fromClientPath <$> asks @Env (.root) <*> pure path
+        file <- Domain.getFile p & withServerError
+        pure (Template.fileDetailModal file)
+      Nothing -> throwError err400
 
   , uploadModal = pure Template.uploadModal
 

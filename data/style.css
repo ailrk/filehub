@@ -290,12 +290,12 @@ textarea.form-control {
 }
 
 
-tr {
+#table tr {
     cursor: pointer;
 }
 
 
-tr:hover {
+#table tr:hover {
     background: var(--sumi-ink3);
 }
 

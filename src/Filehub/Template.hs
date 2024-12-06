@@ -22,6 +22,7 @@ import Servant (ToHttpApiData(..))
 import Filehub.Domain qualified as Domain
 import Data.Aeson qualified as Aeson
 import Data.Aeson ((.=))
+import Data.Aeson.Types (Pair)
 
 
 ------------------------------------
@@ -201,7 +202,6 @@ sortByBtn = do
       "Sort"
 
 
-
 sortByDropdownOn :: Html ()
 sortByDropdownOn = do
   button_ [ class_ "btn btn-control"
@@ -218,9 +218,21 @@ sortByDropdownOn = do
            , term "hx-swap" "outerHTML"
            , term "hx-target" "#sortby-btn-with-dropdown"
            ] do
-    dropdownItem $ span_ [ term "hx-get" ("/table/sort?by=" <> toUrlPiece ByName), term "hx-swap" "outerHTML", term "hx-target" "#view" ] "Name"
-    dropdownItem $ span_ [ term "hx-get" ("/table/sort?by=" <> toUrlPiece ByModified), term "hx-swap" "outerHTML", term "hx-target" "#view" ] "Modified"
-    dropdownItem $ span_ [ term "hx-get" ("/table/sort?by=" <> toUrlPiece BySize), term "hx-swap" "outerHTML", term "hx-target" "#view" ]"Size"
+    dropdownItem $
+      span_ [ term "hx-get" "/table/sort"
+            , term "hx-vals" $ [ "by" .= toUrlPiece ByName ] & toHxVals
+            , term "hx-swap" "outerHTML"
+            , term "hx-target" "#view" ] "Name"
+    dropdownItem $
+      span_ [ term "hx-get" "/table/sort"
+            , term "hx-vals" $ [ "by" .= toUrlPiece ByModified ] & toHxVals
+            , term "hx-swap" "outerHTML"
+            , term "hx-target" "#view" ] "Modified"
+    dropdownItem $
+      span_ [ term "hx-get" "/table/sort"
+            , term "hx-vals" $ [ "by" .= toUrlPiece BySize ] & toHxVals
+            , term "hx-swap" "outerHTML"
+            , term "hx-target" "#view" ] "Size"
 
 
 sortByDropdownOff :: Html ()
@@ -240,20 +252,20 @@ infoBtn =
       "Info"
 
 
-
 contextMenu :: ClientPath -> Html ()
 contextMenu (ClientPath clientPath) = do
   dropdown [ class_ "file-contextmenu " ] do
     dropdownItem do
-      span_ [ term "hx-get" ("/modal/editor?file=" <> Text.pack clientPath)
+      span_ [ term "hx-get" "/modal/editor"
+            , term "hx-vals" $ [ "file" .= Text.pack clientPath ] & toHxVals
             , term "hx-target" "body"
             , term "hx-swap" "beforeend"
             ]
             "Open"
 
-
     dropdownItem do
-      span_ [ term "hx-get" ("/table/sort?by=" <> toUrlPiece ByModified)
+      span_ [ term "hx-get" "/table/sort"
+            , term "hx-vals" $ [ "by" .=  toUrlPiece ByModified ] & toHxVals
             , term "hx-swap" "outerHTML"
             , term "hx-target" "#view"
             ]
@@ -264,24 +276,20 @@ contextMenu (ClientPath clientPath) = do
             , term "hx-swap" "outerHTML"
             , term "hx-encoding""application/x-www-form-urlencoded"
             , term "hx-target" "#index"
-            , term "hx-vals" $ ([ "file" .= Text.pack clientPath ]
-                                & Aeson.object
-                                & Aeson.encode
-                                & LText.decodeUtf8
-                               ) ^. strict
-            , name_ "delete-file"
+            , term "hx-vals" $ [ "file" .= Text.pack clientPath ] & toHxVals
+            , term "hx-confirm" "Are you sure?"
             ]
             "Delete"
 
     dropdownItem $ a_ [ href_ ("/download?file=" <> Text.pack clientPath ) ] "Download"
 
     dropdownItem do
-      span_ [ term "hx-get" ("/table/sort?by=" <> toUrlPiece ByName)
-            , term "hx-swap" "outerHTML"
-            , term "hx-target" "#view"
+      span_ [ term "hx-get" "/modal/file/detail"
+            , term "hx-vals" $ [ "file" .= Text.pack clientPath ] & toHxVals
+            , term "hx-target" "body"
+            , term "hx-swap" "beforeend"
             ]
             "Details"
-
 
 ------------------------------------
 -- search
@@ -294,7 +302,6 @@ search (SearchWord searchWord) root files = do
   let isMatched file = Text.pack file.path `elem` matched
   let filteredFiles = files ^.. each . filtered isMatched
   table root (sortFiles ByName filteredFiles)
-
 
 
 searchBar :: Html ()
@@ -365,6 +372,27 @@ newFolderModal = do
             ] "CLOSE"
 
 
+fileDetailModal :: File -> Html ()
+fileDetailModal file = do
+  modal [ id_ componentIds.fileDetailModal ] do
+    "Detail"
+    br_ mempty >> br_ mempty
+
+    table_ do
+      tbody_ do
+        tr_ do
+          td_ "Filename"
+          td_ (toHtml $ takeFileName file.path)
+        tr_ do
+          td_ "Path"
+          td_ (toHtml file.path)
+
+
+    button_ [ class_ "btn btn-modal-close "
+            , term "_" "on click trigger closeModal"
+            ] "CLOSE"
+
+
 uploadModal :: Html ()
 uploadModal = do
   modal [ id_ componentIds.updateModal ] do
@@ -389,7 +417,6 @@ uploadModal = do
               ] "CLOSE"
 
 
-
 editorModal :: FilePath -> LBS.ByteString -> Html ()
 editorModal filename content = do
 
@@ -399,6 +426,7 @@ editorModal filename content = do
     br_ mempty >> br_ mempty
 
     form_ [ term "hx-put" "/files/update"
+          , term "hx-confirm" "Save the edit?"
           ] do
       input_ [ class_ "form-control "
              , type_ "text"
@@ -568,8 +596,6 @@ table root files = do
             _ -> []
 
 
-
-
 ------------------------------------
 -- component ids
 ------------------------------------
@@ -584,6 +610,7 @@ data ComponentIds = ComponentIds
   , table :: Text
   , newFileModal :: Text
   , newFolderModal :: Text
+  , fileDetailModal :: Text
   , updateModal :: Text
   , sortByDropdown :: Text
   , editorModal :: Text
@@ -601,6 +628,7 @@ componentIds = ComponentIds
   , table = "table"
   , newFileModal = "new-file-modal"
   , newFolderModal = "new-folder-modal"
+  , fileDetailModal = "file-detail-modal"
   , updateModal = "update-modal"
   , sortByDropdown = "sortby-dropdown"
   , editorModal = "editor-modal"
@@ -614,3 +642,7 @@ componentIds = ComponentIds
 
 toClientPath :: FilePath -> FilePath -> Text
 toClientPath root p = Text.pack . (.unClientPath) $ Domain.toClientPath root p
+
+
+toHxVals :: [Pair] -> Text
+toHxVals xs = (xs & Aeson.object & Aeson.encode & LText.decodeUtf8) ^. strict

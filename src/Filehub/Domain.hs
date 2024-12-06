@@ -29,7 +29,6 @@ import Web.HttpApiData (FromHttpApiData(..), ToHttpApiData(..))
 import Effectful.Concurrent.STM
 import Codec.Archive.Zip qualified as Zip
 import Codec.Archive.Zip (ZipOption(..))
-import Debug.Trace (traceM)
 
 
 ------------------------------------
