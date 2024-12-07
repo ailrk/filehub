@@ -22,7 +22,7 @@ in
 
     port = lib.mkOption {
       type = lib.types.int;
-      default = "5000";
+      default = 5000;
       description = ''
         Port to serve
       '';
@@ -56,7 +56,7 @@ in
         Type = "simple";
         EnvironmentFile = cfg.secretFile;
         ExecStart = [
-          "${cfg.package}/bin/filehub"
+          "${cfg.package}/bin/filehub --port ${cfg.port} --root ${cfg.root}"
         ];
       };
     };
