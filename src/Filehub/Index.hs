@@ -47,13 +47,11 @@ data Api mode = Api
   , uploadModal       :: mode :- "modal" S.:> "upload" S.:> Get '[HTML] (Html ())
   , editorModal       :: mode :- "modal" S.:> "editor" S.:> QueryParam "file" ClientPath S.:> Get '[HTML] (Html ())
   , search            :: mode :- "search" S.:> ReqBody '[FormUrlEncoded] SearchWord S.:> Post '[HTML] (Html ())
-  , sortByDropdownOn  :: mode :- "dropdown" S.:> "sortby" S.:> "on" S.:> Get '[HTML] (Html ())
-  , sortByDropdownOff :: mode :- "dropdown" S.:> "sortby" S.:> "off" S.:> Get '[HTML] (Html ())
   , sortTable         :: mode :- "table" S.:> "sort" S.:> QueryParam "by" SortFileBy S.:> Get '[HTML] (Html ())
-  , contextMenu       :: mode :- "contextmenu" S.:> "file" S.:> QueryParam "path" ClientPath S.:> Get '[HTML] (Html ())
   , upload            :: mode :- "upload" S.:> MultipartForm Mem (MultipartData Mem) S.:> Post '[HTML] (Html ())
   , download          :: mode :- "download" S.:> QueryParam "file" ClientPath
                             S.:> Get '[OctetStream] (S.Headers '[S.Header "Content-Disposition" String] LBS.ByteString)
+  , contextMenu       :: mode :- "contextmenu" S.:> QueryParam "file" ClientPath S.:> Get '[HTML] (Html ())
   }
   deriving (Generic)
 
@@ -113,13 +111,7 @@ server = Api
         <$> asks @Env (.root)
         <*> withServerError Domain.lsCurrentDir
 
-  , sortByDropdownOn = pure Template.sortByDropdownOn
-
-  , sortByDropdownOff = pure Template.sortByDropdownOff
-
   , sortTable = \order -> view (fromMaybe ByName order)
-
-  , contextMenu = fmap Template.contextMenu . maybe (throwError err400) pure
 
   , upload = \multipart -> Domain.upload multipart & withServerError >> index
 
@@ -127,6 +119,10 @@ server = Api
       Just path@(ClientPath p) -> do
         bs <- Domain.download path & withServerError
         pure $ addHeader (printf "attachement; filename=%s.zip" (takeFileName p)) bs
+      Nothing -> throwError err400
+
+  , contextMenu = \case
+      Just path -> pure $ Template.contextMenu path
       Nothing -> throwError err400
   }
 

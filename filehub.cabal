@@ -84,6 +84,7 @@ executable filehub
       , fuzzy
       , string-interpolate
       , zip-archive
+      , cryptohash-sha256
 
     other-modules:
       Filehub.Template

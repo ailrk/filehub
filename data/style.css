@@ -6,14 +6,6 @@
     --carp-yellow: #E6C384;
     --wave-red: #E46876;
     --surimi-orange: #FFA066;
-
-    --view-width: 80%;
-    --content-height: 90vh;
-
-    --component-layer1-zindex: 500;
-    --component-layer2-zindex: 750;
-    --component-layer3-zindex: 999;
-    --modal-zindex: 1000;
 }
 
 
@@ -26,7 +18,7 @@ body {
 
 #index {
     display: grid;
-    grid-template-rows: auto var(--content-height);
+    grid-template-rows: auto 90vh;
     overflow: hidden;
     border-bottom: 1px solid var(--fuji-white); /* debug */
 }
@@ -57,7 +49,6 @@ body {
     align-items: center;
     border-bottom: 1px solid var(--fuji-white); /* debug */
     box-shadow: 4px 4px 8px #0000007F, -4px -4px 4px #FFFFFF0B;
-    z-index: var(--component-layer1-zindex);
     overflow: hidden;
 }
 
@@ -226,29 +217,16 @@ textarea.form-control {
     left: 0px;
     right: 0px;
     background-color: rgba(0,0,0,0.6);
-    z-index: var(--modal-zindex);
-
     /* Flexbox centers the .modal-content vertically and horizontally */
     display: flex;
     flex-direction: column;
     align-items: center;
+    z-index: 900;
 
     /* Animate when opening */
     animation-name: fadeIn;
     animation-duration: 150ms;
     animation-timing-function: ease;
-}
-
-
-.modal > .modal-underlay {
-    /* underlay takes up the entire viewport. Click to dismiss the popup */
-    position: absolute;
-    z-index: -1;
-    top:0px;
-    bottom:0px;
-    left: 0px;
-    right: 0px;
-    background-color: rgba(0,0,0,0.6);
 }
 
 
@@ -301,6 +279,19 @@ textarea.form-control {
 }
 
 
+.modal-underlay {
+    /* global underlay takes up the entire viewport.
+     * Close any popups, modals, and menus  */
+    position: absolute;
+    top:0px;
+    bottom:0px;
+    left: 0px;
+    right: 0px;
+    cursor: pointer;
+    z-index: -1;
+}
+
+
 @keyframes fadeIn {
     0% {opacity: 0;}
     100% {opacity: 1;}
@@ -330,21 +321,26 @@ textarea.form-control {
 }
 
 
-#sortby-dropdown {
-    transform: translateX(275px);
+.dropdown {
+    position: relative;
+    display: inline-block;
+
 }
 
 
-.dropdown {
-    position: fixed;
+.dropdown-btn {
+}
 
+
+.dropdown-content {
+    position: absolute;
     background: var(--sumi-ink2);
     padding: 0.5rem 0;
     border: 1px solid var(--fuji-white);
     border-radius : 0.1rem;
     text-align: left;
     box-shadow: 3px 0px 0px #0000007F;
-    z-index: var(--component-layer2-zindex);
+    z-index: 1;
 
     animation-name: fadeIn;
     animation-duration: 100ms;
@@ -352,28 +348,10 @@ textarea.form-control {
 }
 
 
-.dropdown.closing {
+.dropdown-content.closing {
     animation-name: fadeOut;
     animation-duration: 100ms;
     animation-timing-function: ease;
-}
-
-
-.dropdown.closing > .dropdown-content {
-    animation-name: zoomOut;
-    animation-duration: 100ms;
-    animation-timing-function: ease;
-}
-
-
-.dropdown-underlay {
-    /* underlay takes up the entire viewport. */
-    position: absolute;
-    z-index: var(--component-layer2-zindex) - 1;
-    top:0px;
-    bottom:0px;
-    left: 0px;
-    right: 0px;
 }
 
 
@@ -393,7 +371,7 @@ textarea.form-control {
     color: var(--fuji-white);
     display: inline-block;
     text-decoration: none;
-    padding: 0 1.5rem;
+    padding: 0 2rem 0 1rem;
 }
 
 

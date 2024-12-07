@@ -112,7 +112,7 @@ newFolderBtn =
   button_ [ class_ "btn btn-control "
           , type_ "submit"
           , term "hx-get" "/modal/new-folder"
-          , term "hx-target" "body"
+          , term "hx-target" "#index"
           , term "hx-swap" "beforeend"
           ] do
     span_ [ class_ "field " ] do
@@ -125,7 +125,7 @@ newFileBtn  =
   button_ [ class_ "btn btn-control"
           , type_ "submit"
           , term "hx-get" "/modal/new-file"
-          , term "hx-target" "body"
+          , term "hx-target" "#index"
           , term "hx-swap" "beforeend"
           ] do
     span_ [ class_ "field " ] do
@@ -138,7 +138,7 @@ uploadBtn = do
   button_ [ class_ "btn btn-control"
           , type_ "submit"
           , term "hx-get" "/modal/upload"
-          , term "hx-target" "body"
+          , term "hx-target" "#index"
           , term "hx-swap" "beforeend"
           ] do
     span_ [ class_ "field " ] do
@@ -148,51 +148,66 @@ uploadBtn = do
 
 sortByBtn :: Html ()
 sortByBtn = do
-  button_ [ class_ "btn btn-control"
-          , type_ "submit"
-          , term "hx-get" "/dropdown/sortby/on"
-          , term "hx-swap" "outerHTML"
-          ] do
-    span_ [ class_ "field " ] do
-      i_ [ class_ "bx bx-sort" ] mempty
-      "Sort"
+  div_ [ class_ "dropdown "
+       , id_ componentIds.sortByDropdown
+       ] do
+    button_ [ class_ "btn btn-control dropdown-btn "
+            , term "_"
+                [iii|
+                  on click
+                    if (the next .dropdown-content) matches .closed
+                    then send show to the next .dropdown-content
+                    else send close to the next .dropdown-content
+                    end
+                  end
+                |]
+            ] do
+      span_ [ class_ "field " ] do
+        i_ [ class_ "bx bx-sort" ] mempty
+        "Sort"
 
+    div_ [ class_ "dropdown-content closed "
+         , term "_"
+            [iii|
+              init hide me end
 
-sortByDropdownOn :: Html ()
-sortByDropdownOn = do
-  button_ [ class_ "btn btn-control"
-          , id_ "sortby-btn-with-dropdown"
-          , type_ "submit"
-          , term "_" "on click trigger closeDropdown on the next .dropdown"
-          ] do
-    span_ [ class_ "field " ] do
-      i_ [ class_ "bx bx-sort" ] mempty
-      "Sort"
+              on close
+                remove .show
+                then add .closing
+                then wait for animationend
+                then remove .closing
+                then hide me
+                then add .closed
+              end
 
-  dropdown [ id_ componentIds.sortByDropdown
-           , term "hx-get" "/dropdown/sortby/off"
+              on show
+                remove .closed
+                then show me
+              end
+            |]
+         ] do
+
+      div_ [ class_ "dropdown-item"
+           , term "hx-get" "/table/sort"
+           , term "hx-vals" $ [ "by" .= toUrlPiece ByName ] & toHxVals
            , term "hx-swap" "outerHTML"
-           , term "hx-target" "#sortby-btn-with-dropdown"
-           ] do
-    dropdownItem $
-      span_ [ term "hx-get" "/table/sort"
-            , term "hx-vals" $ [ "by" .= toUrlPiece ByName ] & toHxVals
-            , term "hx-swap" "outerHTML"
-            , term "hx-target" "#view" ] "Name"
-    dropdownItem $
-      span_ [ term "hx-get" "/table/sort"
-            , term "hx-vals" $ [ "by" .= toUrlPiece ByModified ] & toHxVals
-            , term "hx-swap" "outerHTML"
-            , term "hx-target" "#view" ] "Modified"
-    dropdownItem $
-      span_ [ term "hx-get" "/table/sort"
-            , term "hx-vals" $ [ "by" .= toUrlPiece BySize ] & toHxVals
-            , term "hx-swap" "outerHTML"
-            , term "hx-target" "#view" ] "Size"
+           , term "hx-target" "#view" ] $
+        span_ "Name"
 
+      div_ [ class_ "dropdown-item"
+           , term "hx-get" "/table/sort"
+           , term "hx-vals" $ [ "by" .= toUrlPiece ByModified ] & toHxVals
+           , term "hx-swap" "outerHTML"
+           , term "hx-target" "#view" ] $
+        span_ "Modified"
 
-sortByDropdownOff :: Html ()
-sortByDropdownOff = sortByBtn
+      div_ [ class_ "dropdown-item"
+           , term "hx-get" "/table/sort"
+           , term "hx-vals" $ [ "by" .= toUrlPiece BySize ] & toHxVals
+           , term "hx-swap" "outerHTML"
+           , term "hx-target" "#view"
+           ] $
+        span_ "Size"
 
 
 infoBtn :: Html ()
@@ -200,52 +215,13 @@ infoBtn =
   button_ [ class_ "btn btn-control"
           , type_ "submit"
           , term "hx-get" "/modal/info"
-          , term "hx-target" "body"
+          , term "hx-target" "#index"
           , term "hx-swap" "beforeend"
           ] do
     span_ [ class_ "field " ] do
       i_ [ class_ "bx bxs-info-circle" ] mempty
       "Info"
 
-
-contextMenu :: ClientPath -> Html ()
-contextMenu (ClientPath clientPath) = do
-  dropdown [ class_ "file-contextmenu " ] do
-    dropdownItem do
-      span_ [ term "hx-get" "/modal/editor"
-            , term "hx-vals" $ [ "file" .= Text.pack clientPath ] & toHxVals
-            , term "hx-target" "body"
-            , term "hx-swap" "beforeend"
-            ]
-            "Open"
-
-    dropdownItem do
-      span_ [ term "hx-get" "/table/sort"
-            , term "hx-vals" $ [ "by" .=  toUrlPiece ByModified ] & toHxVals
-            , term "hx-swap" "outerHTML"
-            , term "hx-target" "#view"
-            ]
-            "Rename"
-
-    dropdownItem do
-      span_ [ term "hx-delete" "/files/delete"
-            , term "hx-swap" "outerHTML"
-            , term "hx-encoding""application/x-www-form-urlencoded"
-            , term "hx-target" "#index"
-            , term "hx-vals" $ [ "file" .= Text.pack clientPath ] & toHxVals
-            , term "hx-confirm" "Are you sure?"
-            ]
-            "Delete"
-
-    dropdownItem $ a_ [ href_ ("/download?file=" <> Text.pack clientPath ) ] "Download"
-
-    dropdownItem do
-      span_ [ term "hx-get" "/modal/file/detail"
-            , term "hx-vals" $ [ "file" .= Text.pack clientPath ] & toHxVals
-            , term "hx-target" "body"
-            , term "hx-swap" "beforeend"
-            ]
-            "Details"
 
 ------------------------------------
 -- search
@@ -299,11 +275,11 @@ newFileModal = do
            ]
     br_ mempty >> br_ mempty
     button_ [ class_ "btn btn-modal-confirm mr-2 "
-            , term "_" "on click trigger closeModal"
+            , term "_" "on click trigger close"
             ] "CREATE"
 
     button_ [ class_ "btn btn-modal-close "
-            , term "_" "on click trigger closeModal"
+            , term "_" "on click trigger close"
             ] "CLOSE"
 
 
@@ -320,11 +296,11 @@ newFolderModal = do
            ]
     br_ mempty >> br_ mempty
     button_ [ class_ "btn btn-modal-confirm mr-2 "
-            , term "_" "on click trigger closeModal"
+            , term "_" "on click trigger close"
             ] "CREATE"
 
     button_ [ class_ "btn btn-modal-close "
-            , term "_" "on click trigger closeModal"
+            , term "_" "on click trigger close"
             ] "CLOSE"
 
 
@@ -345,7 +321,7 @@ fileDetailModal file = do
 
 
     button_ [ class_ "btn btn-modal-close "
-            , term "_" "on click trigger closeModal"
+            , term "_" "on click trigger close"
             ] "CLOSE"
 
 
@@ -365,11 +341,11 @@ uploadModal = do
       br_ mempty >> br_ mempty
 
       button_ [ class_ "btn btn-modal-confirm mr-2 "
-              , term "_" "on click trigger closeModal"
+              , term "_" "on click trigger close"
               ] "UPLOAD"
 
       button_ [ class_ "btn btn-modal-close "
-              , term "_" "on click trigger closeModal"
+              , term "_" "on click trigger close"
               ] "CLOSE"
 
 
@@ -404,11 +380,12 @@ editorModal filename content = do
       br_ mempty >> br_ mempty
 
       button_ [ class_ "btn btn-modal-confirm mr-2 "
-              , term "_" "on click trigger closeModal"
+              , term "_" "on click trigger close"
               ] "UPLOAD"
 
       button_ [ class_ "btn btn-modal-close "
-              , term "_" "on click trigger closeModal"
+              , type_ "button"
+              , term "_" "on click trigger close"
               ] "CLOSE"
 
 
@@ -422,9 +399,9 @@ withDefault html = do
   meta_ [name_ "viewport", content_ "width=device-width, initial-scale=1.0"]
   link_ [rel_ "stylesheet", href_ "/static/style.css" ]
   link_ [rel_ "stylesheet", href_ "https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" ]
-
   script_ [src_ "https://unpkg.com/hyperscript.org@0.9.13"] ("" :: Text)
   script_ [src_ "https://unpkg.com/htmx.org@2.0.3"] ("" :: Text)
+  script_ [src_ "/static/ui.js" ] ("" :: Text)
   html
 
 
@@ -436,46 +413,28 @@ withDefault html = do
 modal :: [Attribute] -> Html () -> Html ()
 modal attrs body = do
   div_ ([ class_ "modal ", closeModalScript ] <> attrs) do
-    div_ [ class_ "modal-underlay "
-         , term "_" "on click trigger closeModal"
-         ] mempty
+    underlay
     div_ [ class_ "modal-content " ] do
       body
   where
     closeModalScript = term "_"
       [iii|
-        on closeModal
-        add .closing
-        then wait for animationend
-        then remove me
+        on close
+          add .closing
+          then wait for animationend
+          then remove me
+        end
       |]
 
-
--- | Dropdown's underlay and content are sibiling so we can have the underlay
---   cover the entire page while has the content being positioned relative to the parent.
-dropdown :: [Attribute] -> Html () -> Html ()
-dropdown attrs body = do
-  div_ [ class_ "dropdown-underlay "
-       , term "_" "on click trigger closeDropdown on the next .dropdown"
-       ] mempty
-  div_ ([ class_ "dropdown ", closeDropdownScript
-        , term "hx-trigger" "epilogue"
-        ] <> attrs) do
-    div_ [ class_ "dropdown-content " ] body
-  where
-    closeDropdownScript = term "_"
-      [iii|
-        on closeDropdown
-        trigger epilogue
-        then add .closing
-        then wait for animationend
-        then remove the previous .dropdown-underlay
-        then remove me
-      |]
-
-
-dropdownItem :: Html () -> Html ()
-dropdownItem body = div_ [ class_ "dropdown-item " ] body
+    underlay = do
+        div_ [ class_ "modal-underlay "
+             , term "_"
+                [iii|
+                  on click
+                  send close to .modal
+                  end
+                |]
+             ] mempty
 
 
 ------------------------------------
@@ -491,44 +450,51 @@ table root files = do
         th_ [ id_ "table-name" ] "Name"
         th_ [ id_ "table-modified" ] "Modified"
         th_ [ id_ "table-size" ] "Size"
-    tbody_ $ do
-      traverse_
-        (\file -> do
-          tr_  do
-            td_ $ fileNameElement file
-            td_ $ modifiedDateElement file
-            td_ $ sizeElement file)
-        files
+    tbody_ $ traverse_ record files
   where
-    contextMenuTrigger file =
-      [ term "_"
-          [iii|
-            on contextmenu
-            halt the event
-            then trigger filhubContextmenu
-          |]
-       , term "hx-get" ("/contextmenu/file?path=" <> toClientPath root file.path)
-       , term "hx-swap" "afterend"
-       , term "hx-trigger" "filhubContextmenu"
-       ]
+    record :: File -> Html ()
+    record file =
+      tr_ attrs do
+        td_ $ fileNameElement file
+        td_ $ modifiedDateElement file
+        td_ $ sizeElement file
+      where
+        attrs :: [Attribute]
+        attrs =
+          [ term "_"
+              [iii|
+                on contextmenu(pageX, pageY)
+                halt the event
+                then fetch /contextmenu?file=#{path}
+                then put result after #{tableId}
+                then send show( pageX: pageX
+                              , pageY: pageY
+                              , path: "#{path}"
+                              )
+                     to \##{contextMenuId}
+              |]
+           ]
+        ClientPath path = Domain.toClientPath root file.path
+        tableId = componentIds.table
+        contextMenuId = componentIds.contextMenu
+
 
     sizeElement :: File -> Html ()
     sizeElement file =
       span_ (toHtml . show $ file.size)
         `with` [ class_ "field "]
-        `with` contextMenuTrigger file
+
 
     modifiedDateElement :: File -> Html ()
     modifiedDateElement file =
       span_ (toHtml $ formatTime defaultTimeLocale "%F %R" file.mtime)
         `with` [ class_ "field "]
-        `with` contextMenuTrigger file
+
 
     fileNameElement :: File -> Html ()
     fileNameElement file = do
       span_ (icon >> name)
         `with` [ class_ "field " ]
-        `with` contextMenuTrigger file
       where
         name = span_ (mconcat [ cdAttrs, otherAttrs ]) (toHtml . takeFileName $ file.path)
 
@@ -552,6 +518,66 @@ table root files = do
             _ -> []
 
 
+contextMenu :: ClientPath -> Html ()
+contextMenu (ClientPath clientPath) = do
+  div_ [ class_ "dropdown-content "
+       , id_ componentIds.contextMenu
+       , term "_"
+           [iii|
+             init call htmx.process(me) end
+             on close
+               add .closing
+               then wait for animationend
+               then remove me
+             end
+
+             on show(pageX, pageY, path)
+               set my *left to pageX
+               then set my *top to pageY
+               then set my *position to 'absolute'
+               then show me
+             end
+         |]
+      ] do
+
+    div_ [ class_ "dropdown-item"
+         , term "hx-get" "/modal/editor"
+         , term "hx-vals" $ [ "file" .= Text.pack clientPath ] & toHxVals
+         , term "hx-target" "#index"
+         , term "hx-swap" "beforeend"
+         ] $
+      span_ "Open"
+
+    div_ [ class_ "dropdown-item"
+         , term "hx-get" "/table/sort"
+         , term "hx-vals" $ [ "by" .=  toUrlPiece ByModified ] & toHxVals
+         , term "hx-swap" "outerHTML"
+         , term "hx-target" "#view"
+         ] $
+      span_ "Rename"
+
+    div_ [ class_ "dropdown-item"
+         , term "hx-delete" "/files/delete"
+         , term "hx-swap" "outerHTML"
+         , term "hx-encoding""application/x-www-form-urlencoded"
+         , term "hx-target" "#index"
+         , term "hx-vals" $ [ "file" .= Text.pack clientPath ] & toHxVals
+         , term "hx-confirm" "Are you sure?"
+         ] $
+      span_ "Delete"
+
+    div_ [ class_ "dropdown-item" ] $
+      a_ [ href_ ("/download?file=" <> Text.pack clientPath ) ] "Download"
+
+    div_ [ class_ "dropdown-item"
+         , term "hx-get" "/modal/file/detail"
+         , term "hx-vals" $ [ "file" .= Text.pack clientPath ] & toHxVals
+         , term "hx-target" "#index"
+         , term "hx-swap" "beforeend"
+         ] $
+      span_ "Details"
+
+
 ------------------------------------
 -- component ids
 ------------------------------------
@@ -569,6 +595,7 @@ data ComponentIds = ComponentIds
   , updateModal :: Text
   , sortByDropdown :: Text
   , editorModal :: Text
+  , contextMenu :: Text
   }
   deriving Show
 
@@ -586,6 +613,7 @@ componentIds = ComponentIds
   , updateModal = "update-modal"
   , sortByDropdown = "sortby-dropdown"
   , editorModal = "editor-modal"
+  , contextMenu = "contextmenu"
   }
 
 
