@@ -6,7 +6,6 @@ import Options.Applicative
 data Options = Options
   { root :: String
   , port :: Int
-  , configFile :: String
   }
 
 
@@ -26,13 +25,6 @@ options =
             , metavar "PORT"
             , help "port filehub runs on"
             , value 8000
-            ])
-    <*> option auto
-          (mconcat
-            [ long "config"
-            , metavar "PATH"
-            , help "config file path"
-            , value "filehub.conf"
             ])
 
 

@@ -6,18 +6,25 @@ in
   options.services.filehub = {
     enable = lib.mkOption {
       type = lib.types.bool;
-        default = false;
-        description = ''
-          Enable filehub
-        '';
+      default = false;
+      description = ''
+        Enable filehub
+      '';
     };
 
     root = lib.mkOption {
       type = lib.types.path;
       default = "";
       description = ''
-        Secret file to be loaded as environment variables for filehub.
-        The file should be a bash script.
+        Root folde to serve.
+      '';
+    };
+
+    port = lib.mkOption {
+      type = lib.types.int;
+      default = "5000";
+      description = ''
+        Port to serve
       '';
     };
 

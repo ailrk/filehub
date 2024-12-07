@@ -77,7 +77,6 @@ main = do
         Env
           { port = options.port
           , root = root
-          , configFile = options.configFile
           , rootTree = dir
           , currentDir = currentDir
           , dataDir = dataDir
