@@ -40,7 +40,6 @@ data Api mode = Api
   , updateFile        :: mode :- "files" S.:> "update" S.:> ReqBody '[FormUrlEncoded] UpdatedFile S.:> Put '[HTML] (Html ())
   , deleteFile        :: mode :- "files" S.:> "delete" S.:> QueryParam "file" ClientPath S.:> Delete '[HTML] (Html ())
   , newFolder         :: mode :- "folders" S.:> "new" S.:> ReqBody '[FormUrlEncoded] NewFolder S.:> Post '[HTML] (Html ())
-  , infoModal         :: mode :- "modal" S.:> "info" S.:> Get '[HTML] (Html ())
   , newFileModal      :: mode :- "modal" S.:> "new-file" S.:> Get '[HTML] (Html ())
   , newFolderModal    :: mode :- "modal" S.:> "new-folder" S.:> Get '[HTML] (Html ())
   , fileDetailModal   :: mode :- "modal" S.:> "file" S.:> "detail" S.:> QueryParam "file" ClientPath S.:> Get '[HTML] (Html ())
@@ -66,24 +65,22 @@ server = Api
 
   , newFile = \(NewFile path) -> do
       Domain.newFile (Text.unpack path) & withServerError
-      index
+      view ByName
 
   , updateFile = \(UpdatedFile clientPath content) -> do
       root <- asks @Env (.root)
       let path = Domain.fromClientPath root clientPath
       Domain.writeFile path (Text.encodeUtf8 content ^. lazy) & withServerError
-      index
+      view ByName
 
   , deleteFile = \case
       Just path -> do
         p <- Domain.fromClientPath <$> asks @Env (.root) <*> pure path
         Domain.deleteFile p & withServerError
-        index
+        view ByName
       Nothing -> throwError err400
 
   , newFolder = \(NewFolder path) -> Domain.newFolder (Text.unpack path) & withServerError >> index
-
-  , infoModal = pure Template.infoModal
 
   , newFileModal = pure Template.newFileModal
 

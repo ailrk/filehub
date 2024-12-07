@@ -46,7 +46,6 @@ controlPanel = do
       newFileBtn
       uploadBtn
       sortByBtn
-      infoBtn
   where
     elementId = componentIds.controlPanel
 
@@ -210,19 +209,6 @@ sortByBtn = do
         span_ "Size"
 
 
-infoBtn :: Html ()
-infoBtn =
-  button_ [ class_ "btn btn-control"
-          , type_ "submit"
-          , term "hx-get" "/modal/info"
-          , term "hx-target" "#index"
-          , term "hx-swap" "beforeend"
-          ] do
-    span_ [ class_ "field " ] do
-      i_ [ class_ "bx bxs-info-circle" ] mempty
-      "Info"
-
-
 ------------------------------------
 -- search
 ------------------------------------
@@ -247,19 +233,12 @@ searchBar = do
            , term "hx-trigger" "input changed delay:200ms, search"
            , term "hx-target" "#table"
            , term "hx-swap" "outerHTML"
-           , term "hx-indicator" ".htmx-indicator"
            ]
 
 
 ------------------------------------
 -- modals
 ------------------------------------
-
-
-infoModal :: Html ()
-infoModal = do
-  modal [ id_ componentIds.newFileModal ] do
-    "Storage"
 
 
 newFileModal :: Html ()
@@ -272,6 +251,8 @@ newFileModal = do
            , name_ "new-file"
            , placeholder_ "New file name"
            , term "hx-post" "/files/new"
+           , term "hx-target" "#view"
+           , term "hx-swap" "outerHTML"
            ]
     br_ mempty >> br_ mempty
     button_ [ class_ "btn btn-modal-confirm mr-2 "
@@ -293,6 +274,8 @@ newFolderModal = do
            , name_ "new-folder"
            , placeholder_ "New folder name"
            , term "hx-post" "/folders/new"
+           , term "hx-target" "#view"
+           , term "hx-swap" "outerHTML"
            ]
     br_ mempty >> br_ mempty
     button_ [ class_ "btn btn-modal-confirm mr-2 "
@@ -316,13 +299,14 @@ fileDetailModal file = do
           td_ "Filename"
           td_ (toHtml $ takeFileName file.path)
         tr_ do
-          td_ "Path"
-          td_ (toHtml file.path)
-
-
-    button_ [ class_ "btn btn-modal-close "
-            , term "_" "on click trigger close"
-            ] "CLOSE"
+          td_ "Modified"
+          td_ (toHtml $ formatTime defaultTimeLocale "%F %R" file.mtime)
+        tr_ do
+          td_ "Accessed"
+          td_ (toHtml $ formatTime defaultTimeLocale "%F %R" file.atime)
+        tr_ do
+          td_ "Size"
+          td_ (toHtml $ show file.size)
 
 
 uploadModal :: Html ()
@@ -548,26 +532,17 @@ contextMenu (ClientPath clientPath) = do
          ] $
       span_ "Open"
 
-    div_ [ class_ "dropdown-item"
-         , term "hx-get" "/table/sort"
-         , term "hx-vals" $ [ "by" .=  toUrlPiece ByModified ] & toHxVals
-         , term "hx-swap" "outerHTML"
-         , term "hx-target" "#view"
-         ] $
-      span_ "Rename"
+    div_ [ class_ "dropdown-item" ] $
+      a_ [ href_ ("/download?file=" <> Text.pack clientPath ) ] "Download"
 
     div_ [ class_ "dropdown-item"
          , term "hx-delete" "/files/delete"
-         , term "hx-swap" "outerHTML"
-         , term "hx-encoding""application/x-www-form-urlencoded"
-         , term "hx-target" "#index"
          , term "hx-vals" $ [ "file" .= Text.pack clientPath ] & toHxVals
+         , term "hx-target" "#view"
+         , term "hx-swap" "outerHTML"
          , term "hx-confirm" "Are you sure?"
          ] $
       span_ "Delete"
-
-    div_ [ class_ "dropdown-item" ] $
-      a_ [ href_ ("/download?file=" <> Text.pack clientPath ) ] "Download"
 
     div_ [ class_ "dropdown-item"
          , term "hx-get" "/modal/file/detail"

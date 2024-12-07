@@ -399,3 +399,8 @@ textarea.form-control {
 #editor-modal > .modal-content textarea {
     height: 70vh;
 }
+
+
+#file-detail-modal table {
+    border-spacing: 1rem;
+}

@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ApplicativeDo #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE MultiWayIf #-}
 module Filehub.Domain where
 
 import Effectful.FileSystem
@@ -128,10 +129,12 @@ writeFile name content = do
 deleteFile :: (Reader Env :> es, Concurrent :> es, FileSystem :> es) => String -> Eff es ()
 deleteFile name = do
   filePath <- toFilePath name
-  exists <- doesFileExist filePath
-  if not exists
-     then pure ()
-     else removeFile filePath
+  fileExists <- doesFileExist filePath
+  dirExists <- doesDirectoryExist filePath
+  if
+     | fileExists -> removeFile filePath
+     | dirExists -> removeDirectory filePath
+     | otherwise -> pure ()
 
 
 lsDir :: (FileSystem :> es, Error String :> es) => FilePath -> Eff es [File]
