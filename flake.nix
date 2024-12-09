@@ -12,10 +12,14 @@
         haskell = prev.haskell // {
           packageOverrides = hfinal: hprev:
             prev.haskell.packageOverrides hfinal hprev // {
-              filehub = hfinal.callPackage ./default.nix {};
+              filehub = (hfinal.callPackage ./default.nix {});
             };
         };
-        filehub = final.haskell.lib.compose.justStaticExecutables final.haskellPackages.filehub;
+        filehub =
+          with final.haskell.lib.compose;
+          overrideCabal (drv: {
+            enableSeparateDataOutput = false;
+          }) (justStaticExecutables final.haskellPackages.filehub);
       };
 
       perSystem = system:
