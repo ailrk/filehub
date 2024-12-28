@@ -466,7 +466,7 @@ table root files = do
 
     sizeElement :: File -> Html ()
     sizeElement file =
-      span_ (toHtml . show $ file.size)
+      span_ (toHtml . Domain.toReadableSize $ file.size)
         `with` [ class_ "field "]
 
 

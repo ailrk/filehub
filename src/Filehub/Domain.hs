@@ -281,3 +281,25 @@ fromClientPath root (ClientPath cp) =
     case cp of
       '/': cp' -> cp'
       _ -> cp
+
+
+------------------------------------
+-- Readable size
+------------------------------------
+
+
+toReadableSize :: Integer -> String
+toReadableSize nbytes =
+  if | nTb >= 1 -> printf "%.1f Tb" (nTb :: Double)
+     | nGb >= 1 -> printf "%.1f Gb" (nGb :: Double)
+     | nMb >= 1 -> printf "%.1f Mb" (nMb :: Double)
+     | nKb >= 1 -> printf "%.1f Kb" (nKb :: Double)
+     | nB >= 1 -> printf "%.0f b" (nB :: Double)
+     | otherwise -> "unknown"
+
+  where
+    nB  = fromIntegral nbytes
+    nKb = fromIntegral nbytes / (2 ^ 10)
+    nMb = fromIntegral nbytes / (2 ^ 20)
+    nGb = fromIntegral nbytes / (2 ^ 30)
+    nTb = fromIntegral nbytes / (2 ^ 40)
