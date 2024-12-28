@@ -449,6 +449,7 @@ table root files = do
               [iii|
                 on contextmenu(pageX, pageY)
                 halt the event
+                then if \##{contextMenuId} exists then remove \##{contextMenuId} end
                 then fetch /contextmenu?file=#{path}
                 then put result after #{tableId}
                 then send show( pageX: pageX
