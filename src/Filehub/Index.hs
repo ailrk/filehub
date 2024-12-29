@@ -10,12 +10,13 @@ import Lens.Micro
 import Lens.Micro.Platform ()
 import Filehub.Template qualified as Template
 import Filehub.Env (Env(..))
-import Filehub.Domain (NewFile (..), NewFolder(..), SearchWord(..), SortFileBy (..), sortFiles, ClientPath (..), UpdatedFile (..))
+import Filehub.Domain (NewFile (..), NewFolder(..), SearchWord(..), SortFileBy (..), sortFiles, ClientPath (..), UpdatedFile (..), Theme (..))
 import Filehub.Domain qualified as Domain
 import Effectful (Eff, (:>))
 import Effectful.Reader.Dynamic (asks)
 import Effectful.Error.Dynamic (Error, runErrorNoCallStack, throwError)
-import System.FilePath (takeFileName)
+import Effectful.FileSystem.IO.ByteString.Lazy (readFile)
+import System.FilePath ((</>), takeFileName)
 import GHC.Generics (Generic)
 import Data.String (IsString(..))
 import Data.Text qualified as Text
@@ -31,6 +32,7 @@ import Servant.Server (err400)
 import Effectful.Concurrent.STM (readTVarIO)
 import Text.Printf (printf)
 import Filehub (Filehub)
+import Prelude hiding (readFile)
 
 
 data Api mode = Api
@@ -51,6 +53,7 @@ data Api mode = Api
   , download          :: mode :- "download" S.:> QueryParam "file" ClientPath
                             S.:> Get '[OctetStream] (S.Headers '[S.Header "Content-Disposition" String] LBS.ByteString)
   , contextMenu       :: mode :- "contextmenu" S.:> QueryParam "file" ClientPath S.:> Get '[HTML] (Html ())
+  , themeCss          :: mode :- "theme.css" S.:> Get '[OctetStream] LBS.ByteString
   }
   deriving (Generic)
 
@@ -121,6 +124,18 @@ server = Api
   , contextMenu = \case
       Just path -> pure $ Template.contextMenu path
       Nothing -> throwError err400
+
+  , themeCss = do
+      theme <- asks @Env (.theme)
+      dir <- asks @Env (.dataDir)
+      readFile $
+        case theme of
+          Dark1 -> dir </> "dark1.css"
+          Dark2 -> dir </> "dark2.css"
+          Dark3 -> dir </> "dark3.css"
+          Light1 -> dir </> "light1.css"
+          Light2 -> dir </> "light2.css"
+          Light3 -> dir </> "light3.css"
   }
 
 

@@ -1,5 +1,5 @@
 module Filehub.Env where
-import {-# SOURCE#-} Filehub.Domain (File)
+import {-# SOURCE#-} Filehub.Domain (File, Theme)
 import Effectful.Concurrent.STM (TVar)
 
 
@@ -9,4 +9,5 @@ data Env = Env
   , rootTree :: TVar File
   , currentDir :: TVar FilePath
   , dataDir :: !FilePath
+  , theme :: Theme
   }

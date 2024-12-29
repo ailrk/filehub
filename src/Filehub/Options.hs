@@ -1,11 +1,13 @@
 module Filehub.Options where
 
 import Options.Applicative
+import Filehub.Domain (Theme(..))
 
 
 data Options = Options
   { root :: String
   , port :: Int
+  , theme :: Theme
   }
 
 
@@ -26,6 +28,14 @@ options =
             , help "port filehub runs on"
             , value 8000
             ])
+    <*> option auto
+          (mconcat
+            [ long "theme"
+            , metavar "THEME"
+            , help "dark[1-3], light[1-3]"
+            , value Dark1
+            ]
+          )
 
 
 parseOptions :: IO Options

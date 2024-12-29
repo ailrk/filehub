@@ -303,3 +303,39 @@ toReadableSize nbytes =
     nMb = fromIntegral nbytes / (2 ^ 20)
     nGb = fromIntegral nbytes / (2 ^ 30)
     nTb = fromIntegral nbytes / (2 ^ 40)
+
+
+------------------------------------
+-- Theme
+------------------------------------
+
+
+data Theme = Dark1 | Dark2 | Dark3 | Light1 | Light2 | Light3
+
+
+instance Show Theme where
+  show = \case
+    Dark1 -> "dark1"
+    Dark2 -> "dark2"
+    Dark3 -> "dark3"
+    Light1 -> "light1"
+    Light2 -> "light2"
+    Light3 -> "light3"
+
+
+instance Read Theme where
+  readsPrec _ s = do
+    let theme =
+          case s of
+          "dark1" -> Dark1
+          "dark2" -> Dark2
+          "dark3" -> Dark3
+          "light1" -> Light1
+          "light2" -> Light2
+          "light3" -> Light3
+          _ -> defaultTheme
+    pure (theme, "")
+
+
+defaultTheme :: Theme
+defaultTheme = Dark1

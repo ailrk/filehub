@@ -80,6 +80,7 @@ main = do
           , rootTree = dir
           , currentDir = currentDir
           , dataDir = dataDir
+          , theme = options.theme
           }
   go env `catch` handler
   where

@@ -31,6 +31,14 @@ in
           '';
         };
 
+        theme = lib.mkOption {
+          type = lib.types.str;
+          default = "dark1";
+          description = ''
+            Filehub theme. Possible themes are [dark1, dark2, dark3, light1, light2, light3]
+          '';
+        };
+
         environment = lib.mkOption {
           type = lib.types.attrsOf (lib.types.either lib.types.str lib.types.path);
           default = {};
@@ -75,7 +83,7 @@ in
               serviceConfig = {
                 Type = "simple";
                 ExecStart = ''
-                  "${cfg.package}/bin/filehub --port ${port} --root ${cfg.root}"
+                  "${cfg.package}/bin/filehub --port ${port} --root ${cfg.root} --theme ${cfg.theme}"
                 '';
               };
             };

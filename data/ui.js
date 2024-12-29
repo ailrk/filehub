@@ -1,4 +1,5 @@
 window.addEventListener('click', closeDropdown);
+window.addEventListener('contextmenu', e => e.preventDefault());
 
 function closeDropdown (e) {
   // when clicking outside of any area outside a dropdown or dropdown-content, close all dropdowns.
