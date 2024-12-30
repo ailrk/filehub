@@ -303,7 +303,8 @@ fromClientPath root (ClientPath cp) =
 
 toReadableSize :: Integer -> String
 toReadableSize nbytes =
-  if | nTb >= 1 -> printf "%.1f Tb" (nTb :: Double)
+  if | nB == 0 -> "0 b"
+     | nTb >= 1 -> printf "%.1f Tb" (nTb :: Double)
      | nGb >= 1 -> printf "%.1f Gb" (nGb :: Double)
      | nMb >= 1 -> printf "%.1f Mb" (nMb :: Double)
      | nKb >= 1 -> printf "%.1f Kb" (nKb :: Double)
