@@ -20,7 +20,7 @@ import Filehub.Env
 import Filehub
 import Filehub.Index qualified as Index
 import GHC.Generics (Generic)
-import Filehub.Domain (getFile, loadDirContents)
+import Filehub.Domain (getFile, loadDirContents, FilehubError)
 import Effectful (runEff)
 import Effectful.Error.Dynamic (runErrorNoCallStack)
 import Effectful.FileSystem (runFileSystem)
@@ -64,10 +64,10 @@ main = do
   currentDir <- newTVarIO root
 
   dir <- do
-    eFile <- runEff . runFileSystem . runErrorNoCallStack @String $ do
+    eFile <- runEff . runFileSystem . runErrorNoCallStack @FilehubError $ do
       getFile root >>= loadDirContents
     case eFile of
-      Left err -> fail err
+      Left err -> fail (show err)
       Right d -> newTVarIO d
 
   dataDir <- Paths_filehub.getDataDir >>= makeAbsolute  <&> (++ "/data")

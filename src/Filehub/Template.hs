@@ -267,7 +267,7 @@ newFileModal = do
 newFolderModal :: Html ()
 newFolderModal = do
   modal [ id_ componentIds.newFolderModal ] do
-    "Folder"
+    "File"
     br_ mempty >> br_ mempty
     input_ [ class_ "form-control "
            , type_ "text"

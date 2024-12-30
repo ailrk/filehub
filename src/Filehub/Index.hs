@@ -8,27 +8,27 @@ module Filehub.Index where
 import Lucid
 import Lens.Micro
 import Lens.Micro.Platform ()
+import Effectful (Eff, (:>))
 import Filehub.Template qualified as Template
 import Filehub.Env (Env(..))
 import Filehub.Domain (NewFile (..), NewFolder(..), SearchWord(..), SortFileBy (..), sortFiles, ClientPath (..), UpdatedFile (..), Theme (..))
 import Filehub.Domain qualified as Domain
-import Effectful (Eff, (:>))
 import Effectful.Reader.Dynamic (asks)
-import Effectful.Error.Dynamic (Error, runErrorNoCallStack, throwError)
+import Effectful.Error.Dynamic (runErrorNoCallStack, throwError, Error)
 import Effectful.FileSystem.IO.ByteString.Lazy (readFile)
 import System.FilePath ((</>), takeFileName)
 import GHC.Generics (Generic)
-import Data.String (IsString(..))
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.ByteString.Lazy qualified as LBS
+import Data.String (IsString(..))
 import Data.Maybe (fromMaybe)
 import Servant.Multipart (Mem, MultipartForm, MultipartData(..))
 import Servant.Server.Generic (AsServerT)
-import Servant (Get, errBody, err500, (:-), ServerError (..), QueryParam, Post, Put, ReqBody, FormUrlEncoded, OctetStream, addHeader, Delete)
+import Servant (Get, (:-), QueryParam, Post, Put, ReqBody, FormUrlEncoded, OctetStream, addHeader, noHeader, Delete, ServerError (errBody))
 import Servant qualified as S
 import Servant.HTML.Lucid (HTML)
-import Servant.Server (err400)
+import Servant.Server (err400, err500)
 import Effectful.Concurrent.STM (readTVarIO)
 import Text.Printf (printf)
 import Filehub (Filehub)
@@ -37,11 +37,11 @@ import Prelude hiding (readFile)
 
 data Api mode = Api
   { index             :: mode :- Get '[HTML] (Html ())
-  , cd                :: mode :- "cd" S.:> QueryParam "dir" ClientPath S.:> Get '[HTML] (Html ())
-  , newFile           :: mode :- "files" S.:> "new" S.:> ReqBody '[FormUrlEncoded] NewFile S.:> Post '[HTML] (Html ())
+  , cd                :: mode :- "cd" S.:> QueryParam "dir" ClientPath S.:> Get '[HTML] (S.Headers '[S.Header "HX-Trigger" Domain.FilehubError] (Html ()))
+  , newFile           :: mode :- "files" S.:> "new" S.:> ReqBody '[FormUrlEncoded] NewFile S.:> Post '[HTML] (S.Headers '[S.Header "HX-Trigger" Domain.FilehubError] (Html ()))
   , updateFile        :: mode :- "files" S.:> "update" S.:> ReqBody '[FormUrlEncoded] UpdatedFile S.:> Put '[HTML] (Html ())
   , deleteFile        :: mode :- "files" S.:> "delete" S.:> QueryParam "file" ClientPath S.:> Delete '[HTML] (Html ())
-  , newFolder         :: mode :- "folders" S.:> "new" S.:> ReqBody '[FormUrlEncoded] NewFolder S.:> Post '[HTML] (Html ())
+  , newFolder         :: mode :- "folders" S.:> "new" S.:> ReqBody '[FormUrlEncoded] NewFolder S.:> Post '[HTML] (S.Headers '[S.Header "HX-Trigger" Domain.FilehubError] (Html ()))
   , newFileModal      :: mode :- "modal" S.:> "new-file" S.:> Get '[HTML] (Html ())
   , newFolderModal    :: mode :- "modal" S.:> "new-folder" S.:> Get '[HTML] (Html ())
   , fileDetailModal   :: mode :- "modal" S.:> "file" S.:> "detail" S.:> QueryParam "file" ClientPath S.:> Get '[HTML] (Html ())
@@ -50,8 +50,7 @@ data Api mode = Api
   , search            :: mode :- "search" S.:> ReqBody '[FormUrlEncoded] SearchWord S.:> Post '[HTML] (Html ())
   , sortTable         :: mode :- "table" S.:> "sort" S.:> QueryParam "by" SortFileBy S.:> Get '[HTML] (Html ())
   , upload            :: mode :- "upload" S.:> MultipartForm Mem (MultipartData Mem) S.:> Post '[HTML] (Html ())
-  , download          :: mode :- "download" S.:> QueryParam "file" ClientPath
-                            S.:> Get '[OctetStream] (S.Headers '[S.Header "Content-Disposition" String] LBS.ByteString)
+  , download          :: mode :- "download" S.:> QueryParam "file" ClientPath S.:> Get '[OctetStream] (S.Headers '[S.Header "Content-Disposition" String] LBS.ByteString)
   , contextMenu       :: mode :- "contextmenu" S.:> QueryParam "file" ClientPath S.:> Get '[HTML] (Html ())
   , themeCss          :: mode :- "theme.css" S.:> Get '[OctetStream] LBS.ByteString
   }
@@ -64,26 +63,41 @@ server = Api
 
   , cd = \path -> do
       root <- asks @Env (.root)
-      Domain.changeDir (maybe "/" (Domain.fromClientPath root) path) & withServerError >> view ByName
+      r <- Domain.changeDir (maybe "/" (Domain.fromClientPath root) path) & runErrorNoCallStack
+      let withHeader =
+            case r of
+              Left err -> addHeader err
+              Right _ -> noHeader
+      withHeader <$> view ByName
 
   , newFile = \(NewFile path) -> do
-      Domain.newFile (Text.unpack path) & withServerError
-      view ByName
+      r <- Domain.newFile (Text.unpack path) & runErrorNoCallStack
+      let withHeader =
+            case r of
+              Left err -> addHeader err
+              Right _ -> noHeader
+      withHeader <$> view ByName
 
   , updateFile = \(UpdatedFile clientPath content) -> do
       root <- asks @Env (.root)
       let path = Domain.fromClientPath root clientPath
-      Domain.writeFile path (Text.encodeUtf8 content ^. lazy) & withServerError
+      Domain.writeFile path (Text.encodeUtf8 content ^. lazy)
       view ByName
 
   , deleteFile = \case
       Just path -> do
         p <- Domain.fromClientPath <$> asks @Env (.root) <*> pure path
-        Domain.deleteFile p & withServerError
+        Domain.deleteFile p
         view ByName
       Nothing -> throwError err400
 
-  , newFolder = \(NewFolder path) -> Domain.newFolder (Text.unpack path) & withServerError >> index
+  , newFolder = \(NewFolder path) -> do
+      r <- Domain.newFolder (Text.unpack path) & runErrorNoCallStack
+      let withHeader =
+            case r of
+              Left err -> addHeader err
+              Right _ -> noHeader
+      withHeader <$> view ByName
 
   , newFileModal = pure Template.newFileModal
 
@@ -139,10 +153,10 @@ server = Api
   }
 
 
-withServerError :: (Error ServerError :> es) => Eff (Error String : es) b -> Eff es b
+withServerError :: (Error ServerError :> es) => Eff (Error Domain.FilehubError : es) b -> Eff es b
 withServerError action = do
-  runErrorNoCallStack @String action >>= \case
-    Left err -> throwError err500 { errBody = fromString err }
+  runErrorNoCallStack action >>= \case
+    Left err -> throwError err500 { errBody = fromString $ show err }
     Right res -> pure res
 
 

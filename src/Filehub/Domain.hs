@@ -37,6 +37,19 @@ import Codec.Archive.Zip (ZipOption(..))
 ------------------------------------
 
 
+data FilehubError
+  = FileExists
+  | InvalidPath
+  | InvalidDir
+  deriving Show
+
+
+instance ToHttpApiData FilehubError where
+  toUrlPiece FileExists = Text.pack $ show FileExists
+  toUrlPiece InvalidPath = Text.pack $ show InvalidPath
+  toUrlPiece InvalidDir = Text.pack $ show InvalidDir
+
+
 data FileContent
   = Content
   | Dir (Maybe [File])
@@ -53,11 +66,11 @@ data File = File
   deriving (Show, Generic)
 
 
-getFile :: (FileSystem :> es, Error String :> es) => FilePath -> Eff es File
+getFile :: (FileSystem :> es, Error FilehubError :> es) => FilePath -> Eff es File
 getFile path = do
   exists <- doesPathExist path
   unless exists do
-    throwError @String (printf "%s is not a valid path" path)
+    throwError InvalidPath
   size <- getFileSize path
   mtime <- getModificationTime path
   atime <- getAccessTime path
@@ -75,7 +88,7 @@ readFileContent :: (FileSystem :> es) => File -> Eff es LBS.ByteString
 readFileContent file = readFile file.path
 
 
-loadDirContents :: (FileSystem :> es, Error String :> es) => File -> Eff es File
+loadDirContents :: (FileSystem :> es, Error FilehubError :> es) => File -> Eff es File
 loadDirContents file = do
   case file.content of
     Dir Nothing -> do
@@ -102,21 +115,21 @@ toFilePath name = do
   makeAbsolute (currentDir </> name)
 
 
-newFolder :: (Reader Env :> es, Concurrent :> es, FileSystem :> es, Error String :> es) => String -> Eff es ()
+newFolder :: (Reader Env :> es, Concurrent :> es, FileSystem :> es, Error FilehubError :> es) => String -> Eff es ()
 newFolder name = do
   filePath <- toFilePath name
   exists <- doesFileExist filePath
   when exists do
-    throwError @String (printf "%s already exists" filePath)
+    throwError FileExists
   createDirectoryIfMissing True filePath
 
 
-newFile :: (Reader Env :> es, Concurrent :> es, FileSystem :> es, Error String :> es) => String -> Eff es ()
+newFile :: (Reader Env :> es, Concurrent :> es, FileSystem :> es, Error FilehubError :> es) => String -> Eff es ()
 newFile name = do
   filePath <- toFilePath name
   exists <- doesFileExist filePath
   when exists do
-    throwError @String (printf "%s already exists" filePath)
+    throwError FileExists
   withFile filePath ReadWriteMode (\_ -> pure ())
 
 
@@ -137,33 +150,33 @@ deleteFile name = do
      | otherwise -> pure ()
 
 
-lsDir :: (FileSystem :> es, Error String :> es) => FilePath -> Eff es [File]
+lsDir :: (FileSystem :> es, Error FilehubError :> es) => FilePath -> Eff es [File]
 lsDir path = do
   exists <- doesDirectoryExist path
   unless exists do
-    throwError @String (printf "%s is not a valid directory" path)
+    throwError InvalidDir
   withCurrentDirectory path $
     listDirectory path
       >>= traverse makeAbsolute
       >>= traverse getFile
 
 
-changeDir :: (Reader Env :> es, Concurrent :> es, FileSystem :> es, Error String :> es) => FilePath -> Eff es ()
+changeDir :: (Reader Env :> es, Concurrent :> es, FileSystem :> es, Error FilehubError :> es) => FilePath -> Eff es ()
 changeDir path = do
   exists <- doesDirectoryExist path
   unless exists do
-    throwError @String (printf "%s is not a valid directory" path)
+    throwError InvalidDir
   ref <- asks @Env (.currentDir)
   atomically $ ref `modifyTVar` const path
 
 
-lsCurrentDir :: (Reader Env :> es, Concurrent :> es, FileSystem :> es, Error String :> es) => Eff es [File]
+lsCurrentDir :: (Reader Env :> es, Concurrent :> es, FileSystem :> es, Error FilehubError :> es) => Eff es [File]
 lsCurrentDir = do
   ref <- asks @Env (.currentDir)
   path <- readTVarIO ref
   exists <- doesDirectoryExist path
   unless exists do
-    throwError @String (printf "%s is not a valid directory" path)
+    throwError InvalidDir
   lsDir path
 
 
@@ -175,7 +188,7 @@ upload multipart = do
     writeFile name content
 
 
-download :: (Reader Env :> es, Error String :> es, FileSystem :> es, IOE :> es) => ClientPath -> Eff es LBS.ByteString
+download :: (Reader Env :> es, Error FilehubError :> es, FileSystem :> es, IOE :> es) => ClientPath -> Eff es LBS.ByteString
 download clientPath = do
   root <- asks @Env (.root)
   let abspath = fromClientPath root clientPath
@@ -339,3 +352,5 @@ instance Read Theme where
 
 defaultTheme :: Theme
 defaultTheme = Dark1
+
+
