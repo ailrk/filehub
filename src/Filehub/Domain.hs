@@ -12,7 +12,7 @@ import Effectful.Error.Dynamic (throwError, Error)
 import Effectful.FileSystem.IO (withFile, IOMode (..))
 import Effectful.FileSystem.IO.ByteString.Lazy (hPut, readFile)
 import Control.Monad (unless, when, forM_)
-import Text.Printf
+import Text.Printf (printf)
 import Filehub.Env (Env(..))
 import GHC.Generics
 import Lens.Micro
@@ -304,11 +304,11 @@ fromClientPath root (ClientPath cp) =
 toReadableSize :: Integer -> String
 toReadableSize nbytes =
   if | nB == 0 -> "0 b"
-     | nTb >= 1 -> printf "%.1f Tb" (nTb :: Double)
-     | nGb >= 1 -> printf "%.1f Gb" (nGb :: Double)
-     | nMb >= 1 -> printf "%.1f Mb" (nMb :: Double)
-     | nKb >= 1 -> printf "%.1f Kb" (nKb :: Double)
-     | nB >= 1 -> printf "%.0f b" (nB :: Double)
+     | nTb >= 1 -> printf "%.1f TB" (nTb :: Double)
+     | nGb >= 1 -> printf "%.1f GB" (nGb :: Double)
+     | nMb >= 1 -> printf "%.1f MB" (nMb :: Double)
+     | nKb >= 1 -> printf "%.1f KB" (nKb :: Double)
+     | nB >= 1 -> printf "%.0f B" (nB :: Double)
      | otherwise -> "unknown"
 
   where

@@ -19,14 +19,14 @@ body {
     display: grid;
     grid-template-rows: auto 90vh;
     overflow: hidden;
-    border-bottom: 1px solid var(--frontground); /* debug */
+    border-bottom: 1px solid var(--frontground);
 }
 
 
 #control-panel {
     grid-column: 1 / -1;
     grid-row: 1;
-    border-bottom: 1px solid var(--frontground); /* debug */
+    border-bottom: 1px solid var(--frontground);
 }
 
 
@@ -35,7 +35,6 @@ body {
     grid-row: 2;
     overflow-y: scroll;
     scrollbar-width: none;
-    box-shadow: 4px 4px 8px #0000007F, -4px -4px 4px #FFFFFF0B;
 }
 
 
@@ -46,8 +45,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid var(--frontground); /* debug */
-    box-shadow: 4px 4px 8px #0000007F, -4px -4px 4px #FFFFFF0B;
+    border-bottom: 1px solid var(--frontground);
     overflow: hidden;
 }
 
@@ -238,7 +236,6 @@ textarea.form-control {
     /* Display properties for visible dialog*/
     border: solid 1px #999;
     border-radius: 8px;
-    box-shadow: 0px 0px 20px 0px rgba(0,0,0,0.3);
     background-color: var(--background2);
     padding: 20px;
 
@@ -267,13 +264,11 @@ textarea.form-control {
 
 .modal .btn-modal-close {
     background: var(--secondary);
-    box-shadow: 3px 0px 0px #0000007F;
 }
 
 
 .modal .btn-modal-confirm {
     background: var(--primary);
-    box-shadow: 3px 0px 0px #0000007F;
 }
 
 
@@ -337,7 +332,6 @@ textarea.form-control {
     border: 1px solid var(--frontground);
     border-radius : 0.1rem;
     text-align: left;
-    box-shadow: 3px 0px 0px #0000007F;
     z-index: 1;
 
     animation-name: fadeIn;
