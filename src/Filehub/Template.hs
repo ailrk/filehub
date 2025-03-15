@@ -1,4 +1,6 @@
 {-# LANGUAGE QuasiQuotes #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Use if" #-}
 
 module Filehub.Template where
 
@@ -503,8 +505,8 @@ table root files = do
             _ -> []
 
 
-contextMenu :: ClientPath -> Html ()
-contextMenu (ClientPath clientPath) = do
+contextMenu :: ClientPath -> Bool -> Html ()
+contextMenu (ClientPath clientPath) isDir = do
   div_ [ class_ "dropdown-content "
        , id_ componentIds.contextMenu
        , term "_"
@@ -525,13 +527,22 @@ contextMenu (ClientPath clientPath) = do
          |]
       ] do
 
-    div_ [ class_ "dropdown-item"
-         , term "hx-get" "/modal/editor"
-         , term "hx-vals" $ [ "file" .= Text.pack clientPath ] & toHxVals
-         , term "hx-target" "#index"
-         , term "hx-swap" "beforeend"
-         ] $
-      span_ "Open"
+    case isDir of
+      True -> do
+        div_ [ class_ "dropdown-item"
+             , term "hx-get" ("/cd?dir=" <> Text.pack clientPath )
+             , term "hx-target" ("#" <> componentIds.view)
+             , term "hx-swap" "outerHTML"
+             ] $
+          span_ "Open"
+      False -> do
+        div_ [ class_ "dropdown-item"
+             , term "hx-get" "/modal/editor"
+             , term "hx-vals" $ [ "file" .= Text.pack clientPath ] & toHxVals
+             , term "hx-target" "#index"
+             , term "hx-swap" "beforeend"
+             ] $
+          span_ "Open"
 
     div_ [ class_ "dropdown-item" ] $
       a_ [ href_ ("/download?file=" <> Text.pack clientPath ) ] "Download"

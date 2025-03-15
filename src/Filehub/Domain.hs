@@ -30,7 +30,6 @@ import Web.HttpApiData (FromHttpApiData(..), ToHttpApiData(..))
 import Effectful.Concurrent.STM
 import Codec.Archive.Zip qualified as Zip
 import Codec.Archive.Zip (ZipOption(..))
-import Debug.Trace (traceM)
 
 
 ------------------------------------
@@ -85,6 +84,15 @@ getFile path = do
     }
 
 
+isDirectory :: (FileSystem :> es) => FilePath -> Eff es Bool
+isDirectory filePath = do
+  pathExists <- doesPathExist filePath
+  dirExists <- doesDirectoryExist filePath
+  if not pathExists
+     then pure False
+     else pure dirExists
+
+
 readFileContent :: (FileSystem :> es) => File -> Eff es LBS.ByteString
 readFileContent file = readFile file.path
 
@@ -113,7 +121,6 @@ dirtree f = \case
 toFilePath :: (Reader Env :> es, Concurrent :> es, FileSystem :> es) => FilePath -> Eff es FilePath
 toFilePath name = do
   currentDir <- asks @Env (.currentDir) >>= readTVarIO
-  traceM (show "current dir: " <> currentDir)
   makeAbsolute (currentDir </> name)
 
 
@@ -132,14 +139,12 @@ newFile name = do
   exists <- doesFileExist filePath
   when exists do
     throwError FileExists
-  traceM (show filePath)
   withFile filePath ReadWriteMode (\_ -> pure ())
 
 
 writeFile :: (Reader Env :> es, Concurrent :> es, FileSystem :> es) => String -> LBS.ByteString -> Eff es ()
 writeFile name content = do
   filePath <- toFilePath name
-  traceM (show filePath)
   withFile filePath ReadWriteMode (\h -> hPut h content)
 
 
@@ -148,7 +153,6 @@ deleteFile name = do
   filePath <- toFilePath name
   fileExists <- doesFileExist filePath
   dirExists <- doesDirectoryExist filePath
-  traceM (filePath <> " " <> show fileExists <> " " <> show dirExists)
   if
      | fileExists -> removeFile filePath
      | dirExists -> removeDirectoryRecursive filePath
@@ -308,7 +312,7 @@ fromClientPath root (ClientPath cp) =
 
 toReadableSize :: Integer -> String
 toReadableSize nbytes =
-  if | nB == 0 -> "0 b"
+  if | nB == 0 -> "0b"
      | nTb >= 1 -> printf "%.1fTB" (nTb :: Double)
      | nGb >= 1 -> printf "%.1fGB" (nGb :: Double)
      | nMb >= 1 -> printf "%.1fMB" (nMb :: Double)

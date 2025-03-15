@@ -79,7 +79,6 @@ server = Api
       withHeader <$> view ByName
 
   , updateFile = \(UpdatedFile clientPath content) -> do
-      root <- asks @Env (.root)
       let path = clientPath.unClientPath
       Domain.writeFile path (Text.encodeUtf8 content ^. lazy)
       view ByName
@@ -136,7 +135,11 @@ server = Api
       Nothing -> throwError err400
 
   , contextMenu = \case
-      Just path -> pure $ Template.contextMenu path
+      Just path -> do
+        root <- asks @Env (.root)
+        let filePath = Domain.fromClientPath root path
+        isDir <- Domain.isDirectory filePath
+        pure $ Template.contextMenu path isDir
       Nothing -> throwError err400
 
   , themeCss = do
