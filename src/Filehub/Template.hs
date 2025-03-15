@@ -367,7 +367,7 @@ editorModal filename content = do
 
       button_ [ class_ "btn btn-modal-confirm mr-2 "
               , term "_" "on click trigger close"
-              ] "UPLOAD"
+              ] "EDIT"
 
       button_ [ class_ "btn btn-modal-close "
               , type_ "button"
