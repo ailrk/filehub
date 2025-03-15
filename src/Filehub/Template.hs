@@ -342,7 +342,7 @@ editorModal filename content = do
     br_ mempty >> br_ mempty
 
     form_ [ term "hx-put" "/files/update"
-          , term "hx-confirm" "Save the edit?"
+          , term "hx-confirm" ("Save the edit of " <> Text.pack filename <> "?")
           ] do
       input_ [ class_ "form-control "
              , type_ "text"
@@ -541,7 +541,7 @@ contextMenu (ClientPath clientPath) = do
          , term "hx-vals" $ [ "file" .= Text.pack clientPath ] & toHxVals
          , term "hx-target" "#view"
          , term "hx-swap" "outerHTML"
-         , term "hx-confirm" "Are you sure?"
+         , term "hx-confirm" ("Are you sure about deleting " <> Text.pack clientPath <> "?")
          ] $
       span_ "Delete"
 

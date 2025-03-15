@@ -80,7 +80,7 @@ server = Api
 
   , updateFile = \(UpdatedFile clientPath content) -> do
       root <- asks @Env (.root)
-      let path = Domain.fromClientPath root clientPath
+      let path = clientPath.unClientPath
       Domain.writeFile path (Text.encodeUtf8 content ^. lazy)
       view ByName
 

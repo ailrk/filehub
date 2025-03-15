@@ -30,6 +30,7 @@ import Web.HttpApiData (FromHttpApiData(..), ToHttpApiData(..))
 import Effectful.Concurrent.STM
 import Codec.Archive.Zip qualified as Zip
 import Codec.Archive.Zip (ZipOption(..))
+import Debug.Trace (traceM)
 
 
 ------------------------------------
@@ -112,6 +113,7 @@ dirtree f = \case
 toFilePath :: (Reader Env :> es, Concurrent :> es, FileSystem :> es) => FilePath -> Eff es FilePath
 toFilePath name = do
   currentDir <- asks @Env (.currentDir) >>= readTVarIO
+  traceM (show "current dir: " <> currentDir)
   makeAbsolute (currentDir </> name)
 
 
@@ -130,12 +132,14 @@ newFile name = do
   exists <- doesFileExist filePath
   when exists do
     throwError FileExists
+  traceM (show filePath)
   withFile filePath ReadWriteMode (\_ -> pure ())
 
 
 writeFile :: (Reader Env :> es, Concurrent :> es, FileSystem :> es) => String -> LBS.ByteString -> Eff es ()
 writeFile name content = do
   filePath <- toFilePath name
+  traceM (show filePath)
   withFile filePath ReadWriteMode (\h -> hPut h content)
 
 
@@ -144,9 +148,10 @@ deleteFile name = do
   filePath <- toFilePath name
   fileExists <- doesFileExist filePath
   dirExists <- doesDirectoryExist filePath
+  traceM (filePath <> " " <> show fileExists <> " " <> show dirExists)
   if
      | fileExists -> removeFile filePath
-     | dirExists -> removeDirectory filePath
+     | dirExists -> removeDirectoryRecursive filePath
      | otherwise -> pure ()
 
 
@@ -304,11 +309,11 @@ fromClientPath root (ClientPath cp) =
 toReadableSize :: Integer -> String
 toReadableSize nbytes =
   if | nB == 0 -> "0 b"
-     | nTb >= 1 -> printf "%.1f TB" (nTb :: Double)
-     | nGb >= 1 -> printf "%.1f GB" (nGb :: Double)
-     | nMb >= 1 -> printf "%.1f MB" (nMb :: Double)
-     | nKb >= 1 -> printf "%.1f KB" (nKb :: Double)
-     | nB >= 1 -> printf "%.0f B" (nB :: Double)
+     | nTb >= 1 -> printf "%.1fTB" (nTb :: Double)
+     | nGb >= 1 -> printf "%.1fGB" (nGb :: Double)
+     | nMb >= 1 -> printf "%.1fMB" (nMb :: Double)
+     | nKb >= 1 -> printf "%.1fKB" (nKb :: Double)
+     | nB >= 1 -> printf "%.0fB" (nB :: Double)
      | otherwise -> "unknown"
 
   where
@@ -353,5 +358,3 @@ instance Read Theme where
 
 defaultTheme :: Theme
 defaultTheme = Dark1
-
-
