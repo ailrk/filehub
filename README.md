@@ -17,7 +17,7 @@ To start an instance, run the following command:
 filehub --port 8080 --root $HOME --theme dark1
 ```
 
-Now you can access `$HOME` directory on `https://localhost:8080`.
+Now you can access `$HOME` directory on `http://localhost:8080`.
 
 
 ### Nix
