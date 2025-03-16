@@ -221,7 +221,7 @@ textarea.form-control {
 
     /* Animate when opening */
     animation-name: fadeIn;
-    animation-duration: 150ms;
+    animation-duration: 60ms;
     animation-timing-function: ease;
 }
 
@@ -241,7 +241,7 @@ textarea.form-control {
 
     /* Animate when opening */
     animation-name: zoomIn;
-    animation-duration: 150ms;
+    animation-duration: 60ms;
     animation-timing-function: ease;
 }
 
@@ -249,7 +249,7 @@ textarea.form-control {
 .modal.closing {
     /* Animate when closing */
     animation-name: fadeOut;
-    animation-duration: 150ms;
+    animation-duration: 60ms;
     animation-timing-function: ease;
 }
 
@@ -257,7 +257,7 @@ textarea.form-control {
 .modal.closing > .modal-content {
     /* Animate when closing */
     animation-name: zoomOut;
-    animation-duration: 150ms;
+    animation-duration: 60ms;
     animation-timing-function: ease;
 }
 
@@ -335,14 +335,14 @@ textarea.form-control {
     z-index: 1;
 
     animation-name: fadeIn;
-    animation-duration: 100ms;
+    animation-duration: 60ms;
     animation-timing-function: ease;
 }
 
 
 .dropdown-content.closing {
     animation-name: fadeOut;
-    animation-duration: 100ms;
+    animation-duration: 60ms;
     animation-timing-function: ease;
 }
 

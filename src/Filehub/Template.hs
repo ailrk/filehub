@@ -248,22 +248,25 @@ newFileModal = do
   modal [ id_ componentIds.newFileModal ] do
     "File"
     br_ mempty >> br_ mempty
-    input_ [ class_ "form-control "
-           , type_ "text"
-           , name_ "new-file"
-           , placeholder_ "New file name"
-           , term "hx-post" "/files/new"
-           , term "hx-target" "#view"
-           , term "hx-swap" "outerHTML"
-           ]
-    br_ mempty >> br_ mempty
-    button_ [ class_ "btn btn-modal-confirm mr-2 "
-            , term "_" "on click trigger close"
-            ] "CREATE"
+    form_ [ term "hx-post" "/files/new"
+          , term "hx-target" "#view"
+          , term "hx-swap" "outerHTML"
+          ] do
+      input_ [ class_ "form-control "
+             , type_ "text"
+             , name_ "new-file"
+             , placeholder_ "New file name"
+             ]
+      br_ mempty >> br_ mempty
+      button_ [ class_ "btn btn-modal-confirm mr-2 "
+              , type_ "submit"
+              , term "_" "on click trigger close"
+              ] "CREATE"
 
-    button_ [ class_ "btn btn-modal-close "
-            , term "_" "on click trigger close"
-            ] "CLOSE"
+      button_ [ class_ "btn btn-modal-close "
+              , type_ "button" -- prevent submission
+              , term "_" "on click trigger close"
+              ] "CLOSE"
 
 
 newFolderModal :: Html ()
@@ -271,22 +274,24 @@ newFolderModal = do
   modal [ id_ componentIds.newFolderModal ] do
     "File"
     br_ mempty >> br_ mempty
-    input_ [ class_ "form-control "
-           , type_ "text"
-           , name_ "new-folder"
-           , placeholder_ "New folder name"
-           , term "hx-post" "/folders/new"
-           , term "hx-target" "#view"
-           , term "hx-swap" "outerHTML"
-           ]
-    br_ mempty >> br_ mempty
-    button_ [ class_ "btn btn-modal-confirm mr-2 "
-            , term "_" "on click trigger close"
-            ] "CREATE"
-
-    button_ [ class_ "btn btn-modal-close "
-            , term "_" "on click trigger close"
-            ] "CLOSE"
+    form_ [ term "hx-post" "/folders/new"
+          , term "hx-target" "#view"
+          , term "hx-swap" "outerHTML"
+          ] do
+      input_ [ class_ "form-control "
+             , type_ "text"
+             , name_ "new-folder"
+             , placeholder_ "New folder name"
+             ]
+      br_ mempty >> br_ mempty
+      button_ [ class_ "btn btn-modal-confirm mr-2 "
+              , type_ "submit"
+              , term "_" "on click trigger close"
+              ] "CREATE"
+      button_ [ class_ "btn btn-modal-close "
+              , type_ "button"
+              , term "_" "on click trigger close"
+              ] "CLOSE"
 
 
 fileDetailModal :: File -> Html ()
