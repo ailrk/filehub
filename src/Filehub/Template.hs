@@ -25,6 +25,8 @@ import Data.Bifunctor (Bifunctor(..))
 import Data.Aeson qualified as Aeson
 import Data.Aeson ((.=))
 import Data.Aeson.Types (Pair)
+import Data.List.Zipper (Zipper(..))
+import Data.List.Zipper qualified as Zipper
 import Filehub.Domain (File (..), FileContent (..), SearchWord (..), SortFileBy (..), sortFiles, ClientPath (..))
 import Filehub.Domain qualified as Domain
 import Network.Mime (MimeType)
@@ -511,11 +513,14 @@ table root files = do
                     ]
                   Content
                     | file.mimetype `isMime` "image" ->
-                        [ term "hx-get" "/modal/image"
-                        , term "hx-vals" $ [ "file" .= toClientPath root file.path ] & toHxVals
-                        , term "hx-target" "#index"
-                        , term "hx-swap" "beforeend"
-                        ]
+                      let clientPath = Domain.toClientPath root file.path
+                       in [ term "_"
+                              [iii|
+                                on click
+                                  send VIEW_IMAGE( html: '#{imageModal clientPath}' )
+                                  to window
+                              |]
+                          ]
                     | otherwise ->
                         [ term "hx-get" "/modal/editor"
                         , term "hx-vals" $ [ "file" .= toClientPath root file.path ] & toHxVals
@@ -533,8 +538,10 @@ table root files = do
             Content -> i_ [ class_ "bx bxs-file-blank "] mempty
 
 
-contextMenu :: ClientPath -> File -> Html ()
-contextMenu (ClientPath clientPath) file = do
+contextMenu :: ClientPath -> Zipper File -> Html ()
+contextMenu clientPath fileZipper = do
+  let file = Zipper.cursor fileZipper
+  let textClientPath = Text.pack clientPath.unClientPath
   div_ [ class_ "dropdown-content "
        , id_ componentIds.contextMenu
        , term "_"
@@ -558,7 +565,7 @@ contextMenu (ClientPath clientPath) file = do
     case file.content of
       Dir _ -> do
         div_ [ class_ "dropdown-item"
-             , term "hx-get" ("/cd?dir=" <> Text.pack clientPath )
+             , term "hx-get" ("/cd?dir=" <> textClientPath )
              , term "hx-target" ("#" <> componentIds.view)
              , term "hx-swap" "outerHTML"
              ] $
@@ -567,37 +574,39 @@ contextMenu (ClientPath clientPath) file = do
         | file.mimetype `isMime` "text" -> do
           div_ [ class_ "dropdown-item"
                , term "hx-get" "/modal/editor"
-               , term "hx-vals" $ [ "file" .= Text.pack clientPath ] & toHxVals
+               , term "hx-vals" $ [ "file" .= textClientPath ] & toHxVals
                , term "hx-target" "#index"
                , term "hx-swap" "beforeend"
                ] $
             span_ "Edit"
         | file.mimetype `isMime` "image" -> do
           div_ [ class_ "dropdown-item"
-               , term "hx-get" "/modal/image"
-               , term "hx-vals" $ [ "file" .= Text.pack clientPath ] & toHxVals
-               , term "hx-target" "#index"
-               , term "hx-swap" "beforeend"
+               , term "_"
+                  [iii|
+                    on click
+                      send VIEW_IMAGE( html: '#{imageModal clientPath}' )
+                      to window
+                  |]
                ] $
             span_ "View"
         | otherwise ->
             mempty
 
     div_ [ class_ "dropdown-item" ] $
-      a_ [ href_ ("/download?file=" <> Text.pack clientPath ) ] "Download"
+      a_ [ href_ ("/download?file=" <> textClientPath ) ] "Download"
 
     div_ [ class_ "dropdown-item"
          , term "hx-delete" "/files/delete"
-         , term "hx-vals" $ [ "file" .= Text.pack clientPath ] & toHxVals
+         , term "hx-vals" $ [ "file" .= textClientPath ] & toHxVals
          , term "hx-target" "#view"
          , term "hx-swap" "outerHTML"
-         , term "hx-confirm" ("Are you sure about deleting " <> Text.pack clientPath <> "?")
+         , term "hx-confirm" ("Are you sure about deleting " <> textClientPath <> "?")
          ] $
       span_ "Delete"
 
     div_ [ class_ "dropdown-item"
          , term "hx-get" "/modal/file/detail"
-         , term "hx-vals" $ [ "file" .= Text.pack clientPath ] & toHxVals
+         , term "hx-vals" $ [ "file" .= textClientPath ] & toHxVals
          , term "hx-target" "#index"
          , term "hx-swap" "beforeend"
          ] $

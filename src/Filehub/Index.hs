@@ -9,14 +9,11 @@ import Lens.Micro
 import Lens.Micro.Platform ()
 import Effectful (Eff, (:>))
 import Filehub.Template qualified as Template
-import Filehub.Env (Env(..))
 import Filehub.Env qualified as Env
-import Filehub.Domain (NewFile (..), NewFolder(..), SearchWord(..), SortFileBy (..), sortFiles, ClientPath (..), UpdatedFile (..), Theme (..), ViewImage(..))
+import Filehub.Domain (NewFile (..), NewFolder(..), SearchWord(..), SortFileBy (..), sortFiles, ClientPath (..), UpdatedFile (..), Theme (..))
 import Filehub.Domain qualified as Domain
-import Effectful.Reader.Dynamic (asks)
 import Effectful.Error.Dynamic (runErrorNoCallStack, throwError, Error)
 import Effectful.FileSystem.IO.ByteString.Lazy (readFile)
-import Effectful.Concurrent.STM (readTVarIO)
 import System.FilePath ((</>), takeFileName)
 import GHC.Generics (Generic)
 import Data.Text qualified as Text
@@ -47,7 +44,6 @@ data Api mode = Api
   , fileDetailModal   :: mode :- "modal" S.:> "file" S.:> "detail" S.:> QueryParam "file" ClientPath S.:> Get '[HTML] (Html ())
   , uploadModal       :: mode :- "modal" S.:> "upload" S.:> Get '[HTML] (Html ())
   , editorModal       :: mode :- "modal" S.:> "editor" S.:> QueryParam "file" ClientPath S.:> Get '[HTML] (Html ())
-  , imageModal        :: mode :- "modal" S.:> "image" S.:> QueryParam "file" ClientPath S.:> Get '[HTML] (S.Headers '[S.Header "HX-Trigger" Domain.ViewImage] (Html ()))
   , search            :: mode :- "search" S.:> ReqBody '[FormUrlEncoded] SearchWord S.:> Post '[HTML] (Html ())
   , sortTable         :: mode :- "table" S.:> "sort" S.:> QueryParam "by" SortFileBy S.:> Get '[HTML] (Html ())
   , upload            :: mode :- "upload" S.:> MultipartForm Mem (MultipartData Mem) S.:> Post '[HTML] (Html ())
@@ -131,17 +127,6 @@ server = Api
       Nothing -> throwError err400
 
 
-  , imageModal = \case
-      Just path -> do
-        let payload = ViewerJS
-              { elementId = Template.componentIds.imageModal
-              , html = do
-                  Template.imageModal path
-              }
-        pure . addHeader payload $ mempty
-      Nothing -> noHeader <$> throwError err400
-
-
   , search = \searchWord ->
       Template.search searchWord
         <$> Env.getRoot
@@ -167,8 +152,8 @@ server = Api
       Just path -> do
         root <- Env.getRoot
         let filePath = Domain.fromClientPath root path
-        file <- Domain.getFile filePath & withServerError
-        pure $ Template.contextMenu path file
+        fileZipper <- Domain.getFileInContext filePath & withServerError
+        pure $ Template.contextMenu path fileZipper
       Nothing -> throwError err400
 
 

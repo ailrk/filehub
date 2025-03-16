@@ -12,12 +12,14 @@ window.onload = function () {
   window.addEventListener('click', closeDropdown);
   window.addEventListener('contextmenu', e => e.preventDefault());
 
-  /* HX-Trigger events */
-  window.addEventListener('ViewerJS', startImageViewer);
-
   window.addEventListener('FileExists', () => alert("Error: file exists"));
   window.addEventListener('InvalidPath', () => alert("Error: invalid path"));
   window.addEventListener('InvalidDir', () => alert("Error: invalid directory"));
+
+
+  /* Custom events */
+  window.addEventListener('VIEW_IMAGE', startImageViewer);
+
 
   function closeDropdown(e) {
     // when clicking outside of any area outside a dropdown or dropdown-content, close all dropdowns.
@@ -39,11 +41,9 @@ window.onload = function () {
   function startImageViewer(e) {
     closeDropdowns();
     imgDiv = document.createElement('div');
-    imgDiv.id = e.detail.elementId;
     imgDiv.innerHTML = e.detail.html.trim();
 
     function closeImageViewer () {
-      console.log("close image viewer");
       if (viewer) {
         viewer.hide();
         viewer = null;

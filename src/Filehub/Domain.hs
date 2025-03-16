@@ -26,10 +26,12 @@ import Data.Generics.Labels ()
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Lazy.Encoding qualified as LText
-import Data.List (sortOn, (\\))
 import Data.Aeson (ToJSON (..), (.=))
 import Data.Aeson qualified as Aeson
-import System.FilePath ((</>), takeFileName)
+import Data.List (sortOn, (\\))
+import Data.List.Zipper (Zipper(..))
+import Data.List.Zipper qualified as Zipper
+import System.FilePath ((</>), takeFileName, takeDirectory)
 import Web.FormUrlEncoded (FromForm (..), parseUnique)
 import Servant.Multipart (MultipartData(..), Mem, FileData (..))
 import Prelude hiding (readFile, writeFile)
@@ -38,6 +40,7 @@ import Codec.Archive.Zip qualified as Zip
 import Codec.Archive.Zip (ZipOption(..))
 import Network.Mime (defaultMimeLookup, MimeType)
 import Lucid (Html, renderText)
+import Data.Function (fix)
 
 
 ------------------------------------
@@ -93,6 +96,27 @@ getFile path = do
     , mimetype = mimetype
     , content = if isDir then Dir Nothing else Content
     }
+
+
+-- | Return a zipper of files of `path`'s parent directory with the cursor points to `path`.
+--   This is useful for showing the full context of a file, so we can implement features
+--   like the next image.
+getFileInContext :: (FileSystem :> es, Error FilehubError :> es) => FilePath -> Eff es (Zipper File)
+getFileInContext path = do
+  exists <- doesPathExist path
+  unless exists $ throwError InvalidPath
+
+  let parentPath = takeDirectory path
+  isDir <- isDirectory parentPath
+  unless isDir $ throwError InvalidDir
+
+  files <- Zipper.fromList <$> lsDir parentPath
+  pure $
+    flip fix files $ \loop z ->
+      if
+         | Zipper.endp z -> z
+         | let c = Zipper.cursor z in c.path == path -> z
+         | otherwise -> loop (Zipper.right z)
 
 
 isDirectory :: (FileSystem :> es) => FilePath -> Eff es Bool
@@ -335,32 +359,6 @@ toReadableSize nbytes =
     nMb = fromIntegral nbytes / (2 ^ 20)
     nGb = fromIntegral nbytes / (2 ^ 30)
     nTb = fromIntegral nbytes / (2 ^ 40)
-
-
-------------------------------------
--- Image Viewer
-------------------------------------
-
-data ViewImage
-  = ViewerJS
-      { elementId :: Text
-      , html :: Html ()
-      }
-  deriving Show
-
-
-instance ToJSON ViewImage where
-  toJSON ViewerJS { elementId, html } =
-    Aeson.object
-      [ "ViewerJS" .= Aeson.object
-          [ "elementId" .= elementId
-          , "html" .= renderText html
-          ]
-      ]
-
-
-instance ToHttpApiData ViewImage where
-  toUrlPiece v = (v & Aeson.encode & LText.decodeUtf8) ^. strict
 
 
 ------------------------------------
