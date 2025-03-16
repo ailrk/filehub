@@ -10,6 +10,7 @@ import Lens.Micro.Platform ()
 import Effectful (Eff, (:>))
 import Filehub.Template qualified as Template
 import Filehub.Env (Env(..))
+import Filehub.Env qualified as Env
 import Filehub.Domain (NewFile (..), NewFolder(..), SearchWord(..), SortFileBy (..), sortFiles, ClientPath (..), UpdatedFile (..), Theme (..), ViewImage(..))
 import Filehub.Domain qualified as Domain
 import Effectful.Reader.Dynamic (asks)
@@ -61,14 +62,16 @@ server :: Api (AsServerT Filehub)
 server = Api
   { index = index
 
+
   , cd = \path -> do
-      root <- asks @Env (.root)
+      root <- Env.getRoot
       r <- Domain.changeDir (maybe "/" (Domain.fromClientPath root) path) & runErrorNoCallStack
       let withHeader =
             case r of
               Left err -> addHeader err
               Right _ -> noHeader
       withHeader <$> view
+
 
   , newFile = \(NewFile path) -> do
       r <- Domain.newFile (Text.unpack path) & runErrorNoCallStack
@@ -78,17 +81,20 @@ server = Api
               Right _ -> noHeader
       withHeader <$> view
 
+
   , updateFile = \(UpdatedFile clientPath content) -> do
       let path = clientPath.unClientPath
       Domain.writeFile path (Text.encodeUtf8 content ^. lazy)
       view
 
+
   , deleteFile = \case
       Just path -> do
-        p <- Domain.fromClientPath <$> asks @Env (.root) <*> pure path
+        p <- Domain.fromClientPath <$> Env.getRoot <*> pure path
         Domain.deleteFile p
         view
       Nothing -> throwError err400
+
 
   , newFolder = \(NewFolder path) -> do
       r <- Domain.newFolder (Text.unpack path) & runErrorNoCallStack
@@ -98,26 +104,32 @@ server = Api
               Right _ -> noHeader
       withHeader <$> view
 
+
   , newFileModal = pure Template.newFileModal
+
 
   , newFolderModal = pure Template.newFolderModal
 
+
   , fileDetailModal = \case
       Just path -> do
-        p <- Domain.fromClientPath <$> asks @Env (.root) <*> pure path
+        p <- Domain.fromClientPath <$> Env.getRoot <*> pure path
         file <- Domain.getFile p & withServerError
         pure (Template.fileDetailModal file)
       Nothing -> throwError err400
 
+
   , uploadModal = pure Template.uploadModal
+
 
   , editorModal = \case
       Just path -> do
-        p <- Domain.fromClientPath <$> asks @Env (.root) <*> pure path
+        p <- Domain.fromClientPath <$> Env.getRoot <*> pure path
         content <- Domain.getFile p & withServerError >>= Domain.readFileContent
         let filename = takeFileName p
         pure $ Template.editorModal filename content
       Nothing -> throwError err400
+
 
   , imageModal = \case
       Just path -> do
@@ -126,20 +138,23 @@ server = Api
               , html = do
                   Template.imageModal path
               }
-
         pure . addHeader payload $ mempty
       Nothing -> noHeader <$> throwError err400
 
+
   , search = \searchWord ->
       Template.search searchWord
-        <$> asks @Env (.root)
+        <$> Env.getRoot
         <*> withServerError Domain.lsCurrentDir
 
+
   , sortTable = \order -> do
-      Domain.setSortOrder (fromMaybe ByName order)
+      Env.setSortFileBy (fromMaybe ByName order)
       view
 
+
   , upload = \multipart -> Domain.upload multipart & withServerError >> index
+
 
   , download = \case
       Just path@(ClientPath p) -> do
@@ -147,17 +162,19 @@ server = Api
         pure $ addHeader (printf "attachement; filename=%s.zip" (takeFileName p)) bs
       Nothing -> throwError err400
 
+
   , contextMenu = \case
       Just path -> do
-        root <- asks @Env (.root)
+        root <- Env.getRoot
         let filePath = Domain.fromClientPath root path
         file <- Domain.getFile filePath & withServerError
         pure $ Template.contextMenu path file
       Nothing -> throwError err400
 
+
   , themeCss = do
-      theme <- asks @Env (.theme)
-      dir <- asks @Env (.dataDir)
+      theme <- Env.getTheme
+      dir <- Env.getDataDir
       readFile $
         case theme of
           Dark1 -> dir </> "dark1.css"
@@ -182,15 +199,12 @@ index = Template.index <$> view
 
 view :: Filehub (Html ())
 view = do
-  order <- Domain.getSortOrder
+  order <- Env.getSortFileBy
   let table = Template.table
-          <$> asks @Env (.root)
+          <$> Env.getRoot
           <*> (sortFiles order <$> withServerError Domain.lsCurrentDir)
   Template.view <$> table <*> pathBreadcrumb
 
 
 pathBreadcrumb :: Filehub (Html ())
-pathBreadcrumb = Template.pathBreadcrumb <$>  currentDir <*> root
-  where
-    currentDir = asks @Env (.currentDir) >>= readTVarIO
-    root = asks @Env (.root)
+pathBreadcrumb = Template.pathBreadcrumb <$> Env.getCurrentDir <*> Env.getRoot

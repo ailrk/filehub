@@ -7,7 +7,7 @@
 module Filehub.Domain where
 
 import Effectful.FileSystem
-import Effectful.Reader.Dynamic (Reader, asks)
+import Effectful.Reader.Dynamic (Reader)
 import Effectful ((:>), Eff, IOE, MonadIO (liftIO))
 import Effectful.Error.Dynamic (throwError, Error)
 import Effectful.FileSystem.IO (withFile, IOMode (..))
@@ -16,6 +16,7 @@ import Effectful.Concurrent.STM
 import Control.Monad (unless, when, forM_)
 import Text.Printf (printf)
 import Filehub.Env (Env(..))
+import Filehub.Env qualified as Env
 import GHC.Generics
 import Lens.Micro
 import Lens.Micro.Platform ()
@@ -130,7 +131,7 @@ dirtree f = \case
 
 toFilePath :: (Reader Env :> es, Concurrent :> es, FileSystem :> es) => FilePath -> Eff es FilePath
 toFilePath name = do
-  currentDir <- asks @Env (.currentDir) >>= readTVarIO
+  currentDir <- Env.getCurrentDir
   makeAbsolute (currentDir </> name)
 
 
@@ -185,14 +186,12 @@ changeDir path = do
   exists <- doesDirectoryExist path
   unless exists do
     throwError InvalidDir
-  ref <- asks @Env (.currentDir)
-  atomically $ ref `modifyTVar` const path
+  Env.setCurrentDir path
 
 
 lsCurrentDir :: (Reader Env :> es, Concurrent :> es, FileSystem :> es, Error FilehubError :> es) => Eff es [File]
 lsCurrentDir = do
-  ref <- asks @Env (.currentDir)
-  path <- readTVarIO ref
+  path <- Env.getCurrentDir
   exists <- doesDirectoryExist path
   unless exists do
     throwError InvalidDir
@@ -209,7 +208,7 @@ upload multipart = do
 
 download :: (Reader Env :> es, Error FilehubError :> es, FileSystem :> es, IOE :> es) => ClientPath -> Eff es LBS.ByteString
 download clientPath = do
-  root <- asks @Env (.root)
+  root <- Env.getRoot
   let abspath = fromClientPath root clientPath
   file <- getFile abspath
   case file.content of
@@ -278,18 +277,6 @@ sortFiles :: SortFileBy -> [File] -> [File]
 sortFiles ByName = sortOn (takeFileName . (.path))
 sortFiles ByModified = sortOn (.mtime)
 sortFiles BySize = sortOn (.size)
-
-
-setSortOrder :: (Reader Env :> es, Concurrent :> es) => SortFileBy -> Eff es ()
-setSortOrder order = do
-  ref <- asks @Env (.sortFileBy)
-  atomically $ ref `modifyTVar` const order
-
-
-getSortOrder :: (Reader Env :> es, Concurrent :> es) => Eff es SortFileBy
-getSortOrder = do
-  ref <- asks @Env (.sortFileBy)
-  readTVarIO ref
 
 
 ------------------------------------
