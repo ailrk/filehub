@@ -532,7 +532,6 @@ table root files = do
             Dir _ -> i_ [ class_ "bx bxs-folder "] mempty
             Content -> i_ [ class_ "bx bxs-file-blank "] mempty
 
--- (mconcat [ cdAttrs, otherAttrs ])
 
 contextMenu :: ClientPath -> File -> Html ()
 contextMenu (ClientPath clientPath) file = do

@@ -68,7 +68,7 @@ server = Api
             case r of
               Left err -> addHeader err
               Right _ -> noHeader
-      withHeader <$> view ByName
+      withHeader <$> view
 
   , newFile = \(NewFile path) -> do
       r <- Domain.newFile (Text.unpack path) & runErrorNoCallStack
@@ -76,18 +76,18 @@ server = Api
             case r of
               Left err -> addHeader err
               Right _ -> noHeader
-      withHeader <$> view ByName
+      withHeader <$> view
 
   , updateFile = \(UpdatedFile clientPath content) -> do
       let path = clientPath.unClientPath
       Domain.writeFile path (Text.encodeUtf8 content ^. lazy)
-      view ByName
+      view
 
   , deleteFile = \case
       Just path -> do
         p <- Domain.fromClientPath <$> asks @Env (.root) <*> pure path
         Domain.deleteFile p
-        view ByName
+        view
       Nothing -> throwError err400
 
   , newFolder = \(NewFolder path) -> do
@@ -96,7 +96,7 @@ server = Api
             case r of
               Left err -> addHeader err
               Right _ -> noHeader
-      withHeader <$> view ByName
+      withHeader <$> view
 
   , newFileModal = pure Template.newFileModal
 
@@ -135,7 +135,9 @@ server = Api
         <$> asks @Env (.root)
         <*> withServerError Domain.lsCurrentDir
 
-  , sortTable = \order -> view (fromMaybe ByName order)
+  , sortTable = \order -> do
+      Domain.setSortOrder (fromMaybe ByName order)
+      view
 
   , upload = \multipart -> Domain.upload multipart & withServerError >> index
 
@@ -175,12 +177,16 @@ withServerError action = do
 
 
 index :: Filehub (Html ())
-index = Template.index <$> view ByName
+index = Template.index <$> view
 
 
-view :: SortFileBy -> Filehub (Html ())
-view byOrder = Template.view <$> table <*> pathBreadcrumb
-  where table = Template.table <$> asks @Env (.root) <*> (sortFiles byOrder <$> withServerError Domain.lsCurrentDir)
+view :: Filehub (Html ())
+view = do
+  order <- Domain.getSortOrder
+  let table = Template.table
+          <$> asks @Env (.root)
+          <*> (sortFiles order <$> withServerError Domain.lsCurrentDir)
+  Template.view <$> table <*> pathBreadcrumb
 
 
 pathBreadcrumb :: Filehub (Html ())

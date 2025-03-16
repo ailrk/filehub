@@ -20,7 +20,7 @@ import Filehub.Env
 import Filehub
 import Filehub.Index qualified as Index
 import GHC.Generics (Generic)
-import Filehub.Domain (getFile, loadDirContents, FilehubError)
+import Filehub.Domain (getFile, loadDirContents, FilehubError, SortFileBy (..))
 import Effectful (runEff)
 import Effectful.Error.Dynamic (runErrorNoCallStack)
 import Effectful.FileSystem (runFileSystem)
@@ -65,6 +65,7 @@ main = do
   options <- parseOptions
   root <- makeAbsolute options.root
   currentDir <- newTVarIO root
+  sortFileBy <- newTVarIO ByName
 
   dir <- do
     eFile <- runEff . runFileSystem . runErrorNoCallStack @FilehubError $ do
@@ -82,6 +83,7 @@ main = do
           , root = root
           , rootTree = dir
           , currentDir = currentDir
+          , sortFileBy = sortFileBy
           , dataDir = dataDir
           , theme = options.theme
           }

@@ -280,6 +280,18 @@ sortFiles ByModified = sortOn (.mtime)
 sortFiles BySize = sortOn (.size)
 
 
+setSortOrder :: (Reader Env :> es, Concurrent :> es) => SortFileBy -> Eff es ()
+setSortOrder order = do
+  ref <- asks @Env (.sortFileBy)
+  atomically $ ref `modifyTVar` const order
+
+
+getSortOrder :: (Reader Env :> es, Concurrent :> es) => Eff es SortFileBy
+getSortOrder = do
+  ref <- asks @Env (.sortFileBy)
+  readTVarIO ref
+
+
 ------------------------------------
 -- Client Path
 ------------------------------------
