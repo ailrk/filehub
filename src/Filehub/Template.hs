@@ -8,9 +8,13 @@ import Lucid
 import Lens.Micro
 import Lens.Micro.Platform ()
 import System.FilePath (splitPath, takeFileName)
+import Network.URI.Encode qualified as URI.Encode
+import Servant (ToHttpApiData(..))
 import Data.Text (Text)
 import Data.Text qualified as Text
+import Data.Text.Encoding qualified as Text
 import Data.Text.Lazy.Encoding qualified as LText
+import Text.Fuzzy (simpleFilter)
 import Data.ByteString.Lazy qualified as LBS
 import Data.String.Interpolate (iii)
 import Data.Foldable (traverse_, Foldable (..))
@@ -18,13 +22,12 @@ import Data.Time.Format (formatTime, defaultTimeLocale)
 import Data.Sequence qualified as Seq
 import Data.Sequence (Seq(..))
 import Data.Bifunctor (Bifunctor(..))
-import Text.Fuzzy (simpleFilter)
-import Filehub.Domain (File (..), FileContent (..), SearchWord (..), SortFileBy (..), sortFiles, ClientPath (..))
-import Servant (ToHttpApiData(..))
-import Filehub.Domain qualified as Domain
 import Data.Aeson qualified as Aeson
 import Data.Aeson ((.=))
 import Data.Aeson.Types (Pair)
+import Filehub.Domain (File (..), FileContent (..), SearchWord (..), SortFileBy (..), sortFiles, ClientPath (..))
+import Filehub.Domain qualified as Domain
+import Network.Mime (MimeType)
 
 
 ------------------------------------
@@ -380,6 +383,11 @@ editorModal filename content = do
               ] "CLOSE"
 
 
+imageModal :: ClientPath -> Html ()
+imageModal (ClientPath path) = do
+  img_ [ src_  (Text.pack path) ]
+
+
 ------------------------------------
 -- default
 ------------------------------------
@@ -387,12 +395,15 @@ editorModal filename content = do
 
 withDefault :: Html () -> Html ()
 withDefault html = do
-  meta_ [name_ "viewport", content_ "width=device-width, initial-scale=1.0"]
-  link_ [rel_ "stylesheet", href_ "/static/style.css" ]
-  link_ [rel_ "stylesheet", href_ "https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" ]
-  script_ [src_ "https://unpkg.com/hyperscript.org@0.9.13"] ("" :: Text)
-  script_ [src_ "https://unpkg.com/htmx.org@2.0.3"] ("" :: Text)
-  script_ [src_ "/static/ui.js" ] ("" :: Text)
+  meta_ [ name_ "viewport", content_ "width=device-width, initial-scale=1.0" ]
+  link_ [ rel_ "stylesheet", href_ "/static/style.css" ]
+  link_ [ rel_ "stylesheet", href_ "https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" ]
+
+  link_ [ rel_ "stylesheet", href_ "/static/viewerjs/viewer.css" ]
+  script_ [ src_ "/static/viewerjs/viewer.js" ] ("" :: Text)
+  script_ [ src_ "https://unpkg.com/hyperscript.org@0.9.13" ] ("" :: Text)
+  script_ [ src_ "https://unpkg.com/htmx.org@2.0.3" ] ("" :: Text)
+  script_ [ src_ "/static/ui.js" ] ("" :: Text)
   html
 
 
@@ -466,7 +477,8 @@ table root files = do
                      to \##{contextMenuId}
               |]
            ]
-        ClientPath path = Domain.toClientPath root file.path
+        path = let ClientPath p = Domain.toClientPath root file.path
+                in URI.Encode.encode p
         tableId = componentIds.table
         contextMenuId = componentIds.contextMenu
 
@@ -488,30 +500,42 @@ table root files = do
       span_ (icon >> name)
         `with` [ class_ "field " ]
       where
-        name = span_ (mconcat [ cdAttrs, otherAttrs ]) (toHtml . takeFileName $ file.path)
+        name =
+          span_ (toHtml . takeFileName $ file.path) `with`
+            mconcat
+              [ case file.content of
+                  Dir _ ->
+                    [ term "hx-get" ("/cd?dir=" <> toClientPath root file.path)
+                    , term "hx-target" ("#" <> componentIds.view)
+                    , term "hx-swap" "outerHTML"
+                    ]
+                  Content
+                    | file.mimetype `isMime` "image" ->
+                        [ term "hx-get" "/modal/image"
+                        , term "hx-vals" $ [ "file" .= toClientPath root file.path ] & toHxVals
+                        , term "hx-target" "#index"
+                        , term "hx-swap" "beforeend"
+                        ]
+                    | otherwise ->
+                        [ term "hx-get" "/modal/editor"
+                        , term "hx-vals" $ [ "file" .= toClientPath root file.path ] & toHxVals
+                        , term "hx-target" "#index"
+                        , term "hx-swap" "beforeend"
+                        ]
+              , case file.content of
+                  Dir _ -> [ class_ "dir " ]
+                  _ -> mempty
+              ]
 
         icon =
           case file.content of
             Dir _ -> i_ [ class_ "bx bxs-folder "] mempty
             Content -> i_ [ class_ "bx bxs-file-blank "] mempty
-        cdAttrs =
-          mconcat
-            [ case file.content of
-                Dir _ ->
-                  [ term "hx-get" ("/cd?dir=" <> toClientPath root file.path)
-                  , term "hx-target" ("#" <> componentIds.view)
-                  , term "hx-swap" "outerHTML"
-                  ]
-                Content -> mempty
-            ]
-        otherAttrs =
-          case file.content of
-            Dir _ -> [ class_ "dir " ]
-            _ -> []
 
+-- (mconcat [ cdAttrs, otherAttrs ])
 
-contextMenu :: ClientPath -> Bool -> Html ()
-contextMenu (ClientPath clientPath) isDir = do
+contextMenu :: ClientPath -> File -> Html ()
+contextMenu (ClientPath clientPath) file = do
   div_ [ class_ "dropdown-content "
        , id_ componentIds.contextMenu
        , term "_"
@@ -532,22 +556,33 @@ contextMenu (ClientPath clientPath) isDir = do
          |]
       ] do
 
-    case isDir of
-      True -> do
+    case file.content of
+      Dir _ -> do
         div_ [ class_ "dropdown-item"
              , term "hx-get" ("/cd?dir=" <> Text.pack clientPath )
              , term "hx-target" ("#" <> componentIds.view)
              , term "hx-swap" "outerHTML"
              ] $
           span_ "Open"
-      False -> do
-        div_ [ class_ "dropdown-item"
-             , term "hx-get" "/modal/editor"
-             , term "hx-vals" $ [ "file" .= Text.pack clientPath ] & toHxVals
-             , term "hx-target" "#index"
-             , term "hx-swap" "beforeend"
-             ] $
-          span_ "Open"
+      Content
+        | file.mimetype `isMime` "text" -> do
+          div_ [ class_ "dropdown-item"
+               , term "hx-get" "/modal/editor"
+               , term "hx-vals" $ [ "file" .= Text.pack clientPath ] & toHxVals
+               , term "hx-target" "#index"
+               , term "hx-swap" "beforeend"
+               ] $
+            span_ "Edit"
+        | file.mimetype `isMime` "image" -> do
+          div_ [ class_ "dropdown-item"
+               , term "hx-get" "/modal/image"
+               , term "hx-vals" $ [ "file" .= Text.pack clientPath ] & toHxVals
+               , term "hx-target" "#index"
+               , term "hx-swap" "beforeend"
+               ] $
+            span_ "View"
+        | otherwise ->
+            mempty
 
     div_ [ class_ "dropdown-item" ] $
       a_ [ href_ ("/download?file=" <> Text.pack clientPath ) ] "Download"
@@ -569,7 +604,6 @@ contextMenu (ClientPath clientPath) isDir = do
          ] $
       span_ "Details"
 
-
 ------------------------------------
 -- component ids
 ------------------------------------
@@ -587,6 +621,7 @@ data ComponentIds = ComponentIds
   , updateModal :: Text
   , sortByDropdown :: Text
   , editorModal :: Text
+  , imageModal :: Text
   , contextMenu :: Text
   }
   deriving Show
@@ -605,6 +640,7 @@ componentIds = ComponentIds
   , updateModal = "update-modal"
   , sortByDropdown = "sortby-dropdown"
   , editorModal = "editor-modal"
+  , imageModal = "image-modal"
   , contextMenu = "contextmenu"
   }
 
@@ -620,3 +656,7 @@ toClientPath root p = Text.pack . (.unClientPath) $ Domain.toClientPath root p
 
 toHxVals :: [Pair] -> Text
 toHxVals xs = (xs & Aeson.object & Aeson.encode & LText.decodeUtf8) ^. strict
+
+
+isMime :: MimeType -> Text -> Bool
+isMime fileMime mime = mime `Text.isPrefixOf` Text.decodeUtf8 fileMime

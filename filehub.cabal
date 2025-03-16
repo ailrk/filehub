@@ -74,6 +74,7 @@ executable filehub
       , generic-lens
       , async
       , modern-uri
+      , uri-encode
       , transformers
       , unliftio
       , warp
@@ -86,6 +87,7 @@ executable filehub
       , string-interpolate
       , zip-archive
       , cryptohash-sha256
+      , mime-types
 
     other-modules:
       Filehub.Template

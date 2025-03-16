@@ -3,6 +3,7 @@
 {-# LANGUAGE ApplicativeDo #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE NamedFieldPuns #-}
 module Filehub.Domain where
 
 import Effectful.FileSystem
@@ -11,25 +12,31 @@ import Effectful ((:>), Eff, IOE, MonadIO (liftIO))
 import Effectful.Error.Dynamic (throwError, Error)
 import Effectful.FileSystem.IO (withFile, IOMode (..))
 import Effectful.FileSystem.IO.ByteString.Lazy (hPut, readFile)
+import Effectful.Concurrent.STM
 import Control.Monad (unless, when, forM_)
 import Text.Printf (printf)
 import Filehub.Env (Env(..))
 import GHC.Generics
 import Lens.Micro
+import Lens.Micro.Platform ()
 import Data.Time (UTCTime)
 import Data.ByteString.Lazy qualified as LBS
 import Data.Generics.Labels ()
 import Data.Text (Text)
 import Data.Text qualified as Text
+import Data.Text.Lazy.Encoding qualified as LText
+import Data.List (sortOn, (\\))
+import Data.Aeson (ToJSON (..), (.=))
+import Data.Aeson qualified as Aeson
 import System.FilePath ((</>), takeFileName)
 import Web.FormUrlEncoded (FromForm (..), parseUnique)
 import Servant.Multipart (MultipartData(..), Mem, FileData (..))
 import Prelude hiding (readFile, writeFile)
-import Data.List (sortOn, (\\))
 import Web.HttpApiData (FromHttpApiData(..), ToHttpApiData(..))
-import Effectful.Concurrent.STM
 import Codec.Archive.Zip qualified as Zip
 import Codec.Archive.Zip (ZipOption(..))
+import Network.Mime (defaultMimeLookup, MimeType)
+import Lucid (Html, renderText)
 
 
 ------------------------------------
@@ -61,6 +68,7 @@ data File = File
   , atime :: UTCTime
   , mtime :: UTCTime
   , size :: Integer
+  , mimetype :: MimeType
   , content :: FileContent
   }
   deriving (Show, Generic)
@@ -74,12 +82,14 @@ getFile path = do
   size <- getFileSize path
   mtime <- getModificationTime path
   atime <- getAccessTime path
-  isDir <- doesDirectoryExist path
+  isDir <- isDirectory path
+  let mimetype = defaultMimeLookup (Text.pack path)
   pure File
     { path = path
     , size = size
     , mtime = mtime
     , atime = atime
+    , mimetype = mimetype
     , content = if isDir then Dir Nothing else Content
     }
 
@@ -271,7 +281,7 @@ sortFiles BySize = sortOn (.size)
 
 
 ------------------------------------
--- table sort
+-- Client Path
 ------------------------------------
 
 
@@ -326,6 +336,32 @@ toReadableSize nbytes =
     nMb = fromIntegral nbytes / (2 ^ 20)
     nGb = fromIntegral nbytes / (2 ^ 30)
     nTb = fromIntegral nbytes / (2 ^ 40)
+
+
+------------------------------------
+-- Image Viewer
+------------------------------------
+
+data ViewImage
+  = ViewerJS
+      { elementId :: Text
+      , html :: Html ()
+      }
+  deriving Show
+
+
+instance ToJSON ViewImage where
+  toJSON ViewerJS { elementId, html } =
+    Aeson.object
+      [ "ViewerJS" .= Aeson.object
+          [ "elementId" .= elementId
+          , "html" .= renderText html
+          ]
+      ]
+
+
+instance ToHttpApiData ViewImage where
+  toUrlPiece v = (v & Aeson.encode & LText.decodeUtf8) ^. strict
 
 
 ------------------------------------

@@ -35,7 +35,9 @@ data Api mode = Api
   }
   deriving Generic
 
-type API = NamedRoutes Api :<|> "static" :> Raw
+type API = NamedRoutes Api
+      :<|> "static" :> Raw -- static files for the app
+      :<|> Raw -- direct access of the underlying directory
 
 
 application :: Env -> Application
@@ -46,6 +48,7 @@ application env = serveWithContextT (Proxy @API) EmptyContext (toServantHandler 
       , healthz = healthz
       }
       :<|> serveDirectoryWebApp env.dataDir
+      :<|> serveDirectoryWebApp env.root
 
 
 healthz :: Filehub Text
