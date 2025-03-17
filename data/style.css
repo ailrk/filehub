@@ -396,3 +396,7 @@ textarea.form-control {
 #file-detail-modal table {
     border-spacing: 1rem;
 }
+
+.closed {
+  display: none;
+}
