@@ -1,10 +1,10 @@
 { mkDerivation, aeson, async, base, bytestring, clay, containers
 , cryptohash-sha256, directory, effectful, filepath, fuzzy
-, generic-lens, http-api-data, lib, log-base, log-effectful, lucid
-, microlens, microlens-platform, mime-types, modern-uri
-, optparse-applicative, servant-lucid, servant-multipart
-, servant-server, string-interpolate, text, time, transformers
-, unliftio, uri-encode, wai-extra, warp, zip-archive
+, generic-lens, http-api-data, lib, ListZipper, log-base
+, log-effectful, lucid, microlens, microlens-platform, mime-types
+, modern-uri, optparse-applicative, servant-lucid
+, servant-multipart, servant-server, string-interpolate, text, time
+, transformers, unliftio, uri-encode, wai-extra, warp, zip-archive
 }:
 mkDerivation {
   pname = "filehub";
@@ -16,10 +16,11 @@ mkDerivation {
   executableHaskellDepends = [
     aeson async base bytestring clay containers cryptohash-sha256
     directory effectful filepath fuzzy generic-lens http-api-data
-    log-base log-effectful lucid microlens microlens-platform
-    mime-types modern-uri optparse-applicative servant-lucid
-    servant-multipart servant-server string-interpolate text time
-    transformers unliftio uri-encode wai-extra warp zip-archive
+    ListZipper log-base log-effectful lucid microlens
+    microlens-platform mime-types modern-uri optparse-applicative
+    servant-lucid servant-multipart servant-server string-interpolate
+    text time transformers unliftio uri-encode wai-extra warp
+    zip-archive
   ];
   license = "unknown";
   mainProgram = "filehub";
