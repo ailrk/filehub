@@ -12,7 +12,6 @@ import Network.URI.Encode qualified as URI.Encode
 import Servant (ToHttpApiData(..))
 import Data.Text (Text)
 import Data.Text qualified as Text
-import Data.Text.Encoding qualified as Text
 import Data.Text.Lazy.Encoding qualified as LText
 import Text.Fuzzy (simpleFilter)
 import Data.ByteString.Lazy qualified as LBS
@@ -27,9 +26,8 @@ import Data.Aeson ((.=))
 import Data.Aeson.Types (Pair)
 import Data.List.Zipper (Zipper(..))
 import Data.List.Zipper qualified as Zipper
-import Filehub.Domain (File (..), FileContent (..), SearchWord (..), SortFileBy (..), sortFiles, ClientPath (..))
+import Filehub.Domain (File (..), FileContent (..), SearchWord (..), SortFileBy (..), sortFiles, isMime, ClientPath (..))
 import Filehub.Domain qualified as Domain
-import Network.Mime (MimeType)
 
 
 ------------------------------------
@@ -162,8 +160,8 @@ sortByBtn = do
                 [iii|
                   on click
                     if (the next .dropdown-content) matches .closed
-                    then send show to the next .dropdown-content
-                    else send close to the next .dropdown-content
+                    then send SHOW to the next .dropdown-content
+                    else send CLOSE to the next .dropdown-content
                     end
                   end
                 |]
@@ -177,7 +175,7 @@ sortByBtn = do
             [iii|
               init hide me end
 
-              on close
+              on CLOSE
                 remove .show
                 then add .closing
                 then wait for animationend
@@ -186,7 +184,7 @@ sortByBtn = do
                 then add .closed
               end
 
-              on show
+              on SHOW
                 remove .closed
                 then show me
               end
@@ -385,9 +383,33 @@ editorModal filename content = do
               ] "CLOSE"
 
 
-imageModal :: ClientPath -> Html ()
-imageModal (ClientPath path) = do
-  img_ [ src_  (Text.pack path) ]
+-- | ImageModal is a list of image previews. By default we load 2 images before and after the
+-- focused image (5 in total). Whenever we move the cursor, we update the list and the viewer to make sure
+-- there's always 5 images loaded and the current image is in the middle.
+imageModal :: FilePath -> Zipper File -> Html ()
+imageModal root fileZipper =
+  ul_ do
+    mkImg $ Zipper.safeCursor (leftN 7)
+    mkImg $ Zipper.safeCursor (leftN 6)
+    mkImg $ Zipper.safeCursor (leftN 5)
+    mkImg $ Zipper.safeCursor (leftN 4)
+    mkImg $ Zipper.safeCursor (leftN 3)
+    mkImg $ Zipper.safeCursor (leftN 2)
+    mkImg $ Zipper.safeCursor (leftN 1)
+    mkImg $ Zipper.safeCursor fileZipper
+    mkImg $ Zipper.safeCursor (rightN 1)
+    mkImg $ Zipper.safeCursor (rightN 2)
+    mkImg $ Zipper.safeCursor (rightN 3)
+    mkImg $ Zipper.safeCursor (rightN 4)
+    mkImg $ Zipper.safeCursor (rightN 5)
+    mkImg $ Zipper.safeCursor (rightN 6)
+    mkImg $ Zipper.safeCursor (rightN 7)
+  where
+    mkImg (Just f) = img_ [ src_ (toClientPath root f.path) ]
+    mkImg Nothing = mempty
+
+    leftN n = foldr (.) Zipper.left (replicate n Zipper.left) fileZipper
+    rightN n = foldr (.) Zipper.right (replicate n Zipper.right) fileZipper
 
 
 ------------------------------------
@@ -423,7 +445,7 @@ modal attrs body = do
   where
     closeModalScript = term "_"
       [iii|
-        on close
+        on CLOSE
           add .closing
           then wait for animationend
           then remove me
@@ -435,7 +457,7 @@ modal attrs body = do
              , term "_"
                 [iii|
                   on click
-                  send close to .modal
+                  send CLOSE to .modal
                   end
                 |]
              ] mempty
@@ -472,7 +494,7 @@ table root files = do
                 then if \##{contextMenuId} exists then remove \##{contextMenuId} end
                 then fetch /contextmenu?file=#{path}
                 then put result after #{tableId}
-                then send show( pageX: pageX
+                then send SHOW( pageX: pageX
                               , pageY: pageY
                               , path: "#{path}"
                               )
@@ -496,7 +518,6 @@ table root files = do
       span_ (toHtml $ formatTime defaultTimeLocale "%F %R" file.mtime)
         `with` [ class_ "field "]
 
-
     fileNameElement :: File -> Html ()
     fileNameElement file = do
       span_ (icon >> name)
@@ -513,16 +534,15 @@ table root files = do
                     ]
                   Content
                     | file.mimetype `isMime` "image" ->
-                      let clientPath = Domain.toClientPath root file.path
-                       in [ term "_"
-                              [iii|
-                                on click
-                                  send VIEW_IMAGE( html: '#{imageModal clientPath}' )
-                                  to window
-                              |]
+                      let clientPath = toClientPath root file.path
+                       in [ term "hx-get" ("/img-viewer?=" <> clientPath)
+                          , term "hx-vals" $ [ "file" .= clientPath ] & toHxVals
+                          , term "hx-target" "this"
+                          , term "hx-swap" "none"
                           ]
                     | otherwise ->
-                        [ term "hx-get" "/modal/editor"
+                        [
+                        term "hx-get" "/modal/editor"
                         , term "hx-vals" $ [ "file" .= toClientPath root file.path ] & toHxVals
                         , term "hx-target" "#index"
                         , term "hx-swap" "beforeend"
@@ -538,22 +558,23 @@ table root files = do
             Content -> i_ [ class_ "bx bxs-file-blank "] mempty
 
 
-contextMenu :: ClientPath -> Zipper File -> Html ()
-contextMenu clientPath fileZipper = do
+contextMenu :: FilePath -> Zipper File -> Html ()
+contextMenu root fileZipper = do
   let file = Zipper.cursor fileZipper
-  let textClientPath = Text.pack clientPath.unClientPath
+  let textClientPath = toClientPath root file.path
+
   div_ [ class_ "dropdown-content "
        , id_ componentIds.contextMenu
        , term "_"
            [iii|
              init call htmx.process(me) end
-             on close
+             on CLOSE
                add .closing
                then wait for animationend
                then remove me
              end
 
-             on show(pageX, pageY, path)
+             on SHOW(pageX, pageY, path)
                set my *left to pageX
                then set my *top to pageY
                then set my *position to 'absolute'
@@ -581,12 +602,10 @@ contextMenu clientPath fileZipper = do
             span_ "Edit"
         | file.mimetype `isMime` "image" -> do
           div_ [ class_ "dropdown-item"
-               , term "_"
-                  [iii|
-                    on click
-                      send VIEW_IMAGE( html: '#{imageModal clientPath}' )
-                      to window
-                  |]
+               , term "hx-get" ("/img-viewer?=" <> textClientPath)
+               , term "hx-vals" $ [ "file" .= textClientPath ] & toHxVals
+               , term "hx-target" "this"
+               , term "hx-swap" "none"
                ] $
             span_ "View"
         | otherwise ->
@@ -664,7 +683,3 @@ toClientPath root p = Text.pack . (.unClientPath) $ Domain.toClientPath root p
 
 toHxVals :: [Pair] -> Text
 toHxVals xs = (xs & Aeson.object & Aeson.encode & LText.decodeUtf8) ^. strict
-
-
-isMime :: MimeType -> Text -> Bool
-isMime fileMime mime = mime `Text.isPrefixOf` Text.decodeUtf8 fileMime

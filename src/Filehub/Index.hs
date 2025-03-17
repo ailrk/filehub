@@ -10,7 +10,7 @@ import Lens.Micro.Platform ()
 import Effectful (Eff, (:>))
 import Filehub.Template qualified as Template
 import Filehub.Env qualified as Env
-import Filehub.Domain (NewFile (..), NewFolder(..), SearchWord(..), SortFileBy (..), sortFiles, ClientPath (..), UpdatedFile (..), Theme (..))
+import Filehub.Domain (NewFile (..), NewFolder(..), SearchWord(..), SortFileBy (..), sortFiles, ClientPath (..), UpdatedFile (..), Theme (..), ViewImage(..))
 import Filehub.Domain qualified as Domain
 import Effectful.Error.Dynamic (runErrorNoCallStack, throwError, Error)
 import Effectful.FileSystem.IO.ByteString.Lazy (readFile)
@@ -49,6 +49,8 @@ data Api mode = Api
   , upload            :: mode :- "upload" S.:> MultipartForm Mem (MultipartData Mem) S.:> Post '[HTML] (Html ())
   , download          :: mode :- "download" S.:> QueryParam "file" ClientPath S.:> Get '[OctetStream] (S.Headers '[S.Header "Content-Disposition" String] LBS.ByteString)
   , contextMenu       :: mode :- "contextmenu" S.:> QueryParam "file" ClientPath S.:> Get '[HTML] (Html ())
+  , updateImgViewer   :: mode :- "img-viewer" S.:> "update" S.:> QueryParam "file" ClientPath S.:> Get '[HTML] (S.Headers '[S.Header "HX-Trigger" Domain.ViewImage] (Html ()))
+  , startImageViewer  :: mode :- "img-viewer" S.:> QueryParam "file" ClientPath S.:> Get '[HTML] (S.Headers '[S.Header "HX-Trigger" Domain.ViewImage] (Html ()))
   , themeCss          :: mode :- "theme.css" S.:> Get '[OctetStream] LBS.ByteString
   }
   deriving (Generic)
@@ -59,9 +61,9 @@ server = Api
   { index = index
 
 
-  , cd = \path -> do
+  , cd = \mClientPath -> do
       root <- Env.getRoot
-      r <- Domain.changeDir (maybe "/" (Domain.fromClientPath root) path) & runErrorNoCallStack
+      r <- Domain.changeDir (maybe "/" (Domain.fromClientPath root) mClientPath) & runErrorNoCallStack
       let withHeader =
             case r of
               Left err -> addHeader err
@@ -85,8 +87,8 @@ server = Api
 
 
   , deleteFile = \case
-      Just path -> do
-        p <- Domain.fromClientPath <$> Env.getRoot <*> pure path
+      Just clientPath -> do
+        p <- Domain.fromClientPath <$> Env.getRoot <*> pure clientPath
         Domain.deleteFile p
         view
       Nothing -> throwError err400
@@ -108,8 +110,8 @@ server = Api
 
 
   , fileDetailModal = \case
-      Just path -> do
-        p <- Domain.fromClientPath <$> Env.getRoot <*> pure path
+      Just clientPath -> do
+        p <- Domain.fromClientPath <$> Env.getRoot <*> pure clientPath
         file <- Domain.getFile p & withServerError
         pure (Template.fileDetailModal file)
       Nothing -> throwError err400
@@ -119,8 +121,8 @@ server = Api
 
 
   , editorModal = \case
-      Just path -> do
-        p <- Domain.fromClientPath <$> Env.getRoot <*> pure path
+      Just clientPath -> do
+        p <- Domain.fromClientPath <$> Env.getRoot <*> pure clientPath
         content <- Domain.getFile p & withServerError >>= Domain.readFileContent
         let filename = takeFileName p
         pure $ Template.editorModal filename content
@@ -142,18 +144,38 @@ server = Api
 
 
   , download = \case
-      Just path@(ClientPath p) -> do
-        bs <- Domain.download path & withServerError
-        pure $ addHeader (printf "attachement; filename=%s.zip" (takeFileName p)) bs
+      Just clientPath@(ClientPath path) -> do
+        bs <- Domain.download clientPath & withServerError
+        pure $ addHeader (printf "attachement; filename=%s.zip" (takeFileName path)) bs
       Nothing -> throwError err400
 
 
   , contextMenu = \case
-      Just path -> do
+      Just clientPath -> do
         root <- Env.getRoot
-        let filePath = Domain.fromClientPath root path
+        let filePath = Domain.fromClientPath root clientPath
         fileZipper <- Domain.getFileInContext filePath & withServerError
-        pure $ Template.contextMenu path fileZipper
+        pure $ Template.contextMenu root fileZipper
+      Nothing -> throwError err400
+
+
+  , updateImgViewer = \case
+      Just clientPath -> do
+        root <- Env.getRoot
+        let filePath = Domain.fromClientPath root clientPath
+        fileZipper <- Domain.getFileInContext filePath & withServerError
+        let html = Template.imageModal root fileZipper
+        pure $ addHeader (UpdateImageList html) mempty
+      Nothing -> throwError err400
+
+
+  , startImageViewer = \case
+      Just clientPath -> do
+        root <- Env.getRoot
+        let filePath = Domain.fromClientPath root clientPath
+        fileZipper <- Domain.getFileInContext filePath & withServerError
+        let html = Template.imageModal root fileZipper
+        pure $ addHeader (RunImageViewer html) mempty
       Nothing -> throwError err400
 
 

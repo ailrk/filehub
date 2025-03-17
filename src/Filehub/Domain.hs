@@ -20,14 +20,13 @@ import Filehub.Env qualified as Env
 import GHC.Generics
 import Lens.Micro
 import Lens.Micro.Platform ()
+import Data.Aeson (ToJSON (..), (.=))
+import Data.Aeson qualified as Aeson
 import Data.Time (UTCTime)
 import Data.ByteString.Lazy qualified as LBS
 import Data.Generics.Labels ()
 import Data.Text (Text)
 import Data.Text qualified as Text
-import Data.Text.Lazy.Encoding qualified as LText
-import Data.Aeson (ToJSON (..), (.=))
-import Data.Aeson qualified as Aeson
 import Data.List (sortOn, (\\))
 import Data.List.Zipper (Zipper(..))
 import Data.List.Zipper qualified as Zipper
@@ -39,8 +38,10 @@ import Web.HttpApiData (FromHttpApiData(..), ToHttpApiData(..))
 import Codec.Archive.Zip qualified as Zip
 import Codec.Archive.Zip (ZipOption(..))
 import Network.Mime (defaultMimeLookup, MimeType)
-import Lucid (Html, renderText)
 import Data.Function (fix)
+import Data.Text.Encoding qualified as Text
+import Data.Text.Lazy.Encoding qualified as LText
+import Lucid (Html, renderText)
 
 
 ------------------------------------
@@ -98,25 +99,34 @@ getFile path = do
     }
 
 
+-- Pure version of `getFileInContext`.
+getFileInContext' :: FilePath -> [File] -> Zipper File
+getFileInContext' path files = do
+  let imgFiles =
+        Zipper.fromList
+        . filter (\f -> f.mimetype `isMime` "image")
+        $ files
+  flip fix imgFiles $ \loop z ->
+    if
+       | Zipper.endp z -> z
+       | (Zipper.cursor z).path == path -> z
+       | otherwise -> loop (Zipper.right z)
+
+
 -- | Return a zipper of files of `path`'s parent directory with the cursor points to `path`.
 --   This is useful for showing the full context of a file, so we can implement features
 --   like the next image.
-getFileInContext :: (FileSystem :> es, Error FilehubError :> es) => FilePath -> Eff es (Zipper File)
+getFileInContext :: (Reader Env :> es, Concurrent :> es, FileSystem :> es, Error FilehubError :> es) => FilePath -> Eff es (Zipper File)
 getFileInContext path = do
   exists <- doesPathExist path
   unless exists $ throwError InvalidPath
 
   let parentPath = takeDirectory path
   isDir <- isDirectory parentPath
+  order <- Env.getSortFileBy
+  files <- sortFiles order <$> lsDir parentPath
   unless isDir $ throwError InvalidDir
-
-  files <- Zipper.fromList <$> lsDir parentPath
-  pure $
-    flip fix files $ \loop z ->
-      if
-         | Zipper.endp z -> z
-         | let c = Zipper.cursor z in c.path == path -> z
-         | otherwise -> loop (Zipper.right z)
+  pure $ getFileInContext' path files
 
 
 isDirectory :: (FileSystem :> es) => FilePath -> Eff es Bool
@@ -304,6 +314,36 @@ sortFiles BySize = sortOn (.size)
 
 
 ------------------------------------
+-- Image Viewing event
+------------------------------------
+
+
+data ViewImage
+  = UpdateImageList (Html ()) -- Only update the image list without showing the viewer
+  | RunImageViewer (Html ()) -- Update image list and show the viewer
+  deriving (Show)
+
+
+instance ToJSON ViewImage where
+  toJSON (UpdateImageList html) =
+    Aeson.object
+      [ "UpdateImageList" .= Aeson.object
+          [ "html" .= renderText html
+          ]
+      ]
+  toJSON (RunImageViewer html) =
+    Aeson.object
+      [ "RunImageViewer" .= Aeson.object
+          [ "html" .= renderText html
+          ]
+      ]
+
+
+instance ToHttpApiData ViewImage where
+  toUrlPiece v = (v & Aeson.encode & LText.decodeUtf8) ^. strict
+
+
+------------------------------------
 -- Client Path
 ------------------------------------
 
@@ -395,3 +435,12 @@ instance Read Theme where
 
 defaultTheme :: Theme
 defaultTheme = Dark1
+
+
+------------------------------------
+-- Helpers
+------------------------------------
+
+
+isMime :: MimeType -> Text -> Bool
+isMime fileMime mime = mime `Text.isPrefixOf` Text.decodeUtf8 fileMime
