@@ -5,8 +5,8 @@ author: Ailrk
 maintainer: jimmy@ailrk.com
 build-type:         Simple
 extra-doc-files:    CHANGELOG.md
-data-files:         data/*.css
-                    data/*.js
+data-files:         data/**/*.css
+                    data/**/*.js
 
 
 common extensions
