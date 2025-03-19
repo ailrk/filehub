@@ -266,12 +266,12 @@ newFileModal = do
       br_ mempty >> br_ mempty
       button_ [ class_ "btn btn-modal-confirm mr-2 "
               , type_ "submit"
-              , term "_" "on click trigger close"
+              , term "_" "on click trigger CLOSE"
               ] "CREATE"
 
       button_ [ class_ "btn btn-modal-close "
               , type_ "button" -- prevent submission
-              , term "_" "on click trigger close"
+              , term "_" "on click trigger CLOSE"
               ] "CLOSE"
 
 
@@ -292,11 +292,11 @@ newFolderModal = do
       br_ mempty >> br_ mempty
       button_ [ class_ "btn btn-modal-confirm mr-2 "
               , type_ "submit"
-              , term "_" "on click trigger close"
+              , term "_" "on click trigger CLOSE"
               ] "CREATE"
       button_ [ class_ "btn btn-modal-close "
               , type_ "button"
-              , term "_" "on click trigger close"
+              , term "_" "on click trigger CLOSE"
               ] "CLOSE"
 
 
@@ -338,11 +338,11 @@ uploadModal = do
       br_ mempty >> br_ mempty
 
       button_ [ class_ "btn btn-modal-confirm mr-2 "
-              , term "_" "on click trigger close"
+              , term "_" "on click trigger CLOSE"
               ] "UPLOAD"
 
       button_ [ class_ "btn btn-modal-close "
-              , term "_" "on click trigger close"
+              , term "_" "on click trigger CLOSE"
               ] "CLOSE"
 
 
@@ -377,12 +377,12 @@ editorModal filename content = do
       br_ mempty >> br_ mempty
 
       button_ [ class_ "btn btn-modal-confirm mr-2 "
-              , term "_" "on click trigger close"
+              , term "_" "on click trigger CLOSE"
               ] "EDIT"
 
       button_ [ class_ "btn btn-modal-close "
               , type_ "button"
-              , term "_" "on click trigger close"
+              , term "_" "on click trigger CLOSE"
               ] "CLOSE"
 
 
@@ -529,7 +529,7 @@ table root files = do
                   Content
                     | file.mimetype `isMime` "image" ->
                       let clientPath = toClientPath root file.path
-                          imgIdx = Maybe.fromJust $ Map.lookup file imgIdxMap
+                          imgIdx = Maybe.fromJust $ Map.lookup file imgIdxMap -- image index always exists
                        in [ term "_" [iii| on click send OpenImage(path: '#{clientPath}', index: #{imgIdx}) to window |] ]
                     | otherwise ->
                         [

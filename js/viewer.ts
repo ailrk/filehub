@@ -125,7 +125,7 @@ class Viewer {
   }
 
   next() {
-    this.index = (this.index + 1) % this.images.length;
+    this.index = (this.index + 1) > this.images.length - 1 ? this.images.length - 1 : this.index + 1;
     this.show(this.index);
   }
 
