@@ -66,7 +66,7 @@ instance ToHttpApiData FilehubError where
 data FileContent
   = Content
   | Dir (Maybe [File])
-  deriving (Show, Generic)
+  deriving (Show, Eq, Generic)
 
 
 data File = File
@@ -77,7 +77,11 @@ data File = File
   , mimetype :: MimeType
   , content :: FileContent
   }
-  deriving (Show, Generic)
+  deriving (Show, Eq, Generic)
+
+
+instance Ord File where
+  compare a b = compare a.path b.path
 
 
 getFile :: (FileSystem :> es, Error FilehubError :> es) => FilePath -> Eff es File

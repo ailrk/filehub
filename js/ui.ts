@@ -16,7 +16,10 @@ let eventHandlers = {
       closeDropdowns()
     }
   },
-  initImageViewer: (e: any) => initImageViewer(e.detail)
+  initImageViewer: (e: any) => initImageViewer(e.detail),
+  openImage: function (e: any) {
+    openImage(e.detail.path, e.detail.index)
+  }
 }
 
 /* Global event listener */
@@ -29,6 +32,7 @@ window.addEventListener('InvalidDir', () => alert("Error: invalid directory"));
 
 /* Image viewer events */
 window.addEventListener('InitImageViewer', eventHandlers.initImageViewer);
+window.addEventListener('OpenImage', eventHandlers.openImage);
 
 
 /* Close all dropdowns */
@@ -54,4 +58,20 @@ function initImageViewer(o: { images: URL[], index: number}) {
   closeDropdowns();
   viewer = new Viewer(o.images, { index: o.index });
   viewer.show();
+}
+
+
+/* Open a image. If the viewer is already initialized, show the image directly.
+ * Otherwise request the backend for the image list to construct a new viewer.
+ * */
+function openImage(path: string, index: number) {
+  console.log(path, index);
+  if (viewer === null) {
+    let query = new URLSearchParams({
+      file: encodeURIComponent(path)
+    });
+    htmx.ajax('GET', `/img-viewer?${query.toString()}`, { target: 'body', swap: 'none'});
+  } else {
+    viewer.show(index);
+  }
 }

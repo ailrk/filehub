@@ -26,6 +26,9 @@ import Data.Aeson ((.=))
 import Data.Aeson.Types (Pair)
 import Data.List.Zipper (Zipper(..))
 import Data.List.Zipper qualified as Zipper
+import Data.Map (Map)
+import Data.Map qualified as Map
+import Data.Maybe qualified as Maybe
 import Filehub.Domain (File (..), FileContent (..), SearchWord (..), SortFileBy (..), sortFiles, isMime, ClientPath (..))
 import Filehub.Domain qualified as Domain
 
@@ -466,10 +469,10 @@ table root files = do
         th_ [ id_ "table-name" ] "Name"
         th_ [ id_ "table-modified" ] "Modified"
         th_ [ id_ "table-size" ] "Size"
-    tbody_ $ traverse_ record files
+    tbody_ $ traverse_ record (zip files [0..])
   where
-    record :: File -> Html ()
-    record file =
+    record :: (File, Int) -> Html ()
+    record (file, idx) =
       tr_ attrs do
         td_ $ fileNameElement file
         td_ $ modifiedDateElement file
@@ -490,6 +493,7 @@ table root files = do
                               )
                      to \##{contextMenuId}
               |]
+           , term "data-index" (Text.pack . show $ idx)
            ]
         path = let ClientPath p = Domain.toClientPath root file.path
                 in URI.Encode.encode p
@@ -525,11 +529,8 @@ table root files = do
                   Content
                     | file.mimetype `isMime` "image" ->
                       let clientPath = toClientPath root file.path
-                       in [ term "hx-get" ("/img-viewer?=" <> clientPath)
-                          , term "hx-vals" $ [ "file" .= clientPath ] & toHxVals
-                          , term "hx-target" "this"
-                          , term "hx-swap" "none"
-                          ]
+                          imgIdx = Maybe.fromJust $ Map.lookup file imgIdxMap
+                       in [ term "_" [iii| on click send OpenImage(path: '#{clientPath}', index: #{imgIdx}) to window |] ]
                     | otherwise ->
                         [
                         term "hx-get" "/modal/editor"
@@ -546,6 +547,9 @@ table root files = do
           case file.content of
             Dir _ -> i_ [ class_ "bx bxs-folder "] mempty
             Content -> i_ [ class_ "bx bxs-file-blank "] mempty
+
+    imgIdxMap :: Map File Int
+    imgIdxMap = Map.fromList $ filter (\f -> f.mimetype `isMime` "image") files `zip` [0..]
 
 
 contextMenu :: FilePath -> Zipper File -> Html ()

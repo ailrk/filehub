@@ -166,7 +166,7 @@ server = Api
         let idx = Domain.getImageIndex filePath paths
         let urls = fmap (Text.pack . (.unClientPath) . Domain.toClientPath root) paths
         pure $ addHeader (InitImageViewer urls idx) mempty
-      Nothing -> throwError err400
+      Nothing -> throwError err400 { errBody = "No image path" }
 
 
   , themeCss = do
