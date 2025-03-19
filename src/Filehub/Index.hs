@@ -30,6 +30,7 @@ import Servant.Server (err400, err500)
 import Text.Printf (printf)
 import Filehub (Filehub)
 import Prelude hiding (readFile)
+import Debug.Trace
 
 
 data Api mode = Api
@@ -162,6 +163,10 @@ server = Api
       Just clientPath -> do
         root <- Env.getRoot
         let filePath = Domain.fromClientPath root clientPath
+        traceM "===="
+        traceM (show clientPath)
+        traceM (show filePath)
+        traceM (show (takeDirectory filePath))
         paths <- Domain.getImagePaths (takeDirectory filePath) & withServerError
         let idx = Domain.getImageIndex filePath paths
         let urls = fmap (Text.pack . (.unClientPath) . Domain.toClientPath root) paths

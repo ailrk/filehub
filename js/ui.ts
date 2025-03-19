@@ -66,12 +66,8 @@ function initImageViewer(o: { images: URL[], index: number}) {
  * */
 function openImage(path: string, index: number) {
   console.log(path, index);
-  if (viewer === null) {
-    let query = new URLSearchParams({
-      file: encodeURIComponent(path)
-    });
-    htmx.ajax('GET', `/img-viewer?${query.toString()}`, { target: 'body', swap: 'none'});
-  } else {
-    viewer.show(index);
-  }
+  let query = new URLSearchParams({
+    file: encodeURIComponent(path)
+  });
+  htmx.ajax('GET', `/img-viewer?${query.toString()}`, { target: 'body', swap: 'none'});
 }

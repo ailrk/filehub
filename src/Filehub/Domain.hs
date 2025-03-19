@@ -39,6 +39,7 @@ import Web.HttpApiData (FromHttpApiData(..), ToHttpApiData(..))
 import Codec.Archive.Zip qualified as Zip
 import Codec.Archive.Zip (ZipOption(..))
 import Network.Mime (defaultMimeLookup, MimeType)
+import Network.URI.Encode qualified as URI.Encode
 import Data.Function (fix)
 import Data.Text.Encoding qualified as Text
 import Data.Text.Lazy.Encoding qualified as LText
@@ -372,7 +373,7 @@ instance ToHttpApiData ClientPath where
 
 
 instance FromHttpApiData ClientPath where
-  parseUrlPiece p = ClientPath <$> parseUrlPiece p
+  parseUrlPiece p = ClientPath <$> parseUrlPiece (URI.Encode.decodeText p)
 
 
 toClientPath :: FilePath -> FilePath -> ClientPath
