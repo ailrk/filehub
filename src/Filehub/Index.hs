@@ -14,7 +14,7 @@ import Filehub.Domain (NewFile (..), NewFolder(..), SearchWord(..), SortFileBy (
 import Filehub.Domain qualified as Domain
 import Effectful.Error.Dynamic (runErrorNoCallStack, throwError, Error)
 import Effectful.FileSystem.IO.ByteString.Lazy (readFile)
-import System.FilePath ((</>), takeFileName)
+import System.FilePath ((</>), takeFileName, takeDirectory)
 import GHC.Generics (Generic)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
@@ -49,8 +49,7 @@ data Api mode = Api
   , upload            :: mode :- "upload" S.:> MultipartForm Mem (MultipartData Mem) S.:> Post '[HTML] (Html ())
   , download          :: mode :- "download" S.:> QueryParam "file" ClientPath S.:> Get '[OctetStream] (S.Headers '[S.Header "Content-Disposition" String] LBS.ByteString)
   , contextMenu       :: mode :- "contextmenu" S.:> QueryParam "file" ClientPath S.:> Get '[HTML] (Html ())
-  , updateImgViewer   :: mode :- "img-viewer" S.:> "update" S.:> QueryParam "file" ClientPath S.:> Get '[HTML] (S.Headers '[S.Header "HX-Trigger" Domain.ViewImage] (Html ()))
-  , startImageViewer  :: mode :- "img-viewer" S.:> QueryParam "file" ClientPath S.:> Get '[HTML] (S.Headers '[S.Header "HX-Trigger" Domain.ViewImage] (Html ()))
+  , initImgViewer     :: mode :- "img-viewer" S.:> QueryParam "file" ClientPath S.:> Get '[HTML] (S.Headers '[S.Header "HX-Trigger" Domain.ViewImage] (Html ()))
   , themeCss          :: mode :- "theme.css" S.:> Get '[OctetStream] LBS.ByteString
   }
   deriving (Generic)
@@ -159,23 +158,14 @@ server = Api
       Nothing -> throwError err400
 
 
-  , updateImgViewer = \case
+  , initImgViewer = \case
       Just clientPath -> do
         root <- Env.getRoot
         let filePath = Domain.fromClientPath root clientPath
-        fileZipper <- Domain.getFileInContext filePath & withServerError
-        let html = Template.imageModal root fileZipper
-        pure $ addHeader (UpdateImageList html) mempty
-      Nothing -> throwError err400
-
-
-  , startImageViewer = \case
-      Just clientPath -> do
-        root <- Env.getRoot
-        let filePath = Domain.fromClientPath root clientPath
-        fileZipper <- Domain.getFileInContext filePath & withServerError
-        let html = Template.imageModal root fileZipper
-        pure $ addHeader (RunImageViewer html) mempty
+        paths <- Domain.getImagePaths (takeDirectory filePath) & withServerError
+        let idx = Domain.getImageIndex filePath paths
+        let urls = fmap (Text.pack . (.unClientPath) . Domain.toClientPath root) paths
+        pure $ addHeader (InitImageViewer urls idx) mempty
       Nothing -> throwError err400
 
 

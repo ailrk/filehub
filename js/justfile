@@ -1,0 +1,8 @@
+build:
+    #!/usr/bin/env bash
+    npx tsc
+    cp ./*.css ./dist
+    cp ./icons/*.png ./dist
+
+dot:
+    dot -Tpng imgviewer.dot -o imgviewer.png

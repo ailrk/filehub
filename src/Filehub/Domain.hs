@@ -28,6 +28,7 @@ import Data.Generics.Labels ()
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.List (sortOn, (\\))
+import Data.List qualified as List
 import Data.List.Zipper (Zipper(..))
 import Data.List.Zipper qualified as Zipper
 import System.FilePath ((</>), takeFileName, takeDirectory)
@@ -41,7 +42,7 @@ import Network.Mime (defaultMimeLookup, MimeType)
 import Data.Function (fix)
 import Data.Text.Encoding qualified as Text
 import Data.Text.Lazy.Encoding qualified as LText
-import Lucid (Html, renderText)
+import Data.Maybe (fromMaybe)
 
 
 ------------------------------------
@@ -318,29 +319,38 @@ sortFiles BySize = sortOn (.size)
 ------------------------------------
 
 
-data ViewImage
-  = UpdateImageList (Html ()) -- Only update the image list without showing the viewer
-  | RunImageViewer (Html ()) -- Update image list and show the viewer
+data ViewImage = InitImageViewer [Text] Int -- Update image list and show the viewer
   deriving (Show)
 
 
 instance ToJSON ViewImage where
-  toJSON (UpdateImageList html) =
+  toJSON (InitImageViewer urls index) =
     Aeson.object
-      [ "UpdateImageList" .= Aeson.object
-          [ "html" .= renderText html
-          ]
-      ]
-  toJSON (RunImageViewer html) =
-    Aeson.object
-      [ "RunImageViewer" .= Aeson.object
-          [ "html" .= renderText html
+      [ "InitImageViewer" .= Aeson.object
+          [ "images" .= toJSON urls
+          , "index" .= toJSON index
           ]
       ]
 
 
 instance ToHttpApiData ViewImage where
   toUrlPiece v = (v & Aeson.encode & LText.decodeUtf8) ^. strict
+
+
+getImagePaths :: (Reader Env :> es, Error FilehubError :> es, Concurrent :> es,  FileSystem :> es) => FilePath -> Eff es [FilePath]
+getImagePaths dir = do
+  isDir <- isDirectory dir
+  when (not isDir) (throwError InvalidDir)
+  order <- Env.getSortFileBy
+  paths <- fmap (.path) . filter (\f -> f.mimetype `isMime` "image") . sortFiles order <$> lsDir dir
+  pure paths
+  -- -- let idx = fromMaybe 0 $ List.elemIndex filePath paths
+  -- let urls = fmap (Text.pack . (.unClientPath) . toClientPath root) paths
+  -- pure urls
+
+getImageIndex :: FilePath -> [FilePath] -> Int
+getImageIndex filePath paths = fromMaybe 0 $ List.elemIndex filePath paths
+
 
 
 ------------------------------------
