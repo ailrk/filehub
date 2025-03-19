@@ -33,15 +33,7 @@ function closeDropdowns() {
         ele.dispatchEvent(new Event('CLOSE'));
     }
 }
-function updateImageViewer(o) {
-    if (viewer !== null) {
-        viewer.update(o.images);
-        viewer.index = o.index;
-    }
-}
 function initImageViewer(o) {
-    console.log('hi', o);
-    updateImageViewer(o);
     closeDropdowns();
     viewer = new Viewer(o.images, { index: o.index });
     viewer.show();

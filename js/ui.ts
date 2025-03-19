@@ -18,7 +18,7 @@ let eventHandlers = {
   },
   initImageViewer: (e: any) => initImageViewer(e.detail),
   openImage: function (e: any) {
-    openImage(e.detail.path, e.detail.index)
+    openImage(e.detail.path)
   }
 }
 
@@ -45,16 +45,8 @@ function closeDropdowns() {
 }
 
 
-function updateImageViewer(o: { images: URL[], index: number}) {
-  if (viewer !== null) {
-    viewer.update(o.images)
-    viewer.index = o.index;
-  }
-}
-
 
 function initImageViewer(o: { images: URL[], index: number}) {
-  updateImageViewer(o) ;
   closeDropdowns();
   viewer = new Viewer(o.images, { index: o.index });
   viewer.show();
@@ -64,8 +56,7 @@ function initImageViewer(o: { images: URL[], index: number}) {
 /* Open a image. If the viewer is already initialized, show the image directly.
  * Otherwise request the backend for the image list to construct a new viewer.
  * */
-function openImage(path: string, index: number) {
-  console.log(path, index);
+function openImage(path: string) {
   let query = new URLSearchParams({
     file: encodeURIComponent(path)
   });
