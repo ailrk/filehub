@@ -31,14 +31,12 @@ body {
 
 
 #view {
-    grid-column: 2 / -1;
-    grid-row: 2;
-    overflow-y: scroll;
-    scrollbar-width: none;
-}
+  grid-column: 2 / -1;
+  grid-row: 2;
+  overflow-y: scroll;
+  scrollbar-width: none;
 
-
-#view #tool-bar {
+  & #tool-bar {
     position: sticky;
     top: 0;
     background: var(--background2);
@@ -47,104 +45,102 @@ body {
     align-items: center;
     border-bottom: 1px solid var(--frontground);
     overflow: hidden;
-}
+  }
 
-
-#view #tool-bar #path-breadcrumb {
+  & #tool-bar #path-breadcrumb {
     white-space: nowrap;
     scrollbar-width: none;
     overflow-y: auto;
     width: 50%;
     padding-left: 1rem;
-}
+  }
 
-
-#view #tool-bar #search-bar {
+  & #tool-bar #search-bar {
     padding: 0 2rem;
-}
+  }
 
-
-#view #table {
+  & #table {
     padding: 1rem 1rem;
     width: 100%;
     border-collapse: separate;
     border-spacing: 0 3px;
-}
+  }
 
-
-#view #table #table-name {
+  & #table #table-name {
     min-width: 30%;
     text-align: left;
-}
+  }
 
 
-#view #table #table-modified {
+  & #table #table-modified {
     min-width: 30%;
     text-align: left;
-}
+  }
 
 
-#view #table #table-size {
+  & #table #table-size {
     min-width: 10%;
     text-align: left;
+  }
 }
+
 
 
 /* breadcrumb */
 .breadcrumb {
     cursor: pointer;
     padding: 0 0.5rem;
-}
 
-
-.breadcrumb ol {
+  & ol {
     margin: 0;
     padding: 0;
     align-items: center;
-}
+  }
 
 
-.breadcrumb li {
+  & li {
     display: inline-block;
     margin: 1rem 0rem;
-}
+  }
 
 
-.breadcrumb li:not(:last-child)::after {
+  & li:not(:last-child)::after {
     margin: 0.1rem;
     color: var(--tertiary);
     content: "/";
-}
+  }
 
 
-.breadcrumb li.active{
+  & li.active{
     color: var(--tertiary);
+  }
+
 }
 
 
 .dir {
-    cursor: pointer;
-    color: var(--tertiary);
+  cursor: pointer;
+  color: var(--tertiary);
 }
 
 
 .btn {
-    cursor: pointer;
-    padding: 0.5rem 0.5rem;
-    border: none;
-    font-weight: bold;
-    border-radius: 8px;
-}
+  cursor: pointer;
+  padding: 0.5rem 0.5rem;
+  border: none;
+  font-weight: bold;
+  border-radius: 8px;
 
-
-.btn:active {
+  &:active {
     transform: translateY(2px);
-}
+  }
 
 
-.btn:hover {
+  &:hover {
     background: var(--background3);
+  }
 }
+
 
 
 .btn-control {
@@ -174,65 +170,65 @@ textarea.form-control {
 }
 
 
-#table tr {
+#table {
+  & tr {
     cursor: pointer;
-}
+  }
 
-
-#table tr:hover {
+  & tr:hover {
     background: var(--background3);
-}
+  }
 
 
-#table td span {
-  width: 100%
+  & td span {
+    width: 100%
+  }
 }
+
 
 
 
 .field {
-    display: flex;
-    gap: 5px;
+  display: flex;
+  gap: 5px;
 }
 
 
 .bxs-folder {
-    color: var(--secondary);
+  color: var(--secondary);
 }
 
 
 .bx-caret-right:hover {
-    color: var(--secondary);
+  color: var(--secondary);
 }
 
 
 .bx-caret-down:hover {
-    color: var(--secondary);
+  color: var(--secondary);
 }
 
 
 .modal {
-    /* Underlay covers entire screen. */
-    position: fixed;
-    top: 0px;
-    bottom: 0px;
-    left: 0px;
-    right: 0px;
-    background-color: rgba(0,0,0,0.6);
-    /* Flexbox centers the .modal-content vertically and horizontally */
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    z-index: 900;
+  /* Underlay covers entire screen. */
+  position: fixed;
+  top: 0px;
+  bottom: 0px;
+  left: 0px;
+  right: 0px;
+  background-color: rgba(0,0,0,0.6);
+  /* Flexbox centers the .modal-content vertically and horizontally */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 900;
 
-    /* Animate when opening */
-    animation-name: fadeIn;
-    animation-duration: 60ms;
-    animation-timing-function: ease;
-}
+  /* Animate when opening */
+  animation-name: fadeIn;
+  animation-duration: 60ms;
+  animation-timing-function: ease;
 
-
-.modal > .modal-content {
+  & > .modal-content {
     /* Position visible dialog near the top of the window */
     margin-top:10vh;
 
@@ -249,80 +245,81 @@ textarea.form-control {
     animation-name: zoomIn;
     animation-duration: 60ms;
     animation-timing-function: ease;
-}
+  }
 
-
-.modal.closing {
+  &.closing {
     /* Animate when closing */
     animation-name: fadeOut;
     animation-duration: 60ms;
     animation-timing-function: ease;
-}
+  }
 
 
-.modal.closing > .modal-content {
+  &.closing > .modal-content {
     /* Animate when closing */
     animation-name: zoomOut;
     animation-duration: 60ms;
     animation-timing-function: ease;
-}
+  }
 
 
-.modal .btn-modal-close {
+  & .btn-modal-close {
     background: var(--secondary);
-}
+  }
 
 
-.modal .btn-modal-confirm {
+  & .btn-modal-confirm {
     background: var(--primary);
+  }
+
 }
 
 
+/* global underlay takes up the entire viewport.
+ * Close any popups, modals, and menus  */
 .modal-underlay {
-    /* global underlay takes up the entire viewport.
-     * Close any popups, modals, and menus  */
-    position: absolute;
-    top:0px;
-    bottom:0px;
-    left: 0px;
-    right: 0px;
-    cursor: pointer;
-    z-index: -1;
+  position: absolute;
+  top:0px;
+  bottom:0px;
+  left: 0px;
+  right: 0px;
+  cursor: pointer;
+  z-index: -1;
 }
 
 
 @keyframes fadeIn {
-    0% {opacity: 0;}
-    100% {opacity: 1;}
+  0% {opacity: 0;}
+  100% {opacity: 1;}
 }
 
 
 @keyframes fadeOut {
-    0% {opacity: 1;}
-    100% {opacity: 0;}
+  0% {opacity: 1;}
+  100% {opacity: 0;}
 }
 
 
 @keyframes zoomIn {
-    0% {transform: scale(0.9);}
-    100% {transform: scale(1);}
+  0% {transform: scale(0.9);}
+  100% {transform: scale(1);}
 }
 
 
 @keyframes zoomOut {
-    0% {transform: scale(1);}
-    100% {transform: scale(0.9);}
+  0% {transform: scale(1);}
+  100% {transform: scale(0.9);}
 }
 
 
 .mr-2 {
-    margin-right: 10px;
+  margin-right: 10px;
 }
 
 
 .dropdown {
-    position: relative;
-    display: inline-block;
+  position: relative;
+  display: inline-block;
 
 }
 
@@ -332,75 +329,71 @@ textarea.form-control {
 
 
 .dropdown-content {
-    position: absolute;
-    background: var(--background2);
-    padding: 0.5rem 0;
-    border: 1px solid var(--frontground);
-    border-radius : 0.1rem;
-    text-align: left;
-    z-index: 1;
+  position: absolute;
+  background: var(--background2);
+  padding: 0.5rem 0;
+  border: 1px solid var(--frontground);
+  border-radius : 0.1rem;
+  text-align: left;
+  z-index: 1;
 
-    animation-name: fadeIn;
-    animation-duration: 60ms;
-    animation-timing-function: ease;
-}
+  animation-name: fadeIn;
+  animation-duration: 60ms;
+  animation-timing-function: ease;
 
-
-.dropdown-content.closing {
+  &.closing {
     animation-name: fadeOut;
     animation-duration: 60ms;
     animation-timing-function: ease;
+  }
 }
 
 
 .dropdown-item {
-    cursor: pointer;
-    padding: 0.3rem 0;
-}
+  cursor: pointer;
+  padding: 0.3rem 0;
 
-
-.dropdown-item:active {
+  &:active {
     transform: translateY(2px);
-}
+  }
 
-
-.dropdown-item span,
-.dropdown-item a {
+  & span,
+  & a {
     color: var(--frontground);
     display: inline-block;
     text-decoration: none;
     padding: 0 2rem 0 1rem;
-}
+  }
 
 
-.dropdown-item:hover {
+  &:hover {
     background: var(--background3);
+  }
 }
 
 
 .file-contextmenu {
-    transform: translateX(10px);
+  transform: translateX(10px);
 }
 
 
 #editor-modal {
-    padding: 0.5rem 1.5rem;
-}
+  padding: 0.5rem 1.5rem;
 
-#editor-modal > .modal-content {
+  & > .modal-content {
     width: 100%;
     height: 100%;
     margin-top: 0;
-}
+  }
 
-
-#editor-modal > .modal-content textarea {
+  & > .modal-content textarea {
     height: 70vh;
+  }
 }
 
 
 #file-detail-modal table {
-    border-spacing: 1rem;
+  border-spacing: 1rem;
 }
 
 .closed {
