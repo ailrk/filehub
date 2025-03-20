@@ -10,7 +10,7 @@ import Lens.Micro.Platform ()
 import Effectful (Eff, (:>))
 import Filehub.Template qualified as Template
 import Filehub.Env qualified as Env
-import Filehub.Domain (NewFile (..), NewFolder(..), SearchWord(..), SortFileBy (..), sortFiles, ClientPath (..), UpdatedFile (..), Theme (..), ViewImage(..))
+import Filehub.Domain (NewFile (..), NewFolder(..), SearchWord(..), SortFileBy (..), sortFiles, ClientPath (..), UpdatedFile (..), Theme (..), Viewer(..))
 import Filehub.Domain qualified as Domain
 import Effectful.Error.Dynamic (runErrorNoCallStack, throwError, Error)
 import Effectful.FileSystem.IO.ByteString.Lazy (readFile)
@@ -49,7 +49,7 @@ data Api mode = Api
   , upload            :: mode :- "upload" S.:> MultipartForm Mem (MultipartData Mem) S.:> Post '[HTML] (Html ())
   , download          :: mode :- "download" S.:> QueryParam "file" ClientPath S.:> Get '[OctetStream] (S.Headers '[S.Header "Content-Disposition" String] LBS.ByteString)
   , contextMenu       :: mode :- "contextmenu" S.:> QueryParam "file" ClientPath S.:> Get '[HTML] (Html ())
-  , initImgViewer     :: mode :- "img-viewer" S.:> QueryParam "file" ClientPath S.:> Get '[HTML] (S.Headers '[S.Header "HX-Trigger" Domain.ViewImage] (Html ()))
+  , initViewer     :: mode :- "viewer" S.:> QueryParam "file" ClientPath S.:> Get '[HTML] (S.Headers '[S.Header "HX-Trigger" Domain.Viewer ] (Html ()))
   , themeCss          :: mode :- "theme.css" S.:> Get '[OctetStream] LBS.ByteString
   }
   deriving (Generic)
@@ -158,14 +158,14 @@ server = Api
       Nothing -> throwError err400
 
 
-  , initImgViewer = \case
+  , initViewer = \case
       Just clientPath -> do
         root <- Env.getRoot
         let filePath = Domain.fromClientPath root clientPath
         paths <- Domain.getImagePaths (takeDirectory filePath) & withServerError
         let idx = Domain.getImageIndex filePath paths
         let urls = fmap (Text.pack . (.unClientPath) . Domain.toClientPath root) paths
-        pure $ addHeader (InitImageViewer urls idx) mempty
+        pure $ addHeader (InitViewer urls idx) mempty
       Nothing -> throwError err400 { errBody = "No image path" }
 
 

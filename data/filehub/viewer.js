@@ -1,14 +1,14 @@
 const IS_BROWSER = typeof window !== 'undefined' && typeof window.document !== 'undefined';
-const NAMESPACE = 'imgviewer';
-const TEMPLATE = ('<div class="imgviewer-container" tabindex="-1" touch-action="none">'
-    + '<div class="imgviewer-canvas"></div>'
-    + '<div class="imgviewer-footer">'
-    + '<div class="imgviewer-title"></div>'
-    + '<div class="imgviewer-toolbar"></div>'
+const NAMESPACE = 'viewer';
+const TEMPLATE = (`<div class="${NAMESPACE}-container" tabindex="-1" touch-action="none">`
+    + `<div class="${NAMESPACE}-canvas"></div>`
+    + `<div class="${NAMESPACE}-footer">`
+    + `<div class="${NAMESPACE}-title"></div>`
+    + `<div class="${NAMESPACE}-toolbar"></div>`
     + '</div>'
-    + '<div class="imgviewer-tooltip" role="alert" aria-hidden="true"></div>'
-    + '<div class="imgviewer-button" role="button"></div>'
-    + '<div class="imgviewer-player"></div>'
+    + `<div class="${NAMESPACE}-tooltip" role="alert" aria-hidden="true"></div>`
+    + `<div class="${NAMESPACE}-button" role="button"></div>`
+    + `<div class="${NAMESPACE}-player"></div>`
     + '</div>');
 const getUniqueID = ((id) => (() => {
     id += 1;

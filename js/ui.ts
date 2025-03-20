@@ -16,9 +16,9 @@ let eventHandlers = {
       closeDropdowns()
     }
   },
-  initImageViewer: (e: any) => initImageViewer(e.detail),
-  openImage: function (e: any) {
-    openImage(e.detail.path)
+  initViewer: (e: any) => initViewer(e.detail),
+  open: function (e: any) {
+    open(e.detail.path)
   }
 }
 
@@ -31,8 +31,8 @@ window.addEventListener('InvalidPath', () => alert("Error: invalid path"));
 window.addEventListener('InvalidDir', () => alert("Error: invalid directory"));
 
 /* Image viewer events */
-window.addEventListener('InitImageViewer', eventHandlers.initImageViewer);
-window.addEventListener('OpenImage', eventHandlers.openImage);
+window.addEventListener('InitViewer', eventHandlers.initViewer);
+window.addEventListener('Open', eventHandlers.open);
 
 
 /* Close all dropdowns */
@@ -45,10 +45,9 @@ function closeDropdowns() {
 }
 
 
-
-function initImageViewer(o: { images: URL[], index: number}) {
+function initViewer(o: { urls: URL[], index: number}) {
   closeDropdowns();
-  viewer = new Viewer(o.images, { index: o.index });
+  viewer = new Viewer(o.urls, { index: o.index });
   viewer.show();
 }
 
@@ -56,9 +55,9 @@ function initImageViewer(o: { images: URL[], index: number}) {
 /* Open a image. If the viewer is already initialized, show the image directly.
  * Otherwise request the backend for the image list to construct a new viewer.
  * */
-function openImage(path: string) {
+function open(path: string) {
   let query = new URLSearchParams({
     file: encodeURIComponent(path)
   });
-  htmx.ajax('GET', `/img-viewer?${query.toString()}`, { target: 'body', swap: 'none'});
+  htmx.ajax('GET', `/viewer?${query.toString()}`, { target: 'body', swap: 'none'});
 }

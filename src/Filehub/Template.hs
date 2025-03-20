@@ -520,7 +520,7 @@ table root files = do
                     | file.mimetype `isMime` "image" ->
                       let clientPath = toClientPath root file.path
                           imgIdx = Maybe.fromJust $ Map.lookup file imgIdxMap -- image index always exists
-                       in [ term "_" [iii| on click send OpenImage(path: '#{clientPath}', index: #{imgIdx}) to window |] ]
+                       in [ term "_" [iii| on click send Open(path: '#{clientPath}', index: #{imgIdx}) to window |] ]
                     | otherwise ->
                         [
                         term "hx-get" "/modal/editor"
@@ -591,7 +591,7 @@ contextMenu root file = do
             span_ "Edit"
         | file.mimetype `isMime` "image" -> do
           div_ [ class_ "dropdown-item"
-               , term "hx-get" ("/img-viewer?=" <> textClientPath)
+               , term "hx-get" ("/viewer?=" <> textClientPath)
                , term "hx-vals" $ [ "file" .= textClientPath ] & toHxVals
                , term "hx-target" "this"
                , term "hx-swap" "none"

@@ -320,25 +320,25 @@ sortFiles BySize = sortOn (.size)
 
 
 ------------------------------------
--- Image Viewing event
+-- Content Viewing event
 ------------------------------------
 
 
-data ViewImage = InitImageViewer [Text] Int -- Update image list and show the viewer
+data Viewer = InitViewer [Text] Int -- Update image list and show the viewer
   deriving (Show)
 
 
-instance ToJSON ViewImage where
-  toJSON (InitImageViewer urls index) =
+instance ToJSON Viewer where
+  toJSON (InitViewer urls index) =
     Aeson.object
-      [ "InitImageViewer" .= Aeson.object
-          [ "images" .= toJSON urls
+      [ "InitViewer" .= Aeson.object
+          [ "urls" .= toJSON urls
           , "index" .= toJSON index
           ]
       ]
 
 
-instance ToHttpApiData ViewImage where
+instance ToHttpApiData Viewer where
   toUrlPiece v = (v & Aeson.encode & LText.decodeUtf8) ^. strict
 
 
