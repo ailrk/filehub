@@ -507,6 +507,16 @@ table root files = do
                     , term "hx-swap" "outerHTML"
                     ]
                   Content
+                    | file.mimetype `isMime` "application/pdf" ->
+                      let clientPath = toClientPath root file.path
+                      in [ term "_"
+                            [iii|
+                              on click
+                                js
+                                  window.open('#{clientPath}', '_blank');
+                                end
+                              |]
+                         ]
                     | file.mimetype `isMime` "image" ->
                       let clientPath = toClientPath root file.path
                           imgIdx = Maybe.fromJust $ Map.lookup file imgIdxMap -- image index always exists
@@ -565,6 +575,12 @@ contextMenu root file = do
              ] $
           span_ "Open"
       Content
+        | file.mimetype `isMime` "application/pdf" -> do
+          a_ [ class_ "dropdown-item"
+             , href_ (URI.Encode.decodeText textClientPath)
+             , target_ "blank"
+             ] $
+            span_ "View"
         | file.mimetype `isMime` "text" -> do
           div_ [ class_ "dropdown-item"
                , term "hx-get" "/modal/editor"

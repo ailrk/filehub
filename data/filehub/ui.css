@@ -184,6 +184,12 @@ textarea.form-control {
 }
 
 
+#table td span {
+  width: 100%
+}
+
+
+
 .field {
     display: flex;
     gap: 5px;
