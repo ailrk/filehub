@@ -181,10 +181,9 @@ textarea.form-control {
 
 
   & td span {
-    width: 100%
+    min-width: 10%
   }
 }
-
 
 
 
