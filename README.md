@@ -4,6 +4,7 @@
 Filehub is a simple, no frills, web based, self-hostable file browser.
 
 ![demo1](./doc/filehub-demo1.png)
+![demo2](./doc/filehub-demo2.png)
 
 
 ### Download
