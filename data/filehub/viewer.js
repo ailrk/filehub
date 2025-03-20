@@ -23,7 +23,7 @@ function buildToolbar(toolbar) {
     list.appendChild(prev);
     let next = document.createElement('li');
     next.setAttribute('role', 'button');
-    prev.innerHTML = `<i class='bx bxs-right-arrow'></i>`;
+    next.innerHTML = `<i class='bx bxs-right-arrow'></i>`;
     next.classList.add(`${NAMESPACE}-next`);
     list.appendChild(next);
     toolbar.appendChild(list);
@@ -59,6 +59,7 @@ class Viewer {
         this.viewer.id = `${NAMESPACE}${this.id}`;
         this.title.id = `${NAMESPACE}-title-${this.id}`;
         this.button.classList.add(`${NAMESPACE}-close`);
+        this.button.innerHTML = `<i class='bx bx-x'></i>`;
         buildToolbar(this.toolbar);
         this.init();
     }
@@ -81,6 +82,23 @@ class Viewer {
         this.button.onclick = _ => {
             this.hide();
         };
+        window.addEventListener('keydown', e => {
+            console.log(e.key);
+            if (this.state === 'shown') {
+                switch (e.key) {
+                    case "ArrowLeft":
+                        this.prev();
+                        break;
+                    case "ArrowRight":
+                        this.next();
+                        break;
+                    case "Escape":
+                        this.hide();
+                        break;
+                    default: break;
+                }
+            }
+        });
         this.toolbar.querySelector(`.${NAMESPACE}-prev`).onclick = () => {
             this.prev();
         };
@@ -114,17 +132,6 @@ class Viewer {
         document.querySelector('body').appendChild(this.viewer);
         this.state = 'shown';
         console.log(`state: ${this.state}`);
-    }
-    update(urls) {
-        if (this.state !== 'shown' && this.state !== 'hidden')
-            return;
-        console.log('udpate');
-        this.images = urls;
-        this.init();
-        if (this.state === 'shown') {
-            this.state = 'showing';
-            return;
-        }
     }
     hide() {
         this.state = 'hiding';

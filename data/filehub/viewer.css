@@ -1,18 +1,17 @@
-/* .imgviewer-reset, */
-/* .imgviewer-prev, */
-/* .imgviewer-next, */
-/* .imgviewer-close { */
-/*   &::before { */
-/*     background-repeat: no-repeat; */
-/*     background-size: 280px; */
-/*     color: transparent; */
-/*     display: block; */
-/*     font-size: 0; */
-/*     height: 20px; */
-/*     line-height: 0; */
-/*     width: 20px; */
-/*   } */
-/* } */
+.imgviewer-reset,
+.imgviewer-prev,
+.imgviewer-next,
+.imgviewer-close {
+  &::before {
+    background-repeat: no-repeat;
+    background-size: 280px;
+    color: transparent;
+    display: block;
+    height: 20px;
+    line-height: 0;
+    width: 20px;
+  }
+}
 
 .imgviewer-prev {
   color: white;
@@ -29,7 +28,6 @@
 .imgviewer-container {
   bottom: 0;
   direction: ltr;
-  font-size: 0;
   left: 0;
   line-height: 0;
   overflow: hidden;
@@ -103,10 +101,11 @@
       border-radius: 50%;
       cursor: pointer;
       float: left;
-      height: 24px;
+      height: 36px;
       overflow: hidden;
       transition: background-color 0.15s;
-      width: 24px;
+      width: 36px;
+      align-content: center;
 
       &:focus,
       &:hover {
@@ -174,6 +173,9 @@
   height: 80px;
   overflow: hidden;
   position: absolute;
+  /* right: -40px; */
+  /* top: -40px; */
+
   right: -40px;
   top: -40px;
   transition: background-color 0.15s;
@@ -194,6 +196,12 @@
     bottom: 15px;
     left: 15px;
     position: absolute;
+  }
+
+  & > i {
+    position: relative;
+    top: 50px;
+    left: 15px;
   }
 }
 

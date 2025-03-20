@@ -13,7 +13,7 @@ let eventHandlers = {
     },
     initImageViewer: (e) => initImageViewer(e.detail),
     openImage: function (e) {
-        openImage(e.detail.path, e.detail.index);
+        openImage(e.detail.path);
     }
 };
 /* Global event listener */
@@ -41,8 +41,7 @@ function initImageViewer(o) {
 /* Open a image. If the viewer is already initialized, show the image directly.
  * Otherwise request the backend for the image list to construct a new viewer.
  * */
-function openImage(path, index) {
-    console.log(path, index);
+function openImage(path) {
     let query = new URLSearchParams({
         file: encodeURIComponent(path)
     });

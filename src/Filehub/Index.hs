@@ -153,8 +153,8 @@ server = Api
       Just clientPath -> do
         root <- Env.getRoot
         let filePath = Domain.fromClientPath root clientPath
-        fileZipper <- Domain.getFileInContext filePath & withServerError
-        pure $ Template.contextMenu root fileZipper
+        file <- Domain.getFile filePath & withServerError
+        pure $ Template.contextMenu root file
       Nothing -> throwError err400
 
 

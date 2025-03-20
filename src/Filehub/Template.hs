@@ -24,8 +24,6 @@ import Data.Bifunctor (Bifunctor(..))
 import Data.Aeson qualified as Aeson
 import Data.Aeson ((.=))
 import Data.Aeson.Types (Pair)
-import Data.List.Zipper (Zipper(..))
-import Data.List.Zipper qualified as Zipper
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Maybe qualified as Maybe
@@ -386,23 +384,6 @@ editorModal filename content = do
               ] "CLOSE"
 
 
--- | ImageModal is a list of image previews. By default we load 2 images before and after the
--- focused image (5 in total). Whenever we move the cursor, we update the list and the viewer to make sure
--- there's always 5 images loaded and the current image is in the middle.
-imageModal :: FilePath -> Zipper File -> Html ()
-imageModal root fileZipper =
-  ul_ do
-    mkImg $ Zipper.safeCursor (leftN 1)
-    mkImg $ Zipper.safeCursor fileZipper
-    mkImg $ Zipper.safeCursor (rightN 1)
-  where
-    mkImg (Just f) = img_ [ src_ (toClientPath root f.path) ]
-    mkImg Nothing = mempty
-
-    leftN n = foldr (.) Zipper.left (replicate n Zipper.left) fileZipper
-    rightN n = foldr (.) Zipper.right (replicate n Zipper.right) fileZipper
-
-
 ------------------------------------
 -- default
 ------------------------------------
@@ -469,10 +450,10 @@ table root files = do
         th_ [ id_ "table-name" ] "Name"
         th_ [ id_ "table-modified" ] "Modified"
         th_ [ id_ "table-size" ] "Size"
-    tbody_ $ traverse_ record (zip files [0..])
+    tbody_ $ traverse_ record files
   where
-    record :: (File, Int) -> Html ()
-    record (file, idx) =
+    record :: File -> Html ()
+    record file =
       tr_ attrs do
         td_ $ fileNameElement file
         td_ $ modifiedDateElement file
@@ -493,7 +474,6 @@ table root files = do
                               )
                      to \##{contextMenuId}
               |]
-           , term "data-index" (Text.pack . show $ idx)
            ]
         path = let ClientPath p = Domain.toClientPath root file.path
                 in URI.Encode.encode p
@@ -552,9 +532,8 @@ table root files = do
     imgIdxMap = Map.fromList $ filter (\f -> f.mimetype `isMime` "image") files `zip` [0..]
 
 
-contextMenu :: FilePath -> Zipper File -> Html ()
-contextMenu root fileZipper = do
-  let file = Zipper.cursor fileZipper
+contextMenu :: FilePath -> File -> Html ()
+contextMenu root file = do
   let textClientPath = toClientPath root file.path
 
   div_ [ class_ "dropdown-content "
@@ -642,7 +621,6 @@ data ComponentIds = ComponentIds
   , updateModal :: Text
   , sortByDropdown :: Text
   , editorModal :: Text
-  , imageModal :: Text
   , contextMenu :: Text
   }
   deriving Show
@@ -661,7 +639,6 @@ componentIds = ComponentIds
   , updateModal = "update-modal"
   , sortByDropdown = "sortby-dropdown"
   , editorModal = "editor-modal"
-  , imageModal = "image-modal"
   , contextMenu = "contextmenu"
   }
 
