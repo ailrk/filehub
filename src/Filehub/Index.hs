@@ -10,11 +10,12 @@ import Lens.Micro.Platform ()
 import Effectful (Eff, (:>))
 import Filehub.Template qualified as Template
 import Filehub.Env qualified as Env
-import Filehub.Domain (NewFile (..), NewFolder(..), SearchWord(..), SortFileBy (..), sortFiles, ClientPath (..), UpdatedFile (..), Theme (..), Viewer(..))
+import Filehub.Domain.Types (ClientPath(..), NewFile (..), NewFolder(..), SearchWord(..), SortFileBy(..), UpdatedFile (..), Theme (..), FilehubError(..))
+import Filehub.Domain.File (sortFiles)
 import Filehub.Domain qualified as Domain
 import Effectful.Error.Dynamic (runErrorNoCallStack, throwError, Error)
 import Effectful.FileSystem.IO.ByteString.Lazy (readFile)
-import System.FilePath ((</>), takeFileName, takeDirectory)
+import System.FilePath ((</>), takeFileName)
 import GHC.Generics (Generic)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
@@ -33,24 +34,82 @@ import Prelude hiding (readFile)
 
 
 data Api mode = Api
-  { index             :: mode :- Get '[HTML] (Html ())
-  , cd                :: mode :- "cd" S.:> QueryParam "dir" ClientPath S.:> Get '[HTML] (S.Headers '[S.Header "HX-Trigger" Domain.FilehubError] (Html ()))
-  , newFile           :: mode :- "files" S.:> "new" S.:> ReqBody '[FormUrlEncoded] NewFile S.:> Post '[HTML] (S.Headers '[S.Header "HX-Trigger" Domain.FilehubError] (Html ()))
-  , updateFile        :: mode :- "files" S.:> "update" S.:> ReqBody '[FormUrlEncoded] UpdatedFile S.:> Put '[HTML] (Html ())
-  , deleteFile        :: mode :- "files" S.:> "delete" S.:> QueryParam "file" ClientPath S.:> Delete '[HTML] (Html ())
-  , newFolder         :: mode :- "folders" S.:> "new" S.:> ReqBody '[FormUrlEncoded] NewFolder S.:> Post '[HTML] (S.Headers '[S.Header "HX-Trigger" Domain.FilehubError] (Html ()))
-  , newFileModal      :: mode :- "modal" S.:> "new-file" S.:> Get '[HTML] (Html ())
-  , newFolderModal    :: mode :- "modal" S.:> "new-folder" S.:> Get '[HTML] (Html ())
-  , fileDetailModal   :: mode :- "modal" S.:> "file" S.:> "detail" S.:> QueryParam "file" ClientPath S.:> Get '[HTML] (Html ())
-  , uploadModal       :: mode :- "modal" S.:> "upload" S.:> Get '[HTML] (Html ())
-  , editorModal       :: mode :- "modal" S.:> "editor" S.:> QueryParam "file" ClientPath S.:> Get '[HTML] (Html ())
-  , search            :: mode :- "search" S.:> ReqBody '[FormUrlEncoded] SearchWord S.:> Post '[HTML] (Html ())
-  , sortTable         :: mode :- "table" S.:> "sort" S.:> QueryParam "by" SortFileBy S.:> Get '[HTML] (Html ())
-  , upload            :: mode :- "upload" S.:> MultipartForm Mem (MultipartData Mem) S.:> Post '[HTML] (Html ())
-  , download          :: mode :- "download" S.:> QueryParam "file" ClientPath S.:> Get '[OctetStream] (S.Headers '[S.Header "Content-Disposition" String] LBS.ByteString)
-  , contextMenu       :: mode :- "contextmenu" S.:> QueryParam "file" ClientPath S.:> Get '[HTML] (Html ())
-  , initViewer     :: mode :- "viewer" S.:> QueryParam "file" ClientPath S.:> Get '[HTML] (S.Headers '[S.Header "HX-Trigger" Domain.Viewer ] (Html ()))
-  , themeCss          :: mode :- "theme.css" S.:> Get '[OctetStream] LBS.ByteString
+  { index           :: mode :- Get '[HTML] (Html ())
+
+  , cd              :: mode :- "cd"
+                    S.:> QueryParam "dir" ClientPath
+                    S.:> Get '[HTML] (S.Headers '[S.Header "HX-Trigger" FilehubError] (Html ()))
+
+  , newFile         :: mode :- "files"
+                    S.:> "new"
+                    S.:> ReqBody '[FormUrlEncoded] NewFile
+                    S.:> Post '[HTML] (S.Headers '[S.Header "HX-Trigger" FilehubError] (Html ()))
+
+  , updateFile      :: mode :- "files"
+                    S.:> "update"
+                    S.:> ReqBody '[FormUrlEncoded] UpdatedFile
+                    S.:> Put '[HTML] (Html ())
+
+  , deleteFile      :: mode :- "files"
+                    S.:> "delete"
+                    S.:> QueryParam "file" ClientPath
+                    S.:> Delete '[HTML] (Html ())
+
+  , newFolder       :: mode :- "folders"
+                    S.:> "new"
+                    S.:> ReqBody '[FormUrlEncoded] NewFolder
+                    S.:> Post '[HTML] (S.Headers '[S.Header "HX-Trigger" FilehubError] (Html ()))
+
+  , newFileModal    :: mode :- "modal"
+                    S.:> "new-file"
+                    S.:> Get '[HTML] (Html ())
+
+  , newFolderModal  :: mode :- "modal"
+                    S.:> "new-folder"
+                    S.:> Get '[HTML] (Html ())
+
+  , fileDetailModal :: mode :- "modal"
+                    S.:> "file"
+                    S.:> "detail"
+                    S.:> QueryParam "file" ClientPath
+                    S.:> Get '[HTML] (Html ())
+
+  , uploadModal     :: mode :- "modal"
+                    S.:> "upload"
+                    S.:> Get '[HTML] (Html ())
+
+  , editorModal     :: mode :- "modal"
+                    S.:> "editor"
+                    S.:> QueryParam "file" ClientPath
+                    S.:> Get '[HTML] (Html ())
+
+  , search          :: mode :- "search"
+                    S.:> ReqBody '[FormUrlEncoded] SearchWord
+                    S.:> Post '[HTML] (Html ())
+
+  , sortTable       :: mode :- "table"
+                    S.:> "sort"
+                    S.:> QueryParam "by" SortFileBy
+                    S.:> Get '[HTML] (Html ())
+
+  , upload          :: mode :- "upload"
+                    S.:> MultipartForm Mem (MultipartData Mem)
+                    S.:> Post '[HTML] (Html ())
+
+  , download        :: mode :- "download"
+                    S.:> QueryParam "file" ClientPath
+                    S.:> Get '[OctetStream] (S.Headers '[S.Header "Content-Disposition" String] LBS.ByteString)
+
+  , contextMenu     :: mode :- "contextmenu"
+                    S.:> QueryParam "file" ClientPath
+                    S.:> Get '[HTML] (Html ())
+
+  , initViewer      :: mode :- "viewer"
+                    S.:> QueryParam "file" ClientPath
+                    S.:> Get '[HTML] (S.Headers '[S.Header "HX-Trigger" Domain.Viewer ] (Html ()))
+
+  , themeCss        :: mode :- "theme.css"
+                    S.:> Get '[OctetStream] LBS.ByteString
   }
   deriving (Generic)
 
@@ -180,7 +239,7 @@ server = Api
   }
 
 
-withServerError :: (Error ServerError :> es) => Eff (Error Domain.FilehubError : es) b -> Eff es b
+withServerError :: (Error ServerError :> es) => Eff (Error FilehubError : es) b -> Eff es b
 withServerError action = do
   runErrorNoCallStack action >>= \case
     Left err -> throwError err500 { errBody = fromString $ show err }

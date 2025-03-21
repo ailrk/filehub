@@ -20,7 +20,8 @@ import Filehub.Env
 import Filehub
 import Filehub.Index qualified as Index
 import GHC.Generics (Generic)
-import Filehub.Domain (getFile, loadDirContents, FilehubError, SortFileBy (..))
+import Filehub.Domain (getFile, loadDirContents)
+import Filehub.Domain.Types (FilehubError, SortFileBy (..))
 import Effectful (runEff)
 import Effectful.Error.Dynamic (runErrorNoCallStack)
 import Effectful.FileSystem (runFileSystem)

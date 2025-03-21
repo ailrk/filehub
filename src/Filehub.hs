@@ -8,15 +8,15 @@ module Filehub
 
 import Effectful.Reader.Dynamic
 import Effectful (Eff, IOE, runEff)
+import Effectful.Log (Log, runLog)
+import Effectful.Error.Dynamic (Error, runErrorNoCallStack)
+import Effectful.FileSystem (FileSystem, runFileSystem)
+import Effectful.Concurrent
 import Filehub.Env (Env)
 import Servant (Handler (..), ServerError)
 import Control.Monad.Trans.Except (ExceptT(ExceptT))
 import Log.Backend.StandardOutput
-import Effectful.Log (Log, runLog)
-import Effectful.Error.Dynamic (Error, runErrorNoCallStack)
-import Effectful.FileSystem (FileSystem, runFileSystem)
 import Log (defaultLogLevel)
-import Effectful.Concurrent
 
 
 type Filehub = Eff [Reader Env, Log, Error ServerError, FileSystem, Concurrent, IOE]

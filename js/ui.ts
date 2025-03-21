@@ -4,7 +4,6 @@ import Viewer from './viewer.js';
 import type { InitViewer } from './def.js';
 declare var htmx: any;
 
-
 /* States */
 let viewer: Viewer | null = null;
 

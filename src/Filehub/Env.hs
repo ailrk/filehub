@@ -10,21 +10,12 @@ module Filehub.Env
   , getTheme
   )
   where
-import {-# SOURCE #-} Filehub.Domain (File, Theme, SortFileBy)
+
 import Effectful.Reader.Dynamic (Reader, asks)
 import Effectful ((:>), Eff)
 import Effectful.Concurrent.STM
-
-
-data Env = Env
-  { root :: !FilePath
-  , port :: !Int
-  , rootTree :: TVar File
-  , currentDir :: TVar FilePath
-  , sortFileBy :: TVar SortFileBy
-  , dataDir :: !FilePath
-  , theme :: Theme
-  }
+import Filehub.Types (Env(..))
+import Filehub.Domain.Types (SortFileBy, Theme)
 
 
 getRoot :: (Reader Env :> es) => Eff es FilePath

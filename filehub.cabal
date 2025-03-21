@@ -83,18 +83,28 @@ executable filehub
       , optparse-applicative
       , clay
       , containers
+      , unordered-containers
       , fuzzy
+      , cookie
       , string-interpolate
       , zip-archive
       , cryptohash-sha256
       , mime-types
-      , ListZipper
+      , uuid
 
     other-modules:
+      Filehub.Cookie
       Filehub.Template
       Filehub.Index
+      Filehub.Domain.ClientPath
+      Filehub.Domain.File
+      Filehub.Domain.Mime
+      Filehub.Domain.Theme
+      Filehub.Domain.Types
+      Filehub.Domain.Viewer
       Filehub.Domain
       Filehub.Env
+      Filehub.Types
       Filehub.Options
       Filehub
       Paths_filehub

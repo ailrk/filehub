@@ -27,7 +27,8 @@ import Data.Aeson.Types (Pair)
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Maybe qualified as Maybe
-import Filehub.Domain (File (..), FileContent (..), SearchWord (..), SortFileBy (..), sortFiles, isMime, ClientPath (..))
+import Filehub.Domain (sortFiles, isMime, ClientPath (..))
+import Filehub.Domain.Types (File (..), FileContent (..), SearchWord (..), SortFileBy (..))
 import Filehub.Domain qualified as Domain
 
 
