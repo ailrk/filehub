@@ -1,6 +1,6 @@
-const IS_BROWSER = typeof window !== 'undefined' && typeof window.document !== 'undefined';
-const NAMESPACE = 'viewer';
+import type { Resource } from './def.js';
 
+const NAMESPACE = 'viewer';
 
 const TEMPLATE = (
   `<div class="${NAMESPACE}-container" tabindex="-1" touch-action="none">`
@@ -53,8 +53,8 @@ function buildToolbar(toolbar: HTMLElement) {
 
 class Viewer {
   id: number;
-  images: URL[] = [];
-  currentImage?: HTMLElement;
+  resources: Resource[] = [];
+  currentContent?: HTMLElement;
   state: ViewerState = "init";
   index: number;
   viewer: HTMLElement;
@@ -65,9 +65,9 @@ class Viewer {
   canvas: HTMLElement;
   footer: HTMLElement;
 
-  constructor(images: URL[], options?: { index: number }) {
+  constructor(resources: Resource[], options?: { index: number }) {
     console.log(`state: ${this.state}`);
-    this.images = images
+    this.resources = resources
 
     this.index = options?.index ?? 0;
     this.id = getUniqueID();
@@ -92,24 +92,41 @@ class Viewer {
     this.init();
   }
 
-  loadImg() {
-    let url = this.images[this.index];
-    let img: HTMLImageElement = document.createElement('img');
-    img.src = url.toString();
+  load() {
+    let resource = this.resources[this.index];
+    let url = this.resources[this.index].url;
+
+    let content: HTMLElement = document.createElement('div');
+    content.innerHTML = 'No content';
+
+    if (resource.mimetype.startsWith('image')) {
+      let img = document.createElement('img');
+      img.src = url.toString();
+      content = img;
+    } else if (resource.mimetype.startsWith('video') || resource.mimetype.startsWith('mp4')) {
+      let video = document.createElement('video');
+      let source = document.createElement('source');
+      video.setAttribute('controls', '');
+      video.setAttribute('autoplay', '');
+      video.setAttribute('loop', '');
+      source.src = url.toString();
+      video.appendChild(source);
+      content = video;
+    }
+
     this.canvas.innerHTML = '';
-    this.canvas.appendChild(img);
-    this.currentImage = img;
+    this.canvas.appendChild(content);
+    this.currentContent = content;
   }
 
   init() {
-    this.loadImg();
+    this.load();
     this.canvas.onclick = e => {
       let target = e.target as HTMLElement;
-      if (!target.matches('img')) {
+      if (!target.matches('img') && !target.matches('video')) {
         this.hide();
       }
     }
-
     this.button.onclick = _ => {
       this.hide();
     };
@@ -137,7 +154,7 @@ class Viewer {
   }
 
   next() {
-    this.index = (this.index + 1) > this.images.length - 1 ? this.images.length - 1 : this.index + 1;
+    this.index = (this.index + 1) > this.resources.length - 1 ? this.resources.length - 1 : this.index + 1;
     this.show(this.index);
   }
 
@@ -154,7 +171,7 @@ class Viewer {
     console.log(`state: ${this.state}`);
 
     this.index = index;
-    this.loadImg();
+    this.load();
     this.render();
   }
 
@@ -163,6 +180,7 @@ class Viewer {
       return;
     }
     document.querySelector('body')!.appendChild(this.viewer);
+    this.currentContent!.focus();
     this.state = 'shown';
     console.log(`state: ${this.state}`);
   }

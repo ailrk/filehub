@@ -161,11 +161,8 @@ server = Api
   , initViewer = \case
       Just clientPath -> do
         root <- Env.getRoot
-        let filePath = Domain.fromClientPath root clientPath
-        paths <- Domain.getImagePaths (takeDirectory filePath) & withServerError
-        let idx = Domain.getImageIndex filePath paths
-        let urls = fmap (Text.pack . (.unClientPath) . Domain.toClientPath root) paths
-        pure $ addHeader (InitViewer urls idx) mempty
+        payload <- Domain.initViewer root clientPath & withServerError
+        pure $ addHeader payload mempty
       Nothing -> throwError err400 { errBody = "No image path" }
 
 

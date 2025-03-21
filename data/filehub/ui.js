@@ -35,7 +35,7 @@ function closeDropdowns() {
 }
 function initViewer(o) {
     closeDropdowns();
-    viewer = new Viewer(o.urls, { index: o.index });
+    viewer = new Viewer(o.resources, { index: o.index });
     viewer.show();
 }
 /* Open a image. If the viewer is already initialized, show the image directly.

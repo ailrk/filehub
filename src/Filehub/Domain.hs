@@ -323,16 +323,30 @@ sortFiles BySize = sortOn (.size)
 -- Content Viewing event
 ------------------------------------
 
+data Resource = Resource
+  { url :: Text
+  , mimetype :: Text
+  }
+  deriving (Show, Eq)
 
-data Viewer = InitViewer [Text] Int -- Update image list and show the viewer
+
+instance ToJSON Resource where
+  toJSON (Resource { url, mimetype }) =
+    Aeson.object
+      [ "url" .= toJSON url
+      , "mimetype" .= mimetype
+      ]
+
+
+data Viewer = InitViewer [Resource] Int -- Update image list and show the viewer
   deriving (Show)
 
 
 instance ToJSON Viewer where
-  toJSON (InitViewer urls index) =
+  toJSON (InitViewer res index) =
     Aeson.object
       [ "InitViewer" .= Aeson.object
-          [ "urls" .= toJSON urls
+          [ "resources" .= toJSON res
           , "index" .= toJSON index
           ]
       ]
@@ -342,6 +356,32 @@ instance ToHttpApiData Viewer where
   toUrlPiece v = (v & Aeson.encode & LText.decodeUtf8) ^. strict
 
 
+isResource :: MimeType -> Bool
+isResource s = any (s `isMime`)  ["image", "video", "mp3", "mp4", "audio"]
+
+
+takeResourceFiles :: [File] -> [File]
+takeResourceFiles = filter (isResource . (.mimetype))
+
+
+initViewer :: (Reader Env :> es, Error FilehubError :> es, Concurrent :> es,  FileSystem :> es) => FilePath -> ClientPath -> Eff es Viewer
+initViewer root clientPath = do
+  let filePath = fromClientPath root clientPath
+  let dir = takeDirectory filePath
+  isDir <- isDirectory dir
+  when (not isDir) (throwError InvalidDir)
+  order <- Env.getSortFileBy
+  files <- takeResourceFiles . sortFiles order <$> lsDir dir
+  let idx = fromMaybe 0 $ List.elemIndex filePath (fmap (.path) files)
+  let toResource f =
+        Resource
+          { url = Text.pack . (.unClientPath) . toClientPath root $ f.path
+          , mimetype = Text.decodeUtf8  f.mimetype
+          }
+  let resources = toResource <$> files
+  pure $ InitViewer resources idx
+
+
 getImagePaths :: (Reader Env :> es, Error FilehubError :> es, Concurrent :> es,  FileSystem :> es) => FilePath -> Eff es [FilePath]
 getImagePaths dir = do
   isDir <- isDirectory dir
@@ -349,9 +389,7 @@ getImagePaths dir = do
   order <- Env.getSortFileBy
   paths <- fmap (.path) . filter (\f -> f.mimetype `isMime` "image") . sortFiles order <$> lsDir dir
   pure paths
-  -- -- let idx = fromMaybe 0 $ List.elemIndex filePath paths
-  -- let urls = fmap (Text.pack . (.unClientPath) . toClientPath root) paths
-  -- pure urls
+
 
 getImageIndex :: FilePath -> [FilePath] -> Int
 getImageIndex filePath paths = fromMaybe 0 $ List.elemIndex filePath paths

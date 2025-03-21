@@ -1,6 +1,7 @@
 'use strict';
 
 import Viewer from './viewer.js';
+import type { InitViewer } from './def.js';
 declare var htmx: any;
 
 
@@ -45,9 +46,9 @@ function closeDropdowns() {
 }
 
 
-function initViewer(o: { urls: URL[], index: number}) {
+function initViewer(o: InitViewer) {
   closeDropdowns();
-  viewer = new Viewer(o.urls, { index: o.index });
+  viewer = new Viewer(o.resources, { index: o.index });
   viewer.show();
 }
 

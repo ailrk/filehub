@@ -507,27 +507,10 @@ table root files = do
                     , term "hx-swap" "outerHTML"
                     ]
                   Content
-                    | file.mimetype `isMime` "application/pdf" ->
-                      let clientPath = toClientPath root file.path
-                      in [ term "_"
-                            [iii|
-                              on click
-                                js
-                                  window.open('#{clientPath}', '_blank');
-                                end
-                              |]
-                         ]
-                    | file.mimetype `isMime` "image" ->
-                      let clientPath = toClientPath root file.path
-                          imgIdx = Maybe.fromJust $ Map.lookup file imgIdxMap -- image index always exists
-                       in [ term "_" [iii| on click send Open(path: '#{clientPath}', index: #{imgIdx}) to window |] ]
-                    | otherwise ->
-                        [
-                        term "hx-get" "/modal/editor"
-                        , term "hx-vals" $ [ "file" .= toClientPath root file.path ] & toHxVals
-                        , term "hx-target" "#index"
-                        , term "hx-swap" "beforeend"
-                        ]
+                    | file.mimetype `isMime` "application/pdf" -> openBlank file
+                    | file.mimetype `isMime` "video" || file.mimetype `isMime` "mp4" -> open file
+                    | file.mimetype `isMime` "image" -> open file
+                    | otherwise -> editor file
               , case file.content of
                   Dir _ -> [ class_ "dir " ]
                   _ -> mempty
@@ -538,8 +521,24 @@ table root files = do
             Dir _ -> i_ [ class_ "bx bxs-folder "] mempty
             Content -> i_ [ class_ "bx bxs-file-blank "] mempty
 
-    imgIdxMap :: Map File Int
-    imgIdxMap = Map.fromList $ filter (\f -> f.mimetype `isMime` "image") files `zip` [0..]
+    openBlank file =
+      let clientPath = toClientPath root file.path
+       in [ term "_" [iii| on click js window.open('#{clientPath}', '_blank'); end |] ]
+
+    open file =
+      let clientPath = toClientPath root file.path
+          imgIdx = Maybe.fromJust $ Map.lookup file resourceIdxMap -- image index always exists
+       in [ term "_" [iii| on click send Open(path: '#{clientPath}', index: #{imgIdx}) to window |] ]
+
+    editor file =
+      [ term "hx-get" "/modal/editor"
+      , term "hx-vals" $ [ "file" .= toClientPath root file.path ] & toHxVals
+      , term "hx-target" "#index"
+      , term "hx-swap" "beforeend"
+      ]
+
+    resourceIdxMap :: Map File Int
+    resourceIdxMap = Map.fromList $ Domain.takeResourceFiles files `zip` [0..]
 
 
 contextMenu :: FilePath -> File -> Html ()
