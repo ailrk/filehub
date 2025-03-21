@@ -15,16 +15,15 @@ const getUniqueID = ((id) => (() => {
 }))(-1);
 function buildToolbar(toolbar) {
     let list = document.createElement('ul');
-    let prev = document.createElement('li');
-    prev.setAttribute('role', 'button');
-    prev.innerHTML = `<i class='bx bxs-left-arrow'></i>`;
-    prev.classList.add(`${NAMESPACE}-prev`);
-    list.appendChild(prev);
-    let next = document.createElement('li');
-    next.setAttribute('role', 'button');
-    next.innerHTML = `<i class='bx bxs-right-arrow'></i>`;
-    next.classList.add(`${NAMESPACE}-next`);
-    list.appendChild(next);
+    function add(c, i) {
+        let t = document.createElement('li');
+        t.setAttribute('role', 'button');
+        t.innerHTML = i;
+        t.classList.add(c);
+        list.appendChild(t);
+    }
+    add(`${NAMESPACE}-prev`, `<i class='bx bxs-left-arrow'></i>`);
+    add(`${NAMESPACE}-next`, `<i class='bx bxs-right-arrow'></i>`);
     toolbar.appendChild(list);
 }
 class Viewer {
@@ -65,7 +64,6 @@ class Viewer {
     load() {
         let resource = this.resources[this.index];
         let url = this.resources[this.index].url;
-        console.log(resource);
         let content = document.createElement('div');
         content.innerHTML = 'No content';
         if (resource.mimetype.startsWith('image')) {

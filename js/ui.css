@@ -8,25 +8,25 @@ html, body {
 
 
 body {
-    display: block;
-    background: var(--background1);
-    font-family: 'Monaco', monospace;
-    color: var(--frontground);
+  display: block;
+  background: var(--background1);
+  font-family: 'Monaco', monospace;
+  color: var(--frontground);
 }
 
 
 #index {
-    display: grid;
-    grid-template-rows: auto 90vh;
-    overflow: hidden;
-    border-bottom: 1px solid var(--frontground);
+  display: grid;
+  grid-template-rows: auto 90vh;
+  overflow: hidden;
+  border-bottom: 1px solid var(--frontground);
 }
 
 
 #control-panel {
-    grid-column: 1 / -1;
-    grid-row: 1;
-    border-bottom: 1px solid var(--frontground);
+  grid-column: 1 / -1;
+  grid-row: 1;
+  border-bottom: 1px solid var(--frontground);
 }
 
 
@@ -88,8 +88,8 @@ body {
 
 /* breadcrumb */
 .breadcrumb {
-    cursor: pointer;
-    padding: 0 0.5rem;
+  cursor: pointer;
+  padding: 0 0.5rem;
 
   & ol {
     margin: 0;
@@ -144,29 +144,29 @@ body {
 
 
 .btn-control {
-    background: var(--background);
-    color: var(--frontground);
-    text-transform: uppercase;
+  background: var(--background);
+  color: var(--frontground);
+  text-transform: uppercase;
 }
 
 
 .btn-search::after {
-    padding-right: 10px;
+  padding-right: 10px;
 }
 
 
 .form-control {
-    padding: 0.8rem 0.5rem;
+  padding: 0.8rem 0.5rem;
 }
 
 
 input.form-control {
-    width: 100%;
+  width: 100%;
 }
 
 
 textarea.form-control {
-    width: 100%;
+  width: 100%;
 }
 
 
@@ -232,7 +232,6 @@ textarea.form-control {
     margin-top:10vh;
 
     /* Sizing for visible dialog */
-    width: 50%;
 
     /* Display properties for visible dialog*/
     border: solid 1px #999;
@@ -269,6 +268,17 @@ textarea.form-control {
 
   & .btn-modal-confirm {
     background: var(--primary);
+  }
+
+
+  & > #new-file-modal {
+    width: 100%;
+    max-width: 300px;
+  }
+
+  & > #new-folder-modal {
+    width: 100%;
+    max-width: 300px;
   }
 
 }

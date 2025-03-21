@@ -35,17 +35,16 @@ type ViewerState =
 function buildToolbar(toolbar: HTMLElement) {
   let list = document.createElement('ul');
 
-  let prev = document.createElement('li');
-  prev.setAttribute('role', 'button');
-  prev.innerHTML = `<i class='bx bxs-left-arrow'></i>`;
-  prev.classList.add(`${NAMESPACE}-prev`);
-  list.appendChild(prev);
+  function add(c: string, i: string) {
+    let t = document.createElement('li');
+    t.setAttribute('role', 'button');
+    t.innerHTML = i
+    t.classList.add(c);
+    list.appendChild(t);
+  }
 
-  let next = document.createElement('li');
-  next.setAttribute('role', 'button');
-  next.innerHTML = `<i class='bx bxs-right-arrow'></i>`;
-  next.classList.add(`${NAMESPACE}-next`);
-  list.appendChild(next);
+  add(`${NAMESPACE}-prev`, `<i class='bx bxs-left-arrow'></i>`)
+  add(`${NAMESPACE}-next`, `<i class='bx bxs-right-arrow'></i>`)
 
   toolbar.appendChild(list);
 }

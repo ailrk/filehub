@@ -322,7 +322,7 @@ fileDetailModal file = do
 
 uploadModal :: Html ()
 uploadModal = do
-  modal [ id_ componentIds.updateModal ] do
+  modal [ id_ componentIds.uploadModal ] do
     "Upload"
     br_ mempty >> br_ mempty
     form_ [ term "hx-encoding" "multipart/form-data"
@@ -412,9 +412,9 @@ withDefault html = do
 
 modal :: [Attribute] -> Html () -> Html ()
 modal attrs body = do
-  div_ ([ class_ "modal ", closeModalScript ] <> attrs) do
+  div_ [ class_ "modal ", closeModalScript ] do
     underlay
-    div_ [ class_ "modal-content " ] do
+    div_ ([ class_ "modal-content " ] <> attrs) do
       body
   where
     closeModalScript = term "_"
@@ -650,7 +650,7 @@ data ComponentIds = ComponentIds
   , newFileModal :: Text
   , newFolderModal :: Text
   , fileDetailModal :: Text
-  , updateModal :: Text
+  , uploadModal :: Text
   , sortByDropdown :: Text
   , editorModal :: Text
   , contextMenu :: Text
@@ -668,7 +668,7 @@ componentIds = ComponentIds
   , newFileModal = "new-file-modal"
   , newFolderModal = "new-folder-modal"
   , fileDetailModal = "file-detail-modal"
-  , updateModal = "update-modal"
+  , uploadModal = "upload-modal"
   , sortByDropdown = "sortby-dropdown"
   , editorModal = "editor-modal"
   , contextMenu = "contextmenu"
