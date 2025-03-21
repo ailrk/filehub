@@ -84,7 +84,7 @@ data SortFileBy
   = ByName
   | ByModified
   | BySize
-  deriving (Show)
+  deriving (Show, Eq)
 
 
 instance ToHttpApiData SortFileBy where

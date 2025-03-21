@@ -6,6 +6,7 @@ module Filehub.Env
   , setCurrentDir
   , setSortFileBy
   , getSortFileBy
+  , getSessionPool
   , getDataDir
   , getTheme
   )
@@ -14,7 +15,7 @@ module Filehub.Env
 import Effectful.Reader.Dynamic (Reader, asks)
 import Effectful ((:>), Eff)
 import Effectful.Concurrent.STM
-import Filehub.Types (Env(..))
+import Filehub.Types (Env(..), SessionPool)
 import Filehub.Domain.Types (SortFileBy, Theme)
 
 
@@ -46,6 +47,10 @@ getSortFileBy :: (Reader Env :> es, Concurrent :> es) => Eff es SortFileBy
 getSortFileBy = do
   ref <- asks @Env (.sortFileBy)
   readTVarIO ref
+
+
+getSessionPool :: (Reader Env :> es) => Eff es SessionPool
+getSessionPool = asks @Env (.sessionPool)
 
 
 getDataDir :: (Reader Env :> es) => Eff es FilePath

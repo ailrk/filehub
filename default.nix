@@ -1,10 +1,10 @@
 { mkDerivation, aeson, async, base, bytestring, clay, containers
 , cookie, cryptohash-sha256, directory, effectful, filepath, fuzzy
-, generic-lens, http-api-data, lib, log-base, log-effectful, lucid
-, microlens, microlens-platform, mime-types, modern-uri
-, optparse-applicative, servant-lucid, servant-multipart
-, servant-server, string-interpolate, text, time, transformers
-, unliftio, unordered-containers, uri-encode, uuid, wai-extra, warp
+, generic-lens, hashable, hashtables, http-api-data, lib, log-base
+, log-effectful, lucid, microlens, microlens-platform, mime-types
+, modern-uri, optparse-applicative, servant-lucid
+, servant-multipart, servant-server, string-interpolate, text, time
+, transformers, unliftio, uri-encode, uuid, wai-extra, warp
 , zip-archive
 }:
 mkDerivation {
@@ -17,11 +17,11 @@ mkDerivation {
   executableHaskellDepends = [
     aeson async base bytestring clay containers cookie
     cryptohash-sha256 directory effectful filepath fuzzy generic-lens
-    http-api-data log-base log-effectful lucid microlens
-    microlens-platform mime-types modern-uri optparse-applicative
-    servant-lucid servant-multipart servant-server string-interpolate
-    text time transformers unliftio unordered-containers uri-encode
-    uuid wai-extra warp zip-archive
+    hashable hashtables http-api-data log-base log-effectful lucid
+    microlens microlens-platform mime-types modern-uri
+    optparse-applicative servant-lucid servant-multipart servant-server
+    string-interpolate text time transformers unliftio uri-encode uuid
+    wai-extra warp zip-archive
   ];
   license = "unknown";
   mainProgram = "filehub";

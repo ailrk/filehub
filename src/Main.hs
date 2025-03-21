@@ -7,6 +7,7 @@
 
 module Main where
 
+import Effectful (runEff)
 import Data.Text (Text)
 import Text.Printf (printf)
 import UnliftIO (SomeException, hFlush, stdout, catch)
@@ -20,14 +21,11 @@ import Filehub.Env
 import Filehub
 import Filehub.Index qualified as Index
 import GHC.Generics (Generic)
-import Filehub.Domain (getFile, loadDirContents)
-import Filehub.Domain.Types (FilehubError, SortFileBy (..))
-import Effectful (runEff)
-import Effectful.Error.Dynamic (runErrorNoCallStack)
-import Effectful.FileSystem (runFileSystem)
+import Filehub.Domain.Types (SortFileBy (..))
 import Paths_filehub qualified
 import Data.Functor ((<&>))
 import UnliftIO.STM (newTVarIO)
+import Filehub.SessionPool qualified as SessionPool
 
 
 data Api mode = Api
@@ -68,25 +66,20 @@ main = do
   currentDir <- newTVarIO root
   sortFileBy <- newTVarIO ByName
 
-  dir <- do
-    eFile <- runEff . runFileSystem . runErrorNoCallStack @FilehubError $ do
-      getFile root >>= loadDirContents
-    case eFile of
-      Left err -> fail (show err)
-      Right d -> newTVarIO d
-
   dataDir <- Paths_filehub.getDataDir >>= makeAbsolute  <&> (++ "/data")
+
+  sessionPool <- runEff SessionPool.empty
 
   printf "PORT: %d\n" options.port
   let env =
         Env
           { port = options.port
           , root = root
-          , rootTree = dir
           , currentDir = currentDir
           , sortFileBy = sortFileBy
           , dataDir = dataDir
           , theme = options.theme
+          , sessionPool = sessionPool
           }
   go env `catch` handler
   where

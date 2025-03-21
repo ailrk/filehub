@@ -83,7 +83,8 @@ executable filehub
       , optparse-applicative
       , clay
       , containers
-      , unordered-containers
+      , hashtables
+      , hashable
       , fuzzy
       , cookie
       , string-interpolate
@@ -91,6 +92,7 @@ executable filehub
       , cryptohash-sha256
       , mime-types
       , uuid
+      , time
 
     other-modules:
       Filehub.Cookie
@@ -106,6 +108,8 @@ executable filehub
       Filehub.Env
       Filehub.Types
       Filehub.Options
+      Filehub.Session
+      Filehub.SessionPool
       Filehub
       Paths_filehub
 
