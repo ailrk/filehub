@@ -357,7 +357,7 @@ instance ToHttpApiData Viewer where
 
 
 isResource :: MimeType -> Bool
-isResource s = any (s `isMime`)  ["image", "video", "mp3", "mp4", "audio"]
+isResource s = any (s `isMime`)  ["image", "video", "audio"]
 
 
 takeResourceFiles :: [File] -> [File]

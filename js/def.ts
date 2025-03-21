@@ -7,5 +7,4 @@ export interface Resource {
 export interface InitViewer {
   resources: Resource[],
   index: number,
-
 }

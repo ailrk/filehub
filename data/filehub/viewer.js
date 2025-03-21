@@ -65,6 +65,7 @@ class Viewer {
     load() {
         let resource = this.resources[this.index];
         let url = this.resources[this.index].url;
+        console.log(resource);
         let content = document.createElement('div');
         content.innerHTML = 'No content';
         if (resource.mimetype.startsWith('image')) {
@@ -72,15 +73,24 @@ class Viewer {
             img.src = url.toString();
             content = img;
         }
-        else if (resource.mimetype.startsWith('video') || resource.mimetype.startsWith('mp4')) {
+        else if (resource.mimetype.startsWith('video')) {
             let video = document.createElement('video');
             let source = document.createElement('source');
             video.setAttribute('controls', '');
             video.setAttribute('autoplay', '');
             video.setAttribute('loop', '');
+            video.setAttribute('muted', '');
             source.src = url.toString();
             video.appendChild(source);
             content = video;
+        }
+        else if (resource.mimetype.startsWith('audio')) {
+            let audio = document.createElement('audio');
+            let source = document.createElement('source');
+            audio.setAttribute('controls', '');
+            source.src = url.toString();
+            audio.appendChild(source);
+            content = audio;
         }
         this.canvas.innerHTML = '';
         this.canvas.appendChild(content);
@@ -89,8 +99,7 @@ class Viewer {
     init() {
         this.load();
         this.canvas.onclick = e => {
-            let target = e.target;
-            if (!target.matches('img') && !target.matches('video')) {
+            if (this.canvas.contains(e.target)) {
                 this.hide();
             }
         };

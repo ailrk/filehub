@@ -103,15 +103,25 @@ class Viewer {
       let img = document.createElement('img');
       img.src = url.toString();
       content = img;
-    } else if (resource.mimetype.startsWith('video') || resource.mimetype.startsWith('mp4')) {
+
+    } else if (resource.mimetype.startsWith('video')) {
       let video = document.createElement('video');
       let source = document.createElement('source');
       video.setAttribute('controls', '');
       video.setAttribute('autoplay', '');
       video.setAttribute('loop', '');
+      video.setAttribute('muted', '');
       source.src = url.toString();
       video.appendChild(source);
       content = video;
+
+    } else if (resource.mimetype.startsWith('audio')) {
+      let audio = document.createElement('audio');
+      let source = document.createElement('source');
+      audio.setAttribute('controls', '');
+      source.src = url.toString();
+      audio.appendChild(source);
+      content = audio;
     }
 
     this.canvas.innerHTML = '';
@@ -122,8 +132,7 @@ class Viewer {
   init() {
     this.load();
     this.canvas.onclick = e => {
-      let target = e.target as HTMLElement;
-      if (!target.matches('img') && !target.matches('video')) {
+      if (this.canvas.contains(e.target as HTMLElement)) {
         this.hide();
       }
     }

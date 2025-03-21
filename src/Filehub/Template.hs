@@ -509,6 +509,7 @@ table root files = do
                   Content
                     | file.mimetype `isMime` "application/pdf" -> openBlank file
                     | file.mimetype `isMime` "video" || file.mimetype `isMime` "mp4" -> open file
+                    | file.mimetype `isMime` "audio" || file.mimetype `isMime` "mp3" -> open file
                     | file.mimetype `isMime` "image" -> open file
                     | otherwise -> editor file
               , case file.content of
@@ -580,14 +581,22 @@ contextMenu root file = do
              , target_ "blank"
              ] $
             span_ "View"
-        | file.mimetype `isMime` "text" -> do
+        | file.mimetype `isMime` "audio" -> do
           div_ [ class_ "dropdown-item"
-               , term "hx-get" "/modal/editor"
+               , term "hx-get" ("/viewer?=" <> textClientPath)
                , term "hx-vals" $ [ "file" .= textClientPath ] & toHxVals
-               , term "hx-target" "#index"
-               , term "hx-swap" "beforeend"
+               , term "hx-target" "this"
+               , term "hx-swap" "none"
                ] $
-            span_ "Edit"
+            span_ "Play"
+        | file.mimetype `isMime` "video" -> do
+          div_ [ class_ "dropdown-item"
+               , term "hx-get" ("/viewer?=" <> textClientPath)
+               , term "hx-vals" $ [ "file" .= textClientPath ] & toHxVals
+               , term "hx-target" "this"
+               , term "hx-swap" "none"
+               ] $
+            span_ "Play"
         | file.mimetype `isMime` "image" -> do
           div_ [ class_ "dropdown-item"
                , term "hx-get" ("/viewer?=" <> textClientPath)
@@ -596,6 +605,14 @@ contextMenu root file = do
                , term "hx-swap" "none"
                ] $
             span_ "View"
+        | file.mimetype `isMime` "text" -> do
+          div_ [ class_ "dropdown-item"
+               , term "hx-get" "/modal/editor"
+               , term "hx-vals" $ [ "file" .= textClientPath ] & toHxVals
+               , term "hx-target" "#index"
+               , term "hx-swap" "beforeend"
+               ] $
+            span_ "Edit"
         | otherwise ->
             mempty
 
