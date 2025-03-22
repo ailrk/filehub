@@ -102,9 +102,9 @@ dirtree f = \case
     modify <$> file' <*> fs
 
 
-toFilePath :: (Reader Env :> es, IOE :> es, FileSystem :> es) => SessionId -> FilePath -> Eff es FilePath
+toFilePath :: (Reader Env :> es, IOE :> es, FileSystem :> es, Error FilehubError :> es) => SessionId -> FilePath -> Eff es FilePath
 toFilePath sessionId name = do
-  currentDir <- Env.getCurrentDir sessionId
+  currentDir <- Env.getCurrentDir sessionId >>= maybe (throwError InvalidSession) pure
   makeAbsolute (currentDir </> name)
 
 
@@ -126,13 +126,13 @@ newFile sessionId name = do
   withFile filePath ReadWriteMode (\_ -> pure ())
 
 
-writeFile :: (Reader Env :> es, IOE :> es, FileSystem :> es) => SessionId -> String -> LBS.ByteString -> Eff es ()
+writeFile :: (Reader Env :> es, IOE :> es, FileSystem :> es, Error FilehubError :> es) => SessionId -> String -> LBS.ByteString -> Eff es ()
 writeFile sessionId name content = do
   filePath <- toFilePath sessionId name
   withFile filePath ReadWriteMode (\h -> hPut h content)
 
 
-deleteFile :: (Reader Env :> es, IOE :> es, FileSystem :> es) => SessionId -> String -> Eff es ()
+deleteFile :: (Reader Env :> es, IOE :> es, FileSystem :> es, Error FilehubError :> es) => SessionId -> String -> Eff es ()
 deleteFile sessionId name = do
   filePath <- toFilePath sessionId name
   fileExists <- doesFileExist filePath
@@ -164,14 +164,14 @@ changeDir sessionId path = do
 
 lsCurrentDir :: (Reader Env :> es, IOE :> es, FileSystem :> es, Error FilehubError :> es) => SessionId -> Eff es [File]
 lsCurrentDir sessionId = do
-  path <- Env.getCurrentDir sessionId
+  path <- Env.getCurrentDir sessionId >>= maybe (throwError InvalidSession) pure
   exists <- doesDirectoryExist path
   unless exists do
     throwError InvalidDir
   lsDir path
 
 
-upload :: (Reader Env :> es, IOE :> es, FileSystem :> es) => SessionId -> MultipartData Mem -> Eff es ()
+upload :: (Reader Env :> es, IOE :> es, FileSystem :> es, Error FilehubError :> es) => SessionId -> MultipartData Mem -> Eff es ()
 upload sessionId multipart = do
   forM_ multipart.files $ \file -> do
     let name = Text.unpack file.fdFileName

@@ -9,3 +9,4 @@ _site/
 result
 profile*
 .profile
+js/node_modules/

@@ -40,7 +40,7 @@ initViewer sessionId root clientPath = do
   let dir = takeDirectory filePath
   isDir <- isDirectory dir
   when (not isDir) (throwError InvalidDir)
-  order <- Env.getSortFileBy sessionId
+  order <- Env.getSortFileBy sessionId >>= maybe (throwError InvalidSession) pure
   files <- takeResourceFiles . sortFiles order <$> lsDir dir
   let idx = fromMaybe 0 $ List.elemIndex filePath (fmap (.path) files)
   let toResource f =

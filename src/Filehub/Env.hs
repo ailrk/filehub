@@ -27,12 +27,8 @@ getPort :: (Reader Env :> es) => Eff es Int
 getPort = asks @Env (.port)
 
 
-getCurrentDir :: (Reader Env :> es, IOE :> es) => SessionId -> Eff es FilePath
-getCurrentDir sessionId = do
-  mSession <- SessionPool.getSession sessionId
-  case mSession of
-    Just session -> pure session.currentDir
-    Nothing -> undefined
+getCurrentDir :: (Reader Env :> es, IOE :> es) => SessionId -> Eff es (Maybe FilePath)
+getCurrentDir sessionId = (fmap (.currentDir)) <$> SessionPool.getSession sessionId
 
 
 setCurrentDir :: (Reader Env :> es, IOE :> es) => SessionId -> FilePath -> Eff es ()
@@ -45,12 +41,8 @@ setSortFileBy sessionId order = do
   SessionPool.updateSession sessionId (\s -> s { sortedFileBy = order })
 
 
-getSortFileBy :: (Reader Env :> es, IOE :> es) => SessionId -> Eff es SortFileBy
-getSortFileBy sessionId = do
-  mSession <- SessionPool.getSession sessionId
-  case mSession of
-    Just session -> pure session.sortedFileBy
-    Nothing -> undefined
+getSortFileBy :: (Reader Env :> es, IOE :> es) => SessionId -> Eff es (Maybe SortFileBy)
+getSortFileBy sessionId = (fmap (.sortedFileBy)) <$> SessionPool.getSession sessionId
 
 
 getSessionPool :: (Reader Env :> es) => Eff es SessionPool

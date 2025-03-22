@@ -172,11 +172,24 @@ data Api mode = Api
 withSession :: ( Reader Env.Env :> es, IOE :> es, S.AddHeader [S.Optional, S.Strict] h SetCookie a b) => Maybe Cookies' -> (SessionId -> Eff es a) -> Eff es b
 withSession mCookie cont =
   case mCookie >>= Cookies.getSessionId of
-    Just sessionId -> noHeader <$> cont sessionId
-    Nothing -> do
+    Just sessionId -> do
+      isValid <- sessionIdCheck sessionId
+      if isValid
+         then noHeader <$> cont sessionId
+         else contWithNewSession
+    Nothing -> contWithNewSession
+  where
+    sessionIdCheck sessionId = do
+      mSession <- SessionPool.getSession sessionId
+      case mSession of
+        Just _ -> pure True
+        Nothing -> pure False
+
+    contWithNewSession = do
       session <- SessionPool.newSession
       let setCookie = Cookies.setSessionId session
       addHeader setCookie <$> cont session.sessionId
+
 
 
 withClientPath :: (Error ServerError :> es) => Maybe ClientPath -> (ClientPath -> Eff es a) -> Eff es a
@@ -210,7 +223,7 @@ server = Api
   , updateFile = \mCookie (UpdatedFile clientPath content) -> do
       withSession mCookie $ \ sessionId -> do
         let path = clientPath.unClientPath
-        Domain.writeFile sessionId path (Text.encodeUtf8 content ^. lazy)
+        Domain.writeFile sessionId path (Text.encodeUtf8 content ^. lazy) & withServerError
         view sessionId
 
 
@@ -218,7 +231,7 @@ server = Api
       withClientPath mClientPath $ \clientPath ->
         withSession mCookie $ \sessionId -> do
         p <- Domain.fromClientPath <$> Env.getRoot <*> pure clientPath
-        Domain.deleteFile sessionId p
+        Domain.deleteFile sessionId p & withServerError
         view sessionId
 
 
@@ -315,9 +328,8 @@ server = Api
 
 withServerError :: (Error ServerError :> es) => Eff (Error FilehubError : es) b -> Eff es b
 withServerError action = do
-  runErrorNoCallStack action >>= \case
-    Left err -> throwError err500 { errBody = fromString $ show err }
-    Right res -> pure res
+  runErrorNoCallStack action >>=
+    either (\err -> throwError err500 { errBody = fromString $ show err }) pure
 
 
 index :: SessionId -> Filehub (Html ())
@@ -326,7 +338,7 @@ index sessionId = Template.index <$> view sessionId
 
 view :: SessionId -> Filehub (Html ())
 view sessionId = do
-  order <- Env.getSortFileBy sessionId
+  order <- Env.getSortFileBy sessionId >>= maybe (throwError InvalidSession) pure & withServerError
   let table = Template.table
           <$> Env.getRoot
           <*> (sortFiles order <$> withServerError (Domain.lsCurrentDir sessionId))
@@ -334,4 +346,7 @@ view sessionId = do
 
 
 pathBreadcrumb :: SessionId -> Filehub (Html ())
-pathBreadcrumb sessionId = Template.pathBreadcrumb <$> Env.getCurrentDir sessionId <*> Env.getRoot
+pathBreadcrumb sessionId =
+  Template.pathBreadcrumb
+  <$> (Env.getCurrentDir sessionId >>= maybe (throwError InvalidSession) pure & withServerError)
+  <*> Env.getRoot

@@ -8,10 +8,10 @@ import Filehub.Domain.Types (SortFileBy, Theme)
 
 getRoot :: (Reader Env :> es) => Eff es FilePath
 getPort :: (Reader Env :> es) => Eff es Int
-getCurrentDir :: (Reader Env :> es, IOE :> es) => SessionId -> Eff es FilePath
+getCurrentDir :: (Reader Env :> es, IOE :> es) => SessionId -> Eff es (Maybe FilePath)
 setCurrentDir :: (Reader Env :> es, IOE :> es) => SessionId -> FilePath -> Eff es ()
 setSortFileBy :: (Reader Env :> es, IOE :> es) => SessionId -> SortFileBy -> Eff es ()
-getSortFileBy :: (Reader Env :> es, IOE :> es) => SessionId -> Eff es SortFileBy
+getSortFileBy :: (Reader Env :> es, IOE :> es) => SessionId -> Eff es (Maybe SortFileBy)
 getSessionPool :: (Reader Env :> es) => Eff es SessionPool
 getDataDir :: (Reader Env :> es) => Eff es FilePath
 getTheme :: (Reader Env :> es) => Eff es Theme

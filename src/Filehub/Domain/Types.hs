@@ -37,6 +37,7 @@ data FilehubError
   = FileExists
   | InvalidPath
   | InvalidDir
+  | InvalidSession
   deriving Show
 
 
@@ -44,6 +45,7 @@ instance ToHttpApiData FilehubError where
   toUrlPiece FileExists = Text.pack $ show FileExists
   toUrlPiece InvalidPath = Text.pack $ show InvalidPath
   toUrlPiece InvalidDir = Text.pack $ show InvalidDir
+  toUrlPiece InvalidSession = Text.pack $ show InvalidSession
 
 
 data FileContent
