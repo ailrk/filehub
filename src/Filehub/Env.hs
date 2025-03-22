@@ -13,10 +13,10 @@ module Filehub.Env
   where
 
 import Effectful.Reader.Dynamic (Reader, asks)
-import Effectful ((:>), Eff)
-import Effectful.Concurrent.STM
-import Filehub.Types (Env(..), SessionPool)
+import Effectful ((:>), Eff, IOE)
+import Filehub.Types (Env(..), SessionPool(..), Session(..), SessionId)
 import Filehub.Domain.Types (SortFileBy, Theme)
+import Filehub.SessionPool qualified as SessionPool
 
 
 getRoot :: (Reader Env :> es) => Eff es FilePath
@@ -27,26 +27,30 @@ getPort :: (Reader Env :> es) => Eff es Int
 getPort = asks @Env (.port)
 
 
-getCurrentDir :: (Reader Env :> es, Concurrent :> es) => Eff es FilePath
-getCurrentDir = asks @Env (.currentDir) >>= readTVarIO
+getCurrentDir :: (Reader Env :> es, IOE :> es) => SessionId -> Eff es FilePath
+getCurrentDir sessionId = do
+  mSession <- SessionPool.getSession sessionId
+  case mSession of
+    Just session -> pure session.currentDir
+    Nothing -> undefined
 
 
-setCurrentDir :: (Reader Env :> es, Concurrent :> es) => FilePath -> Eff es ()
-setCurrentDir path = do
-  ref <- asks @Env (.currentDir)
-  atomically $ ref `modifyTVar` const path
+setCurrentDir :: (Reader Env :> es, IOE :> es) => SessionId -> FilePath -> Eff es ()
+setCurrentDir sessionId path =
+  SessionPool.updateSession sessionId (\s -> s { currentDir = path})
 
 
-setSortFileBy :: (Reader Env :> es, Concurrent :> es) => SortFileBy -> Eff es ()
-setSortFileBy order = do
-  ref <- asks @Env (.sortFileBy)
-  atomically $ ref `modifyTVar` const order
+setSortFileBy :: (Reader Env :> es, IOE :> es) => SessionId -> SortFileBy -> Eff es ()
+setSortFileBy sessionId order = do
+  SessionPool.updateSession sessionId (\s -> s { sortedFileBy = order })
 
 
-getSortFileBy :: (Reader Env :> es, Concurrent :> es) => Eff es SortFileBy
-getSortFileBy = do
-  ref <- asks @Env (.sortFileBy)
-  readTVarIO ref
+getSortFileBy :: (Reader Env :> es, IOE :> es) => SessionId -> Eff es SortFileBy
+getSortFileBy sessionId = do
+  mSession <- SessionPool.getSession sessionId
+  case mSession of
+    Just session -> pure session.sortedFileBy
+    Nothing -> undefined
 
 
 getSessionPool :: (Reader Env :> es) => Eff es SessionPool

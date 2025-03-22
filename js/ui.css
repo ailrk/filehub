@@ -276,11 +276,21 @@ textarea.form-control {
     max-width: 300px;
   }
 
+
   & > #new-folder-modal {
     width: 100%;
     max-width: 300px;
   }
 
+
+  & > #editor-modal {
+    padding: 0.5rem 1.5rem;
+    width: 80%;
+
+    textarea {
+      height: 60vh;
+    };
+  }
 }
 
 
@@ -383,21 +393,6 @@ textarea.form-control {
 
 .file-contextmenu {
   transform: translateX(10px);
-}
-
-
-#editor-modal {
-  padding: 0.5rem 1.5rem;
-
-  & > .modal-content {
-    width: 100%;
-    height: 100%;
-    margin-top: 0;
-  }
-
-  & > .modal-content textarea {
-    height: 70vh;
-  }
 }
 
 

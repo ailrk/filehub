@@ -21,10 +21,8 @@ import Filehub.Env
 import Filehub
 import Filehub.Index qualified as Index
 import GHC.Generics (Generic)
-import Filehub.Domain.Types (SortFileBy (..))
 import Paths_filehub qualified
 import Data.Functor ((<&>))
-import UnliftIO.STM (newTVarIO)
 import Filehub.SessionPool qualified as SessionPool
 
 
@@ -63,8 +61,6 @@ main :: IO ()
 main = do
   options <- parseOptions
   root <- makeAbsolute options.root
-  currentDir <- newTVarIO root
-  sortFileBy <- newTVarIO ByName
 
   dataDir <- Paths_filehub.getDataDir >>= makeAbsolute  <&> (++ "/data")
 
@@ -75,8 +71,6 @@ main = do
         Env
           { port = options.port
           , root = root
-          , currentDir = currentDir
-          , sortFileBy = sortFileBy
           , dataDir = dataDir
           , theme = options.theme
           , sessionPool = sessionPool

@@ -5,7 +5,7 @@ import Effectful ((:>), Eff, IOE, MonadIO (liftIO))
 import Data.HashTable.IO qualified as HashTable
 import Filehub.Types (Session(..), SessionPool (..), Env, SessionId)
 import Filehub.Session qualified as Session
-import Filehub.Env qualified as Env
+import {-# SOURCE #-} Filehub.Env qualified as Env
 import Data.Time (NominalDiffTime, addUTCTime)
 
 
@@ -13,12 +13,12 @@ empty :: IOE :> es => Eff es SessionPool
 empty = SessionPool <$>  liftIO HashTable.new
 
 
-newSession :: (Reader Env :> es, IOE :> es) => Eff es ()
+newSession :: (Reader Env :> es, IOE :> es) => Eff es Session
 newSession = do
-  root <- Env.getRoot
   SessionPool pool <- Env.getSessionPool
-  session <- Session.createSession root
+  session <- Session.createSession
   liftIO $ HashTable.insert pool session.sessionId session
+  pure session
 
 
 extendSession :: (Reader Env :> es, IOE :> es) => SessionId -> NominalDiffTime -> Eff es ()
@@ -41,3 +41,13 @@ getSession :: (Reader Env :> es, IOE :> es) => SessionId -> Eff es (Maybe Sessio
 getSession sessionId = do
   SessionPool pool <- Env.getSessionPool
   liftIO $ HashTable.lookup pool sessionId
+
+
+updateSession :: (Reader Env :> es, IOE :> es) => SessionId -> (Session -> Session) -> Eff es ()
+updateSession sessionId update = do
+  SessionPool pool <- Env.getSessionPool
+  liftIO $ HashTable.mutate pool sessionId
+    (\case
+        Just session -> (Just $ update session, ())
+        Nothing -> (Nothing, ())
+    )

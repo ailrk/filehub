@@ -2,7 +2,6 @@
 module Filehub.Types where
 
 
-import Effectful.Concurrent.STM
 import Filehub.Domain.Types (Theme, SortFileBy)
 import Data.UUID (UUID)
 import Data.Time (UTCTime)
@@ -29,8 +28,6 @@ newtype SessionPool = SessionPool (BasicHashTable SessionId Session)
 data Env = Env
   { root :: !FilePath
   , port :: !Int
-  , currentDir :: TVar FilePath
-  , sortFileBy :: TVar SortFileBy
   , dataDir :: !FilePath
   , theme :: Theme
   , sessionPool :: SessionPool

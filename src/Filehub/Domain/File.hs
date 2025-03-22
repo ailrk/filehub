@@ -29,7 +29,6 @@ import Effectful ((:>), Eff, IOE, MonadIO (liftIO))
 import Effectful.Error.Dynamic (throwError, Error)
 import Effectful.FileSystem.IO (withFile, IOMode (..))
 import Effectful.FileSystem.IO.ByteString.Lazy (hPut, readFile)
-import Effectful.Concurrent.STM
 import Control.Monad (unless, when, forM_)
 import Lens.Micro
 import Lens.Micro.Platform ()
@@ -44,7 +43,7 @@ import Codec.Archive.Zip qualified as Zip
 import Codec.Archive.Zip (ZipOption(..))
 import Network.Mime (defaultMimeLookup)
 import Filehub.Domain.ClientPath (fromClientPath)
-import Filehub.Types (Env)
+import Filehub.Types (Env, SessionId)
 import Filehub.Domain.Types (File(..), FilehubError(..), FileContent(..), SortFileBy(..), ClientPath)
 import Filehub.Env qualified as Env
 
@@ -103,39 +102,39 @@ dirtree f = \case
     modify <$> file' <*> fs
 
 
-toFilePath :: (Reader Env :> es, Concurrent :> es, FileSystem :> es) => FilePath -> Eff es FilePath
-toFilePath name = do
-  currentDir <- Env.getCurrentDir
+toFilePath :: (Reader Env :> es, IOE :> es, FileSystem :> es) => SessionId -> FilePath -> Eff es FilePath
+toFilePath sessionId name = do
+  currentDir <- Env.getCurrentDir sessionId
   makeAbsolute (currentDir </> name)
 
 
-newFolder :: (Reader Env :> es, Concurrent :> es, FileSystem :> es, Error FilehubError :> es) => String -> Eff es ()
-newFolder name = do
-  filePath <- toFilePath name
+newFolder :: (Reader Env :> es, IOE :> es, FileSystem :> es, Error FilehubError :> es) => SessionId -> String -> Eff es ()
+newFolder sessionId name = do
+  filePath <- toFilePath sessionId name
   exists <- doesFileExist filePath
   when exists do
     throwError FileExists
   createDirectoryIfMissing True filePath
 
 
-newFile :: (Reader Env :> es, Concurrent :> es, FileSystem :> es, Error FilehubError :> es) => String -> Eff es ()
-newFile name = do
-  filePath <- toFilePath name
+newFile :: (Reader Env :> es, IOE :> es, FileSystem :> es, Error FilehubError :> es) => SessionId -> String -> Eff es ()
+newFile sessionId name = do
+  filePath <- toFilePath sessionId name
   exists <- doesFileExist filePath
   when exists do
     throwError FileExists
   withFile filePath ReadWriteMode (\_ -> pure ())
 
 
-writeFile :: (Reader Env :> es, Concurrent :> es, FileSystem :> es) => String -> LBS.ByteString -> Eff es ()
-writeFile name content = do
-  filePath <- toFilePath name
+writeFile :: (Reader Env :> es, IOE :> es, FileSystem :> es) => SessionId -> String -> LBS.ByteString -> Eff es ()
+writeFile sessionId name content = do
+  filePath <- toFilePath sessionId name
   withFile filePath ReadWriteMode (\h -> hPut h content)
 
 
-deleteFile :: (Reader Env :> es, Concurrent :> es, FileSystem :> es) => String -> Eff es ()
-deleteFile name = do
-  filePath <- toFilePath name
+deleteFile :: (Reader Env :> es, IOE :> es, FileSystem :> es) => SessionId -> String -> Eff es ()
+deleteFile sessionId name = do
+  filePath <- toFilePath sessionId name
   fileExists <- doesFileExist filePath
   dirExists <- doesDirectoryExist filePath
   if
@@ -155,29 +154,29 @@ lsDir path = do
       >>= traverse getFile
 
 
-changeDir :: (Reader Env :> es, Concurrent :> es, FileSystem :> es, Error FilehubError :> es) => FilePath -> Eff es ()
-changeDir path = do
+changeDir :: (Reader Env :> es, IOE :> es, FileSystem :> es, Error FilehubError :> es) => SessionId -> FilePath -> Eff es ()
+changeDir sessionId path = do
   exists <- doesDirectoryExist path
   unless exists do
     throwError InvalidDir
-  Env.setCurrentDir path
+  Env.setCurrentDir sessionId path
 
 
-lsCurrentDir :: (Reader Env :> es, Concurrent :> es, FileSystem :> es, Error FilehubError :> es) => Eff es [File]
-lsCurrentDir = do
-  path <- Env.getCurrentDir
+lsCurrentDir :: (Reader Env :> es, IOE :> es, FileSystem :> es, Error FilehubError :> es) => SessionId -> Eff es [File]
+lsCurrentDir sessionId = do
+  path <- Env.getCurrentDir sessionId
   exists <- doesDirectoryExist path
   unless exists do
     throwError InvalidDir
   lsDir path
 
 
-upload :: (Reader Env :> es, Concurrent :> es, FileSystem :> es) => MultipartData Mem -> Eff es ()
-upload multipart = do
+upload :: (Reader Env :> es, IOE :> es, FileSystem :> es) => SessionId -> MultipartData Mem -> Eff es ()
+upload sessionId multipart = do
   forM_ multipart.files $ \file -> do
     let name = Text.unpack file.fdFileName
     let content = file.fdPayload
-    writeFile name content
+    writeFile sessionId name content
 
 
 download :: (Reader Env :> es, Error FilehubError :> es, FileSystem :> es, IOE :> es) => ClientPath -> Eff es LBS.ByteString

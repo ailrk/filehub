@@ -7,9 +7,8 @@ module Filehub.Domain.Viewer
 
 import Effectful.FileSystem
 import Effectful.Reader.Dynamic (Reader)
-import Effectful ((:>), Eff)
+import Effectful ((:>), Eff, IOE)
 import Effectful.Error.Dynamic (throwError, Error)
-import Effectful.Concurrent.STM
 import Control.Monad (when)
 import Filehub.Env (Env(..))
 import Filehub.Env qualified as Env
@@ -24,6 +23,7 @@ import Filehub.Domain.Types (File(..), FilehubError (..), ClientPath(..), Resour
 import Filehub.Domain.File (isDirectory, lsDir, sortFiles)
 import Filehub.Domain.ClientPath (fromClientPath, toClientPath)
 import Filehub.Domain.Mime (isMime)
+import Filehub.Types (SessionId)
 
 
 isResource :: MimeType -> Bool
@@ -34,13 +34,13 @@ takeResourceFiles :: [File] -> [File]
 takeResourceFiles = filter (isResource . (.mimetype))
 
 
-initViewer :: (Reader Env :> es, Error FilehubError :> es, Concurrent :> es,  FileSystem :> es) => FilePath -> ClientPath -> Eff es Viewer
-initViewer root clientPath = do
+initViewer :: (Reader Env :> es, Error FilehubError :> es, IOE :> es,  FileSystem :> es) => SessionId -> FilePath -> ClientPath -> Eff es Viewer
+initViewer sessionId root clientPath = do
   let filePath = fromClientPath root clientPath
   let dir = takeDirectory filePath
   isDir <- isDirectory dir
   when (not isDir) (throwError InvalidDir)
-  order <- Env.getSortFileBy
+  order <- Env.getSortFileBy sessionId
   files <- takeResourceFiles . sortFiles order <$> lsDir dir
   let idx = fromMaybe 0 $ List.elemIndex filePath (fmap (.path) files)
   let toResource f =
