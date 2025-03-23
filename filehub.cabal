@@ -64,6 +64,7 @@ executable filehub
       , log-effectful
       , log-base
       , directory
+      , unix
       , text
       , time
       , bytestring

@@ -27,6 +27,7 @@ import Effectful.FileSystem
 import Effectful.Reader.Dynamic (Reader)
 import Effectful ((:>), Eff, IOE, MonadIO (liftIO))
 import Effectful.Error.Dynamic (throwError, Error)
+import Effectful.Log
 import Effectful.FileSystem.IO (withFile, IOMode (..))
 import Effectful.FileSystem.IO.ByteString.Lazy (hPut, readFile)
 import Control.Monad (unless, when, forM_)
@@ -36,6 +37,7 @@ import Data.ByteString.Lazy qualified as LBS
 import Data.Generics.Labels ()
 import Data.Text qualified as Text
 import Data.List (sortOn)
+import Data.Time.Clock.POSIX qualified as Time
 import System.FilePath ( (</>), takeFileName )
 import Servant.Multipart (MultipartData(..), Mem, FileData (..))
 import Prelude hiding (readFile, writeFile)
@@ -46,26 +48,56 @@ import Filehub.Domain.ClientPath (fromClientPath)
 import Filehub.Types (Env, SessionId)
 import Filehub.Domain.Types (File(..), FilehubError(..), FileContent(..), SortFileBy(..), ClientPath)
 import Filehub.Env qualified as Env
+import System.Posix.Files qualified as Posix
+import System.Posix qualified as Posix
 
 
-getFile :: (FileSystem :> es, Error FilehubError :> es) => FilePath -> Eff es File
+getFile :: (FileSystem :> es, Log :> es, IOE :> es, Error FilehubError :> es) => FilePath -> Eff es File
 getFile path = do
-  exists <- doesPathExist path
-  unless exists do
-    throwError InvalidPath
-  size <- getFileSize path
-  mtime <- getModificationTime path
-  atime <- getAccessTime path
-  isDir <- isDirectory path
-  let mimetype = defaultMimeLookup (Text.pack path)
-  pure File
-    { path = path
-    , size = size
-    , mtime = mtime
-    , atime = atime
-    , mimetype = mimetype
-    , content = if isDir then Dir Nothing else Content
-    }
+  isBrokenLink <- isPathBrokenSymLink path
+  if isBrokenLink then do -- handle broken links.
+    lstatus <- liftIO $ Posix.getSymbolicLinkStatus path
+    pure File
+      { path = path
+      , size = 0
+      , atime = epochToUTCTime (Posix.accessTime lstatus)
+      , mtime = epochToUTCTime (Posix.statusChangeTime lstatus)
+      , mimetype = "application/octet-stream"
+      , content = Content
+      }
+  else do
+    exists <- doesPathExist path
+    unless exists do
+      logAttention "[getFile] path doesn't exists:" path
+      throwError InvalidPath
+    size <- getFileSize path
+    mtime <- getModificationTime path
+    atime <- getAccessTime path
+    isDir <- isDirectory path
+    let mimetype = defaultMimeLookup (Text.pack path)
+    pure File
+      { path = path
+      , size = size
+      , mtime = mtime
+      , atime = atime
+      , mimetype = mimetype
+      , content = if isDir then Dir Nothing else Content
+      }
+
+
+epochToUTCTime :: Posix.EpochTime -> UTCTime
+epochToUTCTime epoch = Time.posixSecondsToUTCTime (realToFrac epoch)
+
+
+isPathBrokenSymLink :: (FileSystem :> es) => FilePath -> Eff es Bool
+isPathBrokenSymLink path = do
+  isSym <- pathIsSymbolicLink path
+  if isSym
+     then do
+       realPath <- getSymbolicLinkTarget path
+       not <$> doesPathExist realPath
+     else
+      pure False
 
 
 isDirectory :: (FileSystem :> es) => FilePath -> Eff es Bool
@@ -81,7 +113,7 @@ readFileContent :: (FileSystem :> es) => File -> Eff es LBS.ByteString
 readFileContent file = readFile file.path
 
 
-loadDirContents :: (FileSystem :> es, Error FilehubError :> es) => File -> Eff es File
+loadDirContents :: (FileSystem :> es, Log :> es, IOE :> es, Error FilehubError :> es) => File -> Eff es File
 loadDirContents file = do
   case file.content of
     Dir Nothing -> do
@@ -143,10 +175,11 @@ deleteFile sessionId name = do
      | otherwise -> pure ()
 
 
-lsDir :: (FileSystem :> es, Error FilehubError :> es) => FilePath -> Eff es [File]
+lsDir :: (FileSystem :> es, Log :> es, IOE :> es, Error FilehubError :> es) => FilePath -> Eff es [File]
 lsDir path = do
   exists <- doesDirectoryExist path
   unless exists do
+    logAttention "[lsDir] dir doesn't exists:" path
     throwError InvalidDir
   withCurrentDirectory path $
     listDirectory path
@@ -162,7 +195,7 @@ changeDir sessionId path = do
   Env.setCurrentDir sessionId path
 
 
-lsCurrentDir :: (Reader Env :> es, IOE :> es, FileSystem :> es, Error FilehubError :> es) => SessionId -> Eff es [File]
+lsCurrentDir :: (Reader Env :> es, IOE :> es, Log :> es, FileSystem :> es, Error FilehubError :> es) => SessionId -> Eff es [File]
 lsCurrentDir sessionId = do
   path <- Env.getCurrentDir sessionId >>= maybe (throwError InvalidSession) pure
   exists <- doesDirectoryExist path
@@ -179,7 +212,7 @@ upload sessionId multipart = do
     writeFile sessionId name content
 
 
-download :: (Reader Env :> es, Error FilehubError :> es, FileSystem :> es, IOE :> es) => ClientPath -> Eff es LBS.ByteString
+download :: (Reader Env :> es, Log :> es, Error FilehubError :> es, FileSystem :> es, IOE :> es) => ClientPath -> Eff es LBS.ByteString
 download clientPath = do
   root <- Env.getRoot
   let abspath = fromClientPath root clientPath

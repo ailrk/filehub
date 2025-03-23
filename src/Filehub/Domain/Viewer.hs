@@ -6,6 +6,7 @@ module Filehub.Domain.Viewer
   where
 
 import Effectful.FileSystem
+import Effectful.Log (Log, logAttention)
 import Effectful.Reader.Dynamic (Reader)
 import Effectful ((:>), Eff, IOE)
 import Effectful.Error.Dynamic (throwError, Error)
@@ -34,13 +35,19 @@ takeResourceFiles :: [File] -> [File]
 takeResourceFiles = filter (isResource . (.mimetype))
 
 
-initViewer :: (Reader Env :> es, Error FilehubError :> es, IOE :> es,  FileSystem :> es) => SessionId -> FilePath -> ClientPath -> Eff es Viewer
+initViewer :: (Reader Env :> es, Log :> es, Error FilehubError :> es, IOE :> es, FileSystem :> es) => SessionId -> FilePath -> ClientPath -> Eff es Viewer
 initViewer sessionId root clientPath = do
   let filePath = fromClientPath root clientPath
   let dir = takeDirectory filePath
   isDir <- isDirectory dir
-  when (not isDir) (throwError InvalidDir)
-  order <- Env.getSortFileBy sessionId >>= maybe (throwError InvalidSession) pure
+  when (not isDir) $ do
+    logAttention "[initViewer] invalid dir" dir
+    throwError InvalidDir
+  order <- Env.getSortFileBy sessionId >>=
+    maybe
+      do logAttention "[initViewer] invalid Session" dir
+         throwError InvalidSession
+      pure
   files <- takeResourceFiles . sortFiles order <$> lsDir dir
   let idx = fromMaybe 0 $ List.elemIndex filePath (fmap (.path) files)
   let toResource f =

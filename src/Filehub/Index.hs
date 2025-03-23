@@ -7,6 +7,7 @@ module Filehub.Index where
 import Lucid
 import Lens.Micro
 import Lens.Micro.Platform ()
+import Effectful.Log (logAttention)
 import Effectful (Eff, (:>), IOE)
 import Effectful.Error.Dynamic (runErrorNoCallStack, throwError, Error)
 import Effectful.FileSystem.IO.ByteString.Lazy (readFile)
@@ -338,7 +339,12 @@ index sessionId = Template.index <$> view sessionId
 
 view :: SessionId -> Filehub (Html ())
 view sessionId = do
-  order <- Env.getSortFileBy sessionId >>= maybe (throwError InvalidSession) pure & withServerError
+  order <- Env.getSortFileBy sessionId >>=
+    maybe
+      do logAttention "[view] Invalid session" (show sessionId)
+         throwError InvalidSession
+      pure
+    & withServerError
   let table = Template.table
           <$> Env.getRoot
           <*> (sortFiles order <$> withServerError (Domain.lsCurrentDir sessionId))
@@ -348,5 +354,11 @@ view sessionId = do
 pathBreadcrumb :: SessionId -> Filehub (Html ())
 pathBreadcrumb sessionId =
   Template.pathBreadcrumb
-  <$> (Env.getCurrentDir sessionId >>= maybe (throwError InvalidSession) pure & withServerError)
+  <$> (Env.getCurrentDir sessionId >>=
+        maybe
+          do logAttention "[pathBreadcrumb] invalid Session" (show sessionId)
+             throwError InvalidSession
+          pure
+        & withServerError
+      )
   <*> Env.getRoot
