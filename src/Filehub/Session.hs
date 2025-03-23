@@ -1,9 +1,15 @@
-module Filehub.Session where
+module Filehub.Session
+  ( createSessionId
+  , createExpiryDate
+  , createSession
+  , extendSession
+  )
+  where
 
 import Effectful.Reader.Dynamic (Reader)
 import Effectful ((:>), Eff, IOE, MonadIO (liftIO))
 import Data.UUID.V4 qualified as UUID
-import Data.Time (UTCTime, addUTCTime, secondsToNominalDiffTime, NominalDiffTime)
+import Data.Time (UTCTime, addUTCTime, NominalDiffTime)
 import Data.Time qualified as Time
 import Filehub.Types (Session(..), SessionId(..), Env(..))
 import Filehub.Domain.Types (SortFileBy(..))
@@ -14,11 +20,11 @@ createSessionId :: (IOE :> es) => Eff es SessionId
 createSessionId = SessionId <$> liftIO UUID.nextRandom
 
 
--- | Create a expiry date 10 minutes from now.
-createExpiryDate :: (IOE :> es) => Eff es UTCTime
+createExpiryDate :: (Reader Env :> es, IOE :> es) => Eff es UTCTime
 createExpiryDate = do
+  duration <- Env.getSessionDuration
   current <- liftIO Time.getCurrentTime
-  pure $ secondsToNominalDiffTime (60 * 60) `addUTCTime` current
+  pure $ duration `addUTCTime` current
 
 
 createSession :: (Reader Env :> es, IOE :> es) => Eff es Session

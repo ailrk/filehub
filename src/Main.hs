@@ -8,22 +8,23 @@
 module Main where
 
 import Effectful (runEff)
+import Data.Data (Proxy(..))
 import Data.Text (Text)
+import Data.Functor ((<&>))
+import Data.Time (secondsToNominalDiffTime)
 import Text.Printf (printf)
 import UnliftIO (SomeException, hFlush, stdout, catch)
 import Network.Wai.Middleware.RequestLogger (logStdout)
 import Network.Wai.Handler.Warp (setPort, defaultSettings, runSettings)
-import Servant ((:>), Get, PlainText, serveWithContextT, Context (..), NamedRoutes, Application, (:-), Raw, serveDirectoryWebApp, (:<|>) (..))
-import Data.Data (Proxy(..))
 import System.Directory (makeAbsolute)
 import Filehub.Options (Options(..), parseOptions)
 import Filehub.Env
 import Filehub
 import Filehub.Index qualified as Index
-import GHC.Generics (Generic)
-import Paths_filehub qualified
-import Data.Functor ((<&>))
 import Filehub.SessionPool qualified as SessionPool
+import GHC.Generics (Generic)
+import Servant ((:>), Get, PlainText, serveWithContextT, Context (..), NamedRoutes, Application, (:-), Raw, serveDirectoryWebApp, (:<|>) (..))
+import Paths_filehub qualified
 
 
 data Api mode = Api
@@ -74,6 +75,7 @@ main = do
           , dataDir = dataDir
           , theme = options.theme
           , sessionPool = sessionPool
+          , sessionDuration = secondsToNominalDiffTime (60 * 60)
           }
   go env `catch` handler
   where

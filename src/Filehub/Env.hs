@@ -9,6 +9,7 @@ module Filehub.Env
   , getSessionPool
   , getDataDir
   , getTheme
+  , getSessionDuration
   )
   where
 
@@ -17,6 +18,7 @@ import Effectful ((:>), Eff, IOE)
 import Filehub.Types (Env(..), SessionPool(..), Session(..), SessionId)
 import Filehub.Domain.Types (SortFileBy, Theme)
 import Filehub.SessionPool qualified as SessionPool
+import Data.Time (NominalDiffTime)
 
 
 getRoot :: (Reader Env :> es) => Eff es FilePath
@@ -55,3 +57,7 @@ getDataDir = asks @Env (.dataDir)
 
 getTheme :: (Reader Env :> es) => Eff es Theme
 getTheme = asks @Env (.theme)
+
+
+getSessionDuration :: (Reader Env :> es) => Eff es NominalDiffTime
+getSessionDuration = asks @Env (.sessionDuration)

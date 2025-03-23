@@ -4,6 +4,7 @@ import Effectful.Reader.Dynamic (Reader)
 import Effectful ((:>), Eff, IOE)
 import Filehub.Types (Env(..), SessionPool(..), SessionId)
 import Filehub.Domain.Types (SortFileBy, Theme)
+import Data.Time (NominalDiffTime)
 
 
 getRoot :: (Reader Env :> es) => Eff es FilePath
@@ -15,3 +16,4 @@ getSortFileBy :: (Reader Env :> es, IOE :> es) => SessionId -> Eff es (Maybe Sor
 getSessionPool :: (Reader Env :> es) => Eff es SessionPool
 getDataDir :: (Reader Env :> es) => Eff es FilePath
 getTheme :: (Reader Env :> es) => Eff es Theme
+getSessionDuration :: (Reader Env :> es) => Eff es NominalDiffTime

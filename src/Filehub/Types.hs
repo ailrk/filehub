@@ -4,7 +4,7 @@ module Filehub.Types where
 
 import Filehub.Domain.Types (Theme, SortFileBy)
 import Data.UUID (UUID)
-import Data.Time (UTCTime)
+import Data.Time (UTCTime, NominalDiffTime)
 import Data.HashTable.IO (BasicHashTable)
 import Data.Hashable (Hashable)
 import Control.Concurrent.Timer qualified as Timer
@@ -36,4 +36,5 @@ data Env = Env
   , dataDir :: !FilePath
   , theme :: Theme
   , sessionPool :: SessionPool
+  , sessionDuration :: NominalDiffTime
   }

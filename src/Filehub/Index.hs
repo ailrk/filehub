@@ -8,16 +8,18 @@ import Lucid
 import Lens.Micro
 import Lens.Micro.Platform ()
 import Effectful.Log (logAttention)
-import Effectful (Eff, (:>), IOE)
+import Effectful (Eff, (:>), IOE, liftIO)
 import Effectful.Error.Dynamic (runErrorNoCallStack, throwError, Error)
 import Effectful.FileSystem.IO.ByteString.Lazy (readFile)
 import System.FilePath ((</>), takeFileName)
 import GHC.Generics (Generic)
+import Control.Monad (when)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.ByteString.Lazy qualified as LBS
 import Data.String (IsString(..))
 import Data.Maybe (fromMaybe)
+import Data.Time.Clock qualified as Time
 import Servant.Multipart (Mem, MultipartForm, MultipartData(..))
 import Servant.Server.Generic (AsServerT)
 import Servant (Get, (:-), QueryParam, Post, Put, ReqBody, FormUrlEncoded, OctetStream, addHeader, noHeader, Delete, ServerError (errBody))
@@ -169,23 +171,22 @@ data Api mode = Api
 
 -- | Get sessionId from cookie if it exists. If it doesn't, create a new session and add
 --   `SetCookie` header to set the sessionId.
+--   We extend it's duration when the sessionId exists and it will expiry in 30 seconds
 --   Note: The order of headers in the Headers HLIST matters.
-withSession :: ( Reader Env.Env :> es, IOE :> es, S.AddHeader [S.Optional, S.Strict] h SetCookie a b) => Maybe Cookies' -> (SessionId -> Eff es a) -> Eff es b
+withSession :: (Reader Env.Env :> es, IOE :> es, S.AddHeader [S.Optional, S.Strict] h SetCookie a b) => Maybe Cookies' -> (SessionId -> Eff es a) -> Eff es b
 withSession mCookie cont =
   case mCookie >>= Cookies.getSessionId of
     Just sessionId -> do
-      isValid <- sessionIdCheck sessionId
-      if isValid
-         then noHeader <$> cont sessionId
-         else contWithNewSession
+      SessionPool.getSession sessionId >>= \case
+        Just session -> do
+          now <- liftIO Time.getCurrentTime
+          let diff = Time.nominalDiffTimeToSeconds $ session.expireDate `Time.diffUTCTime` now
+          when (diff >= 0 && diff < 30) $ do
+            SessionPool.extendSession sessionId
+          noHeader <$> cont sessionId
+        Nothing -> contWithNewSession
     Nothing -> contWithNewSession
   where
-    sessionIdCheck sessionId = do
-      mSession <- SessionPool.getSession sessionId
-      case mSession of
-        Just _ -> pure True
-        Nothing -> pure False
-
     contWithNewSession = do
       session <- SessionPool.newSession
       let setCookie = Cookies.setSessionId session

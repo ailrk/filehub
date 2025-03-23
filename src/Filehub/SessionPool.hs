@@ -1,8 +1,16 @@
-module Filehub.SessionPool where
+module Filehub.SessionPool
+  ( new
+  , newSession
+  , extendSession
+  , deleteSession
+  , getSession
+  , updateSession
+  )
+  where
 
 import Effectful.Reader.Dynamic (Reader)
 import Effectful ((:>), Eff, IOE, MonadIO (liftIO))
-import Data.Time (NominalDiffTime, addUTCTime)
+import Data.Time (addUTCTime)
 import Data.Time.Clock qualified as Time
 import Data.HashTable.IO qualified as HashTable
 import Control.Concurrent.Timer qualified as Timer
@@ -33,12 +41,14 @@ newSession = do
   pure session
 
 
-extendSession :: (Reader Env :> es, IOE :> es) => SessionId -> NominalDiffTime -> Eff es ()
-extendSession sessionId duration = do
+extendSession :: (Reader Env :> es, IOE :> es) => SessionId -> Eff es ()
+extendSession sessionId = do
+  duration <- Env.getSessionDuration
   SessionPool pool _ <- Env.getSessionPool
+  now <- liftIO Time.getCurrentTime
   liftIO $ HashTable.mutate pool sessionId
     (\case
-        Just session -> (Just $ session { expireDate = duration `addUTCTime` session.expireDate }, ())
+        Just session -> (Just $ session { expireDate = duration `addUTCTime` now }, ())
         Nothing -> (Nothing, ())
     )
 

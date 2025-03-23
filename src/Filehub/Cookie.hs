@@ -27,8 +27,8 @@ setSessionId session =
     { setCookieName = "sessionId"
     , setCookieValue = bytes
     , setCookieExpires = Just session.expireDate
-    -- , setCookieHttpOnly = True
-    -- , setCookieSecure = True
+    , setCookieHttpOnly = True
+    , setCookieSecure = False -- Since there is no authentication, Secure is set to False
     }
   where
     bytes =
