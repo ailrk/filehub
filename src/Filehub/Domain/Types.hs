@@ -38,6 +38,7 @@ data FilehubError
   | InvalidPath
   | InvalidDir
   | InvalidSession
+  | InternalError
   deriving Show
 
 
@@ -46,6 +47,7 @@ instance ToHttpApiData FilehubError where
   toUrlPiece InvalidPath = Text.pack $ show InvalidPath
   toUrlPiece InvalidDir = Text.pack $ show InvalidDir
   toUrlPiece InvalidSession = Text.pack $ show InvalidSession
+  toUrlPiece InternalError = Text.pack $ show InternalError
 
 
 data FileContent

@@ -7,6 +7,7 @@ import Data.UUID (UUID)
 import Data.Time (UTCTime)
 import Data.HashTable.IO (BasicHashTable)
 import Data.Hashable (Hashable)
+import Control.Concurrent.Timer qualified as Timer
 
 
 newtype SessionId = SessionId UUID
@@ -22,7 +23,11 @@ data Session = Session
   deriving (Eq)
 
 
-newtype SessionPool = SessionPool (BasicHashTable SessionId Session)
+data SessionPool = SessionPool
+  { pool :: BasicHashTable SessionId Session
+  , gc :: Timer.TimerIO
+  -- ^ garbage collector, periodically clean up expired sessions.
+  }
 
 
 data Env = Env

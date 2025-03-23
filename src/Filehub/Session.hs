@@ -18,7 +18,7 @@ createSessionId = SessionId <$> liftIO UUID.nextRandom
 createExpiryDate :: (IOE :> es) => Eff es UTCTime
 createExpiryDate = do
   current <- liftIO Time.getCurrentTime
-  pure $ secondsToNominalDiffTime (60 * 10) `addUTCTime` current
+  pure $ secondsToNominalDiffTime (60 * 60) `addUTCTime` current
 
 
 createSession :: (Reader Env :> es, IOE :> es) => Eff es Session

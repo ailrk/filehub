@@ -3,9 +3,9 @@
 , generic-lens, hashable, hashtables, http-api-data, lib, log-base
 , log-effectful, lucid, microlens, microlens-platform, mime-types
 , modern-uri, optparse-applicative, servant-lucid
-, servant-multipart, servant-server, string-interpolate, text, time
-, transformers, unix, unliftio, uri-encode, uuid, wai-extra, warp
-, zip-archive
+, servant-multipart, servant-server, string-interpolate, suspend
+, text, time, timers, transformers, unix, unliftio, uri-encode
+, uuid, wai-extra, warp, zip-archive
 }:
 mkDerivation {
   pname = "filehub";
@@ -20,8 +20,8 @@ mkDerivation {
     hashable hashtables http-api-data log-base log-effectful lucid
     microlens microlens-platform mime-types modern-uri
     optparse-applicative servant-lucid servant-multipart servant-server
-    string-interpolate text time transformers unix unliftio uri-encode
-    uuid wai-extra warp zip-archive
+    string-interpolate suspend text time timers transformers unix
+    unliftio uri-encode uuid wai-extra warp zip-archive
   ];
   license = "unknown";
   mainProgram = "filehub";

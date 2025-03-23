@@ -94,6 +94,8 @@ executable filehub
       , mime-types
       , uuid
       , time
+      , timers
+      , suspend
 
     other-modules:
       Filehub.Cookie

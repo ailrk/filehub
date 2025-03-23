@@ -64,7 +64,7 @@ main = do
 
   dataDir <- Paths_filehub.getDataDir >>= makeAbsolute  <&> (++ "/data")
 
-  sessionPool <- runEff SessionPool.empty
+  sessionPool <- runEff SessionPool.new
 
   printf "PORT: %d\n" options.port
   let env =
