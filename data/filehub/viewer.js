@@ -97,7 +97,8 @@ class Viewer {
     init() {
         this.load();
         this.canvas.onclick = e => {
-            if (this.canvas.contains(e.target)) {
+            let target = e.target;
+            if (!this.canvas.contains(target) || this.canvas === target) {
                 this.hide();
             }
         };
