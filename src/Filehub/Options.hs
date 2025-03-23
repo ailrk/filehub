@@ -1,4 +1,9 @@
-module Filehub.Options where
+module Filehub.Options
+  ( Options(..)
+  , options
+  , parseOptions
+  )
+  where
 
 import Options.Applicative
 import Filehub.Domain (Theme(..))

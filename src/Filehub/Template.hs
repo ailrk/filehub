@@ -2,7 +2,21 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Use if" #-}
 
-module Filehub.Template where
+module Filehub.Template
+  ( index
+  , controlPanel
+  , view
+  , pathBreadcrumb
+  , newFileModal
+  , newFolderModal
+  , fileDetailModal
+  , uploadModal
+  , editorModal
+  , search
+  , contextMenu
+  , table
+  )
+  where
 
 import Lucid
 import Lens.Micro
@@ -179,9 +193,6 @@ sortByBtn = do
 
               on CLOSE
                 remove .show
-                then add .closing
-                then wait for animationend
-                then remove .closing
                 then hide me
                 then add .closed
               end
@@ -423,6 +434,7 @@ modal attrs body = do
         on CLOSE
           add .closing
           then wait for animationend
+          then remove .closing
           then remove me
         end
       |]

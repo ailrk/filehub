@@ -1,5 +1,11 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module Filehub.Types where
+module Filehub.Types
+  ( Session(..)
+  , SessionId(..)
+  , SessionPool(..)
+  , Env(..)
+  )
+  where
 
 
 import Filehub.Domain.Types (Theme, SortFileBy)
