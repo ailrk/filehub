@@ -18,6 +18,7 @@
         filehub =
           with final.haskell.lib.compose;
           overrideCabal (drv: {
+            disallowGhcReference = false;
             enableSeparateDataOutput = false;
           }) (justStaticExecutables final.haskellPackages.filehub);
       };
