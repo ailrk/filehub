@@ -65,7 +65,6 @@ class Viewer {
   footer: HTMLElement;
 
   constructor(resources: Resource[], options?: { index: number }) {
-    console.log(`state: ${this.state}`);
     this.resources = resources
 
     this.index = options?.index ?? 0;
@@ -177,7 +176,6 @@ class Viewer {
       return;
     }
     this.state = 'showing';
-    console.log(`state: ${this.state}`);
 
     this.index = index;
     this.load();
@@ -191,14 +189,12 @@ class Viewer {
     document.querySelector('body')!.appendChild(this.viewer);
     this.currentContent!.focus();
     this.state = 'shown';
-    console.log(`state: ${this.state}`);
   }
 
   hide() {
     this.state = 'hiding';
     document.querySelector('body')!.removeChild(this.viewer);
     this.state = 'hidden';
-    console.log(`state: ${this.state}`);
   }
 
   close() {
@@ -206,7 +202,6 @@ class Viewer {
       return;
     }
     this.state = 'closed';
-    console.log(`state: ${this.state}`);
   }
 
   destroy() {

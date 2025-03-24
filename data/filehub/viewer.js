@@ -40,7 +40,6 @@ class Viewer {
     canvas;
     footer;
     constructor(resources, options) {
-        console.log(`state: ${this.state}`);
         this.resources = resources;
         this.index = options?.index ?? 0;
         this.id = getUniqueID();
@@ -142,7 +141,6 @@ class Viewer {
             return;
         }
         this.state = 'showing';
-        console.log(`state: ${this.state}`);
         this.index = index;
         this.load();
         this.render();
@@ -154,20 +152,17 @@ class Viewer {
         document.querySelector('body').appendChild(this.viewer);
         this.currentContent.focus();
         this.state = 'shown';
-        console.log(`state: ${this.state}`);
     }
     hide() {
         this.state = 'hiding';
         document.querySelector('body').removeChild(this.viewer);
         this.state = 'hidden';
-        console.log(`state: ${this.state}`);
     }
     close() {
         if (this.state !== 'hidden' && this.state !== 'shown') {
             return;
         }
         this.state = 'closed';
-        console.log(`state: ${this.state}`);
     }
     destroy() {
         throw new Error('not implemented');
