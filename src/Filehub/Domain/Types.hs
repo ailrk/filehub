@@ -1,6 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE NamedFieldPuns #-}
 
 module Filehub.Domain.Types
   ( FilehubError(..)
@@ -12,8 +11,6 @@ module Filehub.Domain.Types
   , NewFile(..)
   , NewFolder(..)
   , UpdatedFile(..)
-  , Resource(..)
-  , Viewer(..)
   , Theme(..)
   )
   where
@@ -27,10 +24,6 @@ import Network.Mime (MimeType)
 import Network.URI.Encode qualified as URI.Encode
 import Lens.Micro.Platform ()
 import Data.Text qualified as Text
-import Lens.Micro
-import Data.Aeson (ToJSON (..), (.=))
-import Data.Aeson qualified as Aeson
-import Data.Text.Lazy.Encoding qualified as LText
 
 
 data FilehubError
@@ -128,50 +121,12 @@ instance FromForm UpdatedFile where
     pure (UpdatedFile path content)
 
 
-data Resource = Resource
-  { url :: Text
-  , mimetype :: Text
-  }
-  deriving (Show, Eq)
-
-
-instance ToJSON Resource where
-  toJSON (Resource { url, mimetype }) =
-    Aeson.object
-      [ "url" .= toJSON url
-      , "mimetype" .= mimetype
-      ]
-
-
-data Viewer = InitViewer [Resource] Int -- Update image list and show the viewer
-  deriving (Show)
-
-
-instance ToJSON Viewer where
-  toJSON (InitViewer res index) =
-    Aeson.object
-      [ "InitViewer" .= Aeson.object
-          [ "resources" .= toJSON res
-          , "index" .= toJSON index
-          ]
-      ]
-
-
-instance ToHttpApiData Viewer where
-  toUrlPiece v = (v & Aeson.encode & LText.decodeUtf8) ^. strict
-
-
-
-data Theme = Dark1 | Dark2 | Dark3 | Light1 | Light2 | Light3
+data Theme = Dark1 | Light1
 
 instance Show Theme where
   show = \case
     Dark1 -> "dark1"
-    Dark2 -> "dark2"
-    Dark3 -> "dark3"
     Light1 -> "light1"
-    Light2 -> "light2"
-    Light3 -> "light3"
 
 
 instance Read Theme where
@@ -179,10 +134,6 @@ instance Read Theme where
     let theme =
           case s of
           "dark1" -> Dark1
-          "dark2" -> Dark2
-          "dark3" -> Dark3
           "light1" -> Light1
-          "light2" -> Light2
-          "light3" -> Light3
           _ -> Dark1
     pure (theme, "")

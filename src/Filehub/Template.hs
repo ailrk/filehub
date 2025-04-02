@@ -1,9 +1,12 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Use if" #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 module Filehub.Template
-  ( index
+  ( withDefault
+  , index
+  , sideBar
   , controlPanel
   , view
   , pathBreadcrumb
@@ -44,6 +47,10 @@ import Data.Maybe qualified as Maybe
 import Filehub.Domain (sortFiles, isMime, ClientPath (..))
 import Filehub.Domain.Types (File (..), FileContent (..), SearchWord (..), SortFileBy (..))
 import Filehub.Domain qualified as Domain
+import Filehub.Domain.Viewer qualified as Viewer
+import Filehub.Types (Target (..), S3Target(..), FileTarget(..))
+import Filehub.Env.Target qualified as Target
+import Filehub.Env.Target (TargetView(..))
 
 
 ------------------------------------
@@ -53,20 +60,21 @@ import Filehub.Domain qualified as Domain
 
 index :: Html ()
       -> Html ()
-index view' = do
-  withDefault do
-    div_ [ id_ "index" ] do
-      controlPanel
-      view'
+      -> Html ()
+index sideBar' view' = do
+  div_ [ id_ "index" ] do
+    sideBar'
+    controlPanel
+    view'
 
 
 controlPanel :: Html ()
 controlPanel = do
-    div_ [ id_ elementId ] do
-      newFolderBtn
-      newFileBtn
-      uploadBtn
-      sortByBtn
+  div_ [ id_ elementId ] do
+    newFolderBtn
+    newFileBtn
+    uploadBtn
+    sortByBtn
   where
     elementId = componentIds.controlPanel
 
@@ -78,6 +86,38 @@ view table' pathBreadcrumb' = do
       pathBreadcrumb'
       searchBar
     table'
+
+
+sideBar :: [Target] -> TargetView -> Html ()
+sideBar targets (TargetView currentTarget _ _) = do
+  div_ [ id_ elementId ] do
+    traverse_ targetIcon targets
+  where
+    elementId = componentIds.sideBar
+
+    targetIcon :: Target -> Html ()
+    targetIcon target = do
+      div_ [ class_ "target-icon"
+           , term "hx-get" "/target/change"
+           , term "hx-vals" $ [ "target" .= toUrlPiece (Target.getTargetId target)] & toHxVals
+           , term "hx-target" "#index"
+           , term "hx-swap" "outerHTML"
+           ] do
+        case target of
+          S3Target _ -> do
+            i_ [ class_ "bx bxs-cube" ] mempty
+          FileTarget _ -> do
+            i_ [ class_ "bx bx-folder" ] mempty
+      `with` targetAttr target
+      `with` targetInfo
+      where
+        targetAttr t = [class_ " current-target" | Target.getTargetId currentTarget == Target.getTargetId t]
+        targetInfo =
+          case target of
+            S3Target (S3Target_ { root }) ->
+              [ term "data-target-info" [iii| [S3] #{takeFileName root} |] ]
+            FileTarget (FileTarget_ { root }) ->
+              [ term "data-target-info" [iii| [FileSystem] #{takeFileName root} |] ]
 
 
 pathBreadcrumb :: FilePath -> FilePath -> Html ()
@@ -176,8 +216,8 @@ sortByBtn = do
                 [iii|
                   on click
                     if (the next .dropdown-content) matches .closed
-                    then send SHOW to the next .dropdown-content
-                    else send CLOSE to the next .dropdown-content
+                      then send Show to the next .dropdown-content
+                      else send Close to the next .dropdown-content
                     end
                   end
                 |]
@@ -189,15 +229,15 @@ sortByBtn = do
     div_ [ class_ "dropdown-content closed "
          , term "_"
             [iii|
-              init hide me end
-
-              on CLOSE
+              on Close
+                log "Close"
                 remove .show
                 then hide me
                 then add .closed
               end
 
-              on SHOW
+              on Show
+                log "Show"
                 remove .closed
                 then show me
               end
@@ -276,13 +316,13 @@ newFileModal = do
       br_ mempty >> br_ mempty
       button_ [ class_ "btn btn-modal-confirm mr-2 "
               , type_ "submit"
-              , term "_" "on click trigger CLOSE"
+              , term "_" "on click trigger Close"
               ] "CREATE"
 
       button_ [ class_ "btn btn-modal-close "
               , type_ "button" -- prevent submission
-              , term "_" "on click trigger CLOSE"
-              ] "CLOSE"
+              , term "_" "on click trigger Close"
+              ] "Close"
 
 
 newFolderModal :: Html ()
@@ -302,11 +342,11 @@ newFolderModal = do
       br_ mempty >> br_ mempty
       button_ [ class_ "btn btn-modal-confirm mr-2 "
               , type_ "submit"
-              , term "_" "on click trigger CLOSE"
+              , term "_" "on click trigger Close"
               ] "CREATE"
       button_ [ class_ "btn btn-modal-close "
               , type_ "button"
-              , term "_" "on click trigger CLOSE"
+              , term "_" "on click trigger Close"
               ] "CLOSE"
 
 
@@ -339,6 +379,8 @@ uploadModal = do
     br_ mempty >> br_ mempty
     form_ [ term "hx-encoding" "multipart/form-data"
           , term "hx-post" "/upload"
+          , term "hx-target" "#index"
+          , term "hx-swap" "outerHTML"
           ] do
       input_ [ class_ "btn btn-control "
              , type_ "file"
@@ -348,11 +390,11 @@ uploadModal = do
       br_ mempty >> br_ mempty
 
       button_ [ class_ "btn btn-modal-confirm mr-2 "
-              , term "_" "on click trigger CLOSE"
+              , term "_" "on click trigger Close"
               ] "UPLOAD"
 
       button_ [ class_ "btn btn-modal-close "
-              , term "_" "on click trigger CLOSE"
+              , term "_" "on click trigger Close"
               ] "CLOSE"
 
 
@@ -387,12 +429,12 @@ editorModal filename content = do
       br_ mempty >> br_ mempty
 
       button_ [ class_ "btn btn-modal-confirm mr-2 "
-              , term "_" "on click trigger CLOSE"
+              , term "_" "on click trigger Close"
               ] "EDIT"
 
       button_ [ class_ "btn btn-modal-close "
               , type_ "button"
-              , term "_" "on click trigger CLOSE"
+              , term "_" "on click trigger Close"
               ] "CLOSE"
 
 
@@ -431,7 +473,7 @@ modal attrs body = do
   where
     closeModalScript = term "_"
       [iii|
-        on CLOSE
+        on Close
           add .closing
           then wait for animationend
           then remove .closing
@@ -444,7 +486,7 @@ modal attrs body = do
              , term "_"
                 [iii|
                   on click
-                  send CLOSE to .modal
+                  send Close to .modal
                   end
                 |]
              ] mempty
@@ -481,7 +523,7 @@ table root files = do
                 then if \##{contextMenuId} exists then remove \##{contextMenuId} end
                 then fetch /contextmenu?file=#{path}
                 then put result after #{tableId}
-                then send SHOW( pageX: pageX
+                then send Show( pageX: pageX
                               , pageY: pageY
                               , path: "#{path}"
                               )
@@ -552,7 +594,7 @@ table root files = do
       ]
 
     resourceIdxMap :: Map File Int
-    resourceIdxMap = Map.fromList $ Domain.takeResourceFiles files `zip` [0..]
+    resourceIdxMap = Map.fromList $ Viewer.takeResourceFiles files `zip` [0..]
 
 
 contextMenu :: FilePath -> File -> Html ()
@@ -564,13 +606,13 @@ contextMenu root file = do
        , term "_"
            [iii|
              init call htmx.process(me) end
-             on CLOSE
+             on Close
                add .closing
                then wait for animationend
                then remove me
              end
 
-             on SHOW(pageX, pageY, path)
+             on Show(pageX, pageY, path)
                set my *left to pageX
                then set my *top to pageY
                then set my *position to 'absolute'
@@ -657,6 +699,7 @@ contextMenu root file = do
 data ComponentIds = ComponentIds
   { view :: Text
   , controlPanel :: Text
+  , sideBar :: Text
   , searchBar :: Text
   , pathBreadcrumb :: Text
   , table :: Text
@@ -675,6 +718,7 @@ componentIds :: ComponentIds
 componentIds = ComponentIds
   { view = "view"
   , controlPanel = "control-panel"
+  , sideBar = "side-bar"
   , searchBar = "search-bar"
   , pathBreadcrumb = "path-breadcrumb"
   , table = "table"

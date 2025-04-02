@@ -1,5 +1,6 @@
-module Filehub.SessionPool
-  ( new
+module Filehub.Env.SessionPool
+  ( SessionPool(..)
+  , new
   , newSession
   , extendSession
   , deleteSession
@@ -17,8 +18,8 @@ import Control.Concurrent.Timer qualified as Timer
 import Control.Concurrent.Suspend qualified as Suspend
 import Control.Monad (when)
 import Filehub.Types (Session(..), SessionPool (..), Env, SessionId)
-import Filehub.Session qualified as Session
-import {-# SOURCE #-} Filehub.Env qualified as Env
+import Filehub.Env.Session qualified as Session
+import Filehub.Env.Internal qualified as Env
 
 
 new :: (IOE :> es) => Eff es SessionPool

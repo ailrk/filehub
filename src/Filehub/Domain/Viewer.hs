@@ -1,5 +1,9 @@
+{-# LANGUAGE NamedFieldPuns #-}
+
 module Filehub.Domain.Viewer
-  ( isResource
+  ( Viewer(..)
+  , Resource(..)
+  , isResource
   , takeResourceFiles
   , initViewer
   )
@@ -20,11 +24,51 @@ import System.FilePath (takeDirectory)
 import Network.Mime (MimeType)
 import Data.Text.Encoding qualified as Text
 import Data.Maybe (fromMaybe)
-import Filehub.Domain.Types (File(..), FilehubError (..), ClientPath(..), Resource(..), Viewer(..))
-import Filehub.Domain.File (isDirectory, lsDir, sortFiles)
+import Filehub.Domain.Types (File(..), FilehubError (..), ClientPath(..))
+import Filehub.Domain (sortFiles)
 import Filehub.Domain.ClientPath (fromClientPath, toClientPath)
 import Filehub.Domain.Mime (isMime)
 import Filehub.Types (SessionId)
+import Filehub.Storage (isDirectory, lsDir, runStorage)
+import Lens.Micro
+import Data.Aeson (ToJSON (..), (.=))
+import Data.Aeson qualified as Aeson
+import Data.Text.Lazy.Encoding qualified as LText
+import Data.Text (Text)
+import Servant (ToHttpApiData(..))
+
+
+data Resource = Resource
+  { url :: Text
+  , mimetype :: Text
+  }
+  deriving (Show, Eq)
+
+
+instance ToJSON Resource where
+  toJSON (Resource { url, mimetype }) =
+    Aeson.object
+      [ "url" .= toJSON url
+      , "mimetype" .= mimetype
+      ]
+
+
+data Viewer = InitViewer [Resource] Int -- Update image list and show the viewer
+  deriving (Show)
+
+
+instance ToJSON Viewer where
+  toJSON (InitViewer res index) =
+    Aeson.object
+      [ "InitViewer" .= Aeson.object
+          [ "resources" .= toJSON res
+          , "index" .= toJSON index
+          ]
+      ]
+
+
+instance ToHttpApiData Viewer where
+  toUrlPiece v = (v & Aeson.encode & LText.decodeUtf8) ^. strict
 
 
 isResource :: MimeType -> Bool
@@ -35,20 +79,17 @@ takeResourceFiles :: [File] -> [File]
 takeResourceFiles = filter (isResource . (.mimetype))
 
 
-initViewer :: (Reader Env :> es, Log :> es, Error FilehubError :> es, IOE :> es, FileSystem :> es) => SessionId -> FilePath -> ClientPath -> Eff es Viewer
+initViewer :: (Reader Env :> es, Log :> es, Error FilehubError :> es, IOE :> es, FileSystem :> es)
+           => SessionId -> FilePath -> ClientPath -> Eff es Viewer
 initViewer sessionId root clientPath = do
   let filePath = fromClientPath root clientPath
   let dir = takeDirectory filePath
-  isDir <- isDirectory dir
+  isDir <- runStorage $ isDirectory dir
   when (not isDir) $ do
     logAttention "[initViewer] invalid dir" dir
     throwError InvalidDir
-  order <- Env.getSortFileBy sessionId >>=
-    maybe
-      do logAttention "[initViewer] invalid Session" dir
-         throwError InvalidSession
-      pure
-  files <- takeResourceFiles . sortFiles order <$> lsDir dir
+  order <- Env.getSortFileBy sessionId
+  files <- takeResourceFiles . sortFiles order <$> runStorage (lsDir dir)
   let idx = fromMaybe 0 $ List.elemIndex filePath (fmap (.path) files)
   let toResource f =
         Resource

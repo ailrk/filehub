@@ -1,6 +1,6 @@
 module Filehub.Options
   ( Options(..)
-  , options
+  , TargetOption(..)
   , parseOptions
   )
   where
@@ -10,28 +10,38 @@ import Filehub.Domain (Theme(..))
 
 
 data Options = Options
-  { root :: String
-  , port :: Int
+  { port :: Int
   , theme :: Theme
+  , targets :: [TargetOption]
   }
+  deriving (Show)
 
 
-options :: Parser Options
-options =
-  Options
+data TargetOption = TargetOption
+  { root :: FilePath
+  }
+  deriving (Show)
+
+
+targetOption :: Parser TargetOption
+targetOption =
+  TargetOption
     <$> option str
           (mconcat
             [ long "root"
             , metavar "PATH"
             , help "root path to serve the file"
-            , value "."
             ])
-    <*> option auto
+
+
+options :: Parser Options
+options =
+  Options
+    <$> option auto
           (mconcat
             [ long "port"
             , metavar "PORT"
             , help "port filehub runs on"
-            , value 8000
             ])
     <*> option auto
           (mconcat
@@ -41,6 +51,7 @@ options =
             , value Dark1
             ]
           )
+    <*> some targetOption
 
 
 parseOptions :: IO Options

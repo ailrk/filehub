@@ -17,22 +17,81 @@ body {
 
 #index {
   display: grid;
-  grid-template-rows: auto 90vh;
+  grid-template-areas:
+    "side-bar control-panel"
+    "side-bar view";
+  grid-template-columns: 60px 1fr;
+  grid-template-rows: auto 95vh;
   overflow: hidden;
   border-bottom: 1px solid var(--frontground);
 }
 
 
 #control-panel {
-  grid-column: 1 / -1;
-  grid-row: 1;
+  grid-area: control-panel;
   border-bottom: 1px solid var(--frontground);
+  background-color: var(--background2);
+}
+
+
+#side-bar {
+  grid-area: side-bar;
+  border-right: 1px solid var(--frontground);
+  background-color: var(--background2);
+
+  & .target-icon {
+    position: relative;
+    width: 40px;
+    height: 40px;
+    margin-top: 15px;
+    margin-left: 8px;
+    border-radius: 20%;
+    background-color: var(--background3);
+    display: flex;
+    justify-content: center;  /* Horizontal center */
+    align-items: center;      /* Vertical center */
+    transition: transform 0.1s ease-in-out;
+
+    & i {
+      font-size: 2em;
+    }
+
+    &:hover {
+      cursor: pointer;
+    }
+
+    &:hover::after {
+      cursor: pointer;
+      opacity: 1;
+    }
+
+
+    &::after {
+      position: absolute;
+      left: 110%;
+      content: attr(data-target-info);
+      background-color: var(--frontground);
+      color: var(--background3);
+      white-space: nowrap;
+      padding: 4px 8px;
+      border-radius: 3px;
+      font-size: 10px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      z-index: 10;
+    }
+
+  }
+
+  & .target-icon.current-target {
+      border: solid 1px var(--frontground);
+  }
 }
 
 
 #view {
-  grid-column: 2 / -1;
-  grid-row: 2;
+  grid-area: view;
   overflow-y: scroll;
   scrollbar-width: none;
 
@@ -229,7 +288,7 @@ textarea.form-control {
 
   & > .modal-content {
     /* Position visible dialog near the top of the window */
-    margin-top:10vh;
+    margin-top: 5vh;
 
     /* Sizing for visible dialog */
 

@@ -30,7 +30,7 @@ function closeDropdowns() {
     let dropdownContents = document.getElementsByClassName('dropdown-content');
     for (let i = 0; i < dropdownContents.length; ++i) {
         let ele = dropdownContents[i];
-        ele.dispatchEvent(new Event('CLOSE'));
+        ele.dispatchEvent(new Event('Close'));
     }
 }
 function initViewer(o) {

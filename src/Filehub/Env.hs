@@ -1,63 +1,54 @@
+{-# LANGUAGE OverloadedLabels #-}
+
 module Filehub.Env
   ( Env(..)
   , getRoot
-  , getPort
   , getCurrentDir
   , setCurrentDir
-  , setSortFileBy
   , getSortFileBy
-  , getSessionPool
-  , getDataDir
-  , getTheme
-  , getSessionDuration
+  , setSortFileBy
+  , module Filehub.Env.SessionPool
+  , module Filehub.Env.Internal
+  , module Filehub.Env.Target
   )
   where
 
-import Effectful.Reader.Dynamic (Reader, asks)
+import Lens.Micro
+import Lens.Micro.Platform ()
+import Data.Generics.Labels ()
+import Effectful.Error.Dynamic (Error, throwError)
+import Effectful.Reader.Dynamic (Reader)
 import Effectful ((:>), Eff, IOE)
-import Filehub.Types (Env(..), SessionPool(..), Session(..), SessionId)
-import Filehub.Domain.Types (SortFileBy, Theme)
-import Filehub.SessionPool qualified as SessionPool
-import Data.Time (NominalDiffTime)
+import Filehub.Types (Env(..), Session(..), SessionId)
+import Filehub.Domain.Types (SortFileBy, FilehubError (..))
+import Filehub.Env.SessionPool (getSession, updateSession)
+import Filehub.Env.Internal (getSessionPool, getDataDir, getTheme, getSessionDuration, getTargets)
+import Filehub.Env.Target (getTargetId, viewCurrentTarget, changeCurrentTarget)
+import Filehub.Env.Target qualified as Target
 
 
-getRoot :: (Reader Env :> es) => Eff es FilePath
-getRoot = asks @Env (.root)
+getRoot :: (Reader Env :> es, IOE :> es, Error FilehubError :> es) => SessionId -> Eff es FilePath
+getRoot sessionId = do
+  mSession <- getSession sessionId
+  targets <- getTargets
+  maybe (throwError InvalidSession) pure do
+    index <- mSession ^? _Just . #index
+    targets ^? ix index . #_FileTarget . #root
 
 
-getPort :: (Reader Env :> es) => Eff es Int
-getPort = asks @Env (.port)
-
-
-getCurrentDir :: (Reader Env :> es, IOE :> es) => SessionId -> Eff es (Maybe FilePath)
-getCurrentDir sessionId = (fmap (.currentDir)) <$> SessionPool.getSession sessionId
+getCurrentDir :: (Reader Env :> es, IOE :> es, Error FilehubError :> es) => SessionId -> Eff es FilePath
+getCurrentDir sessionId = (^. #sessionData . #currentDir) <$> Target.viewCurrentTarget sessionId
 
 
 setCurrentDir :: (Reader Env :> es, IOE :> es) => SessionId -> FilePath -> Eff es ()
-setCurrentDir sessionId path =
-  SessionPool.updateSession sessionId (\s -> s { currentDir = path})
+setCurrentDir sessionId path = do
+  updateSession sessionId $ \s -> s & #targets . ix s.index . #currentDir .~ path
+
+
+getSortFileBy :: (Reader Env :> es, IOE :> es, Error FilehubError :> es) => SessionId -> Eff es SortFileBy
+getSortFileBy sessionId = (^. #sessionData . #sortedFileBy) <$> Target.viewCurrentTarget sessionId
 
 
 setSortFileBy :: (Reader Env :> es, IOE :> es) => SessionId -> SortFileBy -> Eff es ()
 setSortFileBy sessionId order = do
-  SessionPool.updateSession sessionId (\s -> s { sortedFileBy = order })
-
-
-getSortFileBy :: (Reader Env :> es, IOE :> es) => SessionId -> Eff es (Maybe SortFileBy)
-getSortFileBy sessionId = (fmap (.sortedFileBy)) <$> SessionPool.getSession sessionId
-
-
-getSessionPool :: (Reader Env :> es) => Eff es SessionPool
-getSessionPool = asks @Env (.sessionPool)
-
-
-getDataDir :: (Reader Env :> es) => Eff es FilePath
-getDataDir = asks @Env (.dataDir)
-
-
-getTheme :: (Reader Env :> es) => Eff es Theme
-getTheme = asks @Env (.theme)
-
-
-getSessionDuration :: (Reader Env :> es) => Eff es NominalDiffTime
-getSessionDuration = asks @Env (.sessionDuration)
+  updateSession sessionId (\s -> s & #targets . ix s.index . #sortedFileBy .~ order)

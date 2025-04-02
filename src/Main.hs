@@ -5,7 +5,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-module Main where
+module Main (main) where
 
 import Effectful (runEff)
 import Data.Data (Proxy(..))
@@ -13,18 +13,21 @@ import Data.Text (Text)
 import Data.Functor ((<&>))
 import Data.Time (secondsToNominalDiffTime)
 import Text.Printf (printf)
-import UnliftIO (SomeException, hFlush, stdout, catch)
+import UnliftIO (SomeException, hFlush, stdout, catch, newTVarIO)
 import Network.Wai.Middleware.RequestLogger (logStdout)
 import Network.Wai.Handler.Warp (setPort, defaultSettings, runSettings)
 import System.Directory (makeAbsolute)
+import Filehub
 import Filehub.Options (Options(..), parseOptions)
 import Filehub.Env
-import Filehub
 import Filehub.Index qualified as Index
-import Filehub.SessionPool qualified as SessionPool
+import Filehub.Env.SessionPool qualified as SessionPool
+import Filehub.Env.Target qualified as Target
+import Filehub.Server (dynamicRaw)
 import GHC.Generics (Generic)
 import Servant ((:>), Get, PlainText, serveWithContextT, Context (..), NamedRoutes, Application, (:-), Raw, serveDirectoryWebApp, (:<|>) (..))
 import Paths_filehub qualified
+import Filehub.Types (Target(..), S3Target(..), FileTarget(..))
 
 
 data Api mode = Api
@@ -32,6 +35,7 @@ data Api mode = Api
   , healthz :: mode :- "healthz" :> Get '[PlainText] Text
   }
   deriving Generic
+
 
 type API = NamedRoutes Api
       :<|> "static" :> Raw -- static files for the app
@@ -46,7 +50,7 @@ application env = serveWithContextT (Proxy @API) EmptyContext (toServantHandler 
       , healthz = healthz
       }
       :<|> serveDirectoryWebApp env.dataDir
-      :<|> serveDirectoryWebApp env.root
+      :<|> dynamicRaw env
 
 
 healthz :: Filehub Text
@@ -61,21 +65,23 @@ healthz = pure "ok"
 main :: IO ()
 main = do
   options <- parseOptions
-  root <- makeAbsolute options.root
-
-  dataDir <- Paths_filehub.getDataDir >>= makeAbsolute  <&> (++ "/data")
-
+  dataDir <- Paths_filehub.getDataDir >>= makeAbsolute <&> (++ "/data")
   sessionPool <- runEff SessionPool.new
-
+  targets <- Target.fromTargetOptions options.targets
+  currentRoot <- newTVarIO $ do
+    case head targets of
+      FileTarget t -> t.root
+      S3Target t -> t.root
   printf "PORT: %d\n" options.port
   let env =
         Env
           { port = options.port
-          , root = root
           , dataDir = dataDir
           , theme = options.theme
           , sessionPool = sessionPool
           , sessionDuration = secondsToNominalDiffTime (60 * 60)
+          , targets = targets
+          , currentRoot = currentRoot
           }
   go env `catch` handler
   where

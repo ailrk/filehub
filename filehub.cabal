@@ -96,23 +96,33 @@ executable filehub
       , time
       , timers
       , suspend
+      , wai
+      , wai-app-static
+      , http-types
 
     other-modules:
       Filehub.Cookie
       Filehub.Template
       Filehub.Index
       Filehub.Domain.ClientPath
-      Filehub.Domain.File
       Filehub.Domain.Mime
       Filehub.Domain.Theme
-      Filehub.Domain.Types
       Filehub.Domain.Viewer
+      Filehub.Domain.Types
       Filehub.Domain
+      Filehub.Storage.File
+      Filehub.Storage.S3
+      Filehub.Storage.Effect
+      Filehub.Storage.Context
+      Filehub.Storage
+      Filehub.Env.Session
+      Filehub.Env.SessionPool
+      Filehub.Env.Target
+      Filehub.Env.Internal
       Filehub.Env
       Filehub.Types
       Filehub.Options
-      Filehub.Session
-      Filehub.SessionPool
+      Filehub.Server
       Filehub
       Paths_filehub
 

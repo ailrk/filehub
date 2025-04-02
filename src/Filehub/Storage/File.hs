@@ -1,58 +1,38 @@
-{-# LANGUAGE OverloadedLabels #-}
-{-# LANGUAGE ApplicativeDo #-}
 {-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE ConstraintKinds #-}
 
-module Filehub.Domain.File
-  ( getFile
-  , isDirectory
-  , readFileContent
-  , loadDirContents
-  , dirtree
-  , toFilePath
-  , newFolder
-  , newFile
-  , writeFile
-  , deleteFile
-  , lsDir
-  , changeDir
-  , lsCurrentDir
-  , upload
-  , download
-  , sortFiles
-  )
-  where
+module Filehub.Storage.File (runStorageFile) where
 
-
+import Effectful.Dispatch.Dynamic (interpret)
+import Effectful ( Eff, Eff, MonadIO(liftIO) )
 import Effectful.FileSystem
-import Effectful.Reader.Dynamic (Reader)
-import Effectful ((:>), Eff, IOE, MonadIO (liftIO))
-import Effectful.Error.Dynamic (throwError, Error)
+import Effectful.Error.Dynamic (throwError)
 import Effectful.Log
 import Effectful.FileSystem.IO (withFile, IOMode (..))
 import Effectful.FileSystem.IO.ByteString.Lazy (hPut, readFile)
+import Prelude hiding (readFile, writeFile)
 import Control.Monad (unless, when, forM_)
-import Lens.Micro
-import Lens.Micro.Platform ()
-import Data.ByteString.Lazy qualified as LBS
 import Data.Generics.Labels ()
+import Data.ByteString.Lazy qualified as LBS
 import Data.Text qualified as Text
-import Data.List (sortOn)
 import Data.Time.Clock.POSIX qualified as Time
-import System.FilePath ( (</>), takeFileName )
 import Servant.Multipart (MultipartData(..), Mem, FileData (..))
 import Prelude hiding (readFile, writeFile)
 import Codec.Archive.Zip qualified as Zip
 import Codec.Archive.Zip (ZipOption(..))
 import Network.Mime (defaultMimeLookup)
 import Filehub.Domain.ClientPath (fromClientPath)
-import Filehub.Types (Env, SessionId)
-import Filehub.Domain.Types (File(..), FilehubError(..), FileContent(..), SortFileBy(..), ClientPath)
+import Filehub.Types (SessionId)
+import Filehub.Domain.Types (File(..), FilehubError(..), FileContent(..), ClientPath)
 import Filehub.Env qualified as Env
+import Filehub.Storage.Effect (Storage (..))
+import Filehub.Storage.Context qualified as Storage
 import System.Posix.Files qualified as Posix
 import System.Posix qualified as Posix
+import System.FilePath ( (</>) )
 
 
-getFile :: (FileSystem :> es, Log :> es, IOE :> es, Error FilehubError :> es) => FilePath -> Eff es File
+getFile :: Storage.Context es => FilePath -> Eff es File
 getFile path = do
   isBrokenLink <- isPathBrokenSymLink path
   if isBrokenLink then do -- handle broken links.
@@ -89,7 +69,7 @@ epochToUTCTime :: Posix.EpochTime -> UTCTime
 epochToUTCTime epoch = Time.posixSecondsToUTCTime (realToFrac epoch)
 
 
-isPathBrokenSymLink :: (FileSystem :> es) => FilePath -> Eff es Bool
+isPathBrokenSymLink :: Storage.Context es => FilePath -> Eff es Bool
 isPathBrokenSymLink path = do
   isSym <- pathIsSymbolicLink path
   if isSym
@@ -100,7 +80,7 @@ isPathBrokenSymLink path = do
       pure False
 
 
-isDirectory :: (FileSystem :> es) => FilePath -> Eff es Bool
+isDirectory :: Storage.Context es => FilePath -> Eff es Bool
 isDirectory filePath = do
   pathExists <- doesPathExist filePath
   dirExists <- doesDirectoryExist filePath
@@ -109,38 +89,17 @@ isDirectory filePath = do
      else pure dirExists
 
 
-readFileContent :: (FileSystem :> es) => File -> Eff es LBS.ByteString
+readFileContent :: Storage.Context es => File -> Eff es LBS.ByteString
 readFileContent file = readFile file.path
 
 
-loadDirContents :: (FileSystem :> es, Log :> es, IOE :> es, Error FilehubError :> es) => File -> Eff es File
-loadDirContents file = do
-  case file.content of
-    Dir Nothing -> do
-      files <- lsDir file.path
-      pure $ file & #content .~ Dir (Just files)
-    _ -> pure file
-
-
-dirtree :: Traversal' File File
-dirtree f = \case
-  file@File { content = Content } -> f file
-  file@File { content = Dir Nothing } -> f file
-  file@File { content = Dir (Just files) } -> do
-    let file' = f file
-    let fs = traverse (dirtree f) files
-    let modify f'@File { content = Dir Nothing } _ = f'
-        modify f' xs = f' & #content . #_Dir ?~ xs
-    modify <$> file' <*> fs
-
-
-toFilePath :: (Reader Env :> es, IOE :> es, FileSystem :> es, Error FilehubError :> es) => SessionId -> FilePath -> Eff es FilePath
+toFilePath :: Storage.Context es => SessionId -> FilePath -> Eff es FilePath
 toFilePath sessionId name = do
-  currentDir <- Env.getCurrentDir sessionId >>= maybe (throwError InvalidSession) pure
+  currentDir <- Env.getCurrentDir sessionId
   makeAbsolute (currentDir </> name)
 
 
-newFolder :: (Reader Env :> es, IOE :> es, FileSystem :> es, Error FilehubError :> es) => SessionId -> String -> Eff es ()
+newFolder :: Storage.Context es => SessionId -> String -> Eff es ()
 newFolder sessionId name = do
   filePath <- toFilePath sessionId name
   exists <- doesFileExist filePath
@@ -149,7 +108,7 @@ newFolder sessionId name = do
   createDirectoryIfMissing True filePath
 
 
-newFile :: (Reader Env :> es, IOE :> es, FileSystem :> es, Error FilehubError :> es) => SessionId -> String -> Eff es ()
+newFile :: Storage.Context es => SessionId -> String -> Eff es ()
 newFile sessionId name = do
   filePath <- toFilePath sessionId name
   exists <- doesFileExist filePath
@@ -158,13 +117,13 @@ newFile sessionId name = do
   withFile filePath ReadWriteMode (\_ -> pure ())
 
 
-writeFile :: (Reader Env :> es, IOE :> es, FileSystem :> es, Error FilehubError :> es) => SessionId -> String -> LBS.ByteString -> Eff es ()
+writeFile :: Storage.Context es => SessionId -> String -> LBS.ByteString -> Eff es ()
 writeFile sessionId name content = do
   filePath <- toFilePath sessionId name
   withFile filePath ReadWriteMode (\h -> hPut h content)
 
 
-deleteFile :: (Reader Env :> es, IOE :> es, FileSystem :> es, Error FilehubError :> es) => SessionId -> String -> Eff es ()
+deleteFile :: Storage.Context es => SessionId -> String -> Eff es ()
 deleteFile sessionId name = do
   filePath <- toFilePath sessionId name
   fileExists <- doesFileExist filePath
@@ -175,7 +134,7 @@ deleteFile sessionId name = do
      | otherwise -> pure ()
 
 
-lsDir :: (FileSystem :> es, Log :> es, IOE :> es, Error FilehubError :> es) => FilePath -> Eff es [File]
+lsDir :: Storage.Context es => FilePath -> Eff es [File]
 lsDir path = do
   exists <- doesDirectoryExist path
   unless exists do
@@ -187,7 +146,7 @@ lsDir path = do
       >>= traverse getFile
 
 
-changeDir :: (Reader Env :> es, IOE :> es, FileSystem :> es, Error FilehubError :> es) => SessionId -> FilePath -> Eff es ()
+changeDir :: Storage.Context es => SessionId -> FilePath -> Eff es ()
 changeDir sessionId path = do
   exists <- doesDirectoryExist path
   unless exists do
@@ -195,16 +154,16 @@ changeDir sessionId path = do
   Env.setCurrentDir sessionId path
 
 
-lsCurrentDir :: (Reader Env :> es, IOE :> es, Log :> es, FileSystem :> es, Error FilehubError :> es) => SessionId -> Eff es [File]
+lsCurrentDir :: Storage.Context es => SessionId -> Eff es [File]
 lsCurrentDir sessionId = do
-  path <- Env.getCurrentDir sessionId >>= maybe (throwError InvalidSession) pure
+  path <- Env.getCurrentDir sessionId
   exists <- doesDirectoryExist path
   unless exists do
     throwError InvalidDir
   lsDir path
 
 
-upload :: (Reader Env :> es, IOE :> es, FileSystem :> es, Error FilehubError :> es) => SessionId -> MultipartData Mem -> Eff es ()
+upload :: Storage.Context es => SessionId -> MultipartData Mem -> Eff es ()
 upload sessionId multipart = do
   forM_ multipart.files $ \file -> do
     let name = Text.unpack file.fdFileName
@@ -212,9 +171,9 @@ upload sessionId multipart = do
     writeFile sessionId name content
 
 
-download :: (Reader Env :> es, Log :> es, Error FilehubError :> es, FileSystem :> es, IOE :> es) => ClientPath -> Eff es LBS.ByteString
-download clientPath = do
-  root <- Env.getRoot
+download :: Storage.Context es => SessionId -> ClientPath -> Eff es LBS.ByteString
+download sessionId clientPath = do
+  root <- Env.getRoot sessionId
   let abspath = fromClientPath root clientPath
   file <- getFile abspath
   case file.content of
@@ -224,7 +183,17 @@ download clientPath = do
       pure $ Zip.fromArchive archive
 
 
-sortFiles :: SortFileBy -> [File] -> [File]
-sortFiles ByName = sortOn (takeFileName . (.path))
-sortFiles ByModified = sortOn (.mtime)
-sortFiles BySize = sortOn (.size)
+runStorageFile :: Storage.Context es => Eff (Storage : es) a -> Eff es a
+runStorageFile = interpret $ \_ -> \case
+  GetFile path -> getFile path
+  IsDirectory path -> isDirectory path
+  ReadFileContent file -> readFileContent file
+  NewFolder sessionId path -> newFolder sessionId path
+  NewFile sessionId path -> newFile sessionId path
+  WriteFile sessionId path bytes -> writeFile sessionId path bytes
+  DeleteFile sessionId path -> deleteFile sessionId path
+  LsDir path -> lsDir path
+  ChangeDir sessionId path -> changeDir sessionId path
+  LsCurrentDir sessionId -> lsCurrentDir sessionId
+  Upload sessionId multipart -> upload sessionId multipart
+  Download sessionId clientPath -> download sessionId clientPath

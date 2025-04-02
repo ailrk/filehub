@@ -1,4 +1,10 @@
-module Filehub.Cookie (Cookies'(..), SetCookie(..), getSessionId, setSessionId) where
+module Filehub.Cookie
+  ( Cookies'(..)
+  , SetCookie(..)
+  , getSessionId
+  , setSessionId
+  , getSessionId'
+  ) where
 
 import Web.Cookie (Cookies, SetCookie(..), parseCookies, defaultSetCookie)
 import Servant (FromHttpApiData (..))
@@ -16,8 +22,12 @@ instance FromHttpApiData Cookies' where
   parseQueryParam = return . Cookies' . parseCookies . T.encodeUtf8
 
 
-getSessionId :: Cookies' -> Maybe SessionId
-getSessionId (Cookies' cookies) =
+getSessionId' :: Cookies' -> Maybe SessionId
+getSessionId' (Cookies' cookies) = getSessionId cookies
+
+
+getSessionId :: Cookies -> Maybe SessionId
+getSessionId cookies =
   lookup "sessionId" cookies >>= UUID.fromASCIIBytes <&> SessionId
 
 
