@@ -1,6 +1,8 @@
 module Filehub.Options
   ( Options(..)
   , TargetOption(..)
+  , FSTargetOption(..)
+  , S3TargetOption(..)
   , parseOptions
   )
   where
@@ -17,21 +19,51 @@ data Options = Options
   deriving (Show)
 
 
-data TargetOption = TargetOption
+data TargetOption
+  = FSTargetOption FSTargetOption
+  | S3TargetOption S3TargetOption
+  deriving (Show)
+
+
+data FSTargetOption = FSTargetOption_
   { root :: FilePath
   }
   deriving (Show)
 
 
+data S3TargetOption = S3TargetOption_
+  { uri :: String
+  , profile :: String
+  }
+  deriving (Show)
+
+
 targetOption :: Parser TargetOption
-targetOption =
-  TargetOption
-    <$> option str
-          (mconcat
-            [ long "root"
-            , metavar "PATH"
-            , help "root path to serve the file"
-            ])
+targetOption = (S3TargetOption <$> s3TargetOption) <|> (FSTargetOption <$> fsTargetOption)
+  where
+    s3TargetOption =
+        S3TargetOption_
+            <$> option str
+                  (mconcat
+                    [ long "s3"
+                    , metavar "ENDPOINT"
+                    , help "S3 target"
+                    ])
+            <*> argument str
+                  (mconcat
+                    [ metavar "PROFILE"
+                    , help "S3 profile"
+                    , value "default"
+                    ])
+
+    fsTargetOption =
+      FSTargetOption_
+        <$> option str
+              (mconcat
+                [ long "fs"
+                , metavar "ROOT"
+                , help "File system target"
+                ])
 
 
 options :: Parser Options

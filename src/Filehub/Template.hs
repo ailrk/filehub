@@ -114,8 +114,8 @@ sideBar targets (TargetView currentTarget _ _) = do
         targetAttr t = [class_ " current-target" | Target.getTargetId currentTarget == Target.getTargetId t]
         targetInfo =
           case target of
-            S3Target (S3Target_ { root }) ->
-              [ term "data-target-info" [iii| [S3] #{takeFileName root} |] ]
+            S3Target (S3Target_ { uri, profile }) ->
+              [ term "data-target-info" [iii| [S3] #{uri} #{profile} |] ]
             FileTarget (FileTarget_ { root }) ->
               [ term "data-target-info" [iii| [FileSystem] #{takeFileName root} |] ]
 
@@ -284,7 +284,7 @@ searchBar :: Html ()
 searchBar = do
   div_ [ id_ componentIds.searchBar ] do
     input_ [ class_ "form-control "
-           , type_ "search"
+           , type_ "input"
            , name_ "search"
            , placeholder_ "Search as you type"
            , term "hx-post" "/search"

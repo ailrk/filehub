@@ -99,6 +99,7 @@ executable filehub
       , wai
       , wai-app-static
       , http-types
+      , amazonka-s3
 
     other-modules:
       Filehub.Cookie

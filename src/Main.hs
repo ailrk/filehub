@@ -71,7 +71,7 @@ main = do
   currentRoot <- newTVarIO $ do
     case head targets of
       FileTarget t -> t.root
-      S3Target t -> t.root
+      S3Target _ -> "/"
   printf "PORT: %d\n" options.port
   let env =
         Env

@@ -25,6 +25,7 @@ import GHC.Generics (Generic)
 import Servant (FromHttpApiData (..), ToHttpApiData (..))
 import Filehub.Domain.Types (Theme, SortFileBy)
 import Network.URI.Encode qualified as URI.Encode
+import Text.URI (URI)
 
 
 newtype SessionId = SessionId UUID
@@ -75,7 +76,8 @@ data Target
 data S3Target = S3Target_
   { targetId :: TargetId
   , targetName :: Maybe Text
-  , root :: FilePath
+  , uri :: String
+  , profile :: String
   }
   deriving (Show, Eq, Generic)
 

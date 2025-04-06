@@ -15,6 +15,32 @@ body {
 }
 
 
+input {
+  font-size: 1em;
+  background-color: var(--background3);
+  color: var(--frontground);
+  border-style: solid;
+  border-radius: 5px;
+
+  &:focus {
+    outline: none;
+  }
+}
+
+
+textarea {
+  font-size: 1em;
+  background-color: var(--background3);
+  color: var(--frontground);
+  border-style: solid;
+  border-radius: 5px;
+
+  &:focus {
+    outline: none;
+  }
+}
+
+
 #index {
   display: grid;
   grid-template-areas:

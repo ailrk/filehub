@@ -8,7 +8,7 @@ module Filehub.Env.Target
   , changeCurrentTarget
   ) where
 
-import Filehub.Options ( TargetOption(root) )
+import Filehub.Options ( TargetOption(..), FSTargetOption(..), S3TargetOption(..) )
 import Filehub.Types
     ( Target(..),
       FileTarget(..),
@@ -51,10 +51,15 @@ getTargetId (FileTarget t) = t.targetId
 fromTargetOptions :: MonadUnliftIO m => [TargetOption] -> m [Target]
 fromTargetOptions tos = traverse transform tos
   where
-    transform to = do
+    transform (FSTargetOption to) = do
       targetId <- liftIO $ TargetId <$> UUID.nextRandom
       root <- liftIO $ makeAbsolute to.root
       pure $ FileTarget (FileTarget_ targetId Nothing root)
+    transform (S3TargetOption to) = do
+      targetId <- liftIO $ TargetId <$> UUID.nextRandom
+      let uri = to.uri
+      let profile = to.profile
+      pure $ S3Target (S3Target_ targetId Nothing uri profile)
 
 
 viewCurrentTarget :: (Reader Env :> es, IOE :> es, Error FilehubError :> es) => SessionId -> Eff es TargetView
