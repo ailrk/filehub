@@ -25,7 +25,7 @@ import GHC.Generics (Generic)
 import Servant (FromHttpApiData (..), ToHttpApiData (..))
 import Filehub.Domain.Types (Theme, SortFileBy)
 import Network.URI.Encode qualified as URI.Encode
-import Text.URI (URI)
+import Amazonka qualified
 
 
 newtype SessionId = SessionId UUID
@@ -70,16 +70,16 @@ instance FromHttpApiData TargetId where
 data Target
   = S3Target S3Target
   | FileTarget FileTarget
-  deriving (Show, Eq, Generic)
+  deriving (Generic)
 
 
 data S3Target = S3Target_
   { targetId :: TargetId
   , targetName :: Maybe Text
+  , env :: Amazonka.Env
   , uri :: String
-  , profile :: String
   }
-  deriving (Show, Eq, Generic)
+  deriving (Generic)
 
 
 data FileTarget = FileTarget_

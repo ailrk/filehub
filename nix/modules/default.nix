@@ -35,7 +35,7 @@ in
           type = lib.types.str;
           default = "dark1";
           description = ''
-            Filehub theme. Possible themes are [dark1, dark2, dark3, light1, light2, light3]
+            Filehub theme. Possible themes are [dark1, light1]
           '';
         };
 

@@ -8,7 +8,7 @@ module Filehub.Env.Target
   , changeCurrentTarget
   ) where
 
-import Filehub.Options ( TargetOption(..), FSTargetOption(..), S3TargetOption(..) )
+import Filehub.Options ( TargetOption(..) )
 import Filehub.Types
     ( Target(..),
       FileTarget(..),
@@ -18,21 +18,21 @@ import Filehub.Types
       SessionId,
       Target,
       TargetSessionData )
-import Data.UUID.V4 qualified as UUID
 import Data.List (find)
 import Data.Generics.Labels ()
 import Effectful.Reader.Dynamic (Reader)
 import Effectful ((:>), Eff, IOE)
 import Effectful.Error.Dynamic (Error, throwError)
 import Effectful.Log (logAttention, Log)
-import UnliftIO (MonadUnliftIO, MonadIO (..))
+import UnliftIO (MonadUnliftIO)
 import Lens.Micro hiding (to)
 import Lens.Micro.Platform ()
-import System.Directory (makeAbsolute)
 import GHC.Generics (Generic)
 import Filehub.Domain.Types (FilehubError (..))
 import Filehub.Env.SessionPool qualified as SessionPool
 import Filehub.Env.Internal qualified as Env
+import Filehub.Env.Target.File qualified as Env.File
+import Filehub.Env.Target.S3 qualified as Env.S3
 
 
 data TargetView = TargetView
@@ -51,15 +51,8 @@ getTargetId (FileTarget t) = t.targetId
 fromTargetOptions :: MonadUnliftIO m => [TargetOption] -> m [Target]
 fromTargetOptions tos = traverse transform tos
   where
-    transform (FSTargetOption to) = do
-      targetId <- liftIO $ TargetId <$> UUID.nextRandom
-      root <- liftIO $ makeAbsolute to.root
-      pure $ FileTarget (FileTarget_ targetId Nothing root)
-    transform (S3TargetOption to) = do
-      targetId <- liftIO $ TargetId <$> UUID.nextRandom
-      let uri = to.uri
-      let profile = to.profile
-      pure $ S3Target (S3Target_ targetId Nothing uri profile)
+    transform (FSTargetOption to) = FileTarget <$> Env.File.initTarget to
+    transform (S3TargetOption to) = S3Target <$> Env.S3.initTarget to
 
 
 viewCurrentTarget :: (Reader Env :> es, IOE :> es, Error FilehubError :> es) => SessionId -> Eff es TargetView

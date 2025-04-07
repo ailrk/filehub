@@ -43,6 +43,7 @@ import Filehub.Storage (Storage)
 import Filehub.Storage qualified as Storage
 import Filehub.Env.SessionPool qualified as SessionPool
 import Filehub.Env.Target qualified as Target
+import Debug.Trace (traceM)
 
 
 data Api mode = Api
@@ -170,8 +171,7 @@ data Api mode = Api
                     S.:> S.Header "Cookie" Cookies'
                     S.:> "change"
                     S.:> QueryParam "target" TargetId
-                    S.:> Get '[HTML] (S.Headers '[ S.Header "Set-Cookie" SetCookie
-                                                 ] (Html ()))
+                    S.:> Get '[HTML] (S.Headers '[ S.Header "Set-Cookie" SetCookie ] (Html ()))
 
   , themeCss        :: mode :- "theme.css"
                     S.:> S.Header "Cookie" Cookies'
@@ -346,6 +346,7 @@ server = Api
       withSession mCookie $ \sessionId -> do
         targetId <- withQueryParam mTargetId
         withServerError $ Env.changeCurrentTarget sessionId targetId
+        root <- Env.getRoot sessionId & withServerError
         index sessionId
 
 

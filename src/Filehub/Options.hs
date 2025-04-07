@@ -32,8 +32,7 @@ data FSTargetOption = FSTargetOption_
 
 
 data S3TargetOption = S3TargetOption_
-  { uri :: String
-  , profile :: String
+  { bucket :: String
   }
   deriving (Show)
 
@@ -46,14 +45,8 @@ targetOption = (S3TargetOption <$> s3TargetOption) <|> (FSTargetOption <$> fsTar
             <$> option str
                   (mconcat
                     [ long "s3"
-                    , metavar "ENDPOINT"
-                    , help "S3 target"
-                    ])
-            <*> argument str
-                  (mconcat
-                    [ metavar "PROFILE"
-                    , help "S3 profile"
-                    , value "default"
+                    , metavar "BUCKET"
+                    , help "S3 bucket"
                     ])
 
     fsTargetOption =

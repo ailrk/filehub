@@ -27,7 +27,7 @@ import Filehub.Server (dynamicRaw)
 import GHC.Generics (Generic)
 import Servant ((:>), Get, PlainText, serveWithContextT, Context (..), NamedRoutes, Application, (:-), Raw, serveDirectoryWebApp, (:<|>) (..))
 import Paths_filehub qualified
-import Filehub.Types (Target(..), S3Target(..), FileTarget(..))
+import Filehub.Types (Target(..), FileTarget(..))
 
 
 data Api mode = Api

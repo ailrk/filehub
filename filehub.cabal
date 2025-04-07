@@ -99,6 +99,7 @@ executable filehub
       , wai
       , wai-app-static
       , http-types
+      , amazonka
       , amazonka-s3
 
     other-modules:
@@ -119,6 +120,8 @@ executable filehub
       Filehub.Env.Session
       Filehub.Env.SessionPool
       Filehub.Env.Target
+      Filehub.Env.Target.File
+      Filehub.Env.Target.S3
       Filehub.Env.Internal
       Filehub.Env
       Filehub.Types
