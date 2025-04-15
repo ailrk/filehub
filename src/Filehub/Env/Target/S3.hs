@@ -1,4 +1,7 @@
-module Filehub.Env.Target.S3 where
+module Filehub.Env.Target.S3
+  ( initTarget
+  )
+  where
 
 import Filehub.Options ( S3TargetOption(..) )
 import Filehub.Types
@@ -23,11 +26,12 @@ import Data.Maybe (fromMaybe)
 initTarget :: MonadUnliftIO m => S3TargetOption -> m S3Target
 initTarget to = liftIO $ do
   targetId <- TargetId <$> UUID.nextRandom
-  let bucket = to.bucket
+  let bucket = Text.pack to.bucket
   env <- Amazonka.newEnv Amazonka.discover >>= setAwsEndpointURL
-  pure $ S3Target_ targetId Nothing env bucket
+  pure $ S3Target_ targetId bucket env
 
   where
+    setAwsEndpointURL :: Amazonka.Env' withAuth -> IO (Amazonka.Env' withAuth)
     setAwsEndpointURL env = do
       lookupAWSEndpointURL <&> \case
         Just url ->

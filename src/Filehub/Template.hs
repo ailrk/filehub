@@ -114,8 +114,8 @@ sideBar targets (TargetView currentTarget _ _) = do
         targetAttr t = [class_ " current-target" | Target.getTargetId currentTarget == Target.getTargetId t]
         targetInfo =
           case target of
-            S3Target (S3Target_ { uri }) ->
-              [ term "data-target-info" [iii| [S3] #{uri} |] ]
+            S3Target (S3Target_ { bucket }) ->
+              [ term "data-target-info" [iii| [S3] #{bucket} |] ]
             FileTarget (FileTarget_ { root }) ->
               [ term "data-target-info" [iii| [FileSystem] #{takeFileName root} |] ]
 

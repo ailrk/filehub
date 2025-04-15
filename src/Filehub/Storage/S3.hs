@@ -11,9 +11,12 @@ import Prelude hiding (readFile, writeFile)
 import Filehub.Storage.Effect (Storage (..))
 import Filehub.Storage.Context qualified as Storage
 import Filehub.Domain.Types (File)
+import Filehub.Env qualified as Env
 
 getFile :: Storage.Context es => FilePath -> Eff es File
-getFile path = undefined
+getFile path = do
+  -- Env.viewCurrentTarget
+  undefined
 
 runStorageS3 :: Storage.Context es => Eff (Storage : es) a -> Eff es a
 runStorageS3 = interpret $ \_ -> \case

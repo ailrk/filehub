@@ -75,9 +75,8 @@ data Target
 
 data S3Target = S3Target_
   { targetId :: TargetId
-  , targetName :: Maybe Text
+  , bucket :: Text
   , env :: Amazonka.Env
-  , uri :: String
   }
   deriving (Generic)
 
