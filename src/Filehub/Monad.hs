@@ -1,4 +1,4 @@
-module Filehub
+module Filehub.Monad
   ( toServantHandler
   , runFilehub
   , Filehub

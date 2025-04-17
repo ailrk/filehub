@@ -5,7 +5,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-module Main (main) where
+module Filehub.Entry (main) where
 
 import Effectful (runEff)
 import Data.Data (Proxy(..))
@@ -17,7 +17,7 @@ import UnliftIO (SomeException, hFlush, stdout, catch, newTVarIO)
 import Network.Wai.Middleware.RequestLogger (logStdout)
 import Network.Wai.Handler.Warp (setPort, defaultSettings, runSettings)
 import System.Directory (makeAbsolute)
-import Filehub
+import Filehub.Monad
 import Filehub.Options (Options(..), parseOptions)
 import Filehub.Env
 import Filehub.Index qualified as Index
@@ -90,3 +90,5 @@ main = do
       let settings = setPort env.port defaultSettings
       runSettings settings . logStdout $ application env
     handler (e :: SomeException) = putStrLn ("server is down " <> show e) >> hFlush stdout
+
+

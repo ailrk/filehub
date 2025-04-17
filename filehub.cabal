@@ -51,9 +51,8 @@ common options
       -Wno-ambiguous-fields
       -Wno-missing-export-lists
 
-executable filehub
+library
     import: extensions, options
-    main-is: Main.hs
     hs-source-dirs: src
     build-depends:
         base >=4.16.1.0
@@ -103,7 +102,7 @@ executable filehub
       , amazonka
       , amazonka-s3
 
-    other-modules:
+    exposed-modules:
       Filehub.Cookie
       Filehub.Template
       Filehub.Index
@@ -128,7 +127,19 @@ executable filehub
       Filehub.Types
       Filehub.Options
       Filehub.Server
-      Filehub
+      Filehub.Monad
+      Filehub.Entry
       Paths_filehub
+
+    default-language: Haskell2010
+
+
+executable filehub
+    import: extensions, options
+    main-is: Main.hs
+    hs-source-dirs: app
+    build-depends:
+        base >=4.16.1.0
+      , filehub
 
     default-language: Haskell2010

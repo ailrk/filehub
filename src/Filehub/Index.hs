@@ -29,7 +29,7 @@ import Servant.HTML.Lucid (HTML)
 import Servant.Server (err400, err500)
 import Text.Printf (printf)
 import Prelude hiding (readFile)
-import Filehub (Filehub)
+import Filehub.Monad (Filehub)
 import Filehub.Template qualified as Template
 import Filehub.Env qualified as Env
 import Filehub.Domain.Types (ClientPath(..), NewFile (..), NewFolder(..), SearchWord(..), SortFileBy(..), UpdatedFile (..), Theme (..), FilehubError(..))
@@ -43,7 +43,6 @@ import Filehub.Storage (Storage)
 import Filehub.Storage qualified as Storage
 import Filehub.Env.SessionPool qualified as SessionPool
 import Filehub.Env.Target qualified as Target
-import Debug.Trace (traceM)
 
 
 data Api mode = Api
