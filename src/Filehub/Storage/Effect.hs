@@ -25,14 +25,14 @@ import Prelude hiding (readFile, writeFile)
 
 
 data Storage :: Effect where
-  GetFile :: FilePath -> Storage m File
-  IsDirectory :: FilePath -> Storage m Bool
-  ReadFileContent :: File -> Storage m LBS.ByteString
+  GetFile :: SessionId -> FilePath -> Storage m File
+  IsDirectory :: SessionId -> FilePath -> Storage m Bool
+  ReadFileContent :: SessionId -> File -> Storage m LBS.ByteString
   NewFolder :: SessionId -> FilePath -> Storage m ()
   NewFile :: SessionId -> FilePath -> Storage m ()
   WriteFile :: SessionId -> FilePath -> LBS.ByteString -> Storage m ()
   DeleteFile :: SessionId -> FilePath -> Storage m ()
-  LsDir :: FilePath -> Storage m [File]
+  LsDir :: SessionId -> FilePath -> Storage m [File]
   ChangeDir :: SessionId -> FilePath -> Storage m ()
   LsCurrentDir :: SessionId -> Storage m [File]
   Upload :: SessionId -> MultipartData Mem -> Storage m ()

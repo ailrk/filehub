@@ -84,12 +84,12 @@ initViewer :: (Reader Env :> es, Log :> es, Error FilehubError :> es, IOE :> es,
 initViewer sessionId root clientPath = do
   let filePath = fromClientPath root clientPath
   let dir = takeDirectory filePath
-  isDir <- runStorage $ isDirectory dir
+  isDir <- runStorage $ isDirectory sessionId dir
   when (not isDir) $ do
     logAttention "[initViewer] invalid dir" dir
     throwError InvalidDir
   order <- Env.getSortFileBy sessionId
-  files <- takeResourceFiles . sortFiles order <$> runStorage (lsDir dir)
+  files <- takeResourceFiles . sortFiles order <$> runStorage (lsDir sessionId dir)
   let idx = fromMaybe 0 $ List.elemIndex filePath (fmap (.path) files)
   let toResource f =
         Resource

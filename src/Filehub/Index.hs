@@ -275,7 +275,7 @@ server = Api
         withServerError do
           clientPath <- withQueryParam mClientPath
           root <- Env.getRoot sessionId
-          file <- runStorage $ Storage.getFile (Domain.fromClientPath root clientPath)
+          file <- runStorage $ Storage.getFile sessionId (Domain.fromClientPath root clientPath)
           pure (Template.fileDetailModal file)
 
 
@@ -289,8 +289,8 @@ server = Api
           root <- Env.getRoot sessionId
           let p = Domain.fromClientPath root clientPath
           content <- runStorage do
-            f <- Storage.getFile p
-            Storage.readFileContent f
+            f <- Storage.getFile sessionId p
+            Storage.readFileContent sessionId f
           let filename = takeFileName p
           pure $ Template.editorModal filename content
 
@@ -328,7 +328,7 @@ server = Api
           clientPath <- withQueryParam mClientPath
           root <- Env.getRoot sessionId
           let filePath = Domain.fromClientPath root clientPath
-          file <- runStorage $ Storage.getFile filePath
+          file <- runStorage $ Storage.getFile sessionId filePath
           pure $ Template.contextMenu root file
 
 

@@ -32,8 +32,8 @@ import System.Posix qualified as Posix
 import System.FilePath ( (</>) )
 
 
-getFile :: Storage.Context es => FilePath -> Eff es File
-getFile path = do
+getFile :: Storage.Context es => SessionId -> FilePath -> Eff es File
+getFile sessionId  path = do
   isBrokenLink <- isPathBrokenSymLink path
   if isBrokenLink then do -- handle broken links.
     lstatus <- liftIO $ Posix.getSymbolicLinkStatus path
@@ -53,7 +53,7 @@ getFile path = do
     size <- getFileSize path
     mtime <- getModificationTime path
     atime <- getAccessTime path
-    isDir <- isDirectory path
+    isDir <- isDirectory sessionId path
     let mimetype = defaultMimeLookup (Text.pack path)
     pure File
       { path = path
@@ -80,8 +80,8 @@ isPathBrokenSymLink path = do
       pure False
 
 
-isDirectory :: Storage.Context es => FilePath -> Eff es Bool
-isDirectory filePath = do
+isDirectory :: Storage.Context es => SessionId -> FilePath -> Eff es Bool
+isDirectory _ filePath = do
   pathExists <- doesPathExist filePath
   dirExists <- doesDirectoryExist filePath
   if not pathExists
@@ -89,8 +89,8 @@ isDirectory filePath = do
      else pure dirExists
 
 
-readFileContent :: Storage.Context es => File -> Eff es LBS.ByteString
-readFileContent file = readFile file.path
+readFileContent :: Storage.Context es => SessionId -> File -> Eff es LBS.ByteString
+readFileContent _ file = readFile file.path
 
 
 toFilePath :: Storage.Context es => SessionId -> FilePath -> Eff es FilePath
@@ -134,8 +134,8 @@ deleteFile sessionId name = do
      | otherwise -> pure ()
 
 
-lsDir :: Storage.Context es => FilePath -> Eff es [File]
-lsDir path = do
+lsDir :: Storage.Context es => SessionId -> FilePath -> Eff es [File]
+lsDir sessionId path = do
   exists <- doesDirectoryExist path
   unless exists do
     logAttention "[lsDir] dir doesn't exists:" path
@@ -143,7 +143,7 @@ lsDir path = do
   withCurrentDirectory path $
     listDirectory path
       >>= traverse makeAbsolute
-      >>= traverse getFile
+      >>= traverse (getFile sessionId)
 
 
 changeDir :: Storage.Context es => SessionId -> FilePath -> Eff es ()
@@ -160,7 +160,7 @@ lsCurrentDir sessionId = do
   exists <- doesDirectoryExist path
   unless exists do
     throwError InvalidDir
-  lsDir path
+  lsDir sessionId path
 
 
 upload :: Storage.Context es => SessionId -> MultipartData Mem -> Eff es ()
@@ -175,9 +175,9 @@ download :: Storage.Context es => SessionId -> ClientPath -> Eff es LBS.ByteStri
 download sessionId clientPath = do
   root <- Env.getRoot sessionId
   let abspath = fromClientPath root clientPath
-  file <- getFile abspath
+  file <- getFile sessionId abspath
   case file.content of
-    Content -> readFileContent file
+    Content -> readFileContent sessionId file
     Dir _ -> do
       archive <- liftIO $ Zip.addFilesToArchive [OptRecursive, OptPreserveSymbolicLinks] Zip.emptyArchive [file.path]
       pure $ Zip.fromArchive archive
@@ -185,14 +185,14 @@ download sessionId clientPath = do
 
 runStorageFile :: Storage.Context es => Eff (Storage : es) a -> Eff es a
 runStorageFile = interpret $ \_ -> \case
-  GetFile path -> getFile path
-  IsDirectory path -> isDirectory path
-  ReadFileContent file -> readFileContent file
+  GetFile sessionId path -> getFile sessionId path
+  IsDirectory sessionId path -> isDirectory sessionId path
+  ReadFileContent sessionId file -> readFileContent sessionId file
   NewFolder sessionId path -> newFolder sessionId path
   NewFile sessionId path -> newFile sessionId path
   WriteFile sessionId path bytes -> writeFile sessionId path bytes
   DeleteFile sessionId path -> deleteFile sessionId path
-  LsDir path -> lsDir path
+  LsDir sessionId path -> lsDir sessionId path
   ChangeDir sessionId path -> changeDir sessionId path
   LsCurrentDir sessionId -> lsCurrentDir sessionId
   Upload sessionId multipart -> upload sessionId multipart

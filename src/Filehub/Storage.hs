@@ -35,16 +35,16 @@ import Filehub.Storage.Effect (Storage (..))
 import Filehub.Storage.Context qualified as Storage
 
 
-getFile :: Storage :> es => FilePath -> Eff es File
-getFile path = send (GetFile path)
+getFile :: Storage :> es => SessionId -> FilePath -> Eff es File
+getFile sessionId path = send (GetFile sessionId path)
 
 
-isDirectory :: Storage :> es => FilePath -> Eff es Bool
-isDirectory path = send (IsDirectory path)
+isDirectory :: Storage :> es => SessionId -> FilePath -> Eff es Bool
+isDirectory sessionId path = send (IsDirectory sessionId path)
 
 
-readFileContent :: Storage :> es => File -> Eff es LBS.ByteString
-readFileContent file = send (ReadFileContent file)
+readFileContent :: Storage :> es => SessionId -> File -> Eff es LBS.ByteString
+readFileContent sessionId file = send (ReadFileContent sessionId file)
 
 
 newFolder :: Storage :> es => SessionId -> FilePath -> Eff es ()
@@ -63,8 +63,8 @@ deleteFile :: Storage :> es => SessionId -> FilePath -> Eff es ()
 deleteFile sessionId path = send (DeleteFile sessionId path)
 
 
-lsDir :: Storage :> es => FilePath -> Eff es [File]
-lsDir path = send (LsDir path)
+lsDir :: Storage :> es => SessionId -> FilePath -> Eff es [File]
+lsDir sessionId path = send (LsDir sessionId path)
 
 
 changeDir :: Storage :> es => SessionId -> FilePath -> Eff es ()
