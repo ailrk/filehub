@@ -2,7 +2,7 @@ module Filehub.Server (dynamicRaw) where
 
 import Network.Wai
 import Network.Wai.Application.Static
-import Effectful.Concurrent.STM (runConcurrent, writeTVar, atomically, readTVar)
+import Effectful.Concurrent.STM (runConcurrent)
 import Servant (Raw, Tagged (..), ServerT)
 import Effectful (runEff, MonadIO (liftIO))
 import Effectful.Reader.Dynamic (runReader)
@@ -26,10 +26,7 @@ dynamicRaw env = Tagged $ \req respond -> run do
       mRoot <- runErrorNoCallStack @FilehubError . runReader env $ Env.getRoot sessionId
       case mRoot of
         Right root -> do
-          path <- atomically $ do
-            env.currentRoot `writeTVar` root
-            readTVar env.currentRoot
-          let app = staticApp (defaultWebAppSettings path)
+          let app = staticApp (defaultWebAppSettings root)
           liftIO $ app req respond
         Left _ ->
           liftIO $ respond response400

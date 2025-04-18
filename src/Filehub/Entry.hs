@@ -13,7 +13,7 @@ import Data.Text (Text)
 import Data.Functor ((<&>))
 import Data.Time (secondsToNominalDiffTime)
 import Text.Printf (printf)
-import UnliftIO (SomeException, hFlush, stdout, catch, newTVarIO)
+import UnliftIO (SomeException, hFlush, stdout, catch)
 import Network.Wai.Middleware.RequestLogger (logStdout)
 import Network.Wai.Handler.Warp (setPort, defaultSettings, runSettings)
 import System.Directory (makeAbsolute)
@@ -27,7 +27,6 @@ import Filehub.Server (dynamicRaw)
 import GHC.Generics (Generic)
 import Servant ((:>), Get, PlainText, serveWithContextT, Context (..), NamedRoutes, Application, (:-), Raw, serveDirectoryWebApp, (:<|>) (..))
 import Paths_filehub qualified
-import Filehub.Types (Target(..), FileTarget(..))
 
 
 data Api mode = Api
@@ -68,10 +67,6 @@ main = do
   dataDir <- Paths_filehub.getDataDir >>= makeAbsolute <&> (++ "/data")
   sessionPool <- runEff SessionPool.new
   targets <- Target.fromTargetOptions options.targets
-  currentRoot <- newTVarIO $ do
-    case head targets of
-      FileTarget t -> t.root
-      S3Target _ -> "/"
   printf "PORT: %d\n" options.port
   let env =
         Env
@@ -81,7 +76,6 @@ main = do
           , sessionPool = sessionPool
           , sessionDuration = secondsToNominalDiffTime (60 * 60)
           , targets = targets
-          , currentRoot = currentRoot
           }
   go env `catch` handler
   where
