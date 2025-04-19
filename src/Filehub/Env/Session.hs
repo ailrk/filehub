@@ -40,7 +40,7 @@ createSession = do
     targetToSessionData :: Target -> TargetSessionData
     targetToSessionData (S3Target target) =
       TargetSessionData
-        { currentDir = "/"
+        { currentDir = ""
         , sortedFileBy = ByName
         }
     targetToSessionData (FileTarget target) =

@@ -32,6 +32,9 @@ data FilehubError
   | InvalidDir
   | InvalidSession
   | InternalError
+  | TargetError
+  | MimeTypeMissing
+  | S3Error
   deriving Show
 
 
@@ -41,6 +44,9 @@ instance ToHttpApiData FilehubError where
   toUrlPiece InvalidDir = Text.pack $ show InvalidDir
   toUrlPiece InvalidSession = Text.pack $ show InvalidSession
   toUrlPiece InternalError = Text.pack $ show InternalError
+  toUrlPiece TargetError = Text.pack $ show TargetError
+  toUrlPiece MimeTypeMissing = Text.pack $ show MimeTypeMissing
+  toUrlPiece S3Error = Text.pack $ show S3Error
 
 
 data FileContent
@@ -51,10 +57,10 @@ data FileContent
 
 data File = File
   { path :: FilePath
-  , atime :: UTCTime
-  , mtime :: UTCTime
-  , size :: Integer
-  , mimetype :: MimeType
+  , atime :: Maybe UTCTime
+  , mtime :: Maybe UTCTime
+  , size :: Maybe Integer
+  , mimetype :: Maybe MimeType
   , content :: FileContent
   }
   deriving (Show, Eq, Generic)

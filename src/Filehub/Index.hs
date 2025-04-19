@@ -227,14 +227,14 @@ server = Api
       withSession mCookie $ \sessionId -> do
         clientPath <- withQueryParam mClientPath
         root <- Env.getRoot sessionId & withServerError
-        r <- runStorage $ Storage.changeDir sessionId (Domain.fromClientPath root clientPath) & runErrorNoCallStack
+        r <- runStorage sessionId $ Storage.changeDir (Domain.fromClientPath root clientPath) & runErrorNoCallStack
         let header = either addHeader (const noHeader) r
         header <$> view sessionId
 
 
   , newFile = \mCookie (NewFile path) -> do
       withSession mCookie $ \sessionId -> do
-        r <- runStorage $ Storage.newFile sessionId (Text.unpack path) & runErrorNoCallStack
+        r <- runStorage sessionId $ Storage.newFile (Text.unpack path) & runErrorNoCallStack
         let header = either addHeader (const noHeader) r
         header <$> view sessionId
 
@@ -242,7 +242,7 @@ server = Api
   , updateFile = \mCookie (UpdatedFile clientPath content) -> do
       withSession mCookie $ \ sessionId -> do
         let path = clientPath.unClientPath
-        _ <- runStorage $ Storage.writeFile sessionId path (Text.encodeUtf8 content ^. lazy)
+        _ <- runStorage sessionId $ Storage.writeFile path (Text.encodeUtf8 content ^. lazy)
         view sessionId
 
 
@@ -252,14 +252,14 @@ server = Api
           clientPath <- withQueryParam mClientPath
           root <- Env.getRoot sessionId
           let p = Domain.fromClientPath root clientPath
-          runStorage $ Storage.deleteFile sessionId p
+          runStorage sessionId  $ Storage.deleteFile p
         view sessionId
 
 
   , newFolder = \mCookie (NewFolder path) ->
       withSession mCookie $ \sessionId -> do
-        r <- runStorage do
-          Storage.newFolder sessionId (Text.unpack path) & runErrorNoCallStack
+        r <- runStorage sessionId do
+          Storage.newFolder (Text.unpack path) & runErrorNoCallStack
         let header = either addHeader (const noHeader) r
         header <$> view sessionId
 
@@ -275,7 +275,7 @@ server = Api
         withServerError do
           clientPath <- withQueryParam mClientPath
           root <- Env.getRoot sessionId
-          file <- runStorage $ Storage.getFile sessionId (Domain.fromClientPath root clientPath)
+          file <- runStorage sessionId $ Storage.getFile (Domain.fromClientPath root clientPath)
           pure (Template.fileDetailModal file)
 
 
@@ -288,19 +288,19 @@ server = Api
           clientPath <- withQueryParam mClientPath
           root <- Env.getRoot sessionId
           let p = Domain.fromClientPath root clientPath
-          content <- runStorage do
-            f <- Storage.getFile sessionId p
-            Storage.readFileContent sessionId f
+          content <- runStorage sessionId do
+            f <- Storage.getFile p
+            Storage.readFileContent f
           let filename = takeFileName p
           pure $ Template.editorModal filename content
 
 
   , search = \mCookie searchWord ->
       withSession mCookie $ \sessionId ->
-        withServerError . runStorage $ do
+        withServerError . runStorage sessionId $ do
           Template.search searchWord
           <$> Env.getRoot sessionId
-          <*> Storage.lsCurrentDir sessionId
+          <*> Storage.lsCurrentDir
 
 
   , sortTable = \mCookie order -> do
@@ -311,14 +311,14 @@ server = Api
 
   , upload = \mCookie multipart ->
       withSession mCookie $ \sessionId -> do
-        runStorage $ Storage.upload sessionId multipart
+        runStorage sessionId $ Storage.upload multipart
         index sessionId
 
 
   , download = \mCookie mClientPath ->
       withSession mCookie $ \sessionId -> do
         clientPath@(ClientPath path) <- withQueryParam mClientPath
-        bs <- runStorage $ Storage.download sessionId clientPath
+        bs <- runStorage sessionId $ Storage.download clientPath
         pure $ addHeader (printf "attachement; filename=%s" (takeFileName path)) bs
 
 
@@ -328,7 +328,7 @@ server = Api
           clientPath <- withQueryParam mClientPath
           root <- Env.getRoot sessionId
           let filePath = Domain.fromClientPath root clientPath
-          file <- runStorage $ Storage.getFile sessionId filePath
+          file <- runStorage sessionId $ Storage.getFile filePath
           pure $ Template.contextMenu root file
 
 
@@ -345,7 +345,6 @@ server = Api
       withSession mCookie $ \sessionId -> do
         targetId <- withQueryParam mTargetId
         withServerError $ Env.changeCurrentTarget sessionId targetId
-        root <- Env.getRoot sessionId & withServerError
         index sessionId
 
 
@@ -360,8 +359,8 @@ server = Api
   }
 
 
-runStorage :: _ => Eff (Storage : Error FilehubError : es) a -> Eff es a
-runStorage = withServerError . Storage.runStorage
+runStorage :: _ => SessionId -> Eff (Storage : Error FilehubError : es) a -> Eff es a
+runStorage sessionId = withServerError . Storage.runStorage sessionId
 
 
 index :: SessionId -> Filehub (Html ())
@@ -375,14 +374,14 @@ sideBar :: SessionId -> Filehub (Html ())
 sideBar sessionId = withServerError $
   Template.sideBar
   <$> Env.getTargets
-  <*> Target.viewCurrentTarget sessionId
+  <*> Target.currentTarget sessionId
 
 
 view :: SessionId -> Filehub (Html ())
 view sessionId = do
   root <- Env.getRoot sessionId & withServerError
   order <- Env.getSortFileBy sessionId & withServerError
-  files <- Domain.sortFiles order <$> (runStorage $ Storage.lsCurrentDir sessionId) & withServerError
+  files <- Domain.sortFiles order <$> runStorage sessionId Storage.lsCurrentDir & withServerError
   let table = Template.table root files
   Template.view table <$> pathBreadcrumb sessionId
 

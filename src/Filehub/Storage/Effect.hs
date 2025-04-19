@@ -20,22 +20,21 @@ import Data.Generics.Labels ()
 import Servant.Multipart
     ( MultipartData(..), Mem, MultipartData(..), Mem )
 import Prelude hiding (readFile, writeFile)
-import Filehub.Types ( SessionId, SessionId )
 import Prelude hiding (readFile, writeFile)
 
 
 data Storage :: Effect where
-  GetFile :: SessionId -> FilePath -> Storage m File
-  IsDirectory :: SessionId -> FilePath -> Storage m Bool
-  ReadFileContent :: SessionId -> File -> Storage m LBS.ByteString
-  NewFolder :: SessionId -> FilePath -> Storage m ()
-  NewFile :: SessionId -> FilePath -> Storage m ()
-  WriteFile :: SessionId -> FilePath -> LBS.ByteString -> Storage m ()
-  DeleteFile :: SessionId -> FilePath -> Storage m ()
-  LsDir :: SessionId -> FilePath -> Storage m [File]
-  ChangeDir :: SessionId -> FilePath -> Storage m ()
-  LsCurrentDir :: SessionId -> Storage m [File]
-  Upload :: SessionId -> MultipartData Mem -> Storage m ()
-  Download :: SessionId -> ClientPath -> Storage m LBS.ByteString
+  GetFile :: FilePath -> Storage m File
+  IsDirectory :: FilePath -> Storage m Bool
+  ReadFileContent :: File -> Storage m LBS.ByteString
+  NewFolder :: FilePath -> Storage m ()
+  NewFile :: FilePath -> Storage m ()
+  WriteFile :: FilePath -> LBS.ByteString -> Storage m ()
+  DeleteFile :: FilePath -> Storage m ()
+  LsDir :: FilePath -> Storage m [File]
+  ChangeDir :: FilePath -> Storage m ()
+  LsCurrentDir :: Storage m [File]
+  Upload :: MultipartData Mem -> Storage m ()
+  Download :: ClientPath -> Storage m LBS.ByteString
 
 type instance DispatchOf Storage = Dynamic

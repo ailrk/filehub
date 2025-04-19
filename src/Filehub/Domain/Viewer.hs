@@ -76,7 +76,7 @@ isResource s = any (s `isMime`)  ["image", "video", "audio"]
 
 
 takeResourceFiles :: [File] -> [File]
-takeResourceFiles = filter (isResource . (.mimetype))
+takeResourceFiles = filter (maybe False isResource . (.mimetype))
 
 
 initViewer :: (Reader Env :> es, Log :> es, Error FilehubError :> es, IOE :> es, FileSystem :> es)
@@ -84,17 +84,21 @@ initViewer :: (Reader Env :> es, Log :> es, Error FilehubError :> es, IOE :> es,
 initViewer sessionId root clientPath = do
   let filePath = fromClientPath root clientPath
   let dir = takeDirectory filePath
-  isDir <- runStorage $ isDirectory sessionId dir
+  isDir <- runStorage sessionId $ isDirectory dir
   when (not isDir) $ do
     logAttention "[initViewer] invalid dir" dir
     throwError InvalidDir
   order <- Env.getSortFileBy sessionId
-  files <- takeResourceFiles . sortFiles order <$> runStorage (lsDir sessionId dir)
+  files <- takeResourceFiles . sortFiles order <$> runStorage sessionId (lsDir dir)
   let idx = fromMaybe 0 $ List.elemIndex filePath (fmap (.path) files)
-  let toResource f =
-        Resource
-          { url = Text.pack . (.unClientPath) . toClientPath root $ f.path
-          , mimetype = Text.decodeUtf8  f.mimetype
-          }
-  let resources = toResource <$> files
+  let toResource f = do
+        case f.mimetype of
+          Just mimetype ->
+            pure Resource
+              { url = Text.pack . (.unClientPath) . toClientPath root $ f.path
+              , mimetype = Text.decodeUtf8 mimetype
+              }
+          Nothing -> do
+            throwError MimeTypeMissing
+  resources <- traverse toResource files
   pure $ InitViewer resources idx

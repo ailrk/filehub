@@ -44,6 +44,7 @@ import Data.Aeson.Types (Pair)
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Maybe qualified as Maybe
+import Data.Maybe (fromMaybe)
 import Filehub.Domain (sortFiles, isMime, ClientPath (..))
 import Filehub.Domain.Types (File (..), FileContent (..), SearchWord (..), SortFileBy (..))
 import Filehub.Domain qualified as Domain
@@ -363,13 +364,13 @@ fileDetailModal file = do
           td_ (toHtml $ takeFileName file.path)
         tr_ do
           td_ "Modified"
-          td_ (toHtml $ formatTime defaultTimeLocale "%F %R" file.mtime)
+          td_ (toHtml $ maybe mempty (formatTime defaultTimeLocale "%F %R") file.mtime)
         tr_ do
           td_ "Accessed"
-          td_ (toHtml $ formatTime defaultTimeLocale "%F %R" file.atime)
+          td_ (toHtml $ maybe mempty (formatTime defaultTimeLocale "%F %R") file.atime)
         tr_ do
           td_ "Size"
-          td_ (toHtml $ show file.size)
+          td_ (toHtml . Domain.toReadableSize $ fromMaybe 0 file.size)
 
 
 uploadModal :: Html ()
@@ -538,14 +539,15 @@ table root files = do
 
     sizeElement :: File -> Html ()
     sizeElement file =
-      span_ (toHtml . Domain.toReadableSize $ file.size)
+      span_ (toHtml . Domain.toReadableSize $ fromMaybe 0 file.size)
         `with` [ class_ "field "]
 
 
     modifiedDateElement :: File -> Html ()
     modifiedDateElement file =
-      span_ (toHtml $ formatTime defaultTimeLocale "%F %R" file.mtime)
+      span_ (toHtml $ maybe mempty (formatTime defaultTimeLocale "%F %R") file.mtime)
         `with` [ class_ "field "]
+
 
     fileNameElement :: File -> Html ()
     fileNameElement file = do
@@ -561,12 +563,15 @@ table root files = do
                     , term "hx-target" ("#" <> componentIds.view)
                     , term "hx-swap" "outerHTML"
                     ]
-                  Content
-                    | file.mimetype `isMime` "application/pdf" -> openBlank file
-                    | file.mimetype `isMime` "video" || file.mimetype `isMime` "mp4" -> open file
-                    | file.mimetype `isMime` "audio" || file.mimetype `isMime` "mp3" -> open file
-                    | file.mimetype `isMime` "image" -> open file
-                    | otherwise -> editor file
+                  Content ->
+                    case file.mimetype of
+                      Just mimetype
+                        | mimetype `isMime` "application/pdf" -> openBlank file
+                        | mimetype `isMime` "video" || mimetype `isMime` "mp4" -> open file
+                        | mimetype `isMime` "audio" || mimetype `isMime` "mp3" -> open file
+                        | mimetype `isMime` "image" -> open file
+                        | otherwise -> editor file
+                      Nothing -> editor file
               , case file.content of
                   Dir _ -> [ class_ "dir " ]
                   _ -> mempty
@@ -629,48 +634,50 @@ contextMenu root file = do
              , term "hx-swap" "outerHTML"
              ] $
           span_ "Open"
-      Content
-        | file.mimetype `isMime` "application/pdf" -> do
-          a_ [ class_ "dropdown-item"
-             , href_ (URI.Encode.decodeText textClientPath)
-             , target_ "blank"
-             ] $
-            span_ "View"
-        | file.mimetype `isMime` "audio" -> do
-          div_ [ class_ "dropdown-item"
-               , term "hx-get" ("/viewer?=" <> textClientPath)
-               , term "hx-vals" $ [ "file" .= textClientPath ] & toHxVals
-               , term "hx-target" "this"
-               , term "hx-swap" "none"
-               ] $
-            span_ "Play"
-        | file.mimetype `isMime` "video" -> do
-          div_ [ class_ "dropdown-item"
-               , term "hx-get" ("/viewer?=" <> textClientPath)
-               , term "hx-vals" $ [ "file" .= textClientPath ] & toHxVals
-               , term "hx-target" "this"
-               , term "hx-swap" "none"
-               ] $
-            span_ "Play"
-        | file.mimetype `isMime` "image" -> do
-          div_ [ class_ "dropdown-item"
-               , term "hx-get" ("/viewer?=" <> textClientPath)
-               , term "hx-vals" $ [ "file" .= textClientPath ] & toHxVals
-               , term "hx-target" "this"
-               , term "hx-swap" "none"
-               ] $
-            span_ "View"
-        | file.mimetype `isMime` "text" -> do
-          div_ [ class_ "dropdown-item"
-               , term "hx-get" "/modal/editor"
-               , term "hx-vals" $ [ "file" .= textClientPath ] & toHxVals
-               , term "hx-target" "#index"
-               , term "hx-swap" "beforeend"
-               ] $
-            span_ "Edit"
-        | otherwise ->
-            mempty
-
+      Content ->
+        case file.mimetype of
+          Just mimetype
+            | mimetype `isMime` "application/pdf" -> do
+              a_ [ class_ "dropdown-item"
+                 , href_ (URI.Encode.decodeText textClientPath)
+                 , target_ "blank"
+                 ] $
+                span_ "View"
+            | mimetype `isMime` "audio" -> do
+              div_ [ class_ "dropdown-item"
+                   , term "hx-get" ("/viewer?=" <> textClientPath)
+                   , term "hx-vals" $ [ "file" .= textClientPath ] & toHxVals
+                   , term "hx-target" "this"
+                   , term "hx-swap" "none"
+                   ] $
+                span_ "Play"
+            | mimetype `isMime` "video" -> do
+              div_ [ class_ "dropdown-item"
+                   , term "hx-get" ("/viewer?=" <> textClientPath)
+                   , term "hx-vals" $ [ "file" .= textClientPath ] & toHxVals
+                   , term "hx-target" "this"
+                   , term "hx-swap" "none"
+                   ] $
+                span_ "Play"
+            | mimetype `isMime` "image" -> do
+              div_ [ class_ "dropdown-item"
+                   , term "hx-get" ("/viewer?=" <> textClientPath)
+                   , term "hx-vals" $ [ "file" .= textClientPath ] & toHxVals
+                   , term "hx-target" "this"
+                   , term "hx-swap" "none"
+                   ] $
+                span_ "View"
+            | mimetype `isMime` "text" -> do
+              div_ [ class_ "dropdown-item"
+                   , term "hx-get" "/modal/editor"
+                   , term "hx-vals" $ [ "file" .= textClientPath ] & toHxVals
+                   , term "hx-target" "#index"
+                   , term "hx-swap" "beforeend"
+                   ] $
+                span_ "Edit"
+            | otherwise ->
+                mempty
+          Nothing -> mempty
     div_ [ class_ "dropdown-item" ] $
       a_ [ href_ ("/download?file=" <> textClientPath ) ] "Download"
 

@@ -16,28 +16,27 @@ module Filehub.Env
 import Lens.Micro
 import Lens.Micro.Platform ()
 import Data.Generics.Labels ()
-import Effectful.Error.Dynamic (Error, throwError)
+import Effectful.Error.Dynamic (Error)
 import Effectful.Reader.Dynamic (Reader)
 import Effectful ((:>), Eff, IOE)
-import Filehub.Types (Env(..), Session(..), SessionId)
+import Filehub.Types (Env(..), Session(..), SessionId, Target (..))
 import Filehub.Domain.Types (SortFileBy, FilehubError (..))
 import Filehub.Env.SessionPool (getSession, updateSession)
 import Filehub.Env.Internal (getSessionPool, getDataDir, getTheme, getSessionDuration, getTargets)
-import Filehub.Env.Target (getTargetId, viewCurrentTarget, changeCurrentTarget)
+import Filehub.Env.Target (getTargetId, currentTarget, changeCurrentTarget, TargetView (..))
 import Filehub.Env.Target qualified as Target
 
 
 getRoot :: (Reader Env :> es, IOE :> es, Error FilehubError :> es) => SessionId -> Eff es FilePath
 getRoot sessionId = do
-  mSession <- getSession sessionId
-  targets <- getTargets
-  maybe (throwError InvalidSession) pure do
-    index <- mSession ^? _Just . #index
-    targets ^? ix index . #_FileTarget . #root
+  TargetView target _ _ <- currentTarget sessionId
+  case target of
+    FileTarget _ -> pure $ target ^. #_FileTarget . #root
+    S3Target  _ -> pure ""
 
 
 getCurrentDir :: (Reader Env :> es, IOE :> es, Error FilehubError :> es) => SessionId -> Eff es FilePath
-getCurrentDir sessionId = (^. #sessionData . #currentDir) <$> Target.viewCurrentTarget sessionId
+getCurrentDir sessionId = (^. #sessionData . #currentDir) <$> Target.currentTarget sessionId
 
 
 setCurrentDir :: (Reader Env :> es, IOE :> es) => SessionId -> FilePath -> Eff es ()
@@ -46,7 +45,7 @@ setCurrentDir sessionId path = do
 
 
 getSortFileBy :: (Reader Env :> es, IOE :> es, Error FilehubError :> es) => SessionId -> Eff es SortFileBy
-getSortFileBy sessionId = (^. #sessionData . #sortedFileBy) <$> Target.viewCurrentTarget sessionId
+getSortFileBy sessionId = (^. #sessionData . #sortedFileBy) <$> Target.currentTarget sessionId
 
 
 setSortFileBy :: (Reader Env :> es, IOE :> es) => SessionId -> SortFileBy -> Eff es ()

@@ -17,7 +17,6 @@ import Data.ByteString.Lazy qualified as LBS
 import Data.Text qualified as Text
 import Data.Time.Clock.POSIX qualified as Time
 import Servant.Multipart (MultipartData(..), Mem, FileData (..))
-import Prelude hiding (readFile, writeFile)
 import Codec.Archive.Zip qualified as Zip
 import Codec.Archive.Zip (ZipOption(..))
 import Network.Mime (defaultMimeLookup)
@@ -39,10 +38,10 @@ getFile sessionId  path = do
     lstatus <- liftIO $ Posix.getSymbolicLinkStatus path
     pure File
       { path = path
-      , size = 0
-      , atime = epochToUTCTime (Posix.accessTime lstatus)
-      , mtime = epochToUTCTime (Posix.statusChangeTime lstatus)
-      , mimetype = "application/octet-stream"
+      , size = Just 0
+      , atime = Just $ epochToUTCTime (Posix.accessTime lstatus)
+      , mtime = Just $ epochToUTCTime (Posix.statusChangeTime lstatus)
+      , mimetype = Just "application/octet-stream"
       , content = Content
       }
   else do
@@ -57,27 +56,12 @@ getFile sessionId  path = do
     let mimetype = defaultMimeLookup (Text.pack path)
     pure File
       { path = path
-      , size = size
-      , mtime = mtime
-      , atime = atime
-      , mimetype = mimetype
+      , size = Just size
+      , mtime = Just mtime
+      , atime = Just atime
+      , mimetype = Just mimetype
       , content = if isDir then Dir Nothing else Content
       }
-
-
-epochToUTCTime :: Posix.EpochTime -> UTCTime
-epochToUTCTime epoch = Time.posixSecondsToUTCTime (realToFrac epoch)
-
-
-isPathBrokenSymLink :: Storage.Context es => FilePath -> Eff es Bool
-isPathBrokenSymLink path = do
-  isSym <- pathIsSymbolicLink path
-  if isSym
-     then do
-       realPath <- getSymbolicLinkTarget path
-       not <$> doesPathExist realPath
-     else
-      pure False
 
 
 isDirectory :: Storage.Context es => SessionId -> FilePath -> Eff es Bool
@@ -91,12 +75,6 @@ isDirectory _ filePath = do
 
 readFileContent :: Storage.Context es => SessionId -> File -> Eff es LBS.ByteString
 readFileContent _ file = readFile file.path
-
-
-toFilePath :: Storage.Context es => SessionId -> FilePath -> Eff es FilePath
-toFilePath sessionId name = do
-  currentDir <- Env.getCurrentDir sessionId
-  makeAbsolute (currentDir </> name)
 
 
 newFolder :: Storage.Context es => SessionId -> String -> Eff es ()
@@ -183,17 +161,43 @@ download sessionId clientPath = do
       pure $ Zip.fromArchive archive
 
 
-runStorageFile :: Storage.Context es => Eff (Storage : es) a -> Eff es a
-runStorageFile = interpret $ \_ -> \case
-  GetFile sessionId path -> getFile sessionId path
-  IsDirectory sessionId path -> isDirectory sessionId path
-  ReadFileContent sessionId file -> readFileContent sessionId file
-  NewFolder sessionId path -> newFolder sessionId path
-  NewFile sessionId path -> newFile sessionId path
-  WriteFile sessionId path bytes -> writeFile sessionId path bytes
-  DeleteFile sessionId path -> deleteFile sessionId path
-  LsDir sessionId path -> lsDir sessionId path
-  ChangeDir sessionId path -> changeDir sessionId path
-  LsCurrentDir sessionId -> lsCurrentDir sessionId
-  Upload sessionId multipart -> upload sessionId multipart
-  Download sessionId clientPath -> download sessionId clientPath
+runStorageFile :: Storage.Context es => SessionId -> Eff (Storage : es) a -> Eff es a
+runStorageFile sessionId = interpret $ \_ -> \case
+  GetFile path -> getFile sessionId path
+  IsDirectory path -> isDirectory sessionId path
+  ReadFileContent file -> readFileContent sessionId file
+  NewFolder path -> newFolder sessionId path
+  NewFile path -> newFile sessionId path
+  WriteFile path bytes -> writeFile sessionId path bytes
+  DeleteFile path -> deleteFile sessionId path
+  LsDir path -> lsDir sessionId path
+  ChangeDir path -> changeDir sessionId path
+  LsCurrentDir -> lsCurrentDir sessionId
+  Upload multipart -> upload sessionId multipart
+  Download clientPath -> download sessionId clientPath
+
+
+--
+-- | Helpers
+--
+
+
+epochToUTCTime :: Posix.EpochTime -> UTCTime
+epochToUTCTime epoch = Time.posixSecondsToUTCTime (realToFrac epoch)
+
+
+isPathBrokenSymLink :: Storage.Context es => FilePath -> Eff es Bool
+isPathBrokenSymLink path = do
+  isSym <- pathIsSymbolicLink path
+  if isSym
+     then do
+       realPath <- getSymbolicLinkTarget path
+       not <$> doesPathExist realPath
+     else
+      pure False
+
+
+toFilePath :: Storage.Context es => SessionId -> FilePath -> Eff es FilePath
+toFilePath sessionId name = do
+  currentDir <- Env.getCurrentDir sessionId
+  makeAbsolute (currentDir </> name)

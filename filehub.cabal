@@ -84,6 +84,7 @@ library
       , optparse-applicative
       , clay
       , containers
+      , unordered-containers
       , hashtables
       , hashable
       , fuzzy
@@ -101,6 +102,7 @@ library
       , http-types
       , amazonka
       , amazonka-s3
+      , conduit
 
     exposed-modules:
       Filehub.Cookie

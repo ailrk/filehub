@@ -14,7 +14,6 @@ module Filehub.Types
   where
 
 
-import Effectful.Concurrent.STM (TVar)
 import Data.UUID (UUID)
 import Data.Time (UTCTime, NominalDiffTime)
 import Data.HashTable.IO (BasicHashTable)
