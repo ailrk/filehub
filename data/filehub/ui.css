@@ -279,10 +279,10 @@ textarea.form-control {
 }
 
 
-
 .field {
-  display: flex;
-  gap: 5px;
+  display: inline-flex;
+  align-items: center; /* vertical alignment */
+  gap: 0.25rem;         /* optional spacing between text and icon */
 }
 
 

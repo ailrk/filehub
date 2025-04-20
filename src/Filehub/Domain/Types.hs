@@ -59,22 +59,31 @@ instance FromHttpApiData ClientPath where
 
 
 data SortFileBy
-  = ByName
-  | ByModified
-  | BySize
+  = ByNameUp
+  | ByNameDown
+  | ByModifiedUp
+  | ByModifiedDown
+  | BySizeUp
+  | BySizeDown
   deriving (Show, Eq)
 
 
 instance ToHttpApiData SortFileBy where
-  toUrlPiece ByName = "name"
-  toUrlPiece ByModified = "modified"
-  toUrlPiece BySize = "size"
+  toUrlPiece ByNameUp = "nameUp"
+  toUrlPiece ByNameDown = "nameDown"
+  toUrlPiece ByModifiedUp = "modifiedUp"
+  toUrlPiece ByModifiedDown = "modifiedDown"
+  toUrlPiece BySizeUp = "sizeUp"
+  toUrlPiece BySizeDown = "sizeDown"
 
 
 instance FromHttpApiData SortFileBy where
-  parseUrlPiece "name" = pure ByName
-  parseUrlPiece "modified" = pure ByModified
-  parseUrlPiece "size" = pure BySize
+  parseUrlPiece "nameUp" = pure ByNameUp
+  parseUrlPiece "nameDown" = pure ByNameDown
+  parseUrlPiece "modifiedUp" = pure ByModifiedUp
+  parseUrlPiece "modifiedDown" = pure ByModifiedDown
+  parseUrlPiece "sizeUp" = pure BySizeUp
+  parseUrlPiece "sizeDown" = pure BySizeDown
   parseUrlPiece _ = Left "Unknown order"
 
 

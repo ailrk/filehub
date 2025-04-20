@@ -296,12 +296,13 @@ server = Api
           TargetView target _ _ <- Env.currentTarget sessionId & withServerError
           root <- Env.getRoot sessionId
           files <- Storage.lsCurrentDir
-          pure $ Template.search searchWord target root files
+          order <- Env.getSortFileBy sessionId
+          pure $ Template.search searchWord target root files order
 
 
   , sortTable = \mCookie order -> do
       withSession mCookie $ \sessionId -> do
-        Env.setSortFileBy sessionId (fromMaybe ByName order)
+        Env.setSortFileBy sessionId (fromMaybe ByNameUp order)
         view sessionId
 
 
@@ -379,7 +380,7 @@ view sessionId = do
   order <- Env.getSortFileBy sessionId & withServerError
   files <- Domain.sortFiles order <$> runStorage sessionId Storage.lsCurrentDir & withServerError
   TargetView target _ _ <- Env.currentTarget sessionId & withServerError
-  let table = Template.table target root files
+  let table = Template.table target root files order
   Template.view table <$> pathBreadcrumb sessionId
 
 

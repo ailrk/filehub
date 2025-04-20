@@ -42,6 +42,9 @@ toReadableSize nbytes =
 
 
 sortFiles :: SortFileBy -> [File] -> [File]
-sortFiles ByName = sortOn (takeFileName . (.path))
-sortFiles ByModified = sortOn (.mtime)
-sortFiles BySize = sortOn (.size)
+sortFiles ByNameUp = sortOn (takeFileName . (.path))
+sortFiles ByNameDown = reverse . sortFiles ByNameUp
+sortFiles ByModifiedUp = sortOn (.mtime)
+sortFiles ByModifiedDown = reverse . sortFiles ByModifiedUp
+sortFiles BySizeUp = sortOn (.size)
+sortFiles BySizeDown = reverse . sortFiles BySizeUp

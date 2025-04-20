@@ -41,12 +41,12 @@ createSession = do
     targetToSessionData (S3Target _) =
       TargetSessionData
         { currentDir = ""
-        , sortedFileBy = ByName
+        , sortedFileBy = ByNameUp
         }
     targetToSessionData (FileTarget target) =
       TargetSessionData
         { currentDir = target.root
-        , sortedFileBy = ByName
+        , sortedFileBy = ByNameUp
         }
 
 

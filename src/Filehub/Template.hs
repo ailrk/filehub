@@ -75,7 +75,6 @@ controlPanel = do
     newFolderBtn
     newFileBtn
     uploadBtn
-    sortByBtn
   where
     elementId = componentIds.controlPanel
 
@@ -207,78 +206,17 @@ uploadBtn = do
       "Upload"
 
 
-sortByBtn :: Html ()
-sortByBtn = do
-  div_ [ class_ "dropdown "
-       , id_ componentIds.sortByDropdown
-       ] do
-    button_ [ class_ "btn btn-control dropdown-btn "
-            , term "_"
-                [iii|
-                  on click
-                    if (the next .dropdown-content) matches .closed
-                      then send Show to the next .dropdown-content
-                      else send Close to the next .dropdown-content
-                    end
-                  end
-                |]
-            ] do
-      span_ [ class_ "field " ] do
-        i_ [ class_ "bx bx-sort" ] mempty
-        "Sort"
-
-    div_ [ class_ "dropdown-content closed "
-         , term "_"
-            [iii|
-              on Close
-                log "Close"
-                remove .show
-                then hide me
-                then add .closed
-              end
-
-              on Show
-                log "Show"
-                remove .closed
-                then show me
-              end
-            |]
-         ] do
-
-      div_ [ class_ "dropdown-item"
-           , term "hx-get" "/table/sort"
-           , term "hx-vals" $ [ "by" .= toUrlPiece ByName ] & toHxVals
-           , term "hx-swap" "outerHTML"
-           , term "hx-target" "#view" ] $
-        span_ "Name"
-
-      div_ [ class_ "dropdown-item"
-           , term "hx-get" "/table/sort"
-           , term "hx-vals" $ [ "by" .= toUrlPiece ByModified ] & toHxVals
-           , term "hx-swap" "outerHTML"
-           , term "hx-target" "#view" ] $
-        span_ "Modified"
-
-      div_ [ class_ "dropdown-item"
-           , term "hx-get" "/table/sort"
-           , term "hx-vals" $ [ "by" .= toUrlPiece BySize ] & toHxVals
-           , term "hx-swap" "outerHTML"
-           , term "hx-target" "#view"
-           ] $
-        span_ "Size"
-
-
 ------------------------------------
 -- search
 ------------------------------------
 
 
-search :: SearchWord -> Target -> FilePath -> [File] -> Html ()
-search (SearchWord searchWord) target root files = do
+search :: SearchWord -> Target -> FilePath -> [File] -> SortFileBy -> Html ()
+search (SearchWord searchWord) target root files order = do
   let matched = files <&> Text.pack . (.path) & simpleFilter searchWord
   let isMatched file = Text.pack file.path `elem` matched
   let filteredFiles = files ^.. each . filtered isMatched
-  table target root (sortFiles ByName filteredFiles)
+  table target root (sortFiles order filteredFiles) order
 
 
 searchBar :: Html ()
@@ -502,14 +440,26 @@ modal attrs body = do
 ------------------------------------
 
 
-table :: Target -> FilePath -> [File] -> Html ()
-table target root files = do
+table :: Target -> FilePath -> [File] -> SortFileBy -> Html ()
+table target root files order = do
   table_ [ id_ componentIds.table ] do
     thead_ do
       tr_ do
-        th_ "Name"
-        th_ "Modified"
-        th_ "Size"
+        th_ do
+          span_ [ class_ "field " ] do
+            "Name "
+            sortIconName
+          `with` sortControlName
+        th_ do
+          span_ [ class_ "field " ] do
+            "Modified"
+            sortIconMTime
+            `with` sortControlMTime
+        th_ do
+          span_ [ class_ "field " ] do
+            "Size"
+            sortIconSize
+            `with` sortControlSize
     tbody_ $ traverse_ record files
   where
     record :: File -> Html ()
@@ -539,6 +489,56 @@ table target root files = do
                 in URI.Encode.encode p
         tableId = componentIds.table
         contextMenuId = componentIds.contextMenu
+
+
+    sortIconName =
+      case order of
+        ByNameUp -> i_ [ class_ "bx bxs-up-arrow"] mempty
+        ByNameDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
+        _ -> i_ [ class_ "bx bx-sort"] mempty
+
+
+    sortIconMTime =
+      case order of
+        ByModifiedUp -> i_ [ class_ "bx bxs-up-arrow"] mempty
+        ByModifiedDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
+        _ -> i_ [ class_ "bx bx-sort"] mempty
+
+
+    sortIconSize =
+      case order of
+        BySizeUp -> i_ [ class_ "bx bxs-up-arrow"] mempty
+        BySizeDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
+        _ -> i_ [ class_ "bx bx-sort"] mempty
+
+
+    sortControlName =
+      case order of
+        ByNameUp -> sortControl ByNameDown
+        ByNameDown -> sortControl ByNameUp
+        _ -> sortControl ByNameUp
+
+
+    sortControlMTime =
+      case order of
+        ByModifiedUp -> sortControl ByModifiedDown
+        ByModifiedDown -> sortControl ByModifiedUp
+        _ -> sortControl ByModifiedUp
+
+
+    sortControlSize =
+      case order of
+        BySizeUp -> sortControl BySizeDown
+        BySizeDown -> sortControl BySizeUp
+        _ -> sortControl BySizeUp
+
+
+    sortControl o =
+      [ term "hx-get" "/table/sort"
+      , term "hx-vals" $ [ "by" .= toUrlPiece o ] & toHxVals
+      , term "hx-swap" "outerHTML"
+      , term "hx-target" "#view"
+      ]
 
 
     sizeElement :: File -> Html ()
