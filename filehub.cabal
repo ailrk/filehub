@@ -108,6 +108,7 @@ library
       Filehub.Cookie
       Filehub.Template
       Filehub.Index
+      Filehub.Error
       Filehub.Domain.ClientPath
       Filehub.Domain.Mime
       Filehub.Domain.Theme

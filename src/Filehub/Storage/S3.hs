@@ -13,26 +13,28 @@ import Data.List (uncons)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.Generics.Labels ()
-import Data.Conduit ((.|))
-import Data.Conduit.List qualified as Conduit
-import Data.Conduit qualified as Conduit
+import Data.Foldable (forM_)
 import Data.ByteString.Lazy qualified as LBS
+import Data.Maybe (fromMaybe)
 import Codec.Archive.Zip qualified as Zip
 import Codec.Archive.Zip (ZipOption(..))
 import Filehub.Domain (fromClientPath)
 import Filehub.Storage.Effect (Storage (..))
 import Filehub.Storage.Context qualified as Storage
-import Filehub.Domain.Types (File(..), FilehubError (..), FileContent (..), ClientPath)
+import Filehub.Domain.Types (File(..), FileContent (..), ClientPath)
+import Filehub.Error (FilehubError (..))
 import Filehub.Env qualified as Env
 import Filehub.Types (SessionId, S3Target(..))
 import Filehub.Env.Target (TargetView(..))
 import Lens.Micro
-import Amazonka (send, runResourceT, toBody, ResponseBody (..))
-import Amazonka.S3 (Object(..))
+import Amazonka (send, runResourceT, toBody)
+import Amazonka.S3 (Object(..), CommonPrefix)
 import Amazonka.S3 qualified as Amazonka
 import Amazonka.S3.Lens qualified as Amazonka
 import Amazonka.Data qualified as Amazonka
-import Data.Foldable (forM_)
+import Amazonka.Data (sinkBody)
+import Network.Mime (defaultMimeLookup)
+import Conduit qualified
 
 
 getFile :: Storage.Context es => SessionId -> FilePath -> Eff es File
@@ -50,7 +52,7 @@ getFile sessionId path = do
     , atime = Nothing
     , mtime = mtime
     , size = size
-    , mimetype = Text.encodeUtf8 <$> contentType
+    , mimetype = maybe "application/octet-stream" Text.encodeUtf8 contentType
     , content = Content
     }
 
@@ -76,9 +78,7 @@ readFileContent sessionId file = do
   let request = Amazonka.newGetObject bucket key
   content <- runResourceT do
     resp <- send s3.env request
-    let (ResponseBody body) = resp ^. Amazonka.getObjectResponse_body
-    chunks <- liftIO $ Conduit.runConduitRes $ body .| Conduit.consume
-    let content = LBS.fromChunks chunks
+    content <- liftIO $ sinkBody (resp ^. Amazonka.getObjectResponse_body) Conduit.sinkLazy
     pure content
   pure content
 
@@ -113,6 +113,12 @@ deleteFile sessionId filePath = do
   void $ runResourceT $ send s3.env (Amazonka.newDeleteObject bucket key)
 
 
+-- lasjd/aladk
+-- asdasd/aasd.png
+-- asdasda
+-- asdasd.zip
+-- asdas/adsflckj.zip
+
 lsDir :: Storage.Context es => SessionId -> FilePath -> Eff es [File]
 lsDir sessionId path = do
   let normalizedPath = normalizeDirPath path
@@ -122,14 +128,34 @@ lsDir sessionId path = do
        s3 <- getS3 sessionId
        let bucket = Amazonka.BucketName s3.bucket
        let request = Amazonka.newListObjectsV2 bucket
-                   & Amazonka.listObjectsV2_prefix ?~ Text.pack ""
+                   & Amazonka.listObjectsV2_prefix ?~ Text.pack "" -- root
        resp <- runResourceT $ send s3.env request
-       maybe (pure []) (traverse toFile) $ resp ^. Amazonka.listObjectsV2Response_contents
+       let files = maybe [] (fmap toFile) $ resp ^. Amazonka.listObjectsV2Response_contents
+       let dirs = maybe [] (fmap toDir) $ resp ^. Amazonka.listObjectsV2Response_commonPrefixes
+       pure $ files <> dirs
      else throwError InvalidDir
   where
-    toFile (object :: Object) = do
-      let filePath = Text.unpack . Amazonka.toText $ object ^. Amazonka.object_key
-      getFile sessionId filePath
+    toDir (commonPrefix :: CommonPrefix) =
+      let dirPath = fromMaybe mempty $ commonPrefix ^. Amazonka.commonPrefix_prefix
+       in File
+         { path = Text.unpack dirPath
+         , atime = Nothing
+         , mtime = Nothing
+         , size = Nothing
+         , mimetype = "" -- content type can be unreliable because it's derived from the extension.
+         , content = Dir Nothing
+         }
+
+    toFile (object :: Object) =
+      let filePath = Amazonka.toText $ object ^. Amazonka.object_key
+       in File
+         { path = Text.unpack filePath
+         , atime = Nothing
+         , mtime = Just $ object ^. Amazonka.object_lastModified
+         , size = Just $ object ^. Amazonka.object_size
+         , mimetype = defaultMimeLookup filePath -- content type can be unreliable because it's derived from the extension.
+         , content = Content
+         }
 
 
 changeDir :: Storage.Context es => SessionId -> FilePath -> Eff es ()

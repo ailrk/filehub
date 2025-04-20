@@ -2,11 +2,8 @@
 
 module Filehub.Storage.Context (Context) where
 
-import Filehub.Domain.Types
-    ( FilehubError(..) )
-import Effectful
-    ( (:>),
-      IOE )
+import Filehub.Error (FilehubError(..))
+import Effectful ((:>), IOE)
 import Lens.Micro.Platform ()
 import Data.Generics.Labels ()
 import Prelude hiding (readFile, writeFile)

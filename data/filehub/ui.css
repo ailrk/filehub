@@ -107,7 +107,6 @@ textarea {
       transition: opacity 0.2s ease, transform 0.2s ease;
       z-index: 10;
     }
-
   }
 
   & .target-icon.current-target {
@@ -149,23 +148,25 @@ textarea {
     width: 100%;
     border-collapse: separate;
     border-spacing: 0 3px;
-  }
+    table-layout: auto;
 
-  & #table #table-name {
-    min-width: 30%;
-    text-align: left;
-  }
+    & td:nth-child(1), th:nth-child(1) {
+      width: 80%;
+      word-break: break-word;
+      text-align: left;
+    }
 
+    & td:nth-child(2), th:nth-child(2) {
+      max-width: 15px;
+      white-space: break-word;
+      text-align: left;
+    }
 
-  & #table #table-modified {
-    min-width: 30%;
-    text-align: left;
-  }
-
-
-  & #table #table-size {
-    min-width: 10%;
-    text-align: left;
+    & td:nth-child(3), th:nth-child(3) {
+      max-width: 5px;
+      white-space: break-word;
+      text-align: left;
+    }
   }
 }
 

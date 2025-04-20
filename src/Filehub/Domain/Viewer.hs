@@ -24,7 +24,8 @@ import System.FilePath (takeDirectory)
 import Network.Mime (MimeType)
 import Data.Text.Encoding qualified as Text
 import Data.Maybe (fromMaybe)
-import Filehub.Domain.Types (File(..), FilehubError (..), ClientPath(..))
+import Filehub.Domain.Types (File(..), ClientPath(..))
+import Filehub.Error (FilehubError(..))
 import Filehub.Domain (sortFiles)
 import Filehub.Domain.ClientPath (fromClientPath, toClientPath)
 import Filehub.Domain.Mime (isMime)
@@ -76,7 +77,7 @@ isResource s = any (s `isMime`)  ["image", "video", "audio"]
 
 
 takeResourceFiles :: [File] -> [File]
-takeResourceFiles = filter (maybe False isResource . (.mimetype))
+takeResourceFiles = filter (isResource . (.mimetype))
 
 
 initViewer :: (Reader Env :> es, Log :> es, Error FilehubError :> es, IOE :> es, FileSystem :> es)
@@ -91,14 +92,10 @@ initViewer sessionId root clientPath = do
   order <- Env.getSortFileBy sessionId
   files <- takeResourceFiles . sortFiles order <$> runStorage sessionId (lsDir dir)
   let idx = fromMaybe 0 $ List.elemIndex filePath (fmap (.path) files)
-  let toResource f = do
-        case f.mimetype of
-          Just mimetype ->
-            pure Resource
-              { url = Text.pack . (.unClientPath) . toClientPath root $ f.path
-              , mimetype = Text.decodeUtf8 mimetype
-              }
-          Nothing -> do
-            throwError MimeTypeMissing
-  resources <- traverse toResource files
+  let toResource f =
+        Resource
+          { url = Text.pack . (.unClientPath) . toClientPath root $ f.path
+          , mimetype = Text.decodeUtf8 f.mimetype
+          }
+  let resources = fmap toResource files
   pure $ InitViewer resources idx

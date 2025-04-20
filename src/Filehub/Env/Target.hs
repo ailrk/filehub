@@ -29,7 +29,7 @@ import UnliftIO (MonadUnliftIO)
 import Lens.Micro hiding (to)
 import Lens.Micro.Platform ()
 import GHC.Generics (Generic)
-import Filehub.Domain.Types (FilehubError (..))
+import Filehub.Error (FilehubError (..))
 import Filehub.Env.SessionPool qualified as SessionPool
 import Filehub.Env.Internal qualified as Env
 import Filehub.Env.Target.File qualified as Env.File

@@ -2,8 +2,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Filehub.Domain.Types
-  ( FilehubError(..)
-  , FileContent(..)
+  ( FileContent(..)
   , File(..)
   , ClientPath(..)
   , SortFileBy(..)
@@ -23,30 +22,6 @@ import Data.Time (UTCTime)
 import Network.Mime (MimeType)
 import Network.URI.Encode qualified as URI.Encode
 import Lens.Micro.Platform ()
-import Data.Text qualified as Text
-
-
-data FilehubError
-  = FileExists
-  | InvalidPath
-  | InvalidDir
-  | InvalidSession
-  | InternalError
-  | TargetError
-  | MimeTypeMissing
-  | S3Error
-  deriving Show
-
-
-instance ToHttpApiData FilehubError where
-  toUrlPiece FileExists = Text.pack $ show FileExists
-  toUrlPiece InvalidPath = Text.pack $ show InvalidPath
-  toUrlPiece InvalidDir = Text.pack $ show InvalidDir
-  toUrlPiece InvalidSession = Text.pack $ show InvalidSession
-  toUrlPiece InternalError = Text.pack $ show InternalError
-  toUrlPiece TargetError = Text.pack $ show TargetError
-  toUrlPiece MimeTypeMissing = Text.pack $ show MimeTypeMissing
-  toUrlPiece S3Error = Text.pack $ show S3Error
 
 
 data FileContent
@@ -60,7 +35,7 @@ data File = File
   , atime :: Maybe UTCTime
   , mtime :: Maybe UTCTime
   , size :: Maybe Integer
-  , mimetype :: Maybe MimeType
+  , mimetype :: MimeType
   , content :: FileContent
   }
   deriving (Show, Eq, Generic)

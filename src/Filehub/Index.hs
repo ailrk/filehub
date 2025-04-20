@@ -18,21 +18,21 @@ import Control.Monad (when)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.ByteString.Lazy qualified as LBS
-import Data.String (IsString(..))
 import Data.Maybe (fromMaybe)
 import Data.Time.Clock qualified as Time
 import Servant.Multipart (Mem, MultipartForm, MultipartData(..))
 import Servant.Server.Generic (AsServerT)
-import Servant (Get, (:-), QueryParam, Post, Put, ReqBody, FormUrlEncoded, OctetStream, addHeader, noHeader, Delete, ServerError (errBody))
+import Servant (Get, (:-), QueryParam, Post, Put, ReqBody, FormUrlEncoded, OctetStream, addHeader, noHeader, Delete, ServerError)
 import Servant qualified as S
 import Servant.HTML.Lucid (HTML)
-import Servant.Server (err400, err500)
+import Servant.Server (err400)
 import Text.Printf (printf)
 import Prelude hiding (readFile)
 import Filehub.Monad (Filehub)
 import Filehub.Template qualified as Template
 import Filehub.Env qualified as Env
-import Filehub.Domain.Types (ClientPath(..), NewFile (..), NewFolder(..), SearchWord(..), SortFileBy(..), UpdatedFile (..), Theme (..), FilehubError(..))
+import Filehub.Error (FilehubError(..), withServerError)
+import Filehub.Domain.Types (ClientPath(..), NewFile (..), NewFolder(..), SearchWord(..), SortFileBy(..), UpdatedFile (..), Theme (..))
 import Filehub.Domain qualified as Domain
 import Filehub.Domain.Viewer (Viewer(..))
 import Filehub.Domain.Viewer qualified as Viewer
@@ -43,6 +43,7 @@ import Filehub.Storage (Storage)
 import Filehub.Storage qualified as Storage
 import Filehub.Env.SessionPool qualified as SessionPool
 import Filehub.Env.Target qualified as Target
+import Filehub.Env (TargetView(..))
 
 
 data Api mode = Api
@@ -212,12 +213,6 @@ withQueryParam m =
     Nothing -> throwError err400
 
 
-withServerError :: (Error ServerError :> es) => Eff (Error FilehubError : es) b -> Eff es b
-withServerError action = do
-  runErrorNoCallStack action >>=
-    either (\err -> throwError err500 { errBody = fromString $ show err }) pure
-
-
 server :: Api (AsServerT Filehub)
 server = Api
   { index = \mCookie -> withSession mCookie (fmap Template.withDefault . index)
@@ -298,9 +293,10 @@ server = Api
   , search = \mCookie searchWord ->
       withSession mCookie $ \sessionId ->
         withServerError . runStorage sessionId $ do
-          Template.search searchWord
-          <$> Env.getRoot sessionId
-          <*> Storage.lsCurrentDir
+          TargetView target _ _ <- Env.currentTarget sessionId & withServerError
+          root <- Env.getRoot sessionId
+          files <- Storage.lsCurrentDir
+          pure $ Template.search searchWord target root files
 
 
   , sortTable = \mCookie order -> do
@@ -382,7 +378,8 @@ view sessionId = do
   root <- Env.getRoot sessionId & withServerError
   order <- Env.getSortFileBy sessionId & withServerError
   files <- Domain.sortFiles order <$> runStorage sessionId Storage.lsCurrentDir & withServerError
-  let table = Template.table root files
+  TargetView target _ _ <- Env.currentTarget sessionId & withServerError
+  let table = Template.table target root files
   Template.view table <$> pathBreadcrumb sessionId
 
 

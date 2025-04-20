@@ -22,7 +22,8 @@ import Codec.Archive.Zip (ZipOption(..))
 import Network.Mime (defaultMimeLookup)
 import Filehub.Domain.ClientPath (fromClientPath)
 import Filehub.Types (SessionId)
-import Filehub.Domain.Types (File(..), FilehubError(..), FileContent(..), ClientPath)
+import Filehub.Domain.Types (File(..), FileContent(..), ClientPath)
+import Filehub.Error (FilehubError(..))
 import Filehub.Env qualified as Env
 import Filehub.Storage.Effect (Storage (..))
 import Filehub.Storage.Context qualified as Storage
@@ -41,7 +42,7 @@ getFile sessionId  path = do
       , size = Just 0
       , atime = Just $ epochToUTCTime (Posix.accessTime lstatus)
       , mtime = Just $ epochToUTCTime (Posix.statusChangeTime lstatus)
-      , mimetype = Just "application/octet-stream"
+      , mimetype = "application/octet-stream"
       , content = Content
       }
   else do
@@ -59,7 +60,7 @@ getFile sessionId  path = do
       , size = Just size
       , mtime = Just mtime
       , atime = Just atime
-      , mimetype = Just mimetype
+      , mimetype = mimetype
       , content = if isDir then Dir Nothing else Content
       }
 
