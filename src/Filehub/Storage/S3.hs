@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ConstraintKinds #-}
 
 module Filehub.Storage.S3 (runStorageS3) where

@@ -177,7 +177,7 @@ newFolderBtn =
           ] do
     span_ [ class_ "field " ] do
       i_ [ class_ "bx bx-folder-plus" ] mempty
-      "New Folder"
+      span_ "New Folder"
 
 
 newFileBtn :: Html ()
@@ -190,7 +190,7 @@ newFileBtn  =
           ] do
     span_ [ class_ "field " ] do
       i_ [ class_ "bx bxs-file-plus" ] mempty
-      "New File"
+      span_ "New File"
 
 
 uploadBtn :: Html ()
@@ -203,7 +203,7 @@ uploadBtn = do
           ] do
     span_ [ class_ "field " ] do
       i_ [ class_ "bx bx-upload" ] mempty
-      "Upload"
+      span_ "Upload"
 
 
 ------------------------------------
@@ -729,7 +729,6 @@ data ComponentIds = ComponentIds
   , newFolderModal :: Text
   , fileDetailModal :: Text
   , uploadModal :: Text
-  , sortByDropdown :: Text
   , editorModal :: Text
   , contextMenu :: Text
   }
@@ -748,7 +747,6 @@ componentIds = ComponentIds
   , newFolderModal = "new-folder-modal"
   , fileDetailModal = "file-detail-modal"
   , uploadModal = "upload-modal"
-  , sortByDropdown = "sortby-dropdown"
   , editorModal = "editor-modal"
   , contextMenu = "contextmenu"
   }

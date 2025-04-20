@@ -16,6 +16,7 @@ common extensions
       ImportQualifiedPost
       OverloadedStrings
       OverloadedRecordDot
+      OverloadedLabels
       DerivingStrategies
       DuplicateRecordFields
       NoFieldSelectors

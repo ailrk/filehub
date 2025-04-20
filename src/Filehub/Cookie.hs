@@ -15,6 +15,7 @@ import Lens.Micro ((<&>))
 
 
 newtype Cookies' = Cookies' Cookies
+  deriving Show
 
 
 instance FromHttpApiData Cookies' where

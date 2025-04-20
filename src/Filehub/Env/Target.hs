@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE DeriveGeneric #-}
 module Filehub.Env.Target
   ( TargetView(..)

@@ -272,7 +272,6 @@ textarea.form-control {
     background: var(--background3);
   }
 
-
   & td span {
     min-width: 10%
   }
@@ -281,8 +280,8 @@ textarea.form-control {
 
 .field {
   display: inline-flex;
-  align-items: center; /* vertical alignment */
-  gap: 0.25rem;         /* optional spacing between text and icon */
+  align-items: stretch;
+  gap: 0.25rem;
 }
 
 
