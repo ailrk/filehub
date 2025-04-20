@@ -15,11 +15,19 @@ in
           '';
         };
 
-        root = lib.mkOption {
-          type = lib.types.path;
-          default = "";
+        fs = lib.mkOption {
+          type = lib.types.listOf lib.types.path;
+          default = [];
           description = ''
-            Root folde to serve.
+            List of local filesystem paths to serve.
+          '';
+        };
+
+        s3 = lib.mkOption {
+          type = lib.types.listOf lib.types.str;
+          default = [];
+          description = ''
+            List of S3 buckets to mount.
           '';
         };
 
@@ -33,9 +41,9 @@ in
 
         theme = lib.mkOption {
           type = lib.types.str;
-          default = "dark1";
+          default = "dark";
           description = ''
-            Filehub theme. Possible themes are [dark1, light1]
+            Filehub theme. Possible themes are [dark, light]
           '';
         };
 
@@ -44,6 +52,10 @@ in
           default = {};
           description = ''
             Environment variables for filehub.
+            If S3 buckets are used, it can be used to provides AWS credentials.
+
+            Filehub accepts the following AWS credentials:
+              AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_ENDPOINT_URL, AWS_DEFAULT_REGION.
           '';
         };
 
@@ -78,13 +90,13 @@ in
               wantedBy = [ "multi-user.target" ];
               after = [ "network.target" ];
               description = "Start ${serviceName}";
-              unitConfig.DefaultDependencies = "no";
               path = [ pkgs.getent ];
               serviceConfig = {
                 Type = "simple";
-                ExecStart = ''
-                  "${cfg.package}/bin/filehub --port ${port} --root ${cfg.root} --theme ${cfg.theme}"
-                '';
+                ExecStart = let
+                  fsArgs = builtins.concatStringsSep " " (map (p: "--fs '${toString p}'") cfg.fs);
+                  s3Args = builtins.concatStringsSep " " (map (s: "--s3 '${s}'") cfg.s3);
+                in ''"${cfg.package}/bin/filehub --port ${port} --theme ${cfg.theme}" ${fsArgs} ${s3Args}'';
               };
             };
       in
