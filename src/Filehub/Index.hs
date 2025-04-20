@@ -350,8 +350,8 @@ server = Api
         dir <- Env.getDataDir
         readFile $
           case theme of
-            Dark1 -> dir </> "dark1.css"
-            Light1 -> dir </> "light1.css"
+            Dark -> dir </> "dark.css"
+            Light -> dir </> "light.css"
   }
 
 

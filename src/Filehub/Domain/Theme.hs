@@ -5,4 +5,4 @@ module Filehub.Domain.Theme
 import Filehub.Domain.Types (Theme(..))
 
 defaultTheme :: Theme
-defaultTheme = Dark1
+defaultTheme = Dark

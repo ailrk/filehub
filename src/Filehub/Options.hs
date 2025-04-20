@@ -72,8 +72,8 @@ options =
           (mconcat
             [ long "theme"
             , metavar "THEME"
-            , help "dark[1-3], light[1-3]"
-            , value Dark1
+            , help "dark, light"
+            , value Dark
             ]
           )
     <*> some targetOption

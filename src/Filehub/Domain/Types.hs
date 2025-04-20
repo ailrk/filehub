@@ -102,19 +102,19 @@ instance FromForm UpdatedFile where
     pure (UpdatedFile path content)
 
 
-data Theme = Dark1 | Light1
+data Theme = Dark | Light
 
 instance Show Theme where
   show = \case
-    Dark1 -> "dark1"
-    Light1 -> "light1"
+    Dark -> "dark"
+    Light -> "light"
 
 
 instance Read Theme where
   readsPrec _ s = do
     let theme =
           case s of
-          "dark1" -> Dark1
-          "light1" -> Light1
-          _ -> Dark1
+          "dark" -> Dark
+          "light" -> Light
+          _ -> Dark
     pure (theme, "")

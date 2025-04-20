@@ -38,7 +38,7 @@ createSession = do
     }
   where
     targetToSessionData :: Target -> TargetSessionData
-    targetToSessionData (S3Target target) =
+    targetToSessionData (S3Target _) =
       TargetSessionData
         { currentDir = ""
         , sortedFileBy = ByName
