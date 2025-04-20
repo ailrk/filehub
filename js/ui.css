@@ -148,23 +148,30 @@ textarea {
     width: 100%;
     border-collapse: separate;
     border-spacing: 0 3px;
-    table-layout: auto;
+    /* table-layout: auto; */
+    table-layout: fixed; /* Required for width control! */
+
+    & td, th {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
 
     & td:nth-child(1), th:nth-child(1) {
-      width: 80%;
-      word-break: break-word;
+      width: 70%;
+      white-space: nowrap;       /* Prevent line break */
+      overflow: hidden;          /* Hide overflowing text */
+      text-overflow: ellipsis;   /* Add ellipsis */
       text-align: left;
     }
 
     & td:nth-child(2), th:nth-child(2) {
       max-width: 15px;
-      white-space: break-word;
       text-align: left;
     }
 
     & td:nth-child(3), th:nth-child(3) {
       max-width: 5px;
-      white-space: break-word;
       text-align: left;
     }
   }

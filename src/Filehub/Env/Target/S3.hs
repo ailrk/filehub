@@ -1,8 +1,4 @@
-{-# LANGUAGE OverloadedLabels #-}
-
-module Filehub.Env.Target.S3
-  ( initTarget)
-  where
+module Filehub.Env.Target.S3 ( initTarget) where
 
 import Filehub.Options ( S3TargetOption(..) )
 import Filehub.Types

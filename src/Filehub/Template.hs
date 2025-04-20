@@ -110,10 +110,10 @@ sideBar targets (TargetView currentTarget _ _) = do
           FileTarget _ -> do
             i_ [ class_ "bx bx-folder" ] mempty
       `with` targetAttr target
-      `with` targetInfo
+      `with` tooltipInfo
       where
         targetAttr t = [class_ " current-target" | Target.getTargetId currentTarget == Target.getTargetId t]
-        targetInfo =
+        tooltipInfo =
           case target of
             S3Target (S3Target_ { bucket }) ->
               [ term "data-target-info" [iii| [S3] #{bucket} |] ]
@@ -543,20 +543,30 @@ table target root files = do
 
     sizeElement :: File -> Html ()
     sizeElement file =
-      span_ (toHtml . Domain.toReadableSize $ fromMaybe 0 file.size)
-        `with` [ class_ "field "]
+      span_ (toHtml displaySize)
+        `with` [ class_ "field "
+               , title_ (Text.pack displaySize)
+               ]
+      where
+        displaySize = Domain.toReadableSize $ fromMaybe 0 file.size
 
 
     modifiedDateElement :: File -> Html ()
     modifiedDateElement file =
-      span_ (toHtml $ maybe mempty (formatTime defaultTimeLocale "%F %R") file.mtime)
-        `with` [ class_ "field "]
+      span_ (toHtml displayTime)
+        `with` [ class_ "field "
+               , title_ (Text.pack displayTime)
+               ]
+      where
+        displayTime = maybe mempty (formatTime defaultTimeLocale "%F %R") file.mtime
 
 
     fileNameElement :: File -> Html ()
     fileNameElement file = do
       span_ (icon >> name)
-        `with` [ class_ "field " ]
+        `with` [ class_ "field"
+               , title_ (Text.pack displayName)
+               ]
       where
         name =
           span_ (toHtml displayName) `with`
@@ -577,16 +587,18 @@ table target root files = do
                   Dir _ -> [ class_ "dir " ]
                   _ -> mempty
               ]
-          where
-            displayName =
-              case target of
-                S3Target _ -> file.path
-                FileTarget _ -> takeFileName file.path
 
         icon =
           case file.content of
             Dir _ -> i_ [ class_ "bx bxs-folder "] mempty
             Content -> i_ [ class_ "bx bxs-file-blank "] mempty
+
+        displayName =
+          case target of
+            S3Target _ -> file.path
+            FileTarget _ -> takeFileName file.path
+
+
 
     openBlank file =
       let clientPath = toClientPath root file.path
