@@ -9,7 +9,7 @@ import Effectful ((:>), Eff, IOE, MonadIO (liftIO))
 import Data.UUID.V4 qualified as UUID
 import Data.Time (UTCTime, addUTCTime, NominalDiffTime)
 import Data.Time qualified as Time
-import Filehub.Types (Session(..), SessionId(..), Env(..), Target (..), TargetSessionData (..), FileTarget(..))
+import Filehub.Types (Session(..), SessionId(..), Env(..), Target (..), TargetSessionData (..), FileTarget(..), CopyState (..), Selected (..))
 import Filehub.Domain.Types (SortFileBy(..))
 import Filehub.Env.Internal qualified as Env
 
@@ -42,11 +42,15 @@ createSession = do
       TargetSessionData
         { currentDir = ""
         , sortedFileBy = ByNameUp
+        , copyState = NoCopyPaste
+        , selected = NoSelection
         }
     targetToSessionData (FileTarget target) =
       TargetSessionData
         { currentDir = target.root
         , sortedFileBy = ByNameUp
+        , copyState = NoCopyPaste
+        , selected = NoSelection
         }
 
 

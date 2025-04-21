@@ -133,6 +133,8 @@ library
       Filehub.Server
       Filehub.Monad
       Filehub.Entry
+      Filehub.Copy
+      Filehub.MultiSelect
       Paths_filehub
 
     default-language: Haskell2010

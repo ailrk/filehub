@@ -7,13 +7,13 @@ module Filehub.Error
 
 import Servant
     ( ToHttpApiData(..),
-      ServerError(errBody) )
+      ServerError(errBody))
 import Lens.Micro.Platform ()
 import Data.Text qualified as Text
 import Effectful (Eff, (:>))
 import Effectful.Error.Dynamic (runErrorNoCallStack, throwError, Error)
 import Data.String (IsString(..))
-import Servant.Server (err500)
+import Servant.Server (err500, err400)
 
 
 data FilehubError
@@ -46,11 +46,11 @@ withServerError action = runErrorNoCallStack action >>= either (\err -> throwErr
 toServerError :: FilehubError -> ServerError
 toServerError err =
   case err of
-    FileExists -> err500 { errBody = fromString $ show err }
-    InvalidPath -> err500 { errBody = fromString $ show err }
-    InvalidDir -> err500 { errBody = fromString $ show err }
-    InvalidSession -> err500 { errBody = fromString $ show err }
+    FileExists -> err400 { errBody = fromString $ show err }
+    InvalidPath -> err400 { errBody = fromString $ show err }
+    InvalidDir -> err400 { errBody = fromString $ show err }
+    InvalidSession -> err400 { errBody = fromString $ show err }
     InternalError -> err500 { errBody = fromString $ show err }
     TargetError -> err500 { errBody = fromString $ show err }
-    MimeTypeMissing -> err500 { errBody = fromString $ show err }
+    MimeTypeMissing -> err400 { errBody = fromString $ show err }
     S3Error -> err500 { errBody = fromString $ show err }

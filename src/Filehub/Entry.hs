@@ -84,5 +84,3 @@ main = do
       let settings = setPort env.port defaultSettings
       runSettings settings . logStdout $ application env
     handler (e :: SomeException) = putStrLn ("server is down " <> show e) >> hFlush stdout
-
-

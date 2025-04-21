@@ -75,6 +75,7 @@ controlPanel = do
     newFolderBtn
     newFileBtn
     uploadBtn
+    copyBtn
   where
     elementId = componentIds.controlPanel
 
@@ -204,6 +205,26 @@ uploadBtn = do
     span_ [ class_ "field " ] do
       i_ [ class_ "bx bx-upload" ] mempty
       span_ "Upload"
+
+
+copyBtn :: Html ()
+copyBtn = do
+  button_ [ class_ "btn btn-control"
+          , type_ "submit"
+          ] do
+    span_ [ class_ "field " ] do
+      i_ [ class_ "bx bxs-copy-alt" ] mempty
+      span_ "Copy"
+
+
+pasteBtn :: Html ()
+pasteBtn = do
+  button_ [ class_ "btn btn-control"
+          , type_ "submit"
+          ] do
+    span_ [ class_ "field " ] do
+      i_ [ class_ "bx bxs-paste" ] mempty
+      span_ "Copy"
 
 
 ------------------------------------
@@ -470,25 +491,8 @@ table target root files order = do
         td_ $ sizeElement file
       where
         attrs :: [Attribute]
-        attrs =
-          [ term "_"
-              [iii|
-                on contextmenu(pageX, pageY)
-                halt the event
-                then if \##{contextMenuId} exists then remove \##{contextMenuId} end
-                then fetch /contextmenu?file=#{path}
-                then put result after #{tableId}
-                then send Show( pageX: pageX
-                              , pageY: pageY
-                              , path: "#{path}"
-                              )
-                     to \##{contextMenuId}
-              |]
-           ]
-        path = let ClientPath p = Domain.toClientPath root file.path
-                in URI.Encode.encode p
-        tableId = componentIds.table
-        contextMenuId = componentIds.contextMenu
+        attrs = [ term "data-path" (Text.pack path) ]
+        ClientPath path = Domain.toClientPath root file.path
 
 
     sortIconName =
@@ -626,22 +630,6 @@ contextMenu root file = do
 
   div_ [ class_ "dropdown-content "
        , id_ componentIds.contextMenu
-       , term "_"
-           [iii|
-             init call htmx.process(me) end
-             on Close
-               add .closing
-               then wait for animationend
-               then remove me
-             end
-
-             on Show(pageX, pageY, path)
-               set my *left to pageX
-               then set my *top to pageY
-               then set my *position to 'absolute'
-               then show me
-             end
-         |]
       ] do
 
     case file.content of

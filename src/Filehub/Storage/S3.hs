@@ -112,12 +112,6 @@ deleteFile sessionId filePath = do
   void $ runResourceT $ send s3.env (Amazonka.newDeleteObject bucket key)
 
 
--- lasjd/aladk
--- asdasd/aasd.png
--- asdasda
--- asdasd.zip
--- asdas/adsflckj.zip
-
 lsDir :: Storage.Context es => SessionId -> FilePath -> Eff es [File]
 lsDir sessionId path = do
   let normalizedPath = normalizeDirPath path
