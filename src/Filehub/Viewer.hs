@@ -9,34 +9,33 @@ module Filehub.Viewer
   )
   where
 
+import Control.Monad (when)
+import Data.Aeson (ToJSON (..), (.=))
+import Data.Aeson qualified as Aeson
+import Data.List qualified as List
+import Data.Maybe (fromMaybe)
+import Data.Text (Text)
+import Data.Text qualified as Text
+import Data.Text.Encoding qualified as Text
+import Data.Text.Lazy.Encoding qualified as LText
+import Effectful ((:>), Eff, IOE)
+import Effectful.Error.Dynamic (throwError, Error)
 import Effectful.FileSystem
 import Effectful.Log (Log, logAttention)
 import Effectful.Reader.Dynamic (Reader)
-import Effectful ((:>), Eff, IOE)
-import Effectful.Error.Dynamic (throwError, Error)
-import Control.Monad (when)
+import Filehub.ClientPath (fromClientPath, toClientPath)
 import Filehub.Env (Env(..))
 import Filehub.Env qualified as Env
-import Lens.Micro.Platform ()
-import Data.Text qualified as Text
-import Data.List qualified as List
-import System.FilePath (takeDirectory)
-import Network.Mime (MimeType)
-import Data.Text.Encoding qualified as Text
-import Data.Maybe (fromMaybe)
-import Filehub.Domain.Types (File(..), ClientPath(..))
 import Filehub.Error (FilehubError(..))
-import Filehub.Domain (sortFiles)
-import Filehub.Domain.ClientPath (fromClientPath, toClientPath)
-import Filehub.Domain.Mime (isMime)
-import Filehub.Types (SessionId)
+import Filehub.Mime (isMime)
+import Filehub.Sort (sortFiles)
 import Filehub.Storage (isDirectory, lsDir, runStorage)
+import Filehub.Types ( File(..), ClientPath(..), SessionId )
 import Lens.Micro
-import Data.Aeson (ToJSON (..), (.=))
-import Data.Aeson qualified as Aeson
-import Data.Text.Lazy.Encoding qualified as LText
-import Data.Text (Text)
+import Lens.Micro.Platform ()
+import Network.Mime (MimeType)
 import Servant (ToHttpApiData(..))
+import System.FilePath (takeDirectory)
 
 
 data Resource = Resource

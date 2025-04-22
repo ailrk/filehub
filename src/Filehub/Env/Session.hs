@@ -9,8 +9,7 @@ import Effectful ((:>), Eff, IOE, MonadIO (liftIO))
 import Data.UUID.V4 qualified as UUID
 import Data.Time (UTCTime, addUTCTime, NominalDiffTime)
 import Data.Time qualified as Time
-import Filehub.Types (Session(..), SessionId(..), Env(..), Target (..), TargetSessionData (..), FileTarget(..), CopyState (..), Selected (..))
-import Filehub.Domain.Types (SortFileBy(..))
+import Filehub.Types (Session(..), SessionId(..), Env(..), Target (..), TargetSessionData (..), FileTarget(..), CopyState (..), Selected (..), SortFileBy(..))
 import Filehub.Env.Internal qualified as Env
 
 

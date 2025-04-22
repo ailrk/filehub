@@ -1,4 +1,7 @@
-module Filehub.Size where
+{-# LANGUAGE MultiWayIf #-}
+
+module Filehub.Size (toReadableSize) where
+import Text.Printf (printf)
 
 
 toReadableSize :: Integer -> String

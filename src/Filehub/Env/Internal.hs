@@ -10,8 +10,7 @@ module Filehub.Env.Internal
 
 import Effectful.Reader.Dynamic (Reader, asks)
 import Effectful ((:>), Eff)
-import Filehub.Types (Env(..), SessionPool(..), Target)
-import Filehub.Domain.Types (Theme)
+import Filehub.Types (Env(..), SessionPool(..), Target, Theme)
 import Lens.Micro.Platform ()
 import Data.Time (NominalDiffTime)
 import Data.Generics.Labels ()

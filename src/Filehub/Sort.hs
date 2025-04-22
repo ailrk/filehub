@@ -1,4 +1,8 @@
-module Filehub.Sort where
+module Filehub.Sort (sortFiles) where
+
+import Filehub.Types ( SortFileBy(..), File(size, path, mtime) )
+import Data.List ( sortOn )
+import System.FilePath ( takeFileName )
 
 
 sortFiles :: SortFileBy -> [File] -> [File]

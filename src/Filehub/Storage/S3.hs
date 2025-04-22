@@ -2,38 +2,37 @@
 
 module Filehub.Storage.S3 (runStorageS3) where
 
-import Effectful.Dispatch.Dynamic (interpret)
-import Effectful.Error.Dynamic (throwError)
-import Effectful (Eff, Eff, MonadIO (..))
-import Servant.Multipart (MultipartData(..), Mem, FileData (..))
-import Prelude hiding (readFile, writeFile)
-import Control.Monad (void)
-import Data.List (uncons)
-import Data.Text qualified as Text
-import Data.Text.Encoding qualified as Text
-import Data.Generics.Labels ()
-import Data.Foldable (forM_)
-import Data.ByteString.Lazy qualified as LBS
-import Data.Maybe (fromMaybe)
-import Codec.Archive.Zip qualified as Zip
-import Codec.Archive.Zip (ZipOption(..))
-import Filehub.Domain (fromClientPath)
-import Filehub.Storage.Effect (Storage (..))
-import Filehub.Storage.Context qualified as Storage
-import Filehub.Domain.Types (File(..), FileContent (..), ClientPath)
-import Filehub.Error (FilehubError (..))
-import Filehub.Env qualified as Env
-import Filehub.Types (SessionId, S3Target(..))
-import Filehub.Env.Target (TargetView(..))
-import Lens.Micro
 import Amazonka (send, runResourceT, toBody)
+import Amazonka.Data (sinkBody)
+import Amazonka.Data qualified as Amazonka
 import Amazonka.S3 (Object(..), CommonPrefix)
 import Amazonka.S3 qualified as Amazonka
 import Amazonka.S3.Lens qualified as Amazonka
-import Amazonka.Data qualified as Amazonka
-import Amazonka.Data (sinkBody)
-import Network.Mime (defaultMimeLookup)
+import Codec.Archive.Zip (ZipOption(..))
+import Codec.Archive.Zip qualified as Zip
 import Conduit qualified
+import Control.Monad (void)
+import Data.ByteString.Lazy qualified as LBS
+import Data.Foldable (forM_)
+import Data.Generics.Labels ()
+import Data.List (uncons)
+import Data.Maybe (fromMaybe)
+import Data.Text qualified as Text
+import Data.Text.Encoding qualified as Text
+import Effectful (Eff, Eff, MonadIO (..))
+import Effectful.Dispatch.Dynamic (interpret)
+import Effectful.Error.Dynamic (throwError)
+import Filehub.ClientPath (fromClientPath)
+import Filehub.Env qualified as Env
+import Filehub.Env.Target (TargetView(..))
+import Filehub.Error (FilehubError (..))
+import Filehub.Storage.Context qualified as Storage
+import Filehub.Storage.Effect (Storage (..))
+import Filehub.Types (File(..), FileContent(..), ClientPath, SessionId, S3Target(..))
+import Lens.Micro
+import Network.Mime (defaultMimeLookup)
+import Prelude hiding (readFile, writeFile)
+import Servant.Multipart (MultipartData(..), Mem, FileData (..))
 
 
 getFile :: Storage.Context es => SessionId -> FilePath -> Eff es File

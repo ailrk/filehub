@@ -4,7 +4,7 @@
 
 module Filehub.Storage.Effect (Storage(..)) where
 
-import Filehub.Domain.Types
+import Filehub.Types
     ( File,
       File(..),
       ClientPath,

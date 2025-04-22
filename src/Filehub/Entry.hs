@@ -1,15 +1,11 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE DeriveGeneric #-}
 
 module Filehub.Entry (main) where
 
 import Effectful (runEff)
-import Data.Data (Proxy(..))
-import Data.Text (Text)
 import Data.Functor ((<&>))
 import Data.Time (secondsToNominalDiffTime)
 import Text.Printf (printf)
@@ -20,40 +16,20 @@ import System.Directory (makeAbsolute)
 import Filehub.Monad
 import Filehub.Options (Options(..), parseOptions)
 import Filehub.Env
-import Filehub.Index qualified as Index
 import Filehub.Env.SessionPool qualified as SessionPool
 import Filehub.Env.Target qualified as Target
-import Filehub.Server (dynamicRaw)
-import GHC.Generics (Generic)
-import Servant ((:>), Get, PlainText, serveWithContextT, Context (..), NamedRoutes, Application, (:-), Raw, serveDirectoryWebApp, (:<|>) (..))
+import Filehub.Server qualified as Server
+import Filehub.Routes qualified as Routes
+import Servant (serveWithContextT, Context (..), Application, serveDirectoryWebApp, (:<|>) (..))
 import Paths_filehub qualified
 
 
-data Api mode = Api
-  { index :: mode :- NamedRoutes Index.Api
-  , healthz :: mode :- "healthz" :> Get '[PlainText] Text
-  }
-  deriving Generic
-
-
-type API = NamedRoutes Api
-      :<|> "static" :> Raw -- static files for the app
-      :<|> Raw -- direct access of the underlying directory
-
-
 application :: Env -> Application
-application env = serveWithContextT (Proxy @API) EmptyContext (toServantHandler env) server
+application env = serveWithContextT Routes.api EmptyContext (toServantHandler env) server
   where
-    server = Api
-      { index = Index.server
-      , healthz = healthz
-      }
+    server = Server.server
       :<|> serveDirectoryWebApp env.dataDir
-      :<|> dynamicRaw env
-
-
-healthz :: Filehub Text
-healthz = pure "ok"
+      :<|> Server.dynamicRaw env
 
 
 ------------------------------------

@@ -12,9 +12,17 @@ module Filehub.Types
   , Target(..)
   , S3Target(..)
   , FileTarget(..)
+  , FileContent(..)
+  , File(..)
+  , ClientPath(..)
+  , SortFileBy(..)
+  , SearchWord(..)
+  , NewFile(..)
+  , NewFolder(..)
+  , UpdatedFile(..)
+  , Theme(..)
   )
   where
-
 
 
 import Amazonka qualified
@@ -24,14 +32,15 @@ import Data.Hashable (Hashable)
 import Data.Text (Text)
 import Data.Time (UTCTime, NominalDiffTime)
 import Data.UUID (UUID)
-import Filehub.Domain (ClientPath)
-import Filehub.Domain.Types (Theme, SortFileBy, File)
 import GHC.Generics (Generic)
 import Lens.Micro.Platform ()
 import Network.Mime (MimeType)
 import Network.URI.Encode qualified as URI.Encode
-import Servant (FromHttpApiData (..), ToHttpApiData (..))
-import Servant (ToHttpApiData(..), FromHttpApiData (..))
+import Servant
+    ( FromHttpApiData(..),
+      ToHttpApiData(..),
+      ToHttpApiData(..),
+      FromHttpApiData(..) )
 import Web.FormUrlEncoded (FromForm (..), parseUnique, parseAll)
 
 

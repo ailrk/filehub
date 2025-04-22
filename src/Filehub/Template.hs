@@ -1,7 +1,6 @@
-{-# LANGUAGE QuasiQuotes #-}
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-{-# HLINT ignore "Use if" #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Avoid restricted function" #-}
 
 module Filehub.Template
   ( withDefault
@@ -39,13 +38,24 @@ import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Lazy.Encoding qualified as LText
 import Data.Time.Format (formatTime, defaultTimeLocale)
-import Filehub.Domain (sortFiles, isMime, ClientPath (..))
-import Filehub.Domain qualified as Domain
-import Filehub.Types (File (..), FileContent (..), SearchWord (..), SortFileBy (..))
+import Filehub.Types
+    ( File(..),
+      FileContent(..),
+      SearchWord(..),
+      SortFileBy(..),
+      ClientPath(..),
+      Target(..),
+      S3Target(..),
+      FileTarget(..),
+      Selected )
+import Filehub.Sort (sortFiles)
+import Filehub.Mime (isMime)
+import Filehub.Size (toReadableSize)
+import Filehub.Selected qualified as Selected
+import Filehub.ClientPath qualified as ClientPath
 import Filehub.Viewer qualified as Viewer
 import Filehub.Env.Target (TargetView(..))
 import Filehub.Env.Target qualified as Target
-import Filehub.Types (Target (..), S3Target(..), FileTarget(..))
 import Lens.Micro
 import Lens.Micro.Platform ()
 import Lucid
@@ -232,12 +242,12 @@ pasteBtn = do
 ------------------------------------
 
 
-search :: SearchWord -> Target -> FilePath -> [File] -> SortFileBy -> Html ()
-search (SearchWord searchWord) target root files order = do
+search :: SearchWord -> Target -> FilePath -> [File] -> Selected -> SortFileBy -> Html ()
+search (SearchWord searchWord) target root files selected order = do
   let matched = files <&> Text.pack . (.path) & simpleFilter searchWord
   let isMatched file = Text.pack file.path `elem` matched
   let filteredFiles = files ^.. each . filtered isMatched
-  table target root (sortFiles order filteredFiles) order
+  table target root (sortFiles order filteredFiles) selected order
 
 
 searchBar :: Html ()
@@ -329,7 +339,7 @@ fileDetailModal file = do
           td_ (toHtml $ maybe mempty (formatTime defaultTimeLocale "%F %R") file.atime)
         tr_ do
           td_ "Size"
-          td_ (toHtml . Domain.toReadableSize $ fromMaybe 0 file.size)
+          td_ (toHtml . toReadableSize $ fromMaybe 0 file.size)
         tr_ do
           td_ "Content Type"
           td_ (toHtml file.mimetype)
@@ -461,8 +471,8 @@ modal attrs body = do
 ------------------------------------
 
 
-table :: Target -> FilePath -> [File] -> SortFileBy -> Html ()
-table target root files order = do
+table :: Target -> FilePath -> [File] -> Selected -> SortFileBy -> Html ()
+table target root files selected order = do
   table_ [ id_ componentIds.table ] do
     thead_ do
       tr_ do
@@ -491,8 +501,11 @@ table target root files order = do
         td_ $ sizeElement file
       where
         attrs :: [Attribute]
-        attrs = [ term "data-path" (Text.pack path) ]
-        ClientPath path = Domain.toClientPath root file.path
+        attrs = mconcat
+          [ [ term "data-path" (Text.pack path) ]
+          , [class_ "selected " | clientPath `Selected.elem` selected]
+          ]
+        clientPath@(ClientPath path) = ClientPath.toClientPath root file.path
 
 
     sortIconName =
@@ -552,7 +565,7 @@ table target root files order = do
                , title_ (Text.pack displaySize)
                ]
       where
-        displaySize = Domain.toReadableSize $ fromMaybe 0 file.size
+        displaySize = toReadableSize $ fromMaybe 0 file.size
 
 
     modifiedDateElement :: File -> Html ()
@@ -746,7 +759,7 @@ componentIds = ComponentIds
 
 
 toClientPath :: FilePath -> FilePath -> Text
-toClientPath root p = Text.pack . (.unClientPath) $ Domain.toClientPath root p
+toClientPath root p = Text.pack . (.unClientPath) $ ClientPath.toClientPath root p
 
 
 toHxVals :: [Pair] -> Text

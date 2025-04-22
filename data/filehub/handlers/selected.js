@@ -25,7 +25,7 @@ function handle(row, evt) {
             fetch('/table/select', { method: 'POST',
                 body: payload,
             }).then(_ => {
-                row.classList.remove('selected');
+                // row.classList.remove('selected')
             }).catch(_ => {
                 selectedIds.add(id);
             });
@@ -37,7 +37,7 @@ function handle(row, evt) {
             fetch('/table/select', { method: 'POST',
                 body: payload
             }).then(_ => {
-                row.classList.add('selected');
+                // row.classList.add('selected')
             }).catch(_ => {
                 selectedIds.delete(id);
             });
@@ -53,10 +53,10 @@ function handle(row, evt) {
             body: payload
         }).then(_ => {
             // clear all selected rows and select only the current one.
-            document.querySelectorAll('#table tr.selected').forEach(r => {
-                r.classList.remove('selected');
-            });
-            row.classList.add("selected");
+            // document.querySelectorAll('#table tr.selected').forEach (r => {
+            //   r.classList.remove('selected')
+            // });
+            // row.classList.add("selected")
         }).catch(_ => {
             selectedIds.union(backup);
         });

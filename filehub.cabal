@@ -60,6 +60,7 @@ library
       , servant-lucid
       , servant-multipart
       , servant-server
+      , servant
       , http-api-data
       , effectful
       , log-effectful
@@ -104,17 +105,16 @@ library
       , amazonka
       , amazonka-s3
       , conduit
+      , network-uri
 
     exposed-modules:
       Filehub.Cookie
       Filehub.Template
-      Filehub.Index
       Filehub.Error
       Filehub.ClientPath
       Filehub.Mime
       Filehub.Theme
       Filehub.Viewer
-      Filehub.Types
       Filehub.Sort
       Filehub.Size
       Filehub.Storage.File
@@ -136,6 +136,8 @@ library
       Filehub.Entry
       Filehub.Copy
       Filehub.Selected
+      Filehub.Links
+      Filehub.Routes
       Paths_filehub
 
     default-language: Haskell2010

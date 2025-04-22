@@ -8,7 +8,7 @@ module Filehub.Options
   where
 
 import Options.Applicative
-import Filehub.Domain (Theme(..))
+import Filehub.Types (Theme(..))
 
 
 data Options = Options

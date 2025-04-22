@@ -1,8 +1,8 @@
-module Filehub.Domain.Theme
+module Filehub.Theme
   ( defaultTheme
   ) where
 
-import Filehub.Domain.Types (Theme(..))
+import Filehub.Types (Theme(..))
 
 defaultTheme :: Theme
 defaultTheme = Dark
