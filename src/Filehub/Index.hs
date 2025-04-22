@@ -37,12 +37,13 @@ import Filehub.Domain.Viewer (Viewer(..))
 import Filehub.Domain.Viewer qualified as Viewer
 import Filehub.Cookie qualified as Cookies
 import Filehub.Cookie (Cookies' (..), SetCookie)
-import Filehub.Types (Session(..), SessionId(..), TargetId)
+import Filehub.Types (Session(..), SessionId(..), TargetId, Selected(..))
 import Filehub.Storage (Storage)
 import Filehub.Storage qualified as Storage
 import Filehub.Env.SessionPool qualified as SessionPool
 import Filehub.Env.Target qualified as Target
 import Filehub.Env (TargetView(..))
+import Filehub.Selected qualified as Selected
 
 
 data Api mode = Api
@@ -138,6 +139,13 @@ data Api mode = Api
                     S.:> Get '[HTML] (S.Headers '[S.Header "Set-Cookie" SetCookie] (Html ()))
 
 
+  , selectRows      :: mode :- "table"
+                    S.:> S.Header "Cookie" Cookies'
+                    S.:> "select"
+                    S.:> ReqBody '[FormUrlEncoded] Selected
+                    S.:> Post '[HTML] (S.Headers '[S.Header "Set-Cookie" SetCookie](Html ()))
+
+
   , upload          :: mode :- "upload"
                     S.:> S.Header "Cookie" Cookies'
                     S.:> MultipartForm Mem (MultipartData Mem)
@@ -164,7 +172,6 @@ data Api mode = Api
                     S.:> Get '[HTML] (S.Headers '[ S.Header "Set-Cookie" SetCookie
                                                  , S.Header "HX-Trigger" Viewer
                                                  ] (Html ()))
-
 
   , changeTarget    :: mode :- "target"
                     S.:> S.Header "Cookie" Cookies'
@@ -302,6 +309,12 @@ server = Api
   , sortTable = \mCookie order -> do
       withSession mCookie $ \sessionId -> do
         Env.setSortFileBy sessionId (fromMaybe ByNameUp order)
+        view sessionId
+
+
+  , selectRows = \mCookie selected -> do
+      withSession mCookie $ \sessionId -> do
+        Selected.setSelected sessionId selected
         view sessionId
 
 

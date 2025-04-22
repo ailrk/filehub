@@ -21,38 +21,38 @@ module Filehub.Template
   )
   where
 
-import Lucid
-import Lens.Micro
-import Lens.Micro.Platform ()
-import System.FilePath (splitPath, takeFileName)
-import Network.URI.Encode qualified as URI.Encode
-import Servant (ToHttpApiData(..))
+
+import Data.Aeson ((.=))
+import Data.Aeson qualified as Aeson
+import Data.Aeson.Types (Pair)
+import Data.Bifunctor (Bifunctor(..))
+import Data.ByteString.Lazy qualified as LBS
+import Data.Foldable (traverse_, Foldable (..))
+import Data.Map (Map)
+import Data.Map qualified as Map
+import Data.Maybe (fromMaybe)
+import Data.Maybe qualified as Maybe
+import Data.Sequence (Seq(..))
+import Data.Sequence qualified as Seq
+import Data.String.Interpolate (iii)
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Lazy.Encoding qualified as LText
-import Text.Fuzzy (simpleFilter)
-import Data.ByteString.Lazy qualified as LBS
-import Data.String.Interpolate (iii)
-import Data.Foldable (traverse_, Foldable (..))
 import Data.Time.Format (formatTime, defaultTimeLocale)
-import Data.Sequence qualified as Seq
-import Data.Sequence (Seq(..))
-import Data.Bifunctor (Bifunctor(..))
-import Data.Aeson qualified as Aeson
-import Data.Aeson ((.=))
-import Data.Aeson.Types (Pair)
-import Data.Map (Map)
-import Data.Map qualified as Map
-import Data.Maybe qualified as Maybe
-import Data.Maybe (fromMaybe)
 import Filehub.Domain (sortFiles, isMime, ClientPath (..))
-import Filehub.Domain.Types (File (..), FileContent (..), SearchWord (..), SortFileBy (..))
 import Filehub.Domain qualified as Domain
-import Filehub.Domain.Viewer qualified as Viewer
-import Filehub.Types (Target (..), S3Target(..), FileTarget(..))
-import Filehub.Env.Target qualified as Target
+import Filehub.Types (File (..), FileContent (..), SearchWord (..), SortFileBy (..))
+import Filehub.Viewer qualified as Viewer
 import Filehub.Env.Target (TargetView(..))
-
+import Filehub.Env.Target qualified as Target
+import Filehub.Types (Target (..), S3Target(..), FileTarget(..))
+import Lens.Micro
+import Lens.Micro.Platform ()
+import Lucid
+import Network.URI.Encode qualified as URI.Encode
+import Servant (ToHttpApiData(..))
+import System.FilePath (splitPath, takeFileName)
+import Text.Fuzzy (simpleFilter)
 
 ------------------------------------
 -- components

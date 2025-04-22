@@ -110,12 +110,13 @@ library
       Filehub.Template
       Filehub.Index
       Filehub.Error
-      Filehub.Domain.ClientPath
-      Filehub.Domain.Mime
-      Filehub.Domain.Theme
-      Filehub.Domain.Viewer
-      Filehub.Domain.Types
-      Filehub.Domain
+      Filehub.ClientPath
+      Filehub.Mime
+      Filehub.Theme
+      Filehub.Viewer
+      Filehub.Types
+      Filehub.Sort
+      Filehub.Size
       Filehub.Storage.File
       Filehub.Storage.S3
       Filehub.Storage.Effect
@@ -134,7 +135,7 @@ library
       Filehub.Monad
       Filehub.Entry
       Filehub.Copy
-      Filehub.MultiSelect
+      Filehub.Selected
       Paths_filehub
 
     default-language: Haskell2010

@@ -1,4 +1,4 @@
-module Filehub.Domain.Mime (isMime) where
+module Filehub.Mime (isMime) where
 
 
 import Data.Text (Text)

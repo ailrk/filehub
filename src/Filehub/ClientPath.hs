@@ -5,7 +5,7 @@
 --
 --   Note: S3 path is already absolute and fully qualified. Because root of S3 bucket is always "",
 --   client path acts like a noop.
-module Filehub.Domain.ClientPath
+module Filehub.ClientPath
   ( toClientPath
   , fromClientPath
   )
@@ -14,7 +14,7 @@ module Filehub.Domain.ClientPath
 
 import Data.List ((\\))
 import System.FilePath ((</>))
-import Filehub.Domain.Types (ClientPath(..))
+import Filehub.Types (ClientPath(..))
 import Network.URI.Encode qualified as URI.Encode
 
 

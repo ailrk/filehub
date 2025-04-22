@@ -1,6 +1,6 @@
 {-# LANGUAGE NamedFieldPuns #-}
 
-module Filehub.Domain.Viewer
+module Filehub.Viewer
   ( Viewer(..)
   , Resource(..)
   , isResource
