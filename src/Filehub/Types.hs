@@ -197,7 +197,7 @@ instance ToHttpApiData ClientPath where
 
 
 instance FromHttpApiData ClientPath where
-  parseUrlPiece p = ClientPath <$> parseUrlPiece (URI.Encode.decodeText p)
+  parseUrlPiece p = ClientPath <$> parseUrlPiece p
 
 
 data SortFileBy
