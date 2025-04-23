@@ -11,30 +11,43 @@
 module Filehub.ClientPath
   ( toClientPath
   , fromClientPath
+  , toRawClientPath
+  , fromRawClientPath
   )
   where
 
 
 import Data.List ((\\))
 import System.FilePath ((</>))
-import Filehub.Types (ClientPath(..))
+import Filehub.Types (ClientPath(..), RawClientPath(..))
 import Network.URI.Encode qualified as URI.Encode
 
 
 -- | Convert a file path into a ClientPath.
 toClientPath :: FilePath -> FilePath -> ClientPath
 toClientPath root path =
-  let p = path \\ root
-   in ClientPath $ URI.Encode.encode
-     case p of
-       '/':p' -> p'
-       _ -> p
+  let RawClientPath rcp = toRawClientPath root path
+   in ClientPath (URI.Encode.encode rcp)
 
 
 fromClientPath :: FilePath -> ClientPath -> FilePath
 fromClientPath root (ClientPath cp) =
   let decoded = URI.Encode.decode cp
-   in root </>
-        case decoded of
-          '/': rest -> rest
-          _ -> decoded
+   in fromRawClientPath root (RawClientPath decoded)
+
+
+toRawClientPath :: FilePath -> FilePath -> RawClientPath
+toRawClientPath root path =
+  let p = path \\ root
+   in RawClientPath
+     case p of
+       '/':p' -> p'
+       _ -> p
+
+
+fromRawClientPath :: FilePath -> RawClientPath -> FilePath
+fromRawClientPath root (RawClientPath cp) =
+   root </>
+     case cp of
+       '/': rest -> rest
+       _ -> cp

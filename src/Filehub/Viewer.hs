@@ -8,14 +8,13 @@ module Filehub.Viewer
 import Control.Monad (when)
 import Data.List qualified as List
 import Data.Maybe (fromMaybe)
-import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Effectful ((:>), Eff, IOE)
 import Effectful.Error.Dynamic (throwError, Error)
 import Effectful.FileSystem
 import Effectful.Log (Log, logAttention)
 import Effectful.Reader.Dynamic (Reader)
-import Filehub.ClientPath (fromClientPath, toClientPath)
+import Filehub.ClientPath (fromClientPath, toRawClientPath)
 import Filehub.Env (Env(..))
 import Filehub.Env qualified as Env
 import Filehub.Error (FilehubError(..))
@@ -50,7 +49,7 @@ initViewer sessionId root clientPath = do
   let idx = fromMaybe 0 $ List.elemIndex filePath (fmap (.path) files)
   let toResource f =
         Resource
-          { url = Text.pack . (.unClientPath) . toClientPath root $ f.path
+          { url = toRawClientPath root f.path
           , mimetype = Text.decodeUtf8 f.mimetype
           }
   let resources = fmap toResource files

@@ -17,6 +17,7 @@ module Filehub.Types
   , FileContent(..)
   , File(..)
   , ClientPath(..)
+  , RawClientPath(..)
   , SortFileBy(..)
   , SearchWord(..)
   , NewFile(..)
@@ -187,8 +188,13 @@ instance Ord File where
   compare a b = compare a.path b.path
 
 
--- | Filepath without the root part. The path is safe to show in the frontend.
+-- | Filepath without the root part. The path is percent encoded safe to show in the frontend.
 newtype ClientPath = ClientPath { unClientPath :: FilePath }
+  deriving (Show, Eq, Semigroup, Monoid)
+
+
+-- | ClientPath but not percent encoded
+newtype RawClientPath = RawClientPath { unDecodedClientPath :: FilePath }
   deriving (Show, Eq, Semigroup, Monoid)
 
 
@@ -272,16 +278,16 @@ instance Read Theme where
 
 
 data Resource = Resource
-  { url :: Text
+  { url :: RawClientPath
   , mimetype :: Text
   }
   deriving (Show, Eq)
 
 
 instance ToJSON Resource where
-  toJSON (Resource { url, mimetype }) =
+  toJSON (Resource { url = RawClientPath path, mimetype }) =
     Aeson.object
-      [ "url" .= toJSON url
+      [ "url" .= toJSON path
       , "mimetype" .= mimetype
       ]
 

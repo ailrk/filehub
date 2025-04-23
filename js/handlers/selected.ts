@@ -4,15 +4,10 @@ const handlers: Map<string, EventListener> = new Map();
 
 export function register() {
   registerRows()
-  document.body.addEventListener('TargetChanged', _ => {
-    selectedIds.clear()
-    console.log('TargetChanged', selectedIds)
-  })
-
+  document.body.addEventListener('TargetChanged', _ => { selectedIds.clear() })
   document.body.addEventListener('htmx:afterSettle', _ => {
     collect()
     registerRows()
-    console.log('settled', selectedIds)
   })
 }
 
@@ -58,11 +53,8 @@ function handle(row: Element, evt: Event) {
   if (e.ctrlKey || e.metaKey) {
     e.preventDefault()
     e.stopImmediatePropagation()
-  } else {
+  } else
     return;
-  }
-
-  console.log(selectedIds)
 
   function select(
     hooks: {
