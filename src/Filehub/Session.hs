@@ -1,4 +1,4 @@
-module Filehub.Env.Session
+module Filehub.Session
   ( createSession
   , extendSession
   )

@@ -26,13 +26,12 @@ import Data.Generics.Labels ()
 import Effectful ( Eff, (:>), Eff )
 import Effectful.Dispatch.Dynamic (send)
 import Filehub.Env qualified as Env
-import Filehub.Env.Target (TargetView(..))
+import Filehub.Target (TargetView(..))
 import Filehub.Storage.Context qualified as Storage
 import Filehub.Storage.Effect (Storage (..))
 import Filehub.Storage.File qualified as File
 import Filehub.Storage.S3 qualified as S3
-import Filehub.Types (File(..), ClientPath)
-import Filehub.Types (SessionId, Target (..))
+import Filehub.Types (File(..), ClientPath, SessionId, Target(..))
 import Lens.Micro.Platform ()
 import Prelude hiding (readFile, writeFile)
 import Prelude hiding (readFile, writeFile)

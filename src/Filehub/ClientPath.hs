@@ -1,5 +1,8 @@
 -- | Conceal the full absolute path by splitting a absolute path into
 --   root part and the client part, the client part can be rendered safely in the frontend.
+--   ClientPath is percent encoded, the frontend code can safely display it in the UI.
+--   When the server receives a ClientPath, it will restore it to normal path by first decode
+--   the percent encoding, then append the root prefix.
 --
 --   ClientPath is unique within a directory.
 --
@@ -18,6 +21,7 @@ import Filehub.Types (ClientPath(..))
 import Network.URI.Encode qualified as URI.Encode
 
 
+-- | Convert a file path into a ClientPath.
 toClientPath :: FilePath -> FilePath -> ClientPath
 toClientPath root path =
   let p = path \\ root

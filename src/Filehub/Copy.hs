@@ -20,7 +20,7 @@ import Filehub.Env (TargetView(..))
 import Filehub.Env qualified as Env
 import Filehub.Storage (runStorage)
 import Filehub.Storage qualified as Storage
-import Filehub.Env.Target qualified as Target
+import Filehub.Target qualified as Target
 import Control.Monad (forM_)
 import System.FilePath (takeFileName, (</>))
 

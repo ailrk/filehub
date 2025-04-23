@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
-module Filehub.Env.Target
+module Filehub.Target
   ( TargetView(..)
   , fromTargetOptions
   , getTargetId
@@ -11,6 +11,7 @@ module Filehub.Env.Target
 import Filehub.Options ( TargetOption(..) )
 import Filehub.Types
     ( Target(..),
+      TargetSessionData(..),
       FileTarget(..),
       S3Target(..),
       TargetId(..),
@@ -29,10 +30,10 @@ import Lens.Micro hiding (to)
 import Lens.Micro.Platform ()
 import GHC.Generics (Generic)
 import Filehub.Error (FilehubError (..))
-import Filehub.Env.SessionPool qualified as SessionPool
+import Filehub.SessionPool qualified as SessionPool
 import Filehub.Env.Internal qualified as Env
-import Filehub.Env.Target.File qualified as Env.File
-import Filehub.Env.Target.S3 qualified as Env.S3
+import Filehub.Target.File qualified as Env.File
+import Filehub.Target.S3 qualified as Env.S3
 
 
 data TargetView = TargetView

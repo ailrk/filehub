@@ -1,77 +1,111 @@
-const selectedIds: Set<string> = new Set();
+let selectedIds: Set<string> = new Set();
+const handlers: Map<string, EventListener> = new Map();
 
 
 export function register() {
-  document.querySelectorAll('#table tr').forEach(row => {
+  registerRows()
+  document.body.addEventListener('TargetChanged', _ => {
     selectedIds.clear()
-    row.addEventListener('click', e => handle(row, e), true)
+    console.log('TargetChanged', selectedIds)
+  })
+
+  document.body.addEventListener('htmx:afterSettle', _ => {
+    collect()
+    registerRows()
+    console.log('settled', selectedIds)
   })
 }
 
 
-// disable the default behavior when ctrl is pressed.
-function prevent(evt: Event) {
-  let e = evt as MouseEvent;
-  if (e.ctrlKey || e.metaKey) {
-    e.preventDefault();
-    e.stopImmediatePropagation();
-  }
+function registerRows() {
+  unregisterRows()
+  let rows: NodeListOf<HTMLElement> = document.querySelectorAll('#table tr')
+  rows.forEach(row => {
+    const id = row.dataset.path!
+    const h = (e: Event) => handle(row, e)
+    handlers.set(id, h)
+    row.addEventListener('click', h, true)
+  })
+}
+
+
+function unregisterRows() {
+  let rows: NodeListOf<HTMLElement> = document.querySelectorAll('#table tr')
+  rows.forEach(row => {
+    const id = row.dataset.path!
+    const h = handlers.get(id)
+    h && row.removeEventListener('click', h, true)
+  })
+}
+
+
+// Collect selected rows to the set `selectedIds`
+function collect() {
+  let rows: NodeListOf<HTMLElement> = document.querySelectorAll('#table tr')
+  rows.forEach(row => {
+    const id = row.dataset.path!
+    if (row.classList.contains('selected')) {
+      selectedIds.add(id)
+    }
+  })
 }
 
 
 function handle(row: Element, evt: Event) {
-    let e = evt as MouseEvent;
-    const id = (row as HTMLElement).dataset.path!;
-    prevent(evt)
-    if (e.ctrlKey || e.metaKey) {
-      if (selectedIds.has(id)) {
+  let e = evt as MouseEvent;
+  const id = (row as HTMLElement).dataset.path!
+  // disable the default behavior when ctrl is pressed.
+  if (e.ctrlKey || e.metaKey) {
+    e.preventDefault()
+    e.stopImmediatePropagation()
+  } else {
+    return;
+  }
 
-        selectedIds.delete(id)
-        let payload = new FormData()
-        selectedIds.forEach(id => payload.append("selected", id))
-        fetch('/table/select',
-          { method: 'POST',
-            body: payload,
-          }
-        ).then(_ => {
-          // row.classList.remove('selected')
-        }).catch(_ => {
-          selectedIds.add(id)
-        })
+  console.log(selectedIds)
 
-      } else {
-        selectedIds.add(id)
-        let payload = new FormData()
-        selectedIds.forEach(id => payload.append("selected", id))
-        fetch('/table/select',
-          { method: 'POST',
-            body: payload
-          }
-        ).then(_ => {
-          // row.classList.add('selected')
-        }).catch(_ => {
-          selectedIds.delete(id)
-        })
-      }
-    } else {
-      const backup = structuredClone(selectedIds);
-      selectedIds.clear()
-      selectedIds.add(id)
-      let payload = new FormData()
-      selectedIds.forEach(id => payload.append("selected", id))
-      fetch('/table/select',
-        { method: 'POST',
-          body: payload
+  function select(
+    hooks: {
+      prepare: () => void,
+      confirm: () => void,
+      recover: () => void
+    }) {
+    hooks.prepare()
+    let payload = new URLSearchParams()
+    selectedIds.forEach(id => payload.append("selected", id))
+    fetch('/table/select',
+      { method: 'POST',
+        body: payload,
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded"
         }
-      ).then(_ => {
-        // clear all selected rows and select only the current one.
-        // document.querySelectorAll('#table tr.selected').forEach (r => {
-        //   r.classList.remove('selected')
-        // });
+      }
+    ).then(res => {
+      if (res.status == 200) {
+        hooks.confirm()
+      } else {
+        hooks.recover()
+        console.error('failed to select')
+      }
+    }).catch(_ => {
+      hooks.recover()
+      console.error('failed to select')
+    })
+  }
 
-        // row.classList.add("selected")
-      }).catch(_ => {
-        selectedIds.union(backup)
+  if (e.ctrlKey || e.metaKey) {
+    if (selectedIds.has(id)) {
+      select({
+        prepare: () => { selectedIds.delete(id) },
+        confirm: () => { row.classList.remove('selected') },
+        recover: () => { selectedIds.add(id) }
+      })
+    } else {
+      select({
+        prepare: () => { selectedIds.add(id) },
+        confirm: () => { row.classList.add('selected') },
+        recover: () => { selectedIds.delete(id) }
       })
     }
+  }
 }

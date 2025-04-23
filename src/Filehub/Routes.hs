@@ -43,8 +43,9 @@ import Filehub.Types
       SortFileBy(..),
       UpdatedFile(..),
       TargetId,
-      Selected(..) )
-import Filehub.Viewer (Viewer(..))
+      Selected(..),
+      FilehubEvent(..)
+    )
 import Filehub.Cookie (Cookies' (..), SetCookie)
 import GHC.Generics (Generic)
 
@@ -59,6 +60,7 @@ data Api mode = Api
                     S.:> QueryParam "dir" ClientPath
                     S.:> Get '[HTML] (S.Headers '[ S.Header "Set-Cookie" SetCookie
                                                  , S.Header "HX-Trigger" FilehubError
+                                                 , S.Header "HX-Trigger" FilehubEvent
                                                  ]
                                                  (Html ()))
 
@@ -139,14 +141,17 @@ data Api mode = Api
                     S.:> S.Header "Cookie" Cookies'
                     S.:> "sort"
                     S.:> QueryParam "by" SortFileBy
-                    S.:> Get '[HTML] (S.Headers '[S.Header "Set-Cookie" SetCookie] (Html ()))
+                    S.:> Get '[HTML] (S.Headers '[ S.Header "Set-Cookie" SetCookie
+                                                 , S.Header "HX-Trigger" FilehubEvent
+                                                 ] (Html ()))
 
 
   , selectRows      :: mode :- "table"
                     S.:> S.Header "Cookie" Cookies'
                     S.:> "select"
                     S.:> ReqBody '[FormUrlEncoded] Selected
-                    S.:> Post '[HTML] (S.Headers '[S.Header "Set-Cookie" SetCookie](Html ()))
+                    S.:> Post '[PlainText] (S.Headers '[ S.Header "Set-Cookie" SetCookie
+                                                       ] S.NoContent)
 
 
   , upload          :: mode :- "upload"
@@ -173,14 +178,17 @@ data Api mode = Api
                     S.:> S.Header "Cookie" Cookies'
                     S.:> QueryParam "file" ClientPath
                     S.:> Get '[HTML] (S.Headers '[ S.Header "Set-Cookie" SetCookie
-                                                 , S.Header "HX-Trigger" Viewer
+                                                 , S.Header "HX-Trigger" FilehubEvent
                                                  ] (Html ()))
 
   , changeTarget    :: mode :- "target"
                     S.:> S.Header "Cookie" Cookies'
                     S.:> "change"
                     S.:> QueryParam "target" TargetId
-                    S.:> Get '[HTML] (S.Headers '[ S.Header "Set-Cookie" SetCookie ] (Html ()))
+                    S.:> Get '[HTML] (S.Headers '[ S.Header "Set-Cookie" SetCookie
+                                                 , S.Header "HX-Trigger" FilehubEvent
+                                                 ] (Html ()))
+
 
   , themeCss        :: mode :- "theme.css"
                     S.:> S.Header "Cookie" Cookies'

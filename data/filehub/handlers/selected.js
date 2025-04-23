@@ -1,64 +1,93 @@
-const selectedIds = new Set();
+let selectedIds = new Set();
+const handlers = new Map();
 export function register() {
-    document.querySelectorAll('#table tr').forEach(row => {
+    register1();
+    document.body.addEventListener('TargetChanged', _ => {
         selectedIds.clear();
-        row.addEventListener('click', e => handle(row, e), true);
+        console.log('TargetChanged', selectedIds);
+    });
+    document.body.addEventListener('htmx:afterSettle', _ => {
+        collect();
+        register1();
+        console.log('settled', selectedIds);
     });
 }
-// disable the default behavior when ctrl is pressed.
-function prevent(evt) {
-    let e = evt;
-    if (e.ctrlKey || e.metaKey) {
-        e.preventDefault();
-        e.stopImmediatePropagation();
-    }
+function register1() {
+    unregister1();
+    let rows = document.querySelectorAll('#table tr');
+    rows.forEach(row => {
+        const id = row.dataset.path;
+        const h = (e) => handle(row, e);
+        handlers.set(id, h);
+        row.addEventListener('click', h, true);
+    });
+}
+function unregister1() {
+    let rows = document.querySelectorAll('#table tr');
+    rows.forEach(row => {
+        const id = row.dataset.path;
+        const h = handlers.get(id);
+        h && row.removeEventListener('click', h, true);
+    });
+}
+// Collect selected rows to the set `selectedIds`
+function collect() {
+    let rows = document.querySelectorAll('#table tr');
+    rows.forEach(row => {
+        const id = row.dataset.path;
+        if (row.classList.contains('selected')) {
+            selectedIds.add(id);
+        }
+    });
 }
 function handle(row, evt) {
     let e = evt;
     const id = row.dataset.path;
-    prevent(evt);
+    // disable the default behavior when ctrl is pressed.
+    if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+    }
+    else {
+        return;
+    }
+    console.log(selectedIds);
+    function select(hooks) {
+        hooks.prepare();
+        let payload = new URLSearchParams();
+        selectedIds.forEach(id => payload.append("selected", id));
+        fetch('/table/select', { method: 'POST',
+            body: payload,
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded"
+            }
+        }).then(res => {
+            if (res.status == 200) {
+                hooks.confirm();
+            }
+            else {
+                hooks.recover();
+                console.error('failed to select');
+            }
+        }).catch(_ => {
+            hooks.recover();
+            console.error('failed to select');
+        });
+    }
     if (e.ctrlKey || e.metaKey) {
         if (selectedIds.has(id)) {
-            selectedIds.delete(id);
-            let payload = new FormData();
-            selectedIds.forEach(id => payload.append("selected", id));
-            fetch('/table/select', { method: 'POST',
-                body: payload,
-            }).then(_ => {
-                // row.classList.remove('selected')
-            }).catch(_ => {
-                selectedIds.add(id);
+            select({
+                prepare: () => { selectedIds.delete(id); },
+                confirm: () => { row.classList.remove('selected'); },
+                recover: () => { selectedIds.add(id); }
             });
         }
         else {
-            selectedIds.add(id);
-            let payload = new FormData();
-            selectedIds.forEach(id => payload.append("selected", id));
-            fetch('/table/select', { method: 'POST',
-                body: payload
-            }).then(_ => {
-                // row.classList.add('selected')
-            }).catch(_ => {
-                selectedIds.delete(id);
+            select({
+                prepare: () => { selectedIds.add(id); },
+                confirm: () => { row.classList.add('selected'); },
+                recover: () => { selectedIds.delete(id); }
             });
         }
-    }
-    else {
-        const backup = structuredClone(selectedIds);
-        selectedIds.clear();
-        selectedIds.add(id);
-        let payload = new FormData();
-        selectedIds.forEach(id => payload.append("selected", id));
-        fetch('/table/select', { method: 'POST',
-            body: payload
-        }).then(_ => {
-            // clear all selected rows and select only the current one.
-            // document.querySelectorAll('#table tr.selected').forEach (r => {
-            //   r.classList.remove('selected')
-            // });
-            // row.classList.add("selected")
-        }).catch(_ => {
-            selectedIds.union(backup);
-        });
     }
 }

@@ -16,8 +16,8 @@ import Filehub.Cookie ( getSessionId, Cookies'(..), SetCookie )
 import Filehub.Cookie qualified as Cookies
 import Filehub.Env (Env, TargetView (..))
 import Filehub.Env qualified as Env
-import Filehub.Env.SessionPool qualified as SessionPool
-import Filehub.Env.Target qualified as Target
+import Filehub.SessionPool qualified as SessionPool
+import Filehub.Target qualified as Target
 import Filehub.Error ( withServerError, FilehubError(..), toServerError, FilehubError(..), withServerError )
 import Filehub.Monad ( runFilehub, Filehub )
 import Filehub.Routes (Api (..))
@@ -44,7 +44,7 @@ import Filehub.Types
       UpdatedFile(..),
       Theme(..),
       Session(..),
-      SessionId(..) )
+      SessionId(..), FilehubEvent (..) )
 import Filehub.Viewer qualified as Viewer
 import Lens.Micro
 import Lens.Micro.Platform ()
@@ -61,6 +61,7 @@ import Servant.Server.Generic (AsServerT)
 import System.FilePath ((</>), takeFileName)
 import Text.Printf (printf)
 import Web.Cookie (parseCookies)
+import Debug.Trace
 
 
 -- | Handle static file access
@@ -116,7 +117,7 @@ dynamicRaw env = Servant.Tagged $ \req respond -> do
 
 server :: Api (AsServerT Filehub)
 server = Api
-  { index = \mCookie -> withSession mCookie (fmap Template.withDefault . index)
+  { index = \mCookie -> withSession mCookie (fmap Template.withDefault . index')
 
 
   , cd = \mCookie mClientPath -> do
@@ -124,8 +125,9 @@ server = Api
         clientPath <- withQueryParam mClientPath
         root <- Env.getRoot sessionId & withServerError
         r <- runStorage sessionId $ Storage.changeDir (ClientPath.fromClientPath root clientPath) & runErrorNoCallStack
-        let header = either addHeader (const noHeader) r
-        header <$> view sessionId
+        view sessionId <&>
+            either addHeader (const noHeader) r
+          . addHeader DirChanged
 
 
   , newFile = \mCookie (NewFile path) -> do
@@ -205,13 +207,13 @@ server = Api
   , sortTable = \mCookie order -> do
       withSession mCookie $ \sessionId -> do
         Env.setSortFileBy sessionId (fromMaybe ByNameUp order)
-        view sessionId
+        addHeader TableSorted <$> view sessionId
 
 
   , selectRows = \mCookie selected -> do
       withSession mCookie $ \sessionId -> do
         Selected.setSelected sessionId selected
-        view sessionId
+        pure S.NoContent
 
 
   , upload = \mCookie multipart ->
@@ -250,7 +252,7 @@ server = Api
       withSession mCookie $ \sessionId -> do
         targetId <- withQueryParam mTargetId
         withServerError $ Env.changeCurrentTarget sessionId targetId
-        index sessionId
+        addHeader TargetChanged <$> index sessionId
 
 
   , themeCss = \mCookie ->
@@ -303,11 +305,15 @@ runStorage :: _ => SessionId -> Eff (Storage : Error FilehubError : es) a -> Eff
 runStorage sessionId = withServerError . Storage.runStorage sessionId
 
 
+-- | Hard reset all session data. This inclues the current selection, copy-paste status, etc.
+index' :: SessionId -> Filehub (Html ())
+index' sessionId = do
+  Selected.clearSelectedAllTargets sessionId
+  index sessionId
+
+
 index :: SessionId -> Filehub (Html ())
-index sessionId =
-  Template.index
-  <$> sideBar sessionId
-  <*> view sessionId
+index sessionId = Template.index <$> sideBar sessionId <*> view sessionId
 
 
 sideBar :: SessionId -> Filehub (Html ())
@@ -324,6 +330,7 @@ view sessionId = do
   files <- sortFiles order <$> runStorage sessionId Storage.lsCurrentDir & withServerError
   TargetView target _ _ <- Env.currentTarget sessionId & withServerError
   selected <- Selected.getSelected sessionId & withServerError
+  traceM (show selected)
   let table = Template.table target root files selected order
   Template.view table <$> pathBreadcrumb sessionId
 

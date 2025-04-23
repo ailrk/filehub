@@ -33,7 +33,7 @@ import Data.Maybe (fromMaybe)
 import Data.Maybe qualified as Maybe
 import Data.Sequence (Seq(..))
 import Data.Sequence qualified as Seq
-import Data.String.Interpolate (iii)
+import Data.String.Interpolate (iii, i)
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Lazy.Encoding qualified as LText
@@ -54,8 +54,8 @@ import Filehub.Size (toReadableSize)
 import Filehub.Selected qualified as Selected
 import Filehub.ClientPath qualified as ClientPath
 import Filehub.Viewer qualified as Viewer
-import Filehub.Env.Target (TargetView(..))
-import Filehub.Env.Target qualified as Target
+import Filehub.Target (TargetView(..))
+import Filehub.Target qualified as Target
 import Lens.Micro
 import Lens.Micro.Platform ()
 import Lucid
@@ -491,10 +491,10 @@ table target root files selected order = do
             "Size"
             sortIconSize
             `with` sortControlSize
-    tbody_ $ traverse_ record files
+    tbody_ $ traverse_ record ([0..] `zip` files)
   where
-    record :: File -> Html ()
-    record file =
+    record :: (Int, File) -> Html ()
+    record (idx, file) =
       tr_ attrs do
         td_ $ fileNameElement file
         td_ $ modifiedDateElement file
@@ -504,6 +504,7 @@ table target root files selected order = do
         attrs = mconcat
           [ [ term "data-path" (Text.pack path) ]
           , [class_ "selected " | clientPath `Selected.elem` selected]
+          , [id_ [i|tr-#{idx}|] ]
           ]
         clientPath@(ClientPath path) = ClientPath.toClientPath root file.path
 
@@ -616,15 +617,19 @@ table target root files selected order = do
             FileTarget _ -> takeFileName file.path
 
 
-
     openBlank file =
-      let clientPath = toClientPath root file.path
-       in [ term "_" [iii| on click js window.open('#{clientPath}', '_blank'); end |] ]
+      -- Client path are percent encoded, but we need to use unencoded raw path here.
+      let ClientPath clientPath = ClientPath.toClientPath root file.path
+          path = URI.Encode.decode clientPath
+       in [ term "_" [iii| on click js window.open('#{path}', '_blank'); end |] ]
+
 
     open file =
-      let clientPath = toClientPath root file.path
+      let ClientPath clientPath = ClientPath.toClientPath root file.path
+          path = URI.Encode.decode clientPath
           imgIdx = Maybe.fromJust $ Map.lookup file resourceIdxMap -- image index always exists
-       in [ term "_" [iii| on click send Open(path: '#{clientPath}', index: #{imgIdx}) to window |] ]
+       in [ term "_" [iii| on click send Open(path: '#{path}', index: #{imgIdx}) to window |] ]
+
 
     editor file =
       [ term "hx-get" "/modal/editor"
@@ -632,6 +637,7 @@ table target root files selected order = do
       , term "hx-target" "#index"
       , term "hx-swap" "beforeend"
       ]
+
 
     resourceIdxMap :: Map File Int
     resourceIdxMap = Map.fromList $ Viewer.takeResourceFiles files `zip` [0..]

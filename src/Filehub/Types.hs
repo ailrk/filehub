@@ -1,5 +1,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE NamedFieldPuns #-}
+
 module Filehub.Types
   ( Session(..)
   , TargetSessionData(..)
@@ -21,6 +23,8 @@ module Filehub.Types
   , NewFolder(..)
   , UpdatedFile(..)
   , Theme(..)
+  , FilehubEvent(..)
+  , Resource(..)
   )
   where
 
@@ -30,9 +34,13 @@ import Control.Concurrent.Timer qualified as Timer
 import Data.HashTable.IO (BasicHashTable)
 import Data.Hashable (Hashable)
 import Data.Text (Text)
+import Data.Text.Lazy.Encoding qualified as LText
 import Data.Time (UTCTime, NominalDiffTime)
 import Data.UUID (UUID)
+import Data.Aeson (ToJSON (..), (.=))
+import Data.Aeson qualified as Aeson
 import GHC.Generics (Generic)
+import Lens.Micro
 import Lens.Micro.Platform ()
 import Network.Mime (MimeType)
 import Network.URI.Encode qualified as URI.Encode
@@ -261,3 +269,43 @@ instance Read Theme where
           "light" -> Light
           _ -> Dark
     pure (theme, "")
+
+
+data Resource = Resource
+  { url :: Text
+  , mimetype :: Text
+  }
+  deriving (Show, Eq)
+
+
+instance ToJSON Resource where
+  toJSON (Resource { url, mimetype }) =
+    Aeson.object
+      [ "url" .= toJSON url
+      , "mimetype" .= mimetype
+      ]
+
+
+data FilehubEvent
+  = ViewerInited [Resource] Int -- Update image list and show the viewer
+  | TargetChanged
+  | TableSorted
+  | DirChanged
+  deriving (Show)
+
+
+instance ToJSON FilehubEvent where
+  toJSON (ViewerInited res index) =
+    Aeson.object
+      [ "ViewerInited" .= Aeson.object
+          [ "resources" .= toJSON res
+          , "index" .= toJSON index
+          ]
+      ]
+  toJSON TargetChanged = Aeson.object [ "TargetChanged" .= Aeson.object [] ]
+  toJSON TableSorted = Aeson.object [ "TableSorted" .= Aeson.object [] ]
+  toJSON DirChanged = Aeson.object [ "DirChanged" .= Aeson.object [] ]
+
+
+instance ToHttpApiData FilehubEvent where
+  toUrlPiece v = (v & Aeson.encode & LText.decodeUtf8) ^. strict

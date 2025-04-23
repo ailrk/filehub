@@ -1,4 +1,4 @@
-module Filehub.Env.SessionPool
+module Filehub.SessionPool
   ( SessionPool(..)
   , new
   , newSession
@@ -18,7 +18,7 @@ import Control.Concurrent.Timer qualified as Timer
 import Control.Concurrent.Suspend qualified as Suspend
 import Control.Monad (when)
 import Filehub.Types (Session(..), SessionPool (..), Env, SessionId)
-import Filehub.Env.Session qualified as Session
+import Filehub.Session qualified as Session
 import Filehub.Env.Internal qualified as Env
 
 

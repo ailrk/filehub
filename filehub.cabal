@@ -117,18 +117,8 @@ library
       Filehub.Viewer
       Filehub.Sort
       Filehub.Size
-      Filehub.Storage.File
-      Filehub.Storage.S3
-      Filehub.Storage.Effect
-      Filehub.Storage.Context
-      Filehub.Storage
-      Filehub.Env.Session
-      Filehub.Env.SessionPool
-      Filehub.Env.Target
-      Filehub.Env.Target.File
-      Filehub.Env.Target.S3
-      Filehub.Env.Internal
-      Filehub.Env
+      Filehub.Session
+      Filehub.SessionPool
       Filehub.Types
       Filehub.Options
       Filehub.Server
@@ -138,6 +128,16 @@ library
       Filehub.Selected
       Filehub.Links
       Filehub.Routes
+      Filehub.Storage.File
+      Filehub.Storage.S3
+      Filehub.Storage.Effect
+      Filehub.Storage.Context
+      Filehub.Storage
+      Filehub.Target.File
+      Filehub.Target.S3
+      Filehub.Target
+      Filehub.Env.Internal
+      Filehub.Env
       Paths_filehub
 
     default-language: Haskell2010

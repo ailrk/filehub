@@ -24,7 +24,7 @@ import Effectful.Dispatch.Dynamic (interpret)
 import Effectful.Error.Dynamic (throwError)
 import Filehub.ClientPath (fromClientPath)
 import Filehub.Env qualified as Env
-import Filehub.Env.Target (TargetView(..))
+import Filehub.Target (TargetView(..))
 import Filehub.Error (FilehubError (..))
 import Filehub.Storage.Context qualified as Storage
 import Filehub.Storage.Effect (Storage (..))

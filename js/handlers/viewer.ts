@@ -1,5 +1,5 @@
 declare var htmx: any;
-import type { InitViewer } from '../def.js';
+import type { ViewerInited } from '../def.js';
 import { closeDropdowns } from './closeDropdown.js';
 import Viewer from '../viewer.js';
 
@@ -8,12 +8,12 @@ let viewer: Viewer | null = null;
 
 
 export function register() {
-  window.addEventListener('InitViewer', (e: any) => initViewer(e.detail));
+  window.addEventListener('ViewerInited', (e: any) => initViewer(e.detail));
   window.addEventListener('Open', (e: any) => open(e.detail.path));
 }
 
 
-function initViewer(o: InitViewer) {
+function initViewer(o: ViewerInited) {
   closeDropdowns();
   viewer = new Viewer(o.resources, { index: o.index });
   viewer.show();

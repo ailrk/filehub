@@ -5,9 +5,9 @@ module Filehub.Env
   , setCurrentDir
   , getSortFileBy
   , setSortFileBy
-  , module Filehub.Env.SessionPool
+  , module Filehub.SessionPool
   , module Filehub.Env.Internal
-  , module Filehub.Env.Target
+  , module Filehub.Target
   )
   where
 
@@ -20,10 +20,10 @@ import Effectful ((:>), Eff, IOE)
 import Filehub.Types
     ( Env(..), Session(..), SessionId, Target(..), SortFileBy )
 import Filehub.Error (FilehubError (..))
-import Filehub.Env.SessionPool (getSession, updateSession)
+import Filehub.SessionPool (getSession, updateSession)
 import Filehub.Env.Internal (getSessionPool, getDataDir, getTheme, getSessionDuration, getTargets)
-import Filehub.Env.Target (getTargetId, currentTarget, changeCurrentTarget, TargetView (..))
-import Filehub.Env.Target qualified as Target
+import Filehub.Target (getTargetId, currentTarget, changeCurrentTarget, TargetView (..))
+import Filehub.Target qualified as Target
 
 
 getRoot :: (Reader Env :> es, IOE :> es, Error FilehubError :> es) => SessionId -> Eff es FilePath

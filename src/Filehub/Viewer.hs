@@ -1,23 +1,15 @@
-{-# LANGUAGE NamedFieldPuns #-}
-
 module Filehub.Viewer
-  ( Viewer(..)
-  , Resource(..)
-  , isResource
+  ( isResource
   , takeResourceFiles
   , initViewer
   )
   where
 
 import Control.Monad (when)
-import Data.Aeson (ToJSON (..), (.=))
-import Data.Aeson qualified as Aeson
 import Data.List qualified as List
 import Data.Maybe (fromMaybe)
-import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
-import Data.Text.Lazy.Encoding qualified as LText
 import Effectful ((:>), Eff, IOE)
 import Effectful.Error.Dynamic (throwError, Error)
 import Effectful.FileSystem
@@ -30,45 +22,10 @@ import Filehub.Error (FilehubError(..))
 import Filehub.Mime (isMime)
 import Filehub.Sort (sortFiles)
 import Filehub.Storage (isDirectory, lsDir, runStorage)
-import Filehub.Types ( File(..), ClientPath(..), SessionId )
-import Lens.Micro
+import Filehub.Types ( File(..), ClientPath(..), SessionId, FilehubEvent(..), Resource (..) )
 import Lens.Micro.Platform ()
 import Network.Mime (MimeType)
-import Servant (ToHttpApiData(..))
 import System.FilePath (takeDirectory)
-
-
-data Resource = Resource
-  { url :: Text
-  , mimetype :: Text
-  }
-  deriving (Show, Eq)
-
-
-instance ToJSON Resource where
-  toJSON (Resource { url, mimetype }) =
-    Aeson.object
-      [ "url" .= toJSON url
-      , "mimetype" .= mimetype
-      ]
-
-
-data Viewer = InitViewer [Resource] Int -- Update image list and show the viewer
-  deriving (Show)
-
-
-instance ToJSON Viewer where
-  toJSON (InitViewer res index) =
-    Aeson.object
-      [ "InitViewer" .= Aeson.object
-          [ "resources" .= toJSON res
-          , "index" .= toJSON index
-          ]
-      ]
-
-
-instance ToHttpApiData Viewer where
-  toUrlPiece v = (v & Aeson.encode & LText.decodeUtf8) ^. strict
 
 
 isResource :: MimeType -> Bool
@@ -80,7 +37,7 @@ takeResourceFiles = filter (isResource . (.mimetype))
 
 
 initViewer :: (Reader Env :> es, Log :> es, Error FilehubError :> es, IOE :> es, FileSystem :> es)
-           => SessionId -> FilePath -> ClientPath -> Eff es Viewer
+           => SessionId -> FilePath -> ClientPath -> Eff es FilehubEvent
 initViewer sessionId root clientPath = do
   let filePath = fromClientPath root clientPath
   let dir = takeDirectory filePath
@@ -97,4 +54,4 @@ initViewer sessionId root clientPath = do
           , mimetype = Text.decodeUtf8 f.mimetype
           }
   let resources = fmap toResource files
-  pure $ InitViewer resources idx
+  pure $ ViewerInited resources idx

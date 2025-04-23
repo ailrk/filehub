@@ -4,7 +4,7 @@ export interface Resource {
 }
 
 
-export interface InitViewer {
+export interface ViewerInited {
   resources: Resource[],
   index: number,
 }

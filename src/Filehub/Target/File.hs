@@ -1,4 +1,4 @@
-module Filehub.Env.Target.File (initTarget) where
+module Filehub.Target.File (initTarget) where
 
 import Filehub.Options ( FSTargetOption(..) )
 import Filehub.Types

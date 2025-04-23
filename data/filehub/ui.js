@@ -10,8 +10,3 @@ ErrorsHandlers.register();
 ViewerHandlers.register();
 ConextmenuHandlers.register();
 SelectedHandlers.register();
-/* Attach handlers on htmx swap */
-document.body.addEventListener('htmx:afterSwap', _ => {
-    ConextmenuHandlers.register();
-    SelectedHandlers.register();
-});

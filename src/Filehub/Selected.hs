@@ -1,6 +1,8 @@
 module Filehub.Selected
   ( getSelected
   , setSelected
+  , clearSelected
+  , clearSelectedAllTargets
   , toList
   , fromList
   , elem
@@ -15,10 +17,10 @@ import Effectful (Eff, (:>), Eff, (:>), IOE)
 import Effectful.Error.Dynamic (Error)
 import Effectful.Reader.Dynamic (Reader)
 import Filehub.Types
-    ( ClientPath, Env, SessionId, Session(..), Selected(..) )
+    ( ClientPath, Env, SessionId, Session(..), Selected(..))
 import Filehub.Error (FilehubError)
 import Filehub.Env qualified as Env
-import Filehub.Env.Target qualified as Target
+import Filehub.Target qualified as Target
 import Prelude hiding (elem)
 import Prelude qualified
 
@@ -29,6 +31,16 @@ getSelected sessionId = (^. #sessionData . #selected) <$> Target.currentTarget s
 
 setSelected :: (Reader Env :> es, IOE :> es) => SessionId -> Selected -> Eff es ()
 setSelected sessionId selected = Env.updateSession sessionId $ \s -> s & #targets . ix s.index . #selected .~ selected
+
+
+clearSelected :: (Reader Env :> es, IOE :> es) => SessionId -> Eff es ()
+clearSelected sessionId = setSelected sessionId NoSelection
+
+
+clearSelectedAllTargets :: (Reader Env :> es, IOE :> es) => SessionId -> Eff es ()
+clearSelectedAllTargets sessionId = do
+  let update sessionData = sessionData & #selected .~ NoSelection
+  Env.updateSession sessionId $ \s -> s &  #targets . mapped %~ update
 
 
 toList :: Selected -> [ClientPath]

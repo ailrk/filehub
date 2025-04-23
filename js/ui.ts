@@ -1,5 +1,6 @@
 'use strict';
 
+declare var htmx: any;
 import * as SelectedHandlers from './handlers/selected.js';
 import * as ErrorsHandlers from './handlers/errors.js';
 import * as CloseDropdownHandlers from './handlers/closeDropdown.js';
@@ -13,10 +14,3 @@ ErrorsHandlers.register();
 ViewerHandlers.register();
 ConextmenuHandlers.register();
 SelectedHandlers.register();
-
-
-/* Attach handlers on htmx swap */
-document.body.addEventListener('htmx:afterSwap', _ => {
-  ConextmenuHandlers.register();
-  SelectedHandlers.register();
-});

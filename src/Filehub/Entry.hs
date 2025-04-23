@@ -16,8 +16,8 @@ import System.Directory (makeAbsolute)
 import Filehub.Monad
 import Filehub.Options (Options(..), parseOptions)
 import Filehub.Env
-import Filehub.Env.SessionPool qualified as SessionPool
-import Filehub.Env.Target qualified as Target
+import Filehub.SessionPool qualified as SessionPool
+import Filehub.Target qualified as Target
 import Filehub.Server qualified as Server
 import Filehub.Routes qualified as Routes
 import Servant (serveWithContextT, Context (..), Application, serveDirectoryWebApp, (:<|>) (..))
