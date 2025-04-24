@@ -94,8 +94,10 @@ paste sessionId = do
   case state of
     Paste selections -> do
       TargetView to _ _ <- Env.currentTarget sessionId
+      traceM (show (Target.getTargetId to))
       forM_ selections $ \(from, files) -> do
         forM_ files $ \file -> do
+          traceM (show (Target.getTargetId from) <> " " <> show file)
           bytes <- Target.withTarget sessionId (Target.getTargetId from) do
             runStorage sessionId $ Storage.readFileContent file
           dirPath <- Target.withTarget sessionId (Target.getTargetId to) do

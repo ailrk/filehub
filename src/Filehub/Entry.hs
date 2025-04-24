@@ -6,12 +6,12 @@
 module Filehub.Entry (main) where
 
 import Effectful (runEff)
-import Data.Functor ((<&>))
 import Data.Time (secondsToNominalDiffTime)
 import Text.Printf (printf)
 import UnliftIO (SomeException, hFlush, stdout, catch)
 import Network.Wai.Middleware.RequestLogger (logStdout)
 import Network.Wai.Handler.Warp (setPort, defaultSettings, runSettings)
+import Servant (serveWithContextT, Context (..), Application, serveDirectoryWebApp, (:<|>) (..))
 import System.Directory (makeAbsolute)
 import Filehub.Auth qualified as Auth
 import Filehub.Monad
@@ -21,8 +21,10 @@ import Filehub.SessionPool qualified as SessionPool
 import Filehub.Target qualified as Target
 import Filehub.Server qualified as Server
 import Filehub.Routes qualified as Routes
-import Servant (serveWithContextT, Context (..), Application, serveDirectoryWebApp, (:<|>) (..))
+import Log.Backend.StandardOutput (withStdOutLogger)
+import Lens.Micro
 import Paths_filehub qualified
+import Effectful.Log (runLogT, defaultLogLevel)
 
 
 application :: Env -> Application
@@ -43,11 +45,11 @@ application env
 
 
 main :: IO ()
-main = do
+main = withStdOutLogger \logger -> do
   options <- parseOptions
   dataDir <- Paths_filehub.getDataDir >>= makeAbsolute <&> (++ "/data")
   sessionPool <- runEff SessionPool.new
-  targets <- Target.fromTargetOptions options.targets
+  targets <- Target.fromTargetOptions options.targets & runLogT "target" logger defaultLogLevel
   printf "PORT: %d\n" options.port
   let env =
         Env
@@ -57,6 +59,7 @@ main = do
           , sessionPool = sessionPool
           , sessionDuration = secondsToNominalDiffTime (60 * 60)
           , targets = targets
+          , logger = logger
           }
   go env `catch` handler
   where

@@ -35,6 +35,7 @@ import Filehub.SessionPool qualified as SessionPool
 import Filehub.Env.Internal qualified as Env
 import Filehub.Target.File qualified as Env.File
 import Filehub.Target.S3 qualified as Env.S3
+import Log (MonadLog)
 
 
 data TargetView = TargetView
@@ -50,7 +51,7 @@ getTargetId (S3Target t) = t.targetId
 getTargetId (FileTarget t) = t.targetId
 
 
-fromTargetOptions :: MonadUnliftIO m => [TargetOption] -> m [Target]
+fromTargetOptions :: (MonadUnliftIO m, MonadLog m) => [TargetOption] -> m [Target]
 fromTargetOptions tos = traverse transform tos
   where
     transform (FSTargetOption to) = FileTarget <$> Env.File.initTarget to
