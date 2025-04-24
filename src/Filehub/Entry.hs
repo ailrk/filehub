@@ -13,6 +13,7 @@ import UnliftIO (SomeException, hFlush, stdout, catch)
 import Network.Wai.Middleware.RequestLogger (logStdout)
 import Network.Wai.Handler.Warp (setPort, defaultSettings, runSettings)
 import System.Directory (makeAbsolute)
+import Filehub.Auth qualified as Auth
 import Filehub.Monad
 import Filehub.Options (Options(..), parseOptions)
 import Filehub.Env
@@ -25,12 +26,16 @@ import Paths_filehub qualified
 
 
 application :: Env -> Application
-application env = serveWithContextT Routes.api EmptyContext (toServantHandler env) server
+application env
+  = Server.sessionMiddleware env
+  . serveWithContextT Routes.api ctx (toServantHandler env)
+  $ server
   where
     server = Server.server
       :<|> serveDirectoryWebApp env.dataDir
       :<|> Server.dynamicRaw env
 
+    ctx = Auth.sessionHandler env :. EmptyContext
 
 ------------------------------------
 -- main

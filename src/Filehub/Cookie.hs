@@ -4,14 +4,17 @@ module Filehub.Cookie
   , getSessionId
   , setSessionId
   , getSessionId'
+  , renderSetCookie
   ) where
 
 import Web.Cookie (Cookies, SetCookie(..), parseCookies, defaultSetCookie)
+import Web.Cookie qualified as Cookie
 import Servant (FromHttpApiData (..))
 import Data.Text.Encoding qualified as T
 import Data.UUID qualified as UUID
 import Filehub.Types (Session(..), SessionId (..))
 import Lens.Micro ((<&>))
+import Data.ByteString (ByteString)
 
 
 newtype Cookies' = Cookies' Cookies
@@ -21,6 +24,10 @@ newtype Cookies' = Cookies' Cookies
 instance FromHttpApiData Cookies' where
   parseHeader = return . Cookies' . parseCookies
   parseQueryParam = return . Cookies' . parseCookies . T.encodeUtf8
+
+
+renderSetCookie :: SetCookie -> ByteString
+renderSetCookie = Cookie.renderSetCookieBS
 
 
 getSessionId' :: Cookies' -> Maybe SessionId

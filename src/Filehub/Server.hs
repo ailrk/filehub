@@ -7,13 +7,13 @@ import Data.Maybe (fromMaybe, isJust)
 import Data.Foldable (forM_)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
-import Data.Time.Clock qualified as Time
-import Effectful ( MonadIO(liftIO), liftIO, Eff, (:>), IOE, liftIO )
+import Data.UUID qualified as UUID
+import Effectful ( MonadIO(liftIO), liftIO, Eff, (:>), IOE, liftIO, runEff )
 import Effectful.Error.Dynamic (runErrorNoCallStack, throwError, Error)
 import Effectful.FileSystem.IO.ByteString.Lazy (readFile)
-import Effectful.Reader.Dynamic (Reader)
+import Effectful.Reader.Dynamic (Reader, runReader)
 import Filehub.ClientPath qualified as ClientPath
-import Filehub.Cookie ( getSessionId, Cookies'(..), SetCookie )
+import Filehub.Cookie ( getSessionId )
 import Filehub.Cookie qualified as Cookies
 import Filehub.Env (Env, TargetView (..))
 import Filehub.Env qualified as Env
@@ -59,8 +59,7 @@ import Network.Wai
 import Network.Wai.Application.Static
 import Prelude hiding (readFile)
 import Prelude hiding (readFile)
-import Servant ( Raw, Tagged(..), ServerT, ServerError(..), addHeader, noHeader, ServerError )
-import Servant qualified as S
+import Servant ( Raw, Tagged(..), ServerT, ServerError(..), addHeader, noHeader, ServerError, FromHttpApiData (..) )
 import Servant.Server (err400)
 import Servant.Server.Generic (AsServerT)
 import System.FilePath ((</>), takeFileName)
@@ -119,221 +118,202 @@ dynamicRaw env = Servant.Tagged $ \req respond -> do
             bytes
 
 
+-- | If session is not present, create a new session
+sessionMiddleware :: Env -> Middleware
+sessionMiddleware env app req respond = do
+  let mCookie = lookup "Cookie" $ requestHeaders req
+  case mCookie >>= parseHeader' >>= Cookies.getSessionId' of
+    Just sessionId -> do
+      eSession <- runEff . runErrorNoCallStack @FilehubError . runReader env $ SessionPool.getSession sessionId
+      case eSession of
+        Left _ -> do
+          respondWithNewSession
+        Right _ -> app req respond
+    Nothing ->
+      respondWithNewSession
+  where
+    parseHeader' x = either (const Nothing) Just $ parseHeader x
+    respondWithNewSession = do
+      session <- runEff $ runReader env SessionPool.newSession
+      let SessionId sid = session.sessionId
+      let setCookieHeader = ("Set-Cookie", Cookies.renderSetCookie $ Cookies.setSessionId session)
+      let injectedCookieHeader = ("Cookie", "sessionId=" <> UUID.toASCIIBytes sid)
+      let req' = req { requestHeaders = injectedCookieHeader : requestHeaders req }
+      app req' $ \res ->
+        let res' = mapResponseHeaders (setCookieHeader :) res
+         in respond res'
+
+
 server :: Api (AsServerT Filehub)
 server = Api
-  { index = \mCookie -> withSession mCookie (fmap Template.withDefault . index')
+  { index = fmap Template.withDefault . index'
 
 
-  , cd = \mCookie mClientPath -> do
-      withSession mCookie $ \sessionId -> do
-        clientPath <- withQueryParam mClientPath
-        root <- Env.getRoot sessionId & withServerError
-        r <- runStorage sessionId $ Storage.changeDir (ClientPath.fromClientPath root clientPath) & runErrorNoCallStack
-        view sessionId <&>
-            either addHeader (const noHeader) r
-          . addHeader DirChanged
+  , cd = \sessionId mClientPath -> do
+      clientPath <- withQueryParam mClientPath
+      root <- Env.getRoot sessionId & withServerError
+      r <- runStorage sessionId $ Storage.changeDir (ClientPath.fromClientPath root clientPath) & runErrorNoCallStack
+      view sessionId <&>
+          either addHeader (const noHeader) r
+        . addHeader DirChanged
 
 
-  , newFile = \mCookie (NewFile path) -> do
-      withSession mCookie $ \sessionId -> do
-        r <- runStorage sessionId $ Storage.newFile (Text.unpack path) & runErrorNoCallStack
-        let header = either addHeader (const noHeader) r
-        header <$> view sessionId
+  , newFile = \sessionId (NewFile path) -> do
+      r <- runStorage sessionId $ Storage.newFile (Text.unpack path) & runErrorNoCallStack
+      let header = either addHeader (const noHeader) r
+      header <$> view sessionId
 
 
-  , updateFile = \mCookie (UpdatedFile clientPath content) -> do
-      withSession mCookie $ \ sessionId -> do
-        let path = clientPath.unClientPath
-        _ <- runStorage sessionId $ Storage.writeFile path (Text.encodeUtf8 content ^. lazy)
-        view sessionId
+  , updateFile = \sessionId (UpdatedFile clientPath content) -> do
+      let path = clientPath.unClientPath
+      _ <- runStorage sessionId $ Storage.writeFile path (Text.encodeUtf8 content ^. lazy)
+      view sessionId
 
 
-  , deleteFile = \mCookie mClientPath deleteSelected ->
-      withSession mCookie $ \sessionId -> do
-        withServerError do
-          root <- Env.getRoot sessionId
+  , deleteFile = \sessionId mClientPath deleteSelected -> do
+      withServerError do
+        root <- Env.getRoot sessionId
 
-          when (isJust mClientPath) do
-            clientPath <- withQueryParam mClientPath
-            let p = ClientPath.fromClientPath root clientPath
-            runStorage sessionId  $ Storage.deleteFile p
-
-          when deleteSelected do
-            allSelecteds <- Selected.allSelecteds sessionId
-            forM_ allSelecteds $ \(target, selected) -> do
-              Target.withTarget sessionId (Target.getTargetId target) do
-                case selected of
-                  NoSelection -> pure ()
-                  Selected x xs -> do
-                    forM_ (fmap (ClientPath.fromClientPath root) (x:xs)) $ \path -> do
-                      runStorage sessionId  $ Storage.deleteFile path
-            clear sessionId
-        index sessionId
-
-
-  , newFolder = \mCookie (NewFolder path) ->
-      withSession mCookie $ \sessionId -> do
-        r <- runStorage sessionId do
-          Storage.newFolder (Text.unpack path) & runErrorNoCallStack
-        let header = either addHeader (const noHeader) r
-        header <$> view sessionId
-
-
-  , newFileModal = \mCookie -> withSession mCookie $ const (pure Template.newFileModal)
-
-
-  , newFolderModal = \mCookie -> withSession mCookie $ const (pure Template.newFolderModal)
-
-
-  , fileDetailModal = \mCookie mClientPath ->
-      withSession mCookie $ \sessionId ->
-        withServerError do
+        when (isJust mClientPath) do
           clientPath <- withQueryParam mClientPath
-          root <- Env.getRoot sessionId
-          file <- runStorage sessionId $ Storage.getFile (ClientPath.fromClientPath root clientPath)
-          pure (Template.fileDetailModal file)
-
-
-  , uploadModal = \mCookie -> withSession mCookie $ const (pure Template.uploadModal)
-
-
-  , editorModal = \mCookie mClientPath ->
-      withSession mCookie $ \sessionId -> do
-        withServerError do
-          clientPath <- withQueryParam mClientPath
-          root <- Env.getRoot sessionId
           let p = ClientPath.fromClientPath root clientPath
-          content <- runStorage sessionId do
-            f <- Storage.getFile p
-            Storage.readFileContent f
-          let filename = takeFileName p
-          pure $ Template.editorModal filename content
+          runStorage sessionId  $ Storage.deleteFile p
+
+        when deleteSelected do
+          allSelecteds <- Selected.allSelecteds sessionId
+          forM_ allSelecteds $ \(target, selected) -> do
+            Target.withTarget sessionId (Target.getTargetId target) do
+              case selected of
+                NoSelection -> pure ()
+                Selected x xs -> do
+                  forM_ (fmap (ClientPath.fromClientPath root) (x:xs)) $ \path -> do
+                    runStorage sessionId  $ Storage.deleteFile path
+          clear sessionId
+      index sessionId
 
 
-  , search = \mCookie searchWord ->
-      withSession mCookie $ \sessionId ->
-        withServerError . runStorage sessionId $ do
-          TargetView target _ _ <- Env.currentTarget sessionId & withServerError
-          root <- Env.getRoot sessionId
-          files <- Storage.lsCurrentDir
-          order <- Env.getSortFileBy sessionId
-          selected <- Selected.getSelected sessionId
-          pure $ Template.search searchWord target root files selected order
+  , newFolder = \sessionId (NewFolder path) -> do
+      r <- runStorage sessionId do
+        Storage.newFolder (Text.unpack path) & runErrorNoCallStack
+      let header = either addHeader (const noHeader) r
+      header <$> view sessionId
 
 
-  , sortTable = \mCookie order -> do
-      withSession mCookie $ \sessionId -> do
-        Env.setSortFileBy sessionId (fromMaybe ByNameUp order)
-        addHeader TableSorted <$> view sessionId
+  , newFileModal = \_ -> pure Template.newFileModal
 
 
-  , selectRows = \mCookie selected -> do
-      withSession mCookie $ \sessionId -> do
-        case selected of
-          NoSelection -> throwError InvalidSelection & withServerError
-          _ -> do
-            Selected.setSelected sessionId selected
-            Template.controlPanel <$> ControlPanel.getControlPanelState sessionId & withServerError
+  , newFolderModal = \_ -> pure Template.newFolderModal
 
 
-  , upload = \mCookie multipart ->
-      withSession mCookie $ \sessionId -> do
-        runStorage sessionId $ Storage.upload multipart
-        index sessionId
+  , fileDetailModal = \sessionId mClientPath -> do
+      withServerError do
+        clientPath <- withQueryParam mClientPath
+        root <- Env.getRoot sessionId
+        file <- runStorage sessionId $ Storage.getFile (ClientPath.fromClientPath root clientPath)
+        pure (Template.fileDetailModal file)
 
 
-  , download = \mCookie mClientPath ->
-      withSession mCookie $ \sessionId -> do
-        clientPath@(ClientPath path) <- withQueryParam mClientPath
-        bs <- runStorage sessionId $ Storage.download clientPath
-        pure $ addHeader (printf "attachement; filename=%s" (takeFileName path)) bs
+  , uploadModal = \_ -> pure Template.uploadModal
 
 
-  , copy = \mCookie ->
-      withSession mCookie $ \sessionId -> do
-        withServerError do
-          Copy.select sessionId
-          Copy.copy sessionId
-          Template.controlPanel <$> ControlPanel.getControlPanelState sessionId
+  , editorModal = \sessionId mClientPath -> do
+      withServerError do
+        clientPath <- withQueryParam mClientPath
+        root <- Env.getRoot sessionId
+        let p = ClientPath.fromClientPath root clientPath
+        content <- runStorage sessionId do
+          f <- Storage.getFile p
+          Storage.readFileContent f
+        let filename = takeFileName p
+        pure $ Template.editorModal filename content
 
 
-  , paste = \mCookie ->
-      withSession mCookie $ \sessionId -> do
-        withServerError do
-          Copy.paste sessionId
-        index sessionId
+  , search = \sessionId searchWord -> do
+      withServerError . runStorage sessionId $ do
+        TargetView target _ _ <- Env.currentTarget sessionId & withServerError
+        root <- Env.getRoot sessionId
+        files <- Storage.lsCurrentDir
+        order <- Env.getSortFileBy sessionId
+        selected <- Selected.getSelected sessionId
+        pure $ Template.search searchWord target root files selected order
 
 
-  , cancel = \mCookie ->
-      withSession mCookie $ \sessionId -> do
-        clear sessionId
-        index sessionId
+  , sortTable = \sessionId order -> do
+      Env.setSortFileBy sessionId (fromMaybe ByNameUp order)
+      addHeader TableSorted <$> view sessionId
 
 
-  , contextMenu = \mCookie mClientPath ->
-      withSession mCookie $ \sessionId ->
-        withServerError do
-          clientPath <- withQueryParam mClientPath
-          root <- Env.getRoot sessionId
-          let filePath = ClientPath.fromClientPath root clientPath
-          file <- runStorage sessionId $ Storage.getFile filePath
-          pure $ Template.contextMenu root file
+  , selectRows = \sessionId selected -> do
+      case selected of
+        NoSelection -> throwError InvalidSelection & withServerError
+        _ -> do
+          Selected.setSelected sessionId selected
+          Template.controlPanel <$> ControlPanel.getControlPanelState sessionId & withServerError
 
 
-  , initViewer = \mCookie mClientPath ->
-      withSession mCookie $ \sessionId ->
-        withServerError do
-          clientPath <- withQueryParam mClientPath
-          root <- Env.getRoot sessionId
-          payload <- Viewer.initViewer sessionId root clientPath
-          pure $ addHeader payload mempty
+  , upload = \sessionId multipart -> do
+      runStorage sessionId $ Storage.upload multipart
+      index sessionId
 
 
-  , changeTarget = \mCookie mTargetId ->
-      withSession mCookie $ \sessionId -> do
-        targetId <- withQueryParam mTargetId
-        withServerError $ Env.changeCurrentTarget sessionId targetId
-        addHeader TargetChanged <$> index sessionId
+  , download = \sessionId mClientPath -> do
+      clientPath@(ClientPath path) <- withQueryParam mClientPath
+      bs <- runStorage sessionId $ Storage.download clientPath
+      pure $ addHeader (printf "attachement; filename=%s" (takeFileName path)) bs
 
 
-  , themeCss = \mCookie ->
-      withSession mCookie $ \_ -> do
-        theme <- Env.getTheme
-        dir <- Env.getDataDir
-        readFile $
-          case theme of
-            Dark -> dir </> "dark.css"
-            Light -> dir </> "light.css"
+  , copy = \sessionId ->
+      withServerError do
+        Copy.select sessionId
+        Copy.copy sessionId
+        Template.controlPanel <$> ControlPanel.getControlPanelState sessionId
+
+
+  , paste = \sessionId -> do
+      withServerError do
+        Copy.paste sessionId
+      index sessionId
+
+
+  , cancel = \sessionId -> do
+      clear sessionId
+      index sessionId
+
+
+  , contextMenu = \sessionId mClientPath -> do
+      withServerError do
+        clientPath <- withQueryParam mClientPath
+        root <- Env.getRoot sessionId
+        let filePath = ClientPath.fromClientPath root clientPath
+        file <- runStorage sessionId $ Storage.getFile filePath
+        pure $ Template.contextMenu root file
+
+
+  , initViewer = \sessionId mClientPath -> do
+      withServerError do
+        clientPath <- withQueryParam mClientPath
+        root <- Env.getRoot sessionId
+        payload <- Viewer.initViewer sessionId root clientPath
+        pure $ addHeader payload mempty
+
+
+  , changeTarget = \sessionId mTargetId -> do
+      targetId <- withQueryParam mTargetId
+      withServerError $ Env.changeCurrentTarget sessionId targetId
+      addHeader TargetChanged <$> index sessionId
+
+
+  , themeCss = do
+      theme <- Env.getTheme
+      dir <- Env.getDataDir
+      readFile $
+        case theme of
+          Dark -> dir </> "dark.css"
+          Light -> dir </> "light.css"
+
 
   , healthz = pure "ok"
   }
-
-
--- | Get sessionId from cookie if it exists. If it doesn't, create a new session and add
---   `SetCookie` header to set the sessionId.
---   We extend it's duration when the sessionId exists and it will expiry in 30 seconds
---   Note: The order of headers in the Headers HLIST matters.
-withSession
-  :: (Reader Env.Env :> es, IOE :> es, S.AddHeader [S.Optional, S.Strict] h SetCookie a b)
-  => Maybe Cookies' -> (SessionId -> Eff es a) -> Eff es b
-withSession mCookie cont =
-  case mCookie >>= Cookies.getSessionId' of
-    Just sessionId -> do
-      result <- SessionPool.getSession sessionId & runErrorNoCallStack @FilehubError
-      case result of
-        Right session -> do
-          now <- liftIO Time.getCurrentTime
-          let diff = Time.nominalDiffTimeToSeconds $ session.expireDate `Time.diffUTCTime` now
-          when (diff >= 0 && diff < 30) $ do
-            SessionPool.extendSession sessionId
-          noHeader <$> cont sessionId
-        Left _ -> contWithNewSession
-    Nothing -> contWithNewSession
-  where
-    contWithNewSession = do
-      session <- SessionPool.newSession
-      let setCookie = Cookies.setSessionId session
-      addHeader setCookie <$> cont session.sessionId
 
 
 withQueryParam :: (Error ServerError :> es) => Maybe a -> Eff es a

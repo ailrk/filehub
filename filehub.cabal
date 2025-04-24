@@ -122,6 +122,7 @@ library
       Filehub.Types
       Filehub.Options
       Filehub.Server
+      Filehub.Auth
       Filehub.Monad
       Filehub.Entry
       Filehub.Copy
