@@ -26,7 +26,7 @@ import Servant
       ReqBody,
       FormUrlEncoded,
       OctetStream,
-      Delete )
+      Delete, QueryFlag )
 import Lucid
 import Lens.Micro.Platform ()
 import Data.ByteString.Lazy qualified as LBS
@@ -66,8 +66,8 @@ data Api mode = Api
 
 
   , newFile         :: mode :- "files"
-                    S.:> S.Header "Cookie" Cookies'
                     S.:> "new"
+                    S.:> S.Header "Cookie" Cookies'
                     S.:> ReqBody '[FormUrlEncoded] NewFile
                     S.:> Post '[HTML] (S.Headers '[ S.Header "Set-Cookie" SetCookie
                                                   , S.Header "HX-Trigger" FilehubError
@@ -76,22 +76,35 @@ data Api mode = Api
 
 
   , updateFile      :: mode :- "files"
-                    S.:> S.Header "Cookie" Cookies'
                     S.:> "update"
+                    S.:> S.Header "Cookie" Cookies'
                     S.:> ReqBody '[FormUrlEncoded] UpdatedFile
                     S.:> Put '[HTML] (S.Headers '[S.Header "Set-Cookie" SetCookie] (Html ()))
 
 
   , deleteFile      :: mode :- "files"
-                    S.:> S.Header "Cookie" Cookies'
                     S.:> "delete"
+                    S.:> S.Header "Cookie" Cookies'
                     S.:> QueryParam "file" ClientPath
+                    S.:> QueryFlag "selected"
                     S.:> Delete '[HTML] (S.Headers '[S.Header "Set-Cookie" SetCookie] (Html ()))
 
 
-  , newFolder       :: mode :- "folders"
+  , copy            :: mode :- "files"
+                    S.:> "copy"
                     S.:> S.Header "Cookie" Cookies'
+                    S.:> Get '[HTML] (S.Headers '[ S.Header "Set-Cookie" SetCookie] (Html ()))
+
+
+  , paste           :: mode :- "files"
+                    S.:> "paste"
+                    S.:> S.Header "Cookie" Cookies'
+                    S.:> Get '[HTML] (S.Headers '[ S.Header "Set-Cookie" SetCookie] (Html ()))
+
+
+  , newFolder       :: mode :- "folders"
                     S.:> "new"
+                    S.:> S.Header "Cookie" Cookies'
                     S.:> ReqBody '[FormUrlEncoded] NewFolder
                     S.:> Post '[HTML] (S.Headers '[ S.Header "Set-Cookie" SetCookie
                                                   , S.Header "HX-Trigger" FilehubError
@@ -99,8 +112,8 @@ data Api mode = Api
 
 
   , newFileModal    :: mode :- "modal"
-                    S.:> S.Header "Cookie" Cookies'
                     S.:> "new-file"
+                    S.:> S.Header "Cookie" Cookies'
                     S.:> Get '[HTML] (S.Headers '[S.Header "Set-Cookie" SetCookie] (Html ()))
 
 
@@ -111,22 +124,22 @@ data Api mode = Api
 
 
   , fileDetailModal :: mode :- "modal"
-                    S.:> S.Header "Cookie" Cookies'
                     S.:> "file"
                     S.:> "detail"
+                    S.:> S.Header "Cookie" Cookies'
                     S.:> QueryParam "file" ClientPath
                     S.:> Get '[HTML] (S.Headers '[S.Header "Set-Cookie" SetCookie] (Html ()))
 
 
   , uploadModal     :: mode :- "modal"
-                    S.:> S.Header "Cookie" Cookies'
                     S.:> "upload"
+                    S.:> S.Header "Cookie" Cookies'
                     S.:> Get '[HTML] (S.Headers '[S.Header "Set-Cookie" SetCookie] (Html ()))
 
 
   , editorModal     :: mode :- "modal"
-                    S.:> S.Header "Cookie" Cookies'
                     S.:> "editor"
+                    S.:> S.Header "Cookie" Cookies'
                     S.:> QueryParam "file" ClientPath
                     S.:> Get '[HTML] (S.Headers '[S.Header "Set-Cookie" SetCookie] (Html ()))
 
@@ -138,8 +151,8 @@ data Api mode = Api
 
 
   , sortTable       :: mode :- "table"
-                    S.:> S.Header "Cookie" Cookies'
                     S.:> "sort"
+                    S.:> S.Header "Cookie" Cookies'
                     S.:> QueryParam "by" SortFileBy
                     S.:> Get '[HTML] (S.Headers '[ S.Header "Set-Cookie" SetCookie
                                                  , S.Header "HX-Trigger" FilehubEvent
@@ -147,11 +160,10 @@ data Api mode = Api
 
 
   , selectRows      :: mode :- "table"
-                    S.:> S.Header "Cookie" Cookies'
                     S.:> "select"
+                    S.:> S.Header "Cookie" Cookies'
                     S.:> ReqBody '[FormUrlEncoded] Selected
-                    S.:> Post '[PlainText] (S.Headers '[ S.Header "Set-Cookie" SetCookie
-                                                       ] S.NoContent)
+                    S.:> Post '[HTML] (S.Headers '[ S.Header "Set-Cookie" SetCookie ] (Html ()))
 
 
   , upload          :: mode :- "upload"
@@ -166,6 +178,11 @@ data Api mode = Api
                     S.:> Get '[OctetStream] (S.Headers '[ S.Header "Set-Cookie" SetCookie
                                                         , S.Header "Content-Disposition" String
                                                         ] LBS.ByteString)
+
+
+  , cancel          :: mode :- "cancel"
+                    S.:> S.Header "Cookie" Cookies'
+                    S.:> Get '[HTML] (S.Headers '[S.Header "Set-Cookie" SetCookie] (Html ()))
 
 
   , contextMenu     :: mode :- "contextmenu"

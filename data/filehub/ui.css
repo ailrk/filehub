@@ -19,11 +19,12 @@ input {
   font-size: 1em;
   background-color: var(--background3);
   color: var(--frontground);
-  border-style: solid;
+  border: none;
+  outline: none;
   border-radius: 5px;
 
   &:focus {
-    outline: none;
+    outline: transparent;
   }
 }
 
@@ -49,20 +50,19 @@ textarea {
   grid-template-columns: 60px 1fr;
   grid-template-rows: auto 95vh;
   overflow: hidden;
-  border-bottom: 1px solid var(--frontground);
 }
 
 
 #control-panel {
   grid-area: control-panel;
-  border-bottom: 1px solid var(--frontground);
   background-color: var(--background2);
+  border-bottom: 1px solid var(--background3);
+  border-left: 1px solid var(--background3);
 }
 
 
 #side-bar {
   grid-area: side-bar;
-  border-right: 1px solid var(--frontground);
   background-color: var(--background2);
 
   & .target-icon {
@@ -127,8 +127,9 @@ textarea {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid var(--frontground);
     overflow: hidden;
+    border-left: 1px solid var(--background3);
+    border-bottom: 1px solid var(--background3);
   }
 
   & #tool-bar #path-breadcrumb {
@@ -194,6 +195,12 @@ textarea {
   & li {
     display: inline-block;
     margin: 1rem 0rem;
+    padding: 5px 1px 5px 1px;
+  }
+
+  & li:hover {
+    background: var(--background3);
+    border-radius: 2px;
   }
 
 
@@ -381,6 +388,7 @@ textarea.form-control {
 
     textarea {
       height: 60vh;
+      border: none;
     };
   }
 }
@@ -443,7 +451,7 @@ textarea.form-control {
   position: absolute;
   background: var(--background2);
   padding: 0.5rem 0;
-  border: 1px solid var(--frontground);
+  border: 1px solid var(--background3);
   border-radius : 0.1rem;
   text-align: left;
   z-index: 1;
@@ -451,6 +459,10 @@ textarea.form-control {
   animation-name: fadeIn;
   animation-duration: 60ms;
   animation-timing-function: ease;
+
+  & a {
+    width: 100%;
+  }
 
   &.closing {
     animation-name: fadeOut;

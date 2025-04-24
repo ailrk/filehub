@@ -15,8 +15,6 @@ function initViewer(o) {
  * Otherwise request the backend for the image list to construct a new viewer.
  * */
 function open(path) {
-    let query = new URLSearchParams({
-        file: encodeURIComponent(path)
-    });
+    let query = new URLSearchParams({ file: encodeURIComponent(path) });
     htmx.ajax('GET', `/viewer?${query.toString()}`, { target: 'body', swap: 'none' });
 }

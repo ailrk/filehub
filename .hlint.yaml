@@ -18,6 +18,7 @@
 - ignore: {name: "Replace case with fromMaybe"}
 - ignore: {name: "Use tuple-section"}
 - ignore: {name: "Use mapM_"}
+- ignore: {name: "Redundant fmap"}
 
 
 # Gives at least one suggestion we don't like.
@@ -34,6 +35,8 @@
 #   do somethingComplicated
 - ignore: {name: "Redundant return"}
 - ignore: {name: "Redundant pure"}
+
+- ignore: {lhs: "nub"}
 
 # Off by default hints we like
 - warn: {name: Use module export list}

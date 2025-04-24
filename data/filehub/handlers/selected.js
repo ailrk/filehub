@@ -1,19 +1,15 @@
 let selectedIds = new Set();
 const handlers = new Map();
 export function register() {
-    register1();
-    document.body.addEventListener('TargetChanged', _ => {
-        selectedIds.clear();
-        console.log('TargetChanged', selectedIds);
-    });
+    registerRows();
+    document.body.addEventListener('TargetChanged', _ => { selectedIds.clear(); });
     document.body.addEventListener('htmx:afterSettle', _ => {
         collect();
-        register1();
-        console.log('settled', selectedIds);
+        registerRows();
     });
 }
-function register1() {
-    unregister1();
+function registerRows() {
+    unregisterRows();
     let rows = document.querySelectorAll('#table tr');
     rows.forEach(row => {
         const id = row.dataset.path;
@@ -22,7 +18,7 @@ function register1() {
         row.addEventListener('click', h, true);
     });
 }
-function unregister1() {
+function unregisterRows() {
     let rows = document.querySelectorAll('#table tr');
     rows.forEach(row => {
         const id = row.dataset.path;
@@ -48,28 +44,21 @@ function handle(row, evt) {
         e.preventDefault();
         e.stopImmediatePropagation();
     }
-    else {
+    else
         return;
-    }
-    console.log(selectedIds);
     function select(hooks) {
         hooks.prepare();
-        let payload = new URLSearchParams();
-        selectedIds.forEach(id => payload.append("selected", id));
-        fetch('/table/select', { method: 'POST',
-            body: payload,
+        const values = { selected: Array.from(selectedIds) };
+        htmx.ajax('POST', '/table/select', {
+            values,
             headers: {
-                "Content-Type": "application/x-www-form-urlencoded"
-            }
-        }).then(res => {
-            if (res.status == 200) {
-                hooks.confirm();
-            }
-            else {
-                hooks.recover();
-                console.error('failed to select');
-            }
-        }).catch(_ => {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            target: '#control-panel',
+            swap: 'outerHTML'
+        }).then((_) => {
+            hooks.confirm();
+        }).catch((_) => {
             hooks.recover();
             console.error('failed to select');
         });

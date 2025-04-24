@@ -1,11 +1,13 @@
 module Filehub.Selected
   ( getSelected
   , setSelected
+  , anySelected
   , clearSelected
   , clearSelectedAllTargets
   , toList
   , fromList
   , elem
+  , allSelecteds
   , AsSet(..)
   )
   where
@@ -17,7 +19,7 @@ import Effectful (Eff, (:>), Eff, (:>), IOE)
 import Effectful.Error.Dynamic (Error)
 import Effectful.Reader.Dynamic (Reader)
 import Filehub.Types
-    ( ClientPath, Env, SessionId, Session(..), Selected(..))
+    ( ClientPath, Env, SessionId, Session(..), Selected(..), Target)
 import Filehub.Error (FilehubError)
 import Filehub.Env qualified as Env
 import Filehub.Target qualified as Target
@@ -31,6 +33,25 @@ getSelected sessionId = (^. #sessionData . #selected) <$> Target.currentTarget s
 
 setSelected :: (Reader Env :> es, IOE :> es) => SessionId -> Selected -> Eff es ()
 setSelected sessionId selected = Env.updateSession sessionId $ \s -> s & #targets . ix s.index . #selected .~ selected
+
+
+anySelected :: (Reader Env :> es, IOE :> es, Error FilehubError :> es) => SessionId -> Eff es Bool
+anySelected sessionId = do
+  session <- Env.getSession sessionId
+  let result =
+        session
+        ^. #targets
+        & fmap (^. #selected)
+        & any (\case { Selected _ _ -> True; NoSelection -> False })
+  pure result
+
+
+allSelecteds :: (Reader Env :> es, IOE :> es, Error FilehubError :> es) => SessionId -> Eff es [(Target, Selected)]
+allSelecteds sessionId = do
+  session <- Env.getSession sessionId
+  let selecteds = session ^. #targets & fmap (^. #selected)
+  targets <- Env.getTargets
+  pure $ targets `zip` selecteds
 
 
 clearSelected :: (Reader Env :> es, IOE :> es) => SessionId -> Eff es ()

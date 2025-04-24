@@ -21,10 +21,14 @@ data FilehubError
   | InvalidPath
   | InvalidDir
   | InvalidSession
+  | InvalidSelection
   | InternalError
   | TargetError
   | MimeTypeMissing
   | S3Error
+  | SelectError
+  | CopyError
+  | PasteError
   deriving Show
 
 
@@ -33,10 +37,14 @@ instance ToHttpApiData FilehubError where
   toUrlPiece InvalidPath = Text.pack $ show InvalidPath
   toUrlPiece InvalidDir = Text.pack $ show InvalidDir
   toUrlPiece InvalidSession = Text.pack $ show InvalidSession
+  toUrlPiece InvalidSelection = Text.pack $ show InvalidSelection
   toUrlPiece InternalError = Text.pack $ show InternalError
   toUrlPiece TargetError = Text.pack $ show TargetError
   toUrlPiece MimeTypeMissing = Text.pack $ show MimeTypeMissing
   toUrlPiece S3Error = Text.pack $ show S3Error
+  toUrlPiece SelectError = Text.pack $ show SelectError
+  toUrlPiece CopyError = Text.pack $ show CopyError
+  toUrlPiece PasteError = Text.pack $ show PasteError
 
 
 withServerError :: (Error ServerError :> es) => Eff (Error FilehubError : es) b -> Eff es b
@@ -50,7 +58,11 @@ toServerError err =
     InvalidPath -> err400 { errBody = fromString $ show err }
     InvalidDir -> err400 { errBody = fromString $ show err }
     InvalidSession -> err400 { errBody = fromString $ show err }
+    InvalidSelection -> err400 { errBody = fromString $ show err }
     InternalError -> err500 { errBody = fromString $ show err }
     TargetError -> err500 { errBody = fromString $ show err }
     MimeTypeMissing -> err400 { errBody = fromString $ show err }
     S3Error -> err500 { errBody = fromString $ show err }
+    SelectError -> err500 { errBody = fromString $ show err }
+    CopyError -> err500 { errBody = fromString $ show err }
+    PasteError -> err500 { errBody = fromString $ show err }

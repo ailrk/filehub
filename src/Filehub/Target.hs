@@ -5,6 +5,7 @@ module Filehub.Target
   , getTargetId
   , currentTarget
   , changeCurrentTarget
+  , withTarget
   , getS3Target
   ) where
 
@@ -61,8 +62,8 @@ currentTarget sessionId = do
   mSession <- SessionPool.getSession sessionId
   targets <- Env.getTargets
   maybe (throwError InvalidSession) pure do
-      index <- mSession ^? _Just . #index
-      targetSessionData <- mSession ^? _Just . #targets . ix index
+      index <- mSession ^? #index
+      targetSessionData <- mSession ^? #targets . ix index
       target <- targets ^? ix index
       pure $ TargetView target targetSessionData index
 
@@ -80,6 +81,15 @@ changeCurrentTarget sessionId targetId = do
          Nothing -> do
            logAttention "[changeCurrentTarget] can't find target" (show targetId)
            throwError InvalidSession
+
+
+withTarget :: (Reader Env :> es, IOE :> es, Error FilehubError :> es, Log :> es) => SessionId -> TargetId -> Eff es a -> Eff es a
+withTarget sessionId targetId action = do
+  TargetView saved _ _ <- currentTarget sessionId
+  changeCurrentTarget sessionId targetId
+  result <- action
+  changeCurrentTarget sessionId (getTargetId saved)
+  pure result
 
 
 getS3Target :: (Reader Env :> es, IOE :> es, Error FilehubError :> es) => SessionId -> Eff es S3Target

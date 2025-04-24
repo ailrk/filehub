@@ -128,6 +128,7 @@ library
       Filehub.Selected
       Filehub.Links
       Filehub.Routes
+      Filehub.ControlPanel
       Filehub.Storage.File
       Filehub.Storage.S3
       Filehub.Storage.Effect

@@ -33,6 +33,7 @@ createSession = do
     { sessionId = sessionId
     , expireDate = expireDate
     , targets = targetToSessionData <$> targets
+    , copyState = NoCopyPaste
     , index = 0
     }
   where
@@ -41,14 +42,12 @@ createSession = do
       TargetSessionData
         { currentDir = ""
         , sortedFileBy = ByNameUp
-        , copyState = NoCopyPaste
         , selected = NoSelection
         }
     targetToSessionData (FileTarget target) =
       TargetSessionData
         { currentDir = target.root
         , sortedFileBy = ByNameUp
-        , copyState = NoCopyPaste
         , selected = NoSelection
         }
 

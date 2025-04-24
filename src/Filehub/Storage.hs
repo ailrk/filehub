@@ -83,7 +83,7 @@ upload multipart = send (Upload multipart)
 
 
 download :: Storage :> es => ClientPath -> Eff es LBS.ByteString
-download clientPath = send (Download clientPath )
+download clientPath = send (Download clientPath)
 
 
 runStorage :: Storage.Context es => SessionId -> Eff (Storage : es) a -> Eff es a

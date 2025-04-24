@@ -8,6 +8,7 @@ module Filehub.Template
   , sideBar
   , controlPanel
   , view
+  , toolBar
   , pathBreadcrumb
   , newFileModal
   , newFolderModal
@@ -47,7 +48,8 @@ import Filehub.Types
       Target(..),
       S3Target(..),
       FileTarget(..),
-      Selected )
+      Selected,
+      ControlPanelState(..) )
 import Filehub.Sort (sortFiles)
 import Filehub.Mime (isMime)
 import Filehub.Size (toReadableSize)
@@ -71,21 +73,38 @@ import Text.Fuzzy (simpleFilter)
 
 index :: Html ()
       -> Html ()
+      -> ControlPanelState
       -> Html ()
-index sideBar' view' = do
+index sideBar' view' controlPanelState = do
   div_ [ id_ "index" ] do
     sideBar'
-    controlPanel
+    controlPanel controlPanelState
     view'
 
 
-controlPanel :: Html ()
-controlPanel = do
-  div_ [ id_ elementId ] do
-    newFolderBtn
-    newFileBtn
-    uploadBtn
-    copyBtn
+controlPanel :: ControlPanelState -> Html ()
+controlPanel state = do
+  case state of
+    ControlPanelDefault ->
+      div_ [ id_ elementId ] do
+        newFolderBtn
+        newFileBtn
+        uploadBtn
+    ControlPanelSelecting ->
+      div_ [ id_ elementId ] do
+        newFolderBtn
+        newFileBtn
+        uploadBtn
+        copyBtn
+        deleteBtn
+        cancelBtn
+    ControlPanelCopied ->
+      div_ [ id_ elementId ] do
+        newFolderBtn
+        newFileBtn
+        uploadBtn
+        pasteBtn
+        cancelBtn
   where
     elementId = componentIds.controlPanel
 
@@ -93,10 +112,15 @@ controlPanel = do
 view :: Html () -> Html () -> Html ()
 view table' pathBreadcrumb' = do
   div_ [ id_ componentIds.view ] do
-    div_ [ id_ "tool-bar" ] do
-      pathBreadcrumb'
-      searchBar
+    toolBar pathBreadcrumb'
     table'
+
+
+toolBar :: Html () -> Html ()
+toolBar pathBreadcrumb' = do
+  div_ [ id_ "tool-bar" ] do
+    pathBreadcrumb'
+    searchBar
 
 
 sideBar :: [Target] -> TargetView -> Html ()
@@ -221,6 +245,9 @@ copyBtn :: Html ()
 copyBtn = do
   button_ [ class_ "btn btn-control"
           , type_ "submit"
+          , term "hx-get" "/files/copy"
+          , term "hx-target" "#control-panel"
+          , term "hx-swap" "outerHTML"
           ] do
     span_ [ class_ "field " ] do
       i_ [ class_ "bx bxs-copy-alt" ] mempty
@@ -231,10 +258,41 @@ pasteBtn :: Html ()
 pasteBtn = do
   button_ [ class_ "btn btn-control"
           , type_ "submit"
+          , term "hx-get" "/files/paste"
+          , term "hx-target" "#index"
+          , term "hx-swap" "outerHTML"
+          , term "hx-confirm" ("Are you sure about pasting selected files here?")
           ] do
     span_ [ class_ "field " ] do
       i_ [ class_ "bx bxs-paste" ] mempty
-      span_ "Copy"
+      span_ "Paste"
+
+
+deleteBtn :: Html ()
+deleteBtn = do
+  button_ [ class_ "btn btn-control"
+          , type_ "submit"
+          , term "hx-delete" "/files/delete?selected"
+          , term "hx-target" "#index"
+          , term "hx-swap" "outerHTML"
+          , term "hx-confirm" ("Are you sure about deleting selected files?")
+          ] do
+    span_ [ class_ "field " ] do
+      i_ [ class_ "bx bxs-trash" ] mempty
+      span_ "Delete"
+
+
+cancelBtn :: Html ()
+cancelBtn = do
+  button_ [ class_ "btn btn-control"
+          , type_ "submit"
+          , term "hx-get" "/cancel"
+          , term "hx-target" "#index"
+          , term "hx-swap" "outerHTML"
+          ] do
+    span_ [ class_ "field " ] do
+      i_ [ class_ "bx bxs-message-alt-x" ] mempty
+      span_ "Cancel"
 
 
 ------------------------------------
@@ -706,7 +764,7 @@ contextMenu root file = do
     div_ [ class_ "dropdown-item"
          , term "hx-delete" "/files/delete"
          , term "hx-vals" $ [ "file" .= textClientPath ] & toHxVals
-         , term "hx-target" "#view"
+         , term "hx-target" "#index"
          , term "hx-swap" "outerHTML"
          , term "hx-confirm" ("Are you sure about deleting " <> textClientPath <> "?")
          ] $

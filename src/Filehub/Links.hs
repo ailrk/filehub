@@ -39,7 +39,7 @@ sitemapLinks =
   , apiLinks.cd dummyClientPath
   , apiLinks.newFile
   , apiLinks.updateFile
-  , apiLinks.deleteFile dummyClientPath
+  , apiLinks.deleteFile dummyClientPath True
   , apiLinks.newFolder
   , apiLinks.newFileModal
   , apiLinks.newFolderModal

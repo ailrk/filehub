@@ -7,6 +7,7 @@ module Filehub.Types
   , TargetSessionData(..)
   , Selected(..)
   , CopyState(..)
+  , ControlPanelState(..)
   , SessionId(..)
   , SessionPool(..)
   , Env(..)
@@ -61,6 +62,7 @@ data Session = Session
   { sessionId :: SessionId
   , expireDate :: UTCTime
   , targets :: [TargetSessionData]
+  , copyState :: CopyState
   , index :: Int
   }
   deriving (Generic)
@@ -73,7 +75,6 @@ instance Eq Session where
 data TargetSessionData = TargetSessionData
   { currentDir :: FilePath
   , sortedFileBy :: SortFileBy
-  , copyState :: CopyState
   , selected :: Selected
   }
   deriving (Generic)
@@ -100,21 +101,19 @@ data SessionPool = SessionPool
   }
 
 
-type From = Target
-type To = Target
-
-
 data CopyState
-  -- | Select files to copy
-  = CopySelect [(From, [File])] [File]
-  -- | Ready to paste
-  | CopySelected [(From, [File])]
+ -- | Ready to paste
+  = CopySelected [(Target, [File])]
   -- | Start pasting files to target path
-  | Paste [(From, [File])] To FilePath
-  -- | The previous copy paste has been completed
-  | CopyFinished
+  | Paste [(Target, [File])]
   -- | No copy paste action being performed at the moment.
   | NoCopyPaste
+
+
+data ControlPanelState
+  = ControlPanelDefault
+  | ControlPanelSelecting
+  | ControlPanelCopied
 
 
 newtype TargetId = TargetId UUID deriving (Show, Eq, Ord, Hashable)
@@ -126,7 +125,6 @@ instance ToHttpApiData TargetId where
 
 instance FromHttpApiData TargetId where
   parseUrlPiece p = TargetId <$> parseUrlPiece (URI.Encode.decodeText p)
-
 
 
 data Target
@@ -297,6 +295,7 @@ data FilehubEvent
   | TargetChanged
   | TableSorted
   | DirChanged
+  | Canceled -- Action canceled
   deriving (Show)
 
 
@@ -311,6 +310,7 @@ instance ToJSON FilehubEvent where
   toJSON TargetChanged = Aeson.object [ "TargetChanged" .= Aeson.object [] ]
   toJSON TableSorted = Aeson.object [ "TableSorted" .= Aeson.object [] ]
   toJSON DirChanged = Aeson.object [ "DirChanged" .= Aeson.object [] ]
+  toJSON Canceled = Aeson.object [ "Canceled" .= Aeson.object [] ]
 
 
 instance ToHttpApiData FilehubEvent where

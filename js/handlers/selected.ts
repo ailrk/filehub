@@ -1,3 +1,4 @@
+declare var htmx: any;
 let selectedIds: Set<string> = new Set();
 const handlers: Map<string, EventListener> = new Map();
 
@@ -63,23 +64,20 @@ function handle(row: Element, evt: Event) {
       recover: () => void
     }) {
     hooks.prepare()
-    let payload = new URLSearchParams()
-    selectedIds.forEach(id => payload.append("selected", id))
-    fetch('/table/select',
-      { method: 'POST',
-        body: payload,
+    const values: Record<string, string[]> = { selected: Array.from(selectedIds) }
+    htmx.ajax('POST',
+      '/table/select',
+      {
+        values,
         headers: {
-          "Content-Type": "application/x-www-form-urlencoded"
-        }
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        target: '#control-panel',
+        swap: 'outerHTML'
       }
-    ).then(res => {
-      if (res.status == 200) {
-        hooks.confirm()
-      } else {
-        hooks.recover()
-        console.error('failed to select')
-      }
-    }).catch(_ => {
+    ).then((_: any) => {
+      hooks.confirm()
+    }).catch((_: any) => {
       hooks.recover()
       console.error('failed to select')
     })

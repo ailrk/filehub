@@ -1,5 +1,6 @@
 {
   "devDependencies": {
+    "htmx.org": "^1.9.12",
     "typescript": "^5.8.3"
   }
 }

@@ -20,6 +20,8 @@ import Control.Monad (when)
 import Filehub.Types (Session(..), SessionPool (..), Env, SessionId)
 import Filehub.Session qualified as Session
 import Filehub.Env.Internal qualified as Env
+import Effectful.Error.Dynamic (Error, throwError)
+import Filehub.Error (FilehubError (..))
 
 
 new :: (IOE :> es) => Eff es SessionPool
@@ -60,10 +62,13 @@ deleteSession sessionId = do
   liftIO $ HashTable.delete pool sessionId
 
 
-getSession :: (Reader Env :> es, IOE :> es) => SessionId -> Eff es (Maybe Session)
+getSession :: (Reader Env :> es, IOE :> es, Error FilehubError :> es) => SessionId -> Eff es Session
 getSession sessionId = do
   SessionPool pool _ <- Env.getSessionPool
-  liftIO $ HashTable.lookup pool sessionId
+  mResult <- liftIO $ HashTable.lookup pool sessionId
+  case mResult of
+    Just session -> pure session
+    Nothing -> throwError InvalidSession
 
 
 updateSession :: (Reader Env :> es, IOE :> es) => SessionId -> (Session -> Session) -> Eff es ()

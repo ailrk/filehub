@@ -18,7 +18,7 @@ import Effectful.Error.Dynamic (Error)
 import Effectful.Reader.Dynamic (Reader)
 import Effectful ((:>), Eff, IOE)
 import Filehub.Types
-    ( Env(..), Session(..), SessionId, Target(..), SortFileBy )
+    ( Env(..), Session(..), SessionId, Target(..), SortFileBy)
 import Filehub.Error (FilehubError (..))
 import Filehub.SessionPool (getSession, updateSession)
 import Filehub.Env.Internal (getSessionPool, getDataDir, getTheme, getSessionDuration, getTargets)

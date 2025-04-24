@@ -3,7 +3,8 @@ module Filehub.Server where
 
 import Control.Monad (when)
 import Data.ByteString.Char8 qualified as ByteString.Char8
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, isJust)
+import Data.Foldable (forM_)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.Time.Clock qualified as Time
@@ -44,8 +45,12 @@ import Filehub.Types
       UpdatedFile(..),
       Theme(..),
       Session(..),
-      SessionId(..), FilehubEvent (..) )
+      SessionId(..),
+      FilehubEvent (..),
+      Selected (..))
 import Filehub.Viewer qualified as Viewer
+import Filehub.ControlPanel qualified as ControlPanel
+import Filehub.Copy qualified as Copy
 import Lens.Micro
 import Lens.Micro.Platform ()
 import Lucid
@@ -61,7 +66,6 @@ import Servant.Server.Generic (AsServerT)
 import System.FilePath ((</>), takeFileName)
 import Text.Printf (printf)
 import Web.Cookie (parseCookies)
-import Debug.Trace
 
 
 -- | Handle static file access
@@ -144,14 +148,27 @@ server = Api
         view sessionId
 
 
-  , deleteFile = \mCookie mClientPath ->
+  , deleteFile = \mCookie mClientPath deleteSelected ->
       withSession mCookie $ \sessionId -> do
         withServerError do
-          clientPath <- withQueryParam mClientPath
           root <- Env.getRoot sessionId
-          let p = ClientPath.fromClientPath root clientPath
-          runStorage sessionId  $ Storage.deleteFile p
-        view sessionId
+
+          when (isJust mClientPath) do
+            clientPath <- withQueryParam mClientPath
+            let p = ClientPath.fromClientPath root clientPath
+            runStorage sessionId  $ Storage.deleteFile p
+
+          when deleteSelected do
+            allSelecteds <- Selected.allSelecteds sessionId
+            forM_ allSelecteds $ \(target, selected) -> do
+              Target.withTarget sessionId (Target.getTargetId target) do
+                case selected of
+                  NoSelection -> pure ()
+                  Selected x xs -> do
+                    forM_ (fmap (ClientPath.fromClientPath root) (x:xs)) $ \path -> do
+                      runStorage sessionId  $ Storage.deleteFile path
+            clear sessionId
+        index sessionId
 
 
   , newFolder = \mCookie (NewFolder path) ->
@@ -212,8 +229,11 @@ server = Api
 
   , selectRows = \mCookie selected -> do
       withSession mCookie $ \sessionId -> do
-        Selected.setSelected sessionId selected
-        pure S.NoContent
+        case selected of
+          NoSelection -> throwError InvalidSelection & withServerError
+          _ -> do
+            Selected.setSelected sessionId selected
+            Template.controlPanel <$> ControlPanel.getControlPanelState sessionId & withServerError
 
 
   , upload = \mCookie multipart ->
@@ -227,6 +247,27 @@ server = Api
         clientPath@(ClientPath path) <- withQueryParam mClientPath
         bs <- runStorage sessionId $ Storage.download clientPath
         pure $ addHeader (printf "attachement; filename=%s" (takeFileName path)) bs
+
+
+  , copy = \mCookie ->
+      withSession mCookie $ \sessionId -> do
+        withServerError do
+          Copy.select sessionId
+          Copy.copy sessionId
+          Template.controlPanel <$> ControlPanel.getControlPanelState sessionId
+
+
+  , paste = \mCookie ->
+      withSession mCookie $ \sessionId -> do
+        withServerError do
+          Copy.paste sessionId
+        index sessionId
+
+
+  , cancel = \mCookie ->
+      withSession mCookie $ \sessionId -> do
+        clear sessionId
+        index sessionId
 
 
   , contextMenu = \mCookie mClientPath ->
@@ -278,14 +319,15 @@ withSession
 withSession mCookie cont =
   case mCookie >>= Cookies.getSessionId' of
     Just sessionId -> do
-      SessionPool.getSession sessionId >>= \case
-        Just session -> do
+      result <- SessionPool.getSession sessionId & runErrorNoCallStack @FilehubError
+      case result of
+        Right session -> do
           now <- liftIO Time.getCurrentTime
           let diff = Time.nominalDiffTimeToSeconds $ session.expireDate `Time.diffUTCTime` now
           when (diff >= 0 && diff < 30) $ do
             SessionPool.extendSession sessionId
           noHeader <$> cont sessionId
-        Nothing -> contWithNewSession
+        Left _ -> contWithNewSession
     Nothing -> contWithNewSession
   where
     contWithNewSession = do
@@ -308,12 +350,22 @@ runStorage sessionId = withServerError . Storage.runStorage sessionId
 -- | Hard reset all session data. This inclues the current selection, copy-paste status, etc.
 index' :: SessionId -> Filehub (Html ())
 index' sessionId = do
-  Selected.clearSelectedAllTargets sessionId
+  clear sessionId
   index sessionId
 
 
 index :: SessionId -> Filehub (Html ())
-index sessionId = Template.index <$> sideBar sessionId <*> view sessionId
+index sessionId =
+  Template.index
+  <$> sideBar sessionId
+  <*> view sessionId
+  <*> (ControlPanel.getControlPanelState sessionId & withServerError)
+
+
+clear :: (Reader Env :> es, IOE :> es) => SessionId -> Eff es ()
+clear sessionId = do
+  Selected.clearSelectedAllTargets sessionId
+  Copy.clearCopyState sessionId
 
 
 sideBar :: SessionId -> Filehub (Html ())
@@ -330,7 +382,6 @@ view sessionId = do
   files <- sortFiles order <$> runStorage sessionId Storage.lsCurrentDir & withServerError
   TargetView target _ _ <- Env.currentTarget sessionId & withServerError
   selected <- Selected.getSelected sessionId & withServerError
-  traceM (show selected)
   let table = Template.table target root files selected order
   Template.view table <$> pathBreadcrumb sessionId
 
