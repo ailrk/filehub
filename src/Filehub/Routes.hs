@@ -40,7 +40,6 @@ import Servant.HTML.Lucid (HTML)
 import Servant.API.Experimental.Auth (AuthProtect)
 import Servant.Server.Experimental.Auth (AuthServerData)
 import Prelude hiding (readFile)
-import Filehub.Error (FilehubError(..))
 import Filehub.Types
     ( ClientPath(..),
       NewFile(..),
@@ -66,16 +65,14 @@ data Api mode = Api
   , cd              :: mode :- "cd"
                     :> AuthProtect "session"
                     :> QueryParam "dir" ClientPath
-                    :> Get '[HTML] (Headers '[ Header "HX-Trigger" FilehubError
-                                             , Header "HX-Trigger" FilehubEvent
-                                             ] (Html ()))
+                    :> Get '[HTML] (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
 
 
   , newFile         :: mode :- "files"
                     :> "new"
                     :> AuthProtect "session"
                     :> ReqBody '[FormUrlEncoded] NewFile
-                    :> Post '[HTML] (Headers '[ Header "HX-Trigger" FilehubError ] (Html ()))
+                    :> Post '[HTML] (Html ())
 
 
   , updateFile      :: mode :- "files"
@@ -109,7 +106,7 @@ data Api mode = Api
                     :> "new"
                     :> AuthProtect "session"
                     :> ReqBody '[FormUrlEncoded] NewFolder
-                    :> Post '[HTML] (Headers '[ Header "HX-Trigger" FilehubError ] (Html ()))
+                    :> Post '[HTML] (Html ())
 
 
   , newFileModal    :: mode :- "modal"

@@ -1,9 +1,33 @@
+import { showBalloon } from '../ballon.js';
+const wait = 2000;
 export function register() {
-    window.addEventListener('FileExists', () => alert("Error: file exists"));
-    window.addEventListener('InvalidPath', () => alert("Error: invalid path"));
-    window.addEventListener('InvalidDir', () => alert("Error: invalid directory"));
-    window.addEventListener('InvalidSession', () => alert("Error: invalid session"));
-    window.addEventListener('InternalError', () => alert("Error: internal error"));
-    window.addEventListener('TargetError', () => alert("Error: target error"));
-    window.addEventListener('S3Error', () => alert("Error: s3 error"));
+    document.body.addEventListener('htmx:responseError', function (e) {
+        const xhr = e.detail.xhr;
+        const status = xhr.status;
+        let message = xhr.responseText;
+        if (message === undefined || message === "") {
+            if (status === 400) {
+                message = "Bad Request";
+            }
+            else if (status === 401) {
+                message = "Unauthorized";
+            }
+            else if (status === 402) {
+                message = "Payment required";
+            }
+            else if (status === 403) {
+                message = "Forbidden resource";
+            }
+            else if (status === 404) {
+                message = "Resource not found";
+            }
+            else if (status === 500) {
+                message = "Server internal error";
+            }
+            else {
+                message = "Something went wrong";
+            }
+        }
+        showBalloon(`${message} ${status}`, wait);
+    });
 }

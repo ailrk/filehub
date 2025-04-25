@@ -513,3 +513,24 @@ textarea.form-control {
 .selected {
   background: var(--background3);
 }
+
+
+.balloon {
+  background: var(--background2);
+  color: var(--frontground);
+  position: absolute;
+  top: 10px;
+  right: 5px;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  animation: fadeInBallon 0.3s ease;
+  font-size: 0.9rem;
+}
+
+
+@keyframes fadeInBallon {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}

@@ -10,8 +10,8 @@ import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.String.Interpolate (i)
 import Data.UUID qualified as UUID
-import Effectful ( MonadIO(liftIO), liftIO, Eff, (:>), IOE, liftIO, runEff )
-import Effectful.Error.Dynamic (runErrorNoCallStack, throwError, Error)
+import Effectful ( MonadIO(liftIO), liftIO, Eff, (:>), IOE, liftIO, runEff, withRunInIO )
+import Effectful.Error.Dynamic (throwError, Error, catchError)
 import Effectful.FileSystem.IO.ByteString.Lazy (readFile)
 import Effectful.Reader.Dynamic (Reader, runReader)
 import Filehub.ClientPath qualified as ClientPath
@@ -61,13 +61,14 @@ import Network.Wai
 import Network.Wai.Application.Static
 import Prelude hiding (readFile)
 import Prelude hiding (readFile)
-import Servant ( Raw, Tagged(..), ServerT, ServerError(..), addHeader, noHeader, ServerError, FromHttpApiData (..) )
+import Servant ( Raw, Tagged(..), ServerT, ServerError(..), addHeader, ServerError, FromHttpApiData (..), err500 )
 import Servant.Server (err400)
 import Servant.Server.Generic (AsServerT)
 import System.FilePath ((</>), takeFileName)
 import Text.Printf (printf)
 import Web.Cookie (parseCookies)
 import Log (runLogT, logTrace_, logAttention_)
+import UnliftIO (onException, catch, SomeException)
 
 
 -- | Handle static file access
@@ -160,16 +161,13 @@ server = Api
   , cd = \sessionId mClientPath -> do
       clientPath <- withQueryParam mClientPath
       root <- Env.getRoot sessionId & withServerError
-      r <- runStorage sessionId $ Storage.changeDir (ClientPath.fromClientPath root clientPath) & runErrorNoCallStack
-      view sessionId <&>
-          either addHeader (const noHeader) r
-        . addHeader DirChanged
+      runStorage sessionId $ Storage.changeDir (ClientPath.fromClientPath root clientPath) & withServerError
+      view sessionId <&> addHeader DirChanged
 
 
   , newFile = \sessionId (NewFile path) -> do
-      r <- runStorage sessionId $ Storage.newFile (Text.unpack path) & runErrorNoCallStack
-      let header = either addHeader (const noHeader) r
-      header <$> view sessionId
+      runStorage sessionId $ Storage.newFile (Text.unpack path) & withServerError
+      view sessionId
 
 
   , updateFile = \sessionId (UpdatedFile clientPath content) -> do
@@ -201,10 +199,8 @@ server = Api
 
 
   , newFolder = \sessionId (NewFolder path) -> do
-      r <- runStorage sessionId do
-        Storage.newFolder (Text.unpack path) & runErrorNoCallStack
-      let header = either addHeader (const noHeader) r
-      header <$> view sessionId
+      runStorage sessionId $ Storage.newFolder (Text.unpack path) & withServerError
+      view sessionId
 
 
   , newFileModal = \_ -> pure Template.newFileModal
@@ -280,8 +276,9 @@ server = Api
 
 
   , paste = \sessionId -> do
-      withServerError do
-        Copy.paste sessionId
+      withRunInIO $ \unlift -> do
+        unlift (Copy.paste sessionId & withServerError) `catch` \(_ :: SomeException) -> unlift do
+          throwError (err500 { errBody = [i|Paste failed|]})
       index sessionId
 
 
@@ -308,9 +305,17 @@ server = Api
 
 
   , changeTarget = \sessionId mTargetId -> do
+      savedTargetId <- do
+        TargetView saved _ _ <- Target.currentTarget sessionId & withServerError
+        pure $ Target.getTargetId saved
+      let restore = Env.changeCurrentTarget sessionId savedTargetId & withServerError
       targetId <- withQueryParam mTargetId
-      withServerError $ Env.changeCurrentTarget sessionId targetId
-      addHeader TargetChanged <$> index sessionId
+      Env.changeCurrentTarget sessionId targetId & withServerError
+      html <- withRunInIO $ \unlift -> do
+        unlift (index sessionId) `catch` \(_ :: SomeException) -> unlift do
+          restore
+          throwError (err500 { errBody = [i|Invalid target|]})
+      pure $ addHeader TargetChanged html
 
 
   , themeCss = do

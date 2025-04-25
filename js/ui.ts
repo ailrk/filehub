@@ -1,6 +1,5 @@
 'use strict';
 
-declare var htmx: any;
 import * as SelectedHandlers from './handlers/selected.js';
 import * as ErrorsHandlers from './handlers/errors.js';
 import * as CloseDropdownHandlers from './handlers/closeDropdown.js';
