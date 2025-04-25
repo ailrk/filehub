@@ -261,7 +261,6 @@ pasteBtn = do
           , term "hx-get" "/files/paste"
           , term "hx-target" "#index"
           , term "hx-swap" "outerHTML"
-          , term "hx-confirm" ("Are you sure about pasting selected files here?")
           ] do
     span_ [ class_ "field " ] do
       i_ [ class_ "bx bxs-paste" ] mempty
