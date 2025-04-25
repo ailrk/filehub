@@ -1,9 +1,5 @@
 module Filehub.Auth where
 
-import Effectful ( runEff )
-import Effectful.Error.Dynamic (runErrorNoCallStack)
-import Effectful.Reader.Dynamic (runReader)
-import Effectful.Log (runLog)
 import Servant.Server.Experimental.Auth (AuthHandler, mkAuthHandler)
 import Servant (FromHttpApiData (..), errBody, err401, throwError, Handler (..))
 import Network.Wai (Request (..))
@@ -16,7 +12,7 @@ import Filehub.Error (withServerError)
 import Data.Bifunctor (Bifunctor(..))
 import Data.Text.Lazy qualified as Text
 import Filehub.SessionPool qualified as SessionPool
-import Control.Monad.Trans.Except (ExceptT(..))
+import Filehub.Monad (toServantHandler)
 
 
 sessionHandler :: Env -> AuthHandler Request SessionId
@@ -24,8 +20,6 @@ sessionHandler env = mkAuthHandler handler
   where
     toEither msg Nothing = Left msg
     toEither _ (Just x) = Right x
-
-    run = Handler . ExceptT . runEff . runErrorNoCallStack . runLog "sessionHandler" env.logger env.logLevel . runReader env
 
     throw401 msg = throwError $ err401 { errBody = msg }
 
@@ -35,5 +29,5 @@ sessionHandler env = mkAuthHandler handler
         header <- toEither "cookie not found" $ lookup "Cookie" $ requestHeaders req
         cookie <- bimap (Text.encodeUtf8 . Text.fromStrict) id $ parseHeader header
         toEither "can't get sessionId" $ Cookie.getSessionId' cookie
-      _ <- run $ SessionPool.getSession sessionId & withServerError
+      _ <- toServantHandler env $ SessionPool.getSession sessionId & withServerError
       pure sessionId
