@@ -22,10 +22,11 @@ import Filehub.Types
       TargetSessionData )
 import Data.List (find)
 import Data.Generics.Labels ()
+import Data.String.Interpolate (i)
 import Effectful.Reader.Dynamic (Reader)
 import Effectful ((:>), Eff, IOE)
 import Effectful.Error.Dynamic (Error, throwError)
-import Effectful.Log (logAttention, Log)
+import Effectful.Log (Log, logAttention, logTrace_)
 import UnliftIO (MonadUnliftIO)
 import Lens.Micro hiding (to)
 import Lens.Micro.Platform ()
@@ -58,7 +59,7 @@ fromTargetOptions tos = traverse transform tos
     transform (S3TargetOption to) = S3Target <$> Env.S3.initTarget to
 
 
-currentTarget :: (Reader Env :> es, IOE :> es, Error FilehubError :> es) => SessionId -> Eff es TargetView
+currentTarget :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es TargetView
 currentTarget sessionId = do
   mSession <- SessionPool.getSession sessionId
   targets <- Env.getTargets
@@ -71,6 +72,7 @@ currentTarget sessionId = do
 
 changeCurrentTarget :: (Reader Env :> es, IOE :> es, Error FilehubError :> es, Log :> es) => SessionId -> TargetId -> Eff es ()
 changeCurrentTarget sessionId targetId = do
+  logTrace_ [i|Changing target to #{targetId}|]
   TargetView t _ _ <- currentTarget sessionId
   targets <- Env.getTargets
   if getTargetId t == targetId
@@ -80,7 +82,7 @@ changeCurrentTarget sessionId targetId = do
          Just (idx, _) -> do
            SessionPool.updateSession sessionId (\s -> s & #index .~ idx)
          Nothing -> do
-           logAttention "[changeCurrentTarget] can't find target" (show targetId)
+           logAttention "Can't find target" (show targetId)
            throwError InvalidSession
 
 
@@ -93,7 +95,7 @@ withTarget sessionId targetId action = do
   pure result
 
 
-getS3Target :: (Reader Env :> es, IOE :> es, Error FilehubError :> es) => SessionId -> Eff es S3Target
+getS3Target :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es S3Target
 getS3Target sessionId = do
   TargetView target _ _ <- currentTarget sessionId
   case target of

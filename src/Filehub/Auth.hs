@@ -1,16 +1,17 @@
 module Filehub.Auth where
 
-import Effectful ( Eff, IOE, runEff )
-import Effectful.Error.Dynamic (runErrorNoCallStack, Error)
-import Effectful.Reader.Dynamic (Reader, runReader)
+import Effectful ( runEff )
+import Effectful.Error.Dynamic (runErrorNoCallStack)
+import Effectful.Reader.Dynamic (runReader)
+import Effectful.Log (runLog)
 import Servant.Server.Experimental.Auth (AuthHandler, mkAuthHandler)
-import Servant (FromHttpApiData (..), errBody, err401, throwError, Handler (..), ServerError)
+import Servant (FromHttpApiData (..), errBody, err401, throwError, Handler (..))
 import Network.Wai (Request (..))
 import Filehub.Types (SessionId)
 import Filehub.Cookie qualified as Cookie
 import Data.Text.Lazy.Encoding qualified as Text
 import Lens.Micro
-import Filehub.Env (Env)
+import Filehub.Env (Env(..))
 import Filehub.Error (withServerError)
 import Data.Bifunctor (Bifunctor(..))
 import Data.Text.Lazy qualified as Text
@@ -24,8 +25,7 @@ sessionHandler env = mkAuthHandler handler
     toEither msg Nothing = Left msg
     toEither _ (Just x) = Right x
 
-    run :: Eff '[Reader Env, Error ServerError, IOE] a -> Handler a
-    run = Handler . ExceptT . runEff . runErrorNoCallStack . runReader env
+    run = Handler . ExceptT . runEff . runErrorNoCallStack . runLog "sessionHandler" env.logger env.logLevel . runReader env
 
     throw401 msg = throwError $ err401 { errBody = msg }
 

@@ -18,5 +18,5 @@ initTarget :: (MonadUnliftIO m, MonadLog m) => FSTargetOption -> m FileTarget
 initTarget to = do
   targetId <- liftIO $ TargetId <$> UUID.nextRandom
   root <- liftIO $ makeAbsolute to.root
-  logInfo_ [i|Target: #{targetId} - FS #{root}, initialized|]
+  logInfo_ [i|Initialized: #{targetId} - FS #{root}|]
   pure $ FileTarget_ targetId Nothing root

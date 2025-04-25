@@ -11,16 +11,18 @@ module Filehub.SessionPool
 
 import Effectful.Reader.Dynamic (Reader)
 import Effectful ((:>), Eff, IOE, MonadIO (liftIO))
+import Effectful.Error.Dynamic (Error, throwError)
+import Effectful.Log (logTrace_, Log)
 import Data.Time (addUTCTime)
 import Data.Time.Clock qualified as Time
 import Data.HashTable.IO qualified as HashTable
+import Data.String.Interpolate (i)
 import Control.Concurrent.Timer qualified as Timer
 import Control.Concurrent.Suspend qualified as Suspend
 import Control.Monad (when)
 import Filehub.Types (Session(..), SessionPool (..), Env, SessionId)
 import Filehub.Session qualified as Session
 import Filehub.Env.Internal qualified as Env
-import Effectful.Error.Dynamic (Error, throwError)
 import Filehub.Error (FilehubError (..))
 
 
@@ -62,13 +64,15 @@ deleteSession sessionId = do
   liftIO $ HashTable.delete pool sessionId
 
 
-getSession :: (Reader Env :> es, IOE :> es, Error FilehubError :> es) => SessionId -> Eff es Session
+getSession :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es Session
 getSession sessionId = do
   SessionPool pool _ <- Env.getSessionPool
   mResult <- liftIO $ HashTable.lookup pool sessionId
   case mResult of
     Just session -> pure session
-    Nothing -> throwError InvalidSession
+    Nothing -> do
+      logTrace_ [i|No such session #{sessionId}|]
+      throwError InvalidSession
 
 
 updateSession :: (Reader Env :> es, IOE :> es) => SessionId -> (Session -> Session) -> Eff es ()

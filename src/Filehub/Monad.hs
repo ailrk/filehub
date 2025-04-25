@@ -15,7 +15,6 @@ import Effectful.Concurrent
 import Filehub.Env (Env(..))
 import Servant (Handler (..), ServerError)
 import Control.Monad.Trans.Except (ExceptT(ExceptT))
-import Log (defaultLogLevel)
 
 
 type Filehub = Eff [Reader Env, Log, Error ServerError, FileSystem, Concurrent, IOE]
@@ -27,7 +26,7 @@ runFilehub env eff =
     runConcurrent
   . runFileSystem
   . runErrorNoCallStack
-  . runLog "main" env.logger defaultLogLevel
+  . runLog "filehub" env.logger env.logLevel
   . runReader env
   $ eff
 

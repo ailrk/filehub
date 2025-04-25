@@ -21,10 +21,10 @@ import Filehub.SessionPool qualified as SessionPool
 import Filehub.Target qualified as Target
 import Filehub.Server qualified as Server
 import Filehub.Routes qualified as Routes
-import Log.Backend.StandardOutput (withStdOutLogger)
+import Filehub.Log qualified as Log
 import Lens.Micro
 import Paths_filehub qualified
-import Effectful.Log (runLogT, defaultLogLevel)
+import Effectful.Log (runLogT, defaultLogLevel, LogLevel (..))
 
 
 application :: Env -> Application
@@ -45,7 +45,7 @@ application env
 
 
 main :: IO ()
-main = withStdOutLogger \logger -> do
+main = Log.withColoredStdoutLogger \logger -> do
   options <- parseOptions
   dataDir <- Paths_filehub.getDataDir >>= makeAbsolute <&> (++ "/data")
   sessionPool <- runEff SessionPool.new
@@ -60,6 +60,7 @@ main = withStdOutLogger \logger -> do
           , sessionDuration = secondsToNominalDiffTime (60 * 60)
           , targets = targets
           , logger = logger
+          , logLevel = LogTrace
           }
   go env `catch` handler
   where

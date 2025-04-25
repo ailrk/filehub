@@ -17,6 +17,7 @@ import Data.Generics.Labels ()
 import Effectful.Error.Dynamic (Error)
 import Effectful.Reader.Dynamic (Reader)
 import Effectful ((:>), Eff, IOE)
+import Effectful.Log (Log)
 import Filehub.Types
     ( Env(..), Session(..), SessionId, Target(..), SortFileBy)
 import Filehub.Error (FilehubError (..))
@@ -26,7 +27,7 @@ import Filehub.Target (getTargetId, currentTarget, changeCurrentTarget, TargetVi
 import Filehub.Target qualified as Target
 
 
-getRoot :: (Reader Env :> es, IOE :> es, Error FilehubError :> es) => SessionId -> Eff es FilePath
+getRoot :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es FilePath
 getRoot sessionId = do
   TargetView target _ _ <- currentTarget sessionId
   case target of
@@ -34,7 +35,7 @@ getRoot sessionId = do
     S3Target  _ -> pure ""
 
 
-getCurrentDir :: (Reader Env :> es, IOE :> es, Error FilehubError :> es) => SessionId -> Eff es FilePath
+getCurrentDir :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es FilePath
 getCurrentDir sessionId = (^. #sessionData . #currentDir) <$> Target.currentTarget sessionId
 
 
@@ -43,7 +44,7 @@ setCurrentDir sessionId path = do
   updateSession sessionId $ \s -> s & #targets . ix s.index . #currentDir .~ path
 
 
-getSortFileBy :: (Reader Env :> es, IOE :> es, Error FilehubError :> es) => SessionId -> Eff es SortFileBy
+getSortFileBy :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es SortFileBy
 getSortFileBy sessionId = (^. #sessionData . #sortedFileBy) <$> Target.currentTarget sessionId
 
 

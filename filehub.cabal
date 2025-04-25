@@ -74,6 +74,7 @@ library
       , microlens
       , microlens-platform
       , aeson
+      , aeson-pretty
       , generic-lens
       , async
       , modern-uri
@@ -84,7 +85,6 @@ library
       , wai-extra
       , filepath
       , optparse-applicative
-      , clay
       , containers
       , unordered-containers
       , hashtables
@@ -126,6 +126,7 @@ library
       Filehub.Monad
       Filehub.Entry
       Filehub.Copy
+      Filehub.Log
       Filehub.Selected
       Filehub.Links
       Filehub.Routes

@@ -16,7 +16,7 @@ import Effectful (Eff, (:>), Eff, (:>), IOE)
 import Effectful.Error.Dynamic (Error, throwError)
 import Effectful.Reader.Dynamic (Reader)
 import Effectful.FileSystem (FileSystem)
-import Effectful.Log (Log)
+import Effectful.Log (Log, logAttention_)
 import Filehub.Types (Env, CopyState(..), SessionId, File(..), Selected (..))
 import Filehub.Error (FilehubError (..))
 import Filehub.Env (TargetView(..))
@@ -30,9 +30,10 @@ import Filehub.Selected qualified as Selected
 import Filehub.ClientPath qualified as ClientPath
 import Data.List (nub)
 import Debug.Trace
+import Data.String.Interpolate (i)
 
 
-getCopyState :: (Reader Env :> es, IOE :> es, Error FilehubError :> es) => SessionId -> Eff es CopyState
+getCopyState :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es CopyState
 getCopyState sessionId = (^. #copyState) <$> Env.getSession sessionId
 
 
@@ -56,7 +57,9 @@ select sessionId = do
           case state of
             NoCopyPaste -> setCopyState sessionId (CopySelected [])
             CopySelected {} -> pure ()
-            _ -> throwError SelectError
+            _ -> do
+              logAttention_ [i|Select error: #{sessionId}|]
+              throwError SelectError
         Selected x xs -> do
           let select' selections = do
                 root <- Env.getRoot sessionId
@@ -67,7 +70,9 @@ select sessionId = do
           case state of
             NoCopyPaste -> select' []
             CopySelected selections -> select' selections
-            _ -> throwError SelectError
+            _ -> do
+              logAttention_ [i|Select error: #{sessionId}|]
+              throwError SelectError
   where
     merge sel@(target, files) selections =
       let (matched, rest) = break ((== target) . fst) selections
@@ -79,12 +84,14 @@ select sessionId = do
 
 
 -- | Confirm selection
-copy :: (Reader Env :> es, IOE :> es, Error FilehubError :> es) => SessionId -> Eff es ()
+copy :: (Reader Env :> es, IOE :> es, Error FilehubError :> es, Log :> es) => SessionId -> Eff es ()
 copy sessionId = do
   state <- getCopyState sessionId
   case state of
     CopySelected selections -> setCopyState sessionId (Paste selections)
-    _ -> throwError CopyError
+    _ -> do
+      logAttention_ [i|Copy error: #{sessionId}, not in copyable state.|]
+      throwError CopyError
 
 
 -- | Paste files
@@ -106,5 +113,6 @@ paste sessionId = do
           runStorage sessionId $ Storage.writeFile destination bytes
       setCopyState sessionId NoCopyPaste
       Selected.clearSelectedAllTargets sessionId
-    _ ->
+    _ -> do
+      logAttention_ [i|Paste error: #{sessionId}, not in pastable state.|]
       throwError PasteError

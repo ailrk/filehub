@@ -30,7 +30,7 @@ initTarget to = do
   let bucket = Text.pack to.bucket
   service <- liftIO makeS3Service
   env <- liftIO $ Amazonka.configureService service <$> Amazonka.newEnv Amazonka.discover
-  logInfo_ [i|Target: #{targetId} - S3 #{bucket}, initialized|]
+  logInfo_ [i|Initialized: #{targetId} - S3 #{bucket}|]
   pure $ S3Target_ targetId bucket env
   where
     makeS3Service :: IO Amazonka.Service

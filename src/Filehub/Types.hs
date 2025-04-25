@@ -44,7 +44,7 @@ import Data.Aeson qualified as Aeson
 import GHC.Generics (Generic)
 import Lens.Micro
 import Lens.Micro.Platform ()
-import Log (Logger)
+import Log (Logger, LogLevel)
 import Network.Mime (MimeType)
 import Network.URI.Encode qualified as URI.Encode
 import Servant
@@ -164,6 +164,7 @@ data Env = Env
   , sessionDuration :: NominalDiffTime
   , targets :: [Target]
   , logger :: Logger
+  , logLevel :: LogLevel
   }
 
 

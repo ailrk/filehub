@@ -16,6 +16,7 @@ import Lens.Micro hiding (to)
 import Lens.Micro.Platform ()
 import Data.List (union)
 import Effectful (Eff, (:>), Eff, (:>), IOE)
+import Effectful.Log (Log)
 import Effectful.Error.Dynamic (Error)
 import Effectful.Reader.Dynamic (Reader)
 import Filehub.Types
@@ -27,7 +28,7 @@ import Prelude hiding (elem)
 import Prelude qualified
 
 
-getSelected :: (Reader Env :> es, IOE :> es, Error FilehubError :> es) => SessionId -> Eff es Selected
+getSelected :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es Selected
 getSelected sessionId = (^. #sessionData . #selected) <$> Target.currentTarget sessionId
 
 
@@ -35,7 +36,7 @@ setSelected :: (Reader Env :> es, IOE :> es) => SessionId -> Selected -> Eff es 
 setSelected sessionId selected = Env.updateSession sessionId $ \s -> s & #targets . ix s.index . #selected .~ selected
 
 
-anySelected :: (Reader Env :> es, IOE :> es, Error FilehubError :> es) => SessionId -> Eff es Bool
+anySelected :: (Reader Env :> es, IOE :> es, Error FilehubError :> es, Log :> es) => SessionId -> Eff es Bool
 anySelected sessionId = do
   session <- Env.getSession sessionId
   let result =
@@ -46,7 +47,7 @@ anySelected sessionId = do
   pure result
 
 
-allSelecteds :: (Reader Env :> es, IOE :> es, Error FilehubError :> es) => SessionId -> Eff es [(Target, Selected)]
+allSelecteds :: (Reader Env :> es, IOE :> es, Error FilehubError :> es, Log :> es) => SessionId -> Eff es [(Target, Selected)]
 allSelecteds sessionId = do
   session <- Env.getSession sessionId
   let selecteds = session ^. #targets & fmap (^. #selected)

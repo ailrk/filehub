@@ -1,4 +1,5 @@
 {-# LANGUAGE PartialTypeSignatures #-}
+{-# LANGUAGE NamedFieldPuns #-}
 module Filehub.Server where
 
 import Control.Monad (when)
@@ -7,6 +8,7 @@ import Data.Maybe (fromMaybe, isJust)
 import Data.Foldable (forM_)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
+import Data.String.Interpolate (i)
 import Data.UUID qualified as UUID
 import Effectful ( MonadIO(liftIO), liftIO, Eff, (:>), IOE, liftIO, runEff )
 import Effectful.Error.Dynamic (runErrorNoCallStack, throwError, Error)
@@ -15,7 +17,7 @@ import Effectful.Reader.Dynamic (Reader, runReader)
 import Filehub.ClientPath qualified as ClientPath
 import Filehub.Cookie ( getSessionId )
 import Filehub.Cookie qualified as Cookies
-import Filehub.Env (Env, TargetView (..))
+import Filehub.Env (Env (..), TargetView (..))
 import Filehub.Env qualified as Env
 import Filehub.SessionPool qualified as SessionPool
 import Filehub.Target qualified as Target
@@ -65,6 +67,7 @@ import Servant.Server.Generic (AsServerT)
 import System.FilePath ((</>), takeFileName)
 import Text.Printf (printf)
 import Web.Cookie (parseCookies)
+import Log (runLogT, logTrace_, logAttention_)
 
 
 -- | Handle static file access
@@ -120,26 +123,31 @@ dynamicRaw env = Servant.Tagged $ \req respond -> do
 
 -- | If session is not present, create a new session
 sessionMiddleware :: Env -> Middleware
-sessionMiddleware env app req respond = do
+sessionMiddleware env@Env{ logger, logLevel } app req respond = runLogT "sessionMiddleware" logger logLevel $ do
   let mCookie = lookup "Cookie" $ requestHeaders req
   case mCookie >>= parseHeader' >>= Cookies.getSessionId' of
     Just sessionId -> do
-      eSession <- runEff . runErrorNoCallStack @FilehubError . runReader env $ SessionPool.getSession sessionId
+      eSession <- liftIO . runFilehub env $ SessionPool.getSession sessionId & withServerError
       case eSession of
         Left _ -> do
+          logTrace_ [i|Invalid session: #{sessionId}|]
           respondWithNewSession
-        Right _ -> app req respond
-    Nothing ->
+        Right _ -> do
+          logTrace_ [i|Existed session, #{sessionId}|]
+          liftIO $ app req respond
+    Nothing -> do
+      logTrace_ [i|No session found.|]
       respondWithNewSession
   where
     parseHeader' x = either (const Nothing) Just $ parseHeader x
     respondWithNewSession = do
-      session <- runEff $ runReader env SessionPool.newSession
-      let SessionId sid = session.sessionId
+      session <- liftIO . runEff . runReader env $ SessionPool.newSession
+      let sessionId@(SessionId sid) = session.sessionId
       let setCookieHeader = ("Set-Cookie", Cookies.renderSetCookie $ Cookies.setSessionId session)
       let injectedCookieHeader = ("Cookie", "sessionId=" <> UUID.toASCIIBytes sid)
       let req' = req { requestHeaders = injectedCookieHeader : requestHeaders req }
-      app req' $ \res ->
+      logTrace_ [i|New session: #{sessionId}|]
+      liftIO $ app req' $ \res ->
         let res' = mapResponseHeaders (setCookieHeader :) res
          in respond res'
 
@@ -245,7 +253,9 @@ server = Api
 
   , selectRows = \sessionId selected -> do
       case selected of
-        NoSelection -> throwError InvalidSelection & withServerError
+        NoSelection -> do
+          logAttention_ [i|No selection: #{sessionId}|]
+          throwError InvalidSelection & withServerError
         _ -> do
           Selected.setSelected sessionId selected
           Template.controlPanel <$> ControlPanel.getControlPanelState sessionId & withServerError
