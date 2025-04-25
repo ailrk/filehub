@@ -24,7 +24,7 @@ import Filehub.Routes qualified as Routes
 import Filehub.Log qualified as Log
 import Lens.Micro
 import Paths_filehub qualified
-import Effectful.Log (runLogT, defaultLogLevel, LogLevel (..))
+import Effectful.Log (runLogT, defaultLogLevel)
 
 
 application :: Env -> Application
@@ -51,6 +51,7 @@ main = Log.withColoredStdoutLogger \logger -> do
   sessionPool <- runEff SessionPool.new
   targets <- Target.fromTargetOptions options.targets & runLogT "target" logger defaultLogLevel
   printf "PORT: %d\n" options.port
+  printf "V: %s\n" (show options.verosity)
   let env =
         Env
           { port = options.port
@@ -60,7 +61,7 @@ main = Log.withColoredStdoutLogger \logger -> do
           , sessionDuration = secondsToNominalDiffTime (60 * 60)
           , targets = targets
           , logger = logger
-          , logLevel = LogTrace
+          , logLevel = options.verosity
           }
   go env `catch` handler
   where

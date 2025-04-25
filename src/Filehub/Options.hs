@@ -9,11 +9,13 @@ module Filehub.Options
 
 import Options.Applicative
 import Filehub.Types (Theme(..))
+import Log (LogLevel(..))
 
 
 data Options = Options
   { port :: Int
   , theme :: Theme
+  , verosity :: LogLevel
   , targets :: [TargetOption]
   }
   deriving (Show)
@@ -59,24 +61,37 @@ targetOption = (S3TargetOption <$> s3TargetOption) <|> (FSTargetOption <$> fsTar
                 ])
 
 
+port :: Parser Int
+port = option auto
+     $ mconcat
+     $ [ long "port"
+       , metavar "PORT"
+       , help "port filehub runs on"
+       ]
+
+
+theme :: Parser Theme
+theme = option auto
+      $ mconcat
+      $ [ long "theme"
+        , metavar "THEME"
+        , help "dark, light"
+        , value Dark
+        ]
+
+
+verbosity :: Parser LogLevel
+verbosity = toVerbosity . length <$> many (flag' () (short 'v' <> help "Increase verbosity"))
+  where
+    toVerbosity 0 = LogInfo
+    toVerbosity 1 = LogAttention
+    toVerbosity 2 = LogInfo
+    toVerbosity 3 = LogTrace
+    toVerbosity _ = LogTrace
+
+
 options :: Parser Options
-options =
-  Options
-    <$> option auto
-          (mconcat
-            [ long "port"
-            , metavar "PORT"
-            , help "port filehub runs on"
-            ])
-    <*> option auto
-          (mconcat
-            [ long "theme"
-            , metavar "THEME"
-            , help "dark, light"
-            , value Dark
-            ]
-          )
-    <*> some targetOption
+options = Options <$> port <*> theme <*> verbosity <*> some targetOption
 
 
 parseOptions :: IO Options
