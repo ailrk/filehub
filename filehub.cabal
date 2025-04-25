@@ -77,7 +77,6 @@ library
       , aeson-pretty
       , generic-lens
       , async
-      , modern-uri
       , uri-encode
       , network-uri
       , transformers

@@ -6,18 +6,19 @@ import Filehub.Types
       TargetId(..) )
 import Data.UUID.V4 qualified as UUID
 import Data.Text qualified as Text
-import Data.Text.Encoding qualified as Text
 import Data.Generics.Labels ()
 import Data.String.Interpolate (i)
 import Data.Maybe (fromMaybe)
+import Data.ByteString.Char8 qualified as ByteString
+import Text.Read (readMaybe)
 import UnliftIO (MonadUnliftIO, MonadIO (..))
 import Lens.Micro hiding (to)
 import Lens.Micro.Platform ()
 import Log (MonadLog)
 import Log.Class (logInfo_)
 import System.Environment qualified as Environment
-import Text.URI qualified as URI
-import Text.URI.Lens qualified as URI.Lens
+import Network.URI qualified as URI
+import Network.URI (URI(..), URIAuth(..))
 import Amazonka qualified
 import Amazonka.S3 qualified
 
@@ -39,11 +40,11 @@ initTarget to = do
       let setEndpointURL =
             case mUrl of
               Just url ->
-                case url ^. URI.Lens.uriAuthority of
-                  Left _ -> id
-                  Right auth -> do
-                    let host = Text.encodeUtf8 . URI.unRText $ auth ^. URI.Lens.authHost
-                    let port = fromIntegral . fromMaybe 443 $ auth ^. URI.Lens.authPort
+                case url.uriAuthority of
+                  Nothing -> id
+                  Just auth -> do
+                    let host = ByteString.pack auth.uriRegName
+                    let port = fromMaybe 443 . readMaybe $ auth.uriPort
                     Amazonka.setEndpoint True host port
               Nothing -> id
       pure $ setEndpointURL Amazonka.S3.defaultService
@@ -53,4 +54,4 @@ initTarget to = do
           Environment.lookupEnv "AWS_ENDPOINT_URL" <&> \case
             Nothing -> Nothing
             Just "" -> Nothing
-            Just v -> URI.mkURI . Text.pack $ v
+            Just v -> URI.parseURI $ v
