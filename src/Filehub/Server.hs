@@ -11,7 +11,7 @@ import Data.Text.Encoding qualified as Text
 import Data.String.Interpolate (i)
 import Data.UUID qualified as UUID
 import Effectful ( MonadIO(liftIO), liftIO, Eff, (:>), IOE, liftIO, runEff, withRunInIO )
-import Effectful.Error.Dynamic (throwError, Error, catchError)
+import Effectful.Error.Dynamic (throwError, Error)
 import Effectful.FileSystem.IO.ByteString.Lazy (readFile)
 import Effectful.Reader.Dynamic (Reader, runReader)
 import Filehub.ClientPath qualified as ClientPath
@@ -68,7 +68,7 @@ import System.FilePath ((</>), takeFileName)
 import Text.Printf (printf)
 import Web.Cookie (parseCookies)
 import Log (runLogT, logTrace_, logAttention_)
-import UnliftIO (onException, catch, SomeException)
+import UnliftIO (catch, SomeException)
 
 
 -- | Handle static file access

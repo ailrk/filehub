@@ -9,7 +9,7 @@ export function register() {
 
 
 function register1() {
-  window.addEventListener('contextmenu', e => e.preventDefault());
+  document.addEventListener('contextmenu', e => e.preventDefault());
   document.querySelectorAll('#table tr').forEach(row => row.addEventListener('contextmenu', e => handle(row as HTMLElement, e as MouseEvent)))
 }
 

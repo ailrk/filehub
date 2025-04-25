@@ -8,8 +8,8 @@ let viewer: Viewer | null = null;
 
 
 export function register() {
-  window.addEventListener('ViewerInited', (e: any) => initViewer(e.detail));
-  window.addEventListener('Open', (e: any) => open(e.detail.path));
+  document.addEventListener('ViewerInited', (e: any) => initViewer(e.detail));
+  document.addEventListener('Open', (e: any) => open(e.detail.path));
 }
 
 
