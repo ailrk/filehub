@@ -121,6 +121,7 @@ textarea {
 #view {
   grid-area: view;
   overflow-y: scroll;
+  overflow-x: auto;
   scrollbar-width: none;
 
   & #tool-bar {
@@ -149,11 +150,13 @@ textarea {
 
   & #table {
     padding: 1rem 1rem;
-    width: 100%;
     border-collapse: separate;
     border-spacing: 0 3px;
-    /* table-layout: auto; */
-    table-layout: fixed; /* Required for width control! */
+    table-layout: auto;
+    width: 100%;
+    min-width: 600px;
+    table-layout: fixed;
+    overflow-x: auto;
 
     & td, th {
       overflow: hidden;
@@ -163,19 +166,16 @@ textarea {
 
     & td:nth-child(1), th:nth-child(1) {
       width: 70%;
-      white-space: nowrap;       /* Prevent line break */
-      overflow: hidden;          /* Hide overflowing text */
-      text-overflow: ellipsis;   /* Add ellipsis */
       text-align: left;
     }
 
     & td:nth-child(2), th:nth-child(2) {
-      max-width: 15px;
+      width: 20%;
       text-align: left;
     }
 
     & td:nth-child(3), th:nth-child(3) {
-      max-width: 5px;
+      width: 10%;
       text-align: left;
     }
   }
