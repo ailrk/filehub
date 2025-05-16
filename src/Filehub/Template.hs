@@ -688,14 +688,12 @@ table target root files selected order = do
 
     openBlank file =
       -- Client path are percent encoded, but we need to use unencoded raw path here.
-      let ClientPath clientPath = ClientPath.toClientPath root file.path
-          path = URI.Encode.decode clientPath
+      let ClientPath path = ClientPath.toClientPath root file.path
        in [ term "_" [iii| on click js window.open('#{path}', '_blank'); end |] ]
 
 
     open file =
-      let ClientPath clientPath = ClientPath.toClientPath root file.path
-          path = URI.Encode.decode clientPath
+      let ClientPath path = ClientPath.toClientPath root file.path
           imgIdx = Maybe.fromJust $ Map.lookup file resourceIdxMap -- image index always exists
        in [ term "_" [iii| on click send Open(path: '#{path}', index: #{imgIdx}) to body |] ]
 

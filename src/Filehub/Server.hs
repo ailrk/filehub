@@ -69,6 +69,7 @@ import Text.Printf (printf)
 import Web.Cookie (parseCookies)
 import Log (runLogT, logTrace_, logAttention_)
 import UnliftIO (catch, SomeException)
+import Network.URI.Encode qualified as URI
 
 
 -- | Handle static file access
@@ -106,9 +107,10 @@ dynamicRaw env = Servant.Tagged $ \req respond -> do
 
     -- File from S3 are forwared from S3 to the client.
     throughS3 sessionId req respond = do
-      let path = case ByteString.Char8.unpack req.rawPathInfo of
-                   '/':rest -> rest
-                   other -> other
+      let path = URI.decode
+                $ case ByteString.Char8.unpack req.rawPathInfo of
+                    '/':rest -> rest
+                    other -> other
       (file, bytes) <- Storage.runStorage sessionId $ do
         file <- Storage.getFile path
         bytes <- Storage.readFileContent file
