@@ -338,7 +338,7 @@ searchBar = do
 newFileModal :: Html ()
 newFileModal = do
   modal [ id_ componentIds.newFileModal ] do
-    "File"
+    bold "File"
     br_ mempty >> br_ mempty
     form_ [ term "hx-post" "/files/new"
           , term "hx-target" "#view"
@@ -364,7 +364,7 @@ newFileModal = do
 newFolderModal :: Html ()
 newFolderModal = do
   modal [ id_ componentIds.newFolderModal ] do
-    "File"
+    bold "Folder"
     br_ mempty >> br_ mempty
     form_ [ term "hx-post" "/folders/new"
           , term "hx-target" "#view"
@@ -389,7 +389,7 @@ newFolderModal = do
 fileDetailModal :: File -> Html ()
 fileDetailModal file = do
   modal [ id_ componentIds.fileDetailModal ] do
-    "Detail"
+    bold "Detail"
     br_ mempty >> br_ mempty
 
     table_ do
@@ -411,11 +411,14 @@ fileDetailModal file = do
           td_ (toHtml file.mimetype)
 
 
+bold :: Html () -> Html ()
+bold t = span_ [ class_ "bold" ] t
+
 
 uploadModal :: Html ()
 uploadModal = do
   modal [ id_ componentIds.uploadModal ] do
-    "Upload"
+    bold "Upload"
     br_ mempty >> br_ mempty
     form_ [ term "hx-encoding" "multipart/form-data"
           , term "hx-post" "/upload"
@@ -442,7 +445,7 @@ editorModal :: FilePath -> LBS.ByteString -> Html ()
 editorModal filename content = do
 
   modal [ id_ componentIds.editorModal ] do
-    "Edit"
+    bold "Edit"
 
     br_ mempty >> br_ mempty
 
