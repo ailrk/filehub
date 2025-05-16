@@ -1,4 +1,5 @@
 export function register() {
+    register1();
     document.body.addEventListener('htmx:afterSwap', _ => {
         register1();
     });

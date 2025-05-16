@@ -152,10 +152,7 @@ textarea {
     padding: 1rem 1rem;
     border-collapse: separate;
     border-spacing: 0 3px;
-    table-layout: auto;
     width: 100%;
-    min-width: 600px;
-    table-layout: fixed;
     overflow-x: auto;
 
     & td, th {
@@ -165,7 +162,7 @@ textarea {
     }
 
     & td:nth-child(1), th:nth-child(1) {
-      width: 70%;
+      width: 60%;
       text-align: left;
     }
 
