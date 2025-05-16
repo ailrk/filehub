@@ -230,11 +230,20 @@ newFileBtn  =
 
 uploadBtn :: Html ()
 uploadBtn = do
+  let fileInputId = "file-input"
+  input_ [ type_ "file"
+         , name_ "file"
+         , id_ fileInputId
+         , style_ "display:none"
+         , term "hx-encoding" "multipart/form-data"
+         , term "hx-post" "/upload"
+         , term "hx-target" "#index"
+         , term "hx-swap" "outerHTML"
+         , term "hx-trigger" "change"
+         ]
+
   button_ [ class_ "btn btn-control"
-          , type_ "submit"
-          , term "hx-get" "/modal/upload"
-          , term "hx-target" "#index"
-          , term "hx-swap" "beforeend"
+          , onclick_ [iii|document.querySelector('\##{fileInputId}').click()|]
           ] do
     span_ [ class_ "field " ] do
       i_ [ class_ "bx bx-upload" ] mempty
