@@ -31,7 +31,7 @@ Now you can access the local `$HOME` directory on `http://localhost:8080`.
 To add a S3 target, you can use the `--s3 <bucket>` option
 
 ```
-filehub --port 8080 --theme dark --s3 $book --s3 files
+filehub --port 8080 --theme dark --s3 book --s3 files
 ```
 
 Filehub will search for the AWS credentials from the standard locations. Note: if you use a third party S3 provider, you can provide the endpoint via `AWS_ENDPOINT_URL`.
