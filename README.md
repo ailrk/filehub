@@ -21,10 +21,29 @@ You can download binary from the release.
 To start an instance, run the following command:
 
 ```
-filehub --port 8080 --root $HOME --theme dark1
+filehub --port 8080 --theme dark --fs $HOME
 ```
 
-Now you can access `$HOME` directory on `http://localhost:8080`.
+
+Now you can access the local `$HOME` directory on `http://localhost:8080`.
+
+
+To add a S3 target, you can use the `--s3 <bucket>` option
+
+```
+filehub --port 8080 --theme dark --s3 $book --s3 files
+```
+
+Filehub will search for the AWS credentials from the standard locations. Note: if you use a third party S3 provider, you can provide the endpoint via `AWS_ENDPOINT_URL`.
+
+
+### Features
+- File manager style interface
+- Multiple storage backend (curently supports posix file system and S3)
+- Copy/paste files across storage backends.
+- Image viewer.
+- PDF, Video, audio supports.
+- Sorting
 
 
 ### Nix
