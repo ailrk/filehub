@@ -129,12 +129,6 @@ data Api mode = Api
                     :> Get '[HTML] (Html ())
 
 
-  , uploadModal     :: mode :- "modal"
-                    :> "upload"
-                    :> AuthProtect "session"
-                    :> Get '[HTML] (Html ())
-
-
   , editorModal     :: mode :- "modal"
                     :> "editor"
                     :> AuthProtect "session"

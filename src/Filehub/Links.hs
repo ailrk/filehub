@@ -44,7 +44,6 @@ sitemapLinks =
   , apiLinks.newFileModal
   , apiLinks.newFolderModal
   , apiLinks.fileDetailModal dummyClientPath
-  , apiLinks.uploadModal
   , apiLinks.editorModal dummyClientPath
   , apiLinks.search
   , apiLinks.sortTable dummySort

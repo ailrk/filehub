@@ -1,6 +1,4 @@
 {-# LANGUAGE NamedFieldPuns #-}
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-{-# HLINT ignore "Avoid restricted function" #-}
 
 module Filehub.Template
   ( withDefault
@@ -13,7 +11,6 @@ module Filehub.Template
   , newFileModal
   , newFolderModal
   , fileDetailModal
-  , uploadModal
   , editorModal
   , search
   , contextMenu
@@ -413,32 +410,6 @@ fileDetailModal file = do
 
 bold :: Html () -> Html ()
 bold t = span_ [ class_ "bold" ] t
-
-
-uploadModal :: Html ()
-uploadModal = do
-  modal [ id_ componentIds.uploadModal ] do
-    bold "Upload"
-    br_ mempty >> br_ mempty
-    form_ [ term "hx-encoding" "multipart/form-data"
-          , term "hx-post" "/upload"
-          , term "hx-target" "#index"
-          , term "hx-swap" "outerHTML"
-          ] do
-      input_ [ class_ "btn btn-control "
-             , type_ "file"
-             , name_ "file"
-             ]
-
-      br_ mempty >> br_ mempty
-
-      button_ [ class_ "btn btn-modal-confirm mr-2 "
-              , term "_" "on click trigger Close"
-              ] "UPLOAD"
-
-      button_ [ class_ "btn btn-modal-close "
-              , term "_" "on click trigger Close"
-              ] "CLOSE"
 
 
 editorModal :: FilePath -> LBS.ByteString -> Html ()

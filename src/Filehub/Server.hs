@@ -219,9 +219,6 @@ server = Api
         pure (Template.fileDetailModal file)
 
 
-  , uploadModal = \_ -> pure Template.uploadModal
-
-
   , editorModal = \sessionId mClientPath -> do
       withServerError do
         clientPath <- withQueryParam mClientPath
