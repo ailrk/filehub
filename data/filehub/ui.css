@@ -167,7 +167,7 @@ textarea {
     }
 
     & td:nth-child(2), th:nth-child(2) {
-      width: 20%;
+      width: 10%;
       text-align: left;
     }
 
@@ -539,4 +539,18 @@ textarea.form-control {
 
 .bold {
   font-weight: bold;
+}
+
+
+.htmx-indicator{
+  opacity:0;
+  transition: opacity 500ms ease-in;
+}
+
+.htmx-request .htmx-indicator{
+  opacity:1;
+}
+
+.htmx-request.htmx-indicator{
+  opacity:1;
 }
