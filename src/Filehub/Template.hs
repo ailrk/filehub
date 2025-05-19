@@ -363,7 +363,7 @@ newFileModal = do
       button_ [ class_ "btn btn-modal-close "
               , type_ "button" -- prevent submission
               , term "_" "on click trigger Close"
-              ] "Close"
+              ] "CLOSE"
 
 
 newFolderModal :: Html ()
