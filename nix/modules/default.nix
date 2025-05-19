@@ -39,6 +39,15 @@ in
           '';
         };
 
+        readonly = lib.mkOption {
+          type = lib.types.bool;
+          default = false;
+          description = ''
+            Enable read-only mode
+          '';
+        };
+
+
         theme = lib.mkOption {
           type = lib.types.str;
           default = "dark";
@@ -95,6 +104,7 @@ in
                   "--port" port
                   "--theme" cfg.theme
                 ]
+                ++ (if cfg.readonly then [ "--readonly" ] else [])
                 ++ (map (p: "--fs=${toString p}") cfg.fs)
                 ++ (map (s: "--s3=${s}") cfg.s3)
                 );
