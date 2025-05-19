@@ -719,11 +719,8 @@ contextMenu readOnly root file = do
           span_ "Open"
       Content
         | file.mimetype `isMime` "application/pdf" -> do
-          a_ [ class_ "dropdown-item"
-             , href_ (URI.Encode.decodeText textClientPath)
-             , target_ "blank"
-             ] $
-            span_ "View"
+          div_ [ class_ "dropdown-item" ] $
+            a_ [ href_ (URI.Encode.decodeText textClientPath) , target_ "blank" ] "View"
         | file.mimetype `isMime` "audio" -> do
           div_ [ class_ "dropdown-item"
                , term "hx-get" ("/viewer?=" <> textClientPath)

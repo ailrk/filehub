@@ -7,6 +7,7 @@ html, body {
   margin: 0;
   padding: 0;
   scrollbar-width: none;
+  user-select: none;
 }
 
 
@@ -223,6 +224,7 @@ textarea {
   color: var(--tertiary);
 }
 
+
 .btn-like {
   cursor: pointer;
   padding: 0.5rem 0.5rem;
@@ -230,6 +232,7 @@ textarea {
   font-weight: bold;
   border-radius: 8px;
 }
+
 
 .btn {
   cursor: pointer;
@@ -524,7 +527,7 @@ textarea.form-control {
 
 
 .balloon {
-  background: var(--background3);
+  background: var(--secondary);
   color: var(--frontground);
   position: absolute;
   top: 10px;
