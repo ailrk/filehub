@@ -298,7 +298,8 @@ server = Api
         root <- Env.getRoot sessionId
         let filePath = ClientPath.fromClientPath root clientPath
         file <- runStorage sessionId $ Storage.getFile filePath
-        pure $ Template.contextMenu root file
+        readOnly <- Env.getReadOnly
+        pure $ Template.contextMenu readOnly root file
 
 
   , initViewer = \sessionId mClientPath -> do

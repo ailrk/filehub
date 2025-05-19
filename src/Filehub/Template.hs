@@ -701,8 +701,8 @@ table target root files selected order = do
     resourceIdxMap = Map.fromList $ Viewer.takeResourceFiles files `zip` [0..]
 
 
-contextMenu :: FilePath -> File -> Html ()
-contextMenu root file = do
+contextMenu :: Bool -> FilePath -> File -> Html ()
+contextMenu readOnly root file = do
   let textClientPath = toClientPath root file.path
 
   div_ [ class_ "dropdown-content "
@@ -761,14 +761,17 @@ contextMenu root file = do
     div_ [ class_ "dropdown-item" ] $
       a_ [ href_ ("/download?file=" <> textClientPath ) ] "Download"
 
-    div_ [ class_ "dropdown-item"
-         , term "hx-delete" "/files/delete"
-         , term "hx-vals" $ [ "file" .= textClientPath ] & toHxVals
-         , term "hx-target" "#index"
-         , term "hx-swap" "outerHTML"
-         , term "hx-confirm" ("Are you sure about deleting " <> textClientPath <> "?")
-         ] $
-      span_ "Delete"
+    case readOnly of
+      True -> mempty
+      False -> do
+        div_ [ class_ "dropdown-item"
+             , term "hx-delete" "/files/delete"
+             , term "hx-vals" $ [ "file" .= textClientPath ] & toHxVals
+             , term "hx-target" "#index"
+             , term "hx-swap" "outerHTML"
+             , term "hx-confirm" ("Are you sure about deleting " <> textClientPath <> "?")
+             ] $
+          span_ "Delete"
 
     div_ [ class_ "dropdown-item"
          , term "hx-get" "/modal/file/detail"
