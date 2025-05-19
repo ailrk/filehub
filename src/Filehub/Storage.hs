@@ -4,18 +4,18 @@
 
 module Filehub.Storage
   ( Storage(..)
-  , getFile
-  , isDirectory
-  , readFileContent
+  , get
+  , read
+  , write
+  , delete
+  , new
   , newFolder
-  , newFile
-  , writeFile
-  , deleteFile
-  , lsDir
-  , changeDir
-  , lsCurrentDir
+  , ls
+  , cd
+  , lsCwd
   , upload
   , download
+  , isDirectory
   , runStorage
   )
   where
@@ -33,49 +33,49 @@ import Filehub.Storage.File qualified as File
 import Filehub.Storage.S3 qualified as S3
 import Filehub.Types (File(..), ClientPath, SessionId, Target(..))
 import Lens.Micro.Platform ()
-import Prelude hiding (readFile, writeFile)
-import Prelude hiding (readFile, writeFile)
+import Prelude hiding (read, readFile, writeFile)
+import Prelude hiding (read, readFile, writeFile)
 import Servant.Multipart (MultipartData(..), Mem)
 
 
-getFile :: Storage :> es => FilePath -> Eff es File
-getFile path = send (GetFile path)
+get :: Storage :> es => FilePath -> Eff es File
+get path = send (Get path)
 
 
 isDirectory :: Storage :> es => FilePath -> Eff es Bool
 isDirectory path = send (IsDirectory path)
 
 
-readFileContent :: Storage :> es => File -> Eff es LBS.ByteString
-readFileContent file = send (ReadFileContent file)
+read :: Storage :> es => File -> Eff es LBS.ByteString
+read file = send (Read file)
 
 
 newFolder :: Storage :> es => FilePath -> Eff es ()
 newFolder path = send (NewFolder path)
 
 
-newFile :: Storage :> es => FilePath -> Eff es ()
-newFile path = send (NewFile path)
+new :: Storage :> es => FilePath -> Eff es ()
+new path = send (New path)
 
 
-writeFile :: Storage :> es => FilePath -> LBS.ByteString -> Eff es ()
-writeFile path bytes = send (WriteFile path bytes)
+write :: Storage :> es => FilePath -> LBS.ByteString -> Eff es ()
+write path bytes = send (Write path bytes)
 
 
-deleteFile :: Storage :> es => FilePath -> Eff es ()
-deleteFile path = send (DeleteFile path)
+delete :: Storage :> es => FilePath -> Eff es ()
+delete path = send (Delete path)
 
 
-lsDir :: Storage :> es => FilePath -> Eff es [File]
-lsDir path = send (LsDir path)
+ls :: Storage :> es => FilePath -> Eff es [File]
+ls path = send (Ls path)
 
 
-changeDir :: Storage :> es => FilePath -> Eff es ()
-changeDir path = send (ChangeDir path)
+cd :: Storage :> es => FilePath -> Eff es ()
+cd path = send (Cd path)
 
 
-lsCurrentDir :: Storage :> es => Eff es [File]
-lsCurrentDir = send LsCurrentDir
+lsCwd :: Storage :> es => Eff es [File]
+lsCwd = send LsCwd
 
 
 upload :: Storage :> es => MultipartData Mem -> Eff es ()

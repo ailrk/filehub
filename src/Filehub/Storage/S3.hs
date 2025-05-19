@@ -31,12 +31,12 @@ import Filehub.Storage.Effect (Storage (..))
 import Filehub.Types (File(..), FileContent(..), ClientPath, SessionId, S3Target(..))
 import Lens.Micro
 import Network.Mime (defaultMimeLookup)
-import Prelude hiding (readFile, writeFile)
+import Prelude hiding (read, readFile, writeFile)
 import Servant.Multipart (MultipartData(..), Mem, FileData (..))
 
 
-getFile :: Storage.Context es => SessionId -> FilePath -> Eff es File
-getFile sessionId path = do
+get :: Storage.Context es => SessionId -> FilePath -> Eff es File
+get sessionId path = do
   s3 <- getS3 sessionId
   let bucket = Amazonka.BucketName s3.bucket
   let key = Amazonka.ObjectKey $ Text.pack path
@@ -68,8 +68,8 @@ isDirectory sessionId filePath = do
   pure $ maybe False (> 0) (resp ^. Amazonka.listObjectsV2Response_keyCount)
 
 
-readFileContent :: Storage.Context es => SessionId -> File -> Eff es LBS.ByteString
-readFileContent sessionId file = do
+read :: Storage.Context es => SessionId -> File -> Eff es LBS.ByteString
+read sessionId file = do
   s3 <- getS3 sessionId
   let bucket = Amazonka.BucketName s3.bucket
   let key = Amazonka.ObjectKey $ Text.pack file.path
@@ -90,12 +90,12 @@ newFolder sessionId filePath = do
   void $ runResourceT $ send s3.env request
 
 
-newFile :: Storage.Context es => SessionId -> FilePath -> Eff es ()
-newFile sessionId filePath = writeFile sessionId filePath mempty
+new :: Storage.Context es => SessionId -> FilePath -> Eff es ()
+new sessionId filePath = write sessionId filePath mempty
 
 
-writeFile :: Storage.Context es => SessionId -> FilePath -> LBS.ByteString -> Eff es ()
-writeFile sessionId filePath bytes = do
+write :: Storage.Context es => SessionId -> FilePath -> LBS.ByteString -> Eff es ()
+write sessionId filePath bytes = do
   s3 <- getS3 sessionId
   let bucket = Amazonka.BucketName s3.bucket
   let key = Amazonka.ObjectKey $ Text.pack filePath
@@ -103,16 +103,16 @@ writeFile sessionId filePath bytes = do
   void $ runResourceT $ send s3.env request
 
 
-deleteFile :: Storage.Context es => SessionId -> FilePath -> Eff es ()
-deleteFile sessionId filePath = do
+delete :: Storage.Context es => SessionId -> FilePath -> Eff es ()
+delete sessionId filePath = do
   s3 <- getS3 sessionId
   let bucket = Amazonka.BucketName s3.bucket
   let key = Amazonka.ObjectKey $ Text.pack filePath
   void $ runResourceT $ send s3.env (Amazonka.newDeleteObject bucket key)
 
 
-lsDir :: Storage.Context es => SessionId -> FilePath -> Eff es [File]
-lsDir sessionId path = do
+ls :: Storage.Context es => SessionId -> FilePath -> Eff es [File]
+ls sessionId path = do
   let normalizedPath = normalizeDirPath path
   isDir <- isDirectory sessionId normalizedPath
   if isDir
@@ -150,8 +150,8 @@ lsDir sessionId path = do
          }
 
 
-changeDir :: Storage.Context es => SessionId -> FilePath -> Eff es ()
-changeDir sessionId path = do
+cd :: Storage.Context es => SessionId -> FilePath -> Eff es ()
+cd sessionId path = do
   isDir <- isDirectory sessionId normalizedPath
   if isDir
      then Env.setCurrentDir sessionId normalizedPath
@@ -160,10 +160,10 @@ changeDir sessionId path = do
     normalizedPath = normalizeDirPath path
 
 
-lsCurrentDir :: Storage.Context es => SessionId -> Eff es [File]
-lsCurrentDir sessionId = do
+lsCwd :: Storage.Context es => SessionId -> Eff es [File]
+lsCwd sessionId = do
   path <- Env.getCurrentDir sessionId
-  lsDir sessionId path
+  ls sessionId path
 
 
 upload :: Storage.Context es => SessionId -> MultipartData Mem -> Eff es ()
@@ -171,16 +171,16 @@ upload sessionId multipart = do
   forM_ multipart.files $ \file -> do
     let name = Text.unpack file.fdFileName
     let content = file.fdPayload
-    writeFile sessionId name content
+    write sessionId name content
 
 
 download :: Storage.Context es => SessionId -> ClientPath -> Eff es LBS.ByteString
 download sessionId clientPath = do
   root <- Env.getRoot sessionId
   let abspath = fromClientPath root clientPath
-  file <- getFile sessionId abspath
+  file <- get sessionId abspath
   case file.content of
-    Content -> readFileContent sessionId file
+    Content -> read sessionId file
     Dir _ -> do
       archive <- liftIO $ Zip.addFilesToArchive [OptRecursive, OptPreserveSymbolicLinks] Zip.emptyArchive [file.path]
       pure $ Zip.fromArchive archive
@@ -189,18 +189,18 @@ download sessionId clientPath = do
 
 runStorageS3 :: Storage.Context es => SessionId -> Eff (Storage : es) a -> Eff es a
 runStorageS3 sessionId = interpret $ \_ -> \case
-  GetFile path -> getFile sessionId path
-  IsDirectory path -> isDirectory sessionId path
-  ReadFileContent file -> readFileContent sessionId file
+  Get path -> get sessionId path
+  Read file -> read sessionId file
+  Write path bytes -> write sessionId path bytes
+  Delete path -> delete sessionId path
+  New path -> new sessionId path
   NewFolder path -> newFolder sessionId path
-  NewFile path -> newFile sessionId path
-  WriteFile path bytes -> writeFile sessionId path bytes
-  DeleteFile path -> deleteFile sessionId path
-  LsDir path -> lsDir sessionId path
-  ChangeDir path -> changeDir sessionId path
-  LsCurrentDir -> lsCurrentDir sessionId
+  Ls path -> ls sessionId path
+  Cd path -> cd sessionId path
+  LsCwd -> lsCwd sessionId
   Upload multipart -> upload sessionId multipart
   Download clientPath -> download sessionId clientPath
+  IsDirectory path -> isDirectory sessionId path
 
 
 --

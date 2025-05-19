@@ -24,17 +24,17 @@ import Prelude hiding (readFile, writeFile)
 
 
 data Storage :: Effect where
-  GetFile :: FilePath -> Storage m File
-  IsDirectory :: FilePath -> Storage m Bool
-  ReadFileContent :: File -> Storage m LBS.ByteString
+  Get :: FilePath -> Storage m File
+  Read :: File -> Storage m LBS.ByteString
+  Write :: FilePath -> LBS.ByteString -> Storage m ()
+  Delete :: FilePath -> Storage m ()
+  New :: FilePath -> Storage m ()
   NewFolder :: FilePath -> Storage m ()
-  NewFile :: FilePath -> Storage m ()
-  WriteFile :: FilePath -> LBS.ByteString -> Storage m ()
-  DeleteFile :: FilePath -> Storage m ()
-  LsDir :: FilePath -> Storage m [File]
-  ChangeDir :: FilePath -> Storage m ()
-  LsCurrentDir :: Storage m [File]
+  Ls :: FilePath -> Storage m [File]
+  Cd :: FilePath -> Storage m ()
+  LsCwd :: Storage m [File]
   Upload :: MultipartData Mem -> Storage m ()
   Download :: ClientPath -> Storage m LBS.ByteString
+  IsDirectory :: FilePath -> Storage m Bool
 
 type instance DispatchOf Storage = Dynamic

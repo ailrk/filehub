@@ -20,7 +20,7 @@ import Filehub.Env qualified as Env
 import Filehub.Error (FilehubError(..))
 import Filehub.Mime (isMime)
 import Filehub.Sort (sortFiles)
-import Filehub.Storage (isDirectory, lsDir, runStorage)
+import Filehub.Storage (isDirectory, ls, runStorage)
 import Filehub.Types ( File(..), ClientPath(..), SessionId, FilehubEvent(..), Resource (..) )
 import Lens.Micro.Platform ()
 import Network.Mime (MimeType)
@@ -45,7 +45,7 @@ initViewer sessionId root clientPath = do
     logAttention "[initViewer] invalid dir" dir
     throwError InvalidDir
   order <- Env.getSortFileBy sessionId
-  files <- takeResourceFiles . sortFiles order <$> runStorage sessionId (lsDir dir)
+  files <- takeResourceFiles . sortFiles order <$> runStorage sessionId (ls dir)
   let idx = fromMaybe 0 $ List.elemIndex filePath (fmap (.path) files)
   let toResource f =
         Resource

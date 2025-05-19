@@ -66,7 +66,7 @@ select sessionId = do
         Selected x xs -> do
           root <- Env.getRoot sessionId
           let paths = (x:xs) & fmap (ClientPath.fromClientPath root)
-          files <- traverse (runStorage sessionId . Storage.getFile) paths
+          files <- traverse (runStorage sessionId . Storage.get) paths
           state <- getCopyState sessionId
           case state of
             NoCopyPaste -> setCopyState sessionId (CopySelected [(target, files)])
@@ -104,11 +104,11 @@ paste sessionId = do
       forM_ selections $ \(from, files) -> do
         forM_ files $ \file -> do
           bytes <- Target.withTarget sessionId (Target.getTargetId from) do
-            runStorage sessionId $ Storage.readFileContent file
+            runStorage sessionId $ Storage.read file
           Target.withTarget sessionId (Target.getTargetId to) do
             dirPath <- Env.getCurrentDir sessionId
             let destination = dirPath </> takeFileName file.path
-            runStorage sessionId $ Storage.writeFile destination bytes
+            runStorage sessionId $ Storage.write destination bytes
       setCopyState sessionId NoCopyPaste
       Selected.clearSelectedAllTargets sessionId
     _ -> do

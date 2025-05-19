@@ -112,8 +112,8 @@ dynamicRaw env = Servant.Tagged $ \req respond -> do
                     '/':rest -> rest
                     other -> other
       (file, bytes) <- Storage.runStorage sessionId $ do
-        file <- Storage.getFile path
-        bytes <- Storage.readFileContent file
+        file <- Storage.get path
+        bytes <- Storage.read file
         pure (file, bytes)
       liftIO $ do
         respond $
@@ -164,18 +164,18 @@ server = Api
   , cd = \sessionId mClientPath -> do
       clientPath <- withQueryParam mClientPath
       root <- Env.getRoot sessionId & withServerError
-      runStorage sessionId $ Storage.changeDir (ClientPath.fromClientPath root clientPath) & withServerError
+      runStorage sessionId $ Storage.cd (ClientPath.fromClientPath root clientPath) & withServerError
       view sessionId <&> addHeader DirChanged
 
 
   , newFile = \sessionId _ (NewFile path) -> do
-      runStorage sessionId $ Storage.newFile (Text.unpack path) & withServerError
+      runStorage sessionId $ Storage.new (Text.unpack path) & withServerError
       view sessionId
 
 
   , updateFile = \sessionId _ (UpdatedFile clientPath content) -> do
       let path = clientPath.unClientPath
-      _ <- runStorage sessionId $ Storage.writeFile path (Text.encodeUtf8 content ^. lazy)
+      _ <- runStorage sessionId $ Storage.write path (Text.encodeUtf8 content ^. lazy)
       view sessionId
 
 
@@ -186,7 +186,7 @@ server = Api
         when (isJust mClientPath) do
           clientPath <- withQueryParam mClientPath
           let p = ClientPath.fromClientPath root clientPath
-          runStorage sessionId  $ Storage.deleteFile p
+          runStorage sessionId  $ Storage.delete p
 
         when deleteSelected do
           allSelecteds <- Selected.allSelecteds sessionId
@@ -196,7 +196,7 @@ server = Api
                 NoSelection -> pure ()
                 Selected x xs -> do
                   forM_ (fmap (ClientPath.fromClientPath root) (x:xs)) $ \path -> do
-                    runStorage sessionId  $ Storage.deleteFile path
+                    runStorage sessionId  $ Storage.delete path
           clear sessionId
       index sessionId
 
@@ -216,7 +216,7 @@ server = Api
       withServerError do
         clientPath <- withQueryParam mClientPath
         root <- Env.getRoot sessionId
-        file <- runStorage sessionId $ Storage.getFile (ClientPath.fromClientPath root clientPath)
+        file <- runStorage sessionId $ Storage.get (ClientPath.fromClientPath root clientPath)
         pure (Template.fileDetailModal file)
 
 
@@ -226,8 +226,8 @@ server = Api
         root <- Env.getRoot sessionId
         let p = ClientPath.fromClientPath root clientPath
         content <- runStorage sessionId do
-          f <- Storage.getFile p
-          Storage.readFileContent f
+          f <- Storage.get p
+          Storage.read f
         let filename = takeFileName p
         readOnly <- Env.getReadOnly
         pure $ Template.editorModal readOnly filename content
@@ -237,7 +237,7 @@ server = Api
       withServerError . runStorage sessionId $ do
         TargetView target _ _ <- Env.currentTarget sessionId & withServerError
         root <- Env.getRoot sessionId
-        files <- Storage.lsCurrentDir
+        files <- Storage.lsCwd
         order <- Env.getSortFileBy sessionId
         selected <- Selected.getSelected sessionId
         pure $ Template.search searchWord target root files selected order
@@ -297,7 +297,7 @@ server = Api
         clientPath <- withQueryParam mClientPath
         root <- Env.getRoot sessionId
         let filePath = ClientPath.fromClientPath root clientPath
-        file <- runStorage sessionId $ Storage.getFile filePath
+        file <- runStorage sessionId $ Storage.get filePath
         readOnly <- Env.getReadOnly
         pure $ Template.contextMenu readOnly root file
 
@@ -381,7 +381,7 @@ view :: SessionId -> Filehub (Html ())
 view sessionId = do
   root <- Env.getRoot sessionId & withServerError
   order <- Env.getSortFileBy sessionId & withServerError
-  files <- sortFiles order <$> runStorage sessionId Storage.lsCurrentDir & withServerError
+  files <- sortFiles order <$> runStorage sessionId Storage.lsCwd & withServerError
   TargetView target _ _ <- Env.currentTarget sessionId & withServerError
   selected <- Selected.getSelected sessionId & withServerError
   let table = Template.table target root files selected order
