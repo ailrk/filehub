@@ -49,7 +49,6 @@ in
 
         environment = lib.mkOption {
           type = lib.types.attrsOf (lib.types.either lib.types.str lib.types.path);
-          default = {};
           description = ''
             Environment variables for filehub.
             If S3 buckets are used, it can be used to provides AWS credentials.
@@ -93,6 +92,7 @@ in
               path = [ pkgs.getent ];
               serviceConfig = {
                 Type = "simple";
+                EnvironmentFile = cfg.environment;
                 ExecStart = let
                   fsArgs = builtins.concatStringsSep " " (map (p: "--fs '${toString p}'") cfg.fs);
                   s3Args = builtins.concatStringsSep " " (map (s: "--s3 '${s}'") cfg.s3);
