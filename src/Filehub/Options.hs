@@ -16,6 +16,7 @@ data Options = Options
   { port :: Int
   , theme :: Theme
   , verosity :: LogLevel
+  , readOnly :: Bool
   , targets :: [TargetOption]
   }
   deriving (Show)
@@ -90,8 +91,16 @@ verbosity = toVerbosity . length <$> many (flag' () (short 'v' <> help "Increase
     toVerbosity _ = LogTrace
 
 
+readonly :: Parser Bool
+readonly = switch
+         $ mconcat
+         $ [ long "readonly"
+           , help "Enable read only mode"
+           ]
+
+
 options :: Parser Options
-options = Options <$> port <*> theme <*> verbosity <*> some targetOption
+options = Options <$> port <*> theme <*> verbosity <*> readonly <*> some targetOption
 
 
 parseOptions :: IO Options

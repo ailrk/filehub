@@ -163,6 +163,7 @@ data Env = Env
   , sessionPool :: SessionPool
   , sessionDuration :: NominalDiffTime
   , targets :: [Target]
+  , readOnly :: Bool
   , logger :: Logger
   , logLevel :: LogLevel
   }

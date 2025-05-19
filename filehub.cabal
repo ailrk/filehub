@@ -120,6 +120,7 @@ library
       Filehub.SessionPool
       Filehub.Types
       Filehub.Options
+      Filehub.ReadOnly
       Filehub.Server
       Filehub.Auth
       Filehub.Monad

@@ -3,6 +3,7 @@ module Filehub.Env.Internal
   , getSessionPool
   , getDataDir
   , getTheme
+  , getReadOnly
   , getSessionDuration
   , getTargets
   )
@@ -30,6 +31,10 @@ getDataDir = asks @Env (.dataDir)
 
 getTheme :: (Reader Env :> es) => Eff es Theme
 getTheme = asks @Env (.theme)
+
+
+getReadOnly :: (Reader Env :> es) => Eff es Bool
+getReadOnly = asks @Env (.readOnly)
 
 
 getSessionDuration :: (Reader Env :> es) => Eff es NominalDiffTime

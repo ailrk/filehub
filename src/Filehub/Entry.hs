@@ -14,6 +14,7 @@ import Network.Wai.Handler.Warp (setPort, defaultSettings, runSettings)
 import Servant (serveWithContextT, Context (..), Application, serveDirectoryWebApp, (:<|>) (..))
 import System.Directory (makeAbsolute)
 import Filehub.Auth qualified as Auth
+import Filehub.ReadOnly qualified as ReadOnly
 import Filehub.Monad
 import Filehub.Options (Options(..), parseOptions)
 import Filehub.Env
@@ -37,7 +38,9 @@ application env
       :<|> serveDirectoryWebApp env.dataDir
       :<|> Server.dynamicRaw env
 
-    ctx = Auth.sessionHandler env :. EmptyContext
+    ctx = Auth.sessionHandler env
+        :. ReadOnly.readOnlyHandler env
+        :. EmptyContext
 
 ------------------------------------
 -- main
@@ -60,6 +63,7 @@ main = Log.withColoredStdoutLogger \logger -> do
           , sessionPool = sessionPool
           , sessionDuration = secondsToNominalDiffTime (60 * 60)
           , targets = targets
+          , readOnly = options.readOnly
           , logger = logger
           , logLevel = options.verosity
           }

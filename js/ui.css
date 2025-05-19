@@ -224,6 +224,15 @@ textarea {
 }
 
 
+.btn-like {
+  cursor: pointer;
+  padding: 0.5rem 0.5rem;
+  border: none;
+  font-weight: bold;
+  border-radius: 8px;
+}
+
+
 .btn {
   cursor: pointer;
   padding: 0.5rem 0.5rem;

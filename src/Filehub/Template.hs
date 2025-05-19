@@ -68,19 +68,27 @@ import Text.Fuzzy (simpleFilter)
 ------------------------------------
 
 
-index :: Html ()
+index :: Bool
+      -> Html ()
       -> Html ()
       -> ControlPanelState
       -> Html ()
-index sideBar' view' controlPanelState = do
+index readOnly sideBar' view' controlPanelState = do
   div_ [ id_ "index" ] do
     sideBar'
-    controlPanel controlPanelState
+    controlPanel readOnly controlPanelState
     view'
 
 
-controlPanel :: ControlPanelState -> Html ()
-controlPanel state = do
+controlPanel :: Bool -> ControlPanelState -> Html ()
+controlPanel True _ = do
+    div_ [ id_ elementId ] do
+      span_ [ class_ "btn-like field " ] do
+        i_ [ class_ "bx bx-lock-alt" ] mempty
+        span_ "Read-only is enabled"
+  where
+    elementId = componentIds.controlPanel
+controlPanel False state = do
   case state of
     ControlPanelDefault ->
       div_ [ id_ elementId ] do
@@ -412,11 +420,13 @@ bold :: Html () -> Html ()
 bold t = span_ [ class_ "bold" ] t
 
 
-editorModal :: FilePath -> LBS.ByteString -> Html ()
-editorModal filename content = do
+editorModal :: Bool -> FilePath -> LBS.ByteString -> Html ()
+editorModal readOnly filename content = do
 
   modal [ id_ componentIds.editorModal ] do
-    bold "Edit"
+    case readOnly of
+      True -> bold "Read-only"
+      False -> bold "Edit"
 
     br_ mempty >> br_ mempty
 
@@ -433,23 +443,33 @@ editorModal filename content = do
       br_ mempty >> br_ mempty
 
       textarea_
-        [ class_ "form-control "
-        , type_ "text"
-        , name_ "content"
-        , placeholder_ "Empty File"
-        ]
+        (mconcat
+          [
+            [ class_ "form-control "
+            , type_ "text"
+            , name_ "content"
+            , placeholder_ "Empty File"
+            ]
+          , if readOnly then [ readonly_ "readonly" ] else mempty
+          ]
+        )
         (toHtml $ LText.decodeUtf8 content)
+
 
       br_ mempty >> br_ mempty
 
-      button_ [ class_ "btn btn-modal-confirm mr-2 "
-              , term "_" "on click trigger Close"
-              ] "EDIT"
+      case readOnly of
+        True -> do
+          mempty
+        False -> do
+          button_ [ class_ "btn btn-modal-confirm mr-2 "
+                  , term "_" "on click trigger Close"
+                  ] "EDIT"
 
-      button_ [ class_ "btn btn-modal-close "
-              , type_ "button"
-              , term "_" "on click trigger Close"
-              ] "CLOSE"
+          button_ [ class_ "btn btn-modal-close "
+                  , type_ "button"
+                  , term "_" "on click trigger Close"
+                  ] "CLOSE"
 
 
 ------------------------------------

@@ -56,6 +56,7 @@ import GHC.Generics (Generic)
 
 
 type instance AuthServerData (AuthProtect "session") = SessionId
+type instance AuthServerData (AuthProtect "readonly") = ()
 
 
 data Api mode = Api
@@ -71,6 +72,7 @@ data Api mode = Api
   , newFile         :: mode :- "files"
                     :> "new"
                     :> AuthProtect "session"
+                    :> AuthProtect "readonly"
                     :> ReqBody '[FormUrlEncoded] NewFile
                     :> Post '[HTML] (Html ())
 
@@ -78,6 +80,7 @@ data Api mode = Api
   , updateFile      :: mode :- "files"
                     :> "update"
                     :> AuthProtect "session"
+                    :> AuthProtect "readonly"
                     :> ReqBody '[FormUrlEncoded] UpdatedFile
                     :> Put '[HTML] (Html ())
 
@@ -85,6 +88,7 @@ data Api mode = Api
   , deleteFile      :: mode :- "files"
                     :> "delete"
                     :> AuthProtect "session"
+                    :> AuthProtect "readonly"
                     :> QueryParam "file" ClientPath
                     :> QueryFlag "selected"
                     :> Delete '[HTML] (Html ())
@@ -93,18 +97,21 @@ data Api mode = Api
   , copy            :: mode :- "files"
                     :> "copy"
                     :> AuthProtect "session"
+                    :> AuthProtect "readonly"
                     :> Get '[HTML] (Html ())
 
 
   , paste           :: mode :- "files"
                     :> "paste"
                     :> AuthProtect "session"
+                    :> AuthProtect "readonly"
                     :> Get '[HTML] (Html ())
 
 
   , newFolder       :: mode :- "folders"
                     :> "new"
                     :> AuthProtect "session"
+                    :> AuthProtect "readonly"
                     :> ReqBody '[FormUrlEncoded] NewFolder
                     :> Post '[HTML] (Html ())
 
@@ -112,12 +119,14 @@ data Api mode = Api
   , newFileModal    :: mode :- "modal"
                     :> "new-file"
                     :> AuthProtect "session"
+                    :> AuthProtect "readonly"
                     :> Get '[HTML] (Html ())
 
 
   , newFolderModal  :: mode :- "modal"
                     :> "new-folder"
                     :> AuthProtect "session"
+                    :> AuthProtect "readonly"
                     :> Get '[HTML] (Html ())
 
 
@@ -158,6 +167,7 @@ data Api mode = Api
 
   , upload          :: mode :- "upload"
                     :> AuthProtect "session"
+                    :> AuthProtect "readonly"
                     :> MultipartForm Mem (MultipartData Mem)
                     :> Post '[HTML] (Html ())
 

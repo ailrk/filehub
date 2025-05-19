@@ -155,6 +155,7 @@ sessionMiddleware env@Env{ logger, logLevel } app req respond = runLogT "session
          in respond res'
 
 
+-- | Server definition
 server :: Api (AsServerT Filehub)
 server = Api
   { index = fmap Template.withDefault . index'
@@ -167,18 +168,18 @@ server = Api
       view sessionId <&> addHeader DirChanged
 
 
-  , newFile = \sessionId (NewFile path) -> do
+  , newFile = \sessionId _ (NewFile path) -> do
       runStorage sessionId $ Storage.newFile (Text.unpack path) & withServerError
       view sessionId
 
 
-  , updateFile = \sessionId (UpdatedFile clientPath content) -> do
+  , updateFile = \sessionId _ (UpdatedFile clientPath content) -> do
       let path = clientPath.unClientPath
       _ <- runStorage sessionId $ Storage.writeFile path (Text.encodeUtf8 content ^. lazy)
       view sessionId
 
 
-  , deleteFile = \sessionId mClientPath deleteSelected -> do
+  , deleteFile = \sessionId _ mClientPath deleteSelected -> do
       withServerError do
         root <- Env.getRoot sessionId
 
@@ -200,15 +201,15 @@ server = Api
       index sessionId
 
 
-  , newFolder = \sessionId (NewFolder path) -> do
+  , newFolder = \sessionId _ (NewFolder path) -> do
       runStorage sessionId $ Storage.newFolder (Text.unpack path) & withServerError
       view sessionId
 
 
-  , newFileModal = \_ -> pure Template.newFileModal
+  , newFileModal = \_ _ -> pure Template.newFileModal
 
 
-  , newFolderModal = \_ -> pure Template.newFolderModal
+  , newFolderModal = \_ _ -> pure Template.newFolderModal
 
 
   , fileDetailModal = \sessionId mClientPath -> do
@@ -228,7 +229,8 @@ server = Api
           f <- Storage.getFile p
           Storage.readFileContent f
         let filename = takeFileName p
-        pure $ Template.editorModal filename content
+        readOnly <- Env.getReadOnly
+        pure $ Template.editorModal readOnly filename content
 
 
   , search = \sessionId searchWord -> do
@@ -253,10 +255,12 @@ server = Api
           throwError InvalidSelection & withServerError
         _ -> do
           Selected.setSelected sessionId selected
-          Template.controlPanel <$> ControlPanel.getControlPanelState sessionId & withServerError
+          Template.controlPanel
+            <$> Env.getReadOnly
+            <*> ControlPanel.getControlPanelState sessionId & withServerError
 
 
-  , upload = \sessionId multipart -> do
+  , upload = \sessionId _ multipart -> do
       runStorage sessionId $ Storage.upload multipart
       index sessionId
 
@@ -267,14 +271,16 @@ server = Api
       pure $ addHeader (printf "attachement; filename=%s" (takeFileName path)) bs
 
 
-  , copy = \sessionId ->
+  , copy = \sessionId _ ->
       withServerError do
         Copy.select sessionId
         Copy.copy sessionId
-        Template.controlPanel <$> ControlPanel.getControlPanelState sessionId
+        Template.controlPanel
+          <$> Env.getReadOnly
+          <*> ControlPanel.getControlPanelState sessionId
 
 
-  , paste = \sessionId -> do
+  , paste = \sessionId _ -> do
       withRunInIO $ \unlift -> do
         unlift (Copy.paste sessionId & withServerError) `catch` \(_ :: SomeException) -> unlift do
           throwError (err500 { errBody = [i|Paste failed|]})
@@ -351,7 +357,8 @@ index' sessionId = do
 index :: SessionId -> Filehub (Html ())
 index sessionId =
   Template.index
-  <$> sideBar sessionId
+  <$> Env.getReadOnly
+  <*> sideBar sessionId
   <*> view sessionId
   <*> (ControlPanel.getControlPanelState sessionId & withServerError)
 
