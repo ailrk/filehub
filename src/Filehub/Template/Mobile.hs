@@ -1,6 +1,6 @@
 {-# LANGUAGE NamedFieldPuns #-}
 
-module Filehub.Template
+module Filehub.Template.Mobile
   ( withDefault
   , index
   , sideBar

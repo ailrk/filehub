@@ -108,7 +108,11 @@ library
 
     exposed-modules:
       Filehub.Cookie
-      Filehub.Template
+      Filehub.Server.Desktop
+      Filehub.Server.Mobile
+      Filehub.Server
+      Filehub.Template.Desktop
+      Filehub.Template.Mobile
       Filehub.Error
       Filehub.ClientPath
       Filehub.Mime
@@ -121,7 +125,6 @@ library
       Filehub.Types
       Filehub.Options
       Filehub.ReadOnly
-      Filehub.Server
       Filehub.Auth
       Filehub.Monad
       Filehub.Entry
