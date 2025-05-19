@@ -3,12 +3,8 @@
 {-# LANGUAGE TypeFamilies #-}
 module Filehub.ReadOnly where
 import Servant
-import Servant.Server
 import Filehub.Types (Env(..))
-import Servant.API ((:>))
-import Data.Data (Proxy(..))
-import Network.Wai (responseLBS, Request)
-import Network.HTTP.Types (status400)
+import Network.Wai (Request)
 import Servant.Server.Experimental.Auth (AuthHandler, mkAuthHandler)
 
 
