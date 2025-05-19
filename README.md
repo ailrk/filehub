@@ -44,6 +44,7 @@ Filehub will search for the AWS credentials from the standard locations. Note: i
 - Image viewer.
 - PDF, Video, audio supports.
 - Sorting
+- Read only mode
 
 
 ### Nix
