@@ -12,6 +12,12 @@ import Data.String.Interpolate (i)
 import Data.UUID qualified as UUID
 import Effectful ( MonadIO(liftIO), liftIO, liftIO, runEff )
 import Effectful.Reader.Dynamic (runReader)
+import Effectful.Log (logAttention_)
+import Effectful ( withRunInIO )
+import Effectful.Error.Dynamic (throwError)
+import Filehub.Target qualified as Target
+import Filehub.Types
+    ( FilehubEvent (..))
 import Filehub.Cookie ( getSessionId, parseCookies )
 import Filehub.Cookie qualified as Cookies
 import Filehub.Env (Env (..), TargetView (..))
@@ -41,7 +47,45 @@ import Servant ( Raw, Tagged(..), ServerT, ServerError(..), ServerError, FromHtt
 import Servant.Server.Generic (AsServerT)
 import Log (runLogT, logTrace_)
 import Network.URI.Encode qualified as URI
-import Effectful.Log (logAttention_)
+import Control.Exception (SomeException)
+import Lens.Micro.Platform ()
+import Prelude hiding (readFile)
+import Prelude hiding (readFile)
+import Servant ( addHeader, err500 )
+import UnliftIO (catch)
+import Lucid
+
+import Control.Monad (when)
+import Data.Maybe (fromMaybe, isJust)
+import Data.Foldable (forM_)
+import Data.Text qualified as Text
+import Data.Text.Encoding qualified as Text
+import Effectful.FileSystem.IO.ByteString.Lazy (readFile)
+import Filehub.ClientPath qualified as ClientPath
+import Filehub.Selected qualified as Selected
+import Filehub.Sort (sortFiles)
+import Filehub.Template.Desktop qualified as Template.Desktop
+import Filehub.Server.Internal (withQueryParam, runStorage, clear)
+import Filehub.Types
+    ( ClientPath(..),
+      NewFile(..),
+      NewFolder(..),
+      SortFileBy(..),
+      UpdatedFile(..),
+      Theme(..),
+      ClientPath(..),
+      NewFile(..),
+      NewFolder(..),
+      SortFileBy(..),
+      UpdatedFile(..),
+      Theme(..),
+      Selected (..))
+import Filehub.Viewer qualified as Viewer
+import Lens.Micro.Platform ()
+import Prelude hiding (readFile)
+import Prelude hiding (readFile)
+import System.FilePath ((</>), takeFileName)
+import Text.Printf (printf)
 
 
 -- | Handle static file access
@@ -152,72 +196,151 @@ server = Api
       Env.getDisplay sessionId & withServerError >>= \case
         NoDisplay -> do -- boostrap
           pure $ Template.bootstrap
-        Desktop -> Server.Desktop.server.index sessionId
-        Mobile -> Server.Mobile.server.index sessionId
+        Desktop -> Server.Desktop.index sessionId
+        Mobile -> Server.Mobile.index sessionId
 
 
-  , cd = Server.Desktop.server.cd
+  , cd = \sessionId mClientPath -> do
+      clientPath <- withQueryParam mClientPath
+      root <- Env.getRoot sessionId & withServerError
+      runStorage sessionId $ Storage.cd (ClientPath.fromClientPath root clientPath) & withServerError
+      view sessionId <&> addHeader DirChanged
 
 
-  , newFile = Server.Desktop.server.newFile
+  , newFile = \sessionId _ (NewFile path) -> do
+      runStorage sessionId $ Storage.new (Text.unpack path) & withServerError
+      view sessionId
 
 
-  , updateFile = Server.Desktop.server.updateFile
+  , updateFile = \sessionId _ (UpdatedFile clientPath content) -> do
+      let path = clientPath.unClientPath
+      _ <- runStorage sessionId $ Storage.write path (Text.encodeUtf8 content ^. lazy)
+      view sessionId
 
 
-  , deleteFile = Server.Desktop.server.deleteFile
+  , deleteFile = \sessionId _ mClientPath deleteSelected -> do
+      withServerError do
+        root <- Env.getRoot sessionId
+
+        when (isJust mClientPath) do
+          clientPath <- withQueryParam mClientPath
+          let p = ClientPath.fromClientPath root clientPath
+          runStorage sessionId  $ Storage.delete p
+
+        when deleteSelected do
+          allSelecteds <- Selected.allSelecteds sessionId
+          forM_ allSelecteds $ \(target, selected) -> do
+            Target.withTarget sessionId (Target.getTargetId target) do
+              case selected of
+                NoSelection -> pure ()
+                Selected x xs -> do
+                  forM_ (fmap (ClientPath.fromClientPath root) (x:xs)) $ \path -> do
+                    runStorage sessionId  $ Storage.delete path
+          clear sessionId
+      server.index sessionId
 
 
-  , newFolder = Server.Desktop.server.newFolder
+  , newFolder = \sessionId _ (NewFolder path) -> do
+      runStorage sessionId $ Storage.newFolder (Text.unpack path) & withServerError
+      view sessionId
 
 
-  , newFileModal = Server.Desktop.server.newFileModal
+  , newFileModal = \_ _ -> pure Template.Desktop.newFileModal
 
 
-  , newFolderModal = Server.Desktop.server.newFolderModal
+  , newFolderModal = \_ _ -> pure Template.Desktop.newFolderModal
 
 
-  , fileDetailModal = Server.Desktop.server.fileDetailModal
+  , fileDetailModal = Server.Desktop.fileDetailModal
 
 
-  , editorModal = Server.Desktop.server.editorModal
+  , editorModal = Server.Desktop.editorModal
 
 
-  , search = Server.Desktop.server.search
+  , search = \sessionId searchWord -> do
+      withServerError . runStorage sessionId $ do
+        TargetView target _ _ <- Env.currentTarget sessionId & withServerError
+        root <- Env.getRoot sessionId
+        files <- Storage.lsCwd
+        order <- Env.getSortFileBy sessionId
+        selected <- Selected.getSelected sessionId
+        pure $ Template.Desktop.search searchWord target root files selected order
 
 
-  , sortTable = Server.Desktop.server.sortTable
+  , sortTable = \sessionId order -> do
+      Env.setSortFileBy sessionId (fromMaybe ByNameUp order)
+      addHeader TableSorted <$> view sessionId
 
 
-  , selectRows = Server.Desktop.server.selectRows
+  , selectRows = Server.Desktop.selectRows
 
 
-  , upload = Server.Desktop.server.upload
+  , upload = \sessionId _ multipart -> do
+      runStorage sessionId $ Storage.upload multipart
+      server.index sessionId
 
 
-  , download = Server.Desktop.server.download
+  , download = \sessionId mClientPath -> do
+      clientPath@(ClientPath path) <- withQueryParam mClientPath
+      bs <- runStorage sessionId $ Storage.download clientPath
+      pure $ addHeader (printf "attachement; filename=%s" (takeFileName path)) bs
 
 
-  , copy = Server.Desktop.server.copy
+  , copy = Server.Desktop.copy
 
 
-  , paste = Server.Desktop.server.paste
+  , paste = Server.Desktop.paste
 
 
-  , cancel = Server.Desktop.server.cancel
+  , cancel = \sessionId -> do
+      clear sessionId
+      server.index sessionId
 
 
-  , contextMenu = Server.Desktop.server.contextMenu
+  , contextMenu = Server.Desktop.contextMenu
 
 
-  , initViewer = Server.Desktop.server.initViewer
+  , initViewer = \sessionId mClientPath -> do
+      withServerError do
+        clientPath <- withQueryParam mClientPath
+        root <- Env.getRoot sessionId
+        payload <- Viewer.initViewer sessionId root clientPath
+        pure $ addHeader payload mempty
 
 
-  , changeTarget = Server.Desktop.server.changeTarget
+  , changeTarget = \sessionId mTargetId -> do
+      savedTargetId <- do
+        TargetView saved _ _ <- Target.currentTarget sessionId & withServerError
+        pure $ Target.getTargetId saved
+      let restore = Env.changeCurrentTarget sessionId savedTargetId & withServerError
+      targetId <- withQueryParam mTargetId
+      Env.changeCurrentTarget sessionId targetId & withServerError
+      html <- withRunInIO $ \unlift -> do
+        unlift (server.index sessionId) `catch` \(_ :: SomeException) -> unlift do
+          restore
+          throwError (err500 { errBody = [i|Invalid target|]})
+      pure $ addHeader TargetChanged html
 
 
-  , themeCss = Server.Desktop.server.themeCss
+  , themeCss = do
+      theme <- Env.getTheme
+      dir <- Env.getDataDir
+      readFile $
+        case theme of
+          Dark -> dir </> "dark.css"
+          Light -> dir </> "light.css"
 
 
   , healthz = pure "ok"
   }
+
+
+view :: SessionId -> Filehub (Html ())
+view sessionId = do
+  root <- Env.getRoot sessionId & withServerError
+  order <- Env.getSortFileBy sessionId & withServerError
+  files <- sortFiles order <$> runStorage sessionId Storage.lsCwd & withServerError
+  TargetView target _ _ <- Env.currentTarget sessionId & withServerError
+  selected <- Selected.getSelected sessionId & withServerError
+  let table = Template.Desktop.table target root files selected order
+  Template.Desktop.view table <$> Server.Desktop.pathBreadcrumb sessionId

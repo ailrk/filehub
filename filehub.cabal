@@ -108,6 +108,7 @@ library
 
     exposed-modules:
       Filehub.Cookie
+      Filehub.Server.Internal
       Filehub.Server.Desktop
       Filehub.Server.Mobile
       Filehub.Server
