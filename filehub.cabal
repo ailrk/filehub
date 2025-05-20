@@ -2,7 +2,7 @@ cabal-version:      3.0
 name:               filehub
 version:            0.1.2.0
 author: Ailrk
-maintainer: jimmy@ailrk.com
+maintainer:         jimmy@ailrk.com
 build-type:         Simple
 extra-doc-files:    CHANGELOG.md
 data-files:         data/**/*.css
@@ -111,6 +111,9 @@ library
       Filehub.Server.Internal
       Filehub.Server.Desktop
       Filehub.Server.Mobile
+      Filehub.Server.ReadOnly
+      Filehub.Server.Session
+      Filehub.Server.Resoluiton
       Filehub.Server
       Filehub.Template
       Filehub.Template.Internal
@@ -127,8 +130,6 @@ library
       Filehub.SessionPool
       Filehub.Types
       Filehub.Options
-      Filehub.ReadOnly
-      Filehub.Auth
       Filehub.Monad
       Filehub.Entry
       Filehub.Copy

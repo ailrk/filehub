@@ -36,6 +36,7 @@ import UnliftIO (catch, SomeException)
 import Effectful.Log (Log)
 import Effectful.FileSystem (FileSystem)
 import Effectful.Concurrent (Concurrent)
+import Filehub.Server.Resoluiton (ConfirmDesktopOnly)
 
 
 index :: SessionId -> Eff  [Reader Env, Log, Error ServerError, FileSystem, Concurrent, IOE] (Html ())
@@ -44,16 +45,16 @@ index sessionId = do
   fmap Template.withDefault $ index' sessionId
 
 
-fileDetailModal :: (Error ServerError :> es, Reader Env :> es, IOE :> es, Log :> es,  FileSystem :> es) => SessionId -> Maybe ClientPath -> Eff es (Html ())
-fileDetailModal sessionId mClientPath = withServerError do
+fileDetailModal :: (Error ServerError :> es, Reader Env :> es, IOE :> es, Log :> es,  FileSystem :> es) => SessionId -> ConfirmDesktopOnly -> Maybe ClientPath -> Eff es (Html ())
+fileDetailModal sessionId _ mClientPath = withServerError do
   clientPath <- withQueryParam mClientPath
   root <- Env.getRoot sessionId
   file <- runStorage sessionId $ Storage.get (ClientPath.fromClientPath root clientPath)
   pure (Template.Desktop.fileDetailModal file)
 
 
-editorModal :: (Error ServerError :> es, Reader Env :> es, IOE :> es, Log :> es, FileSystem :> es) => SessionId -> Maybe ClientPath -> Eff es (Html ())
-editorModal sessionId mClientPath = withServerError do
+editorModal :: (Error ServerError :> es, Reader Env :> es, IOE :> es, Log :> es, FileSystem :> es) => SessionId -> ConfirmDesktopOnly -> Maybe ClientPath -> Eff es (Html ())
+editorModal sessionId _ mClientPath = withServerError do
     clientPath <- withQueryParam mClientPath
     root <- Env.getRoot sessionId
     let p = ClientPath.fromClientPath root clientPath
@@ -95,8 +96,8 @@ paste sessionId _ = do
   index' sessionId
 
 
-contextMenu :: (Error ServerError :> es, Reader Env :> es, IOE :> es, Log :> es,  FileSystem :> es) => SessionId -> Maybe ClientPath -> Eff es (Html ())
-contextMenu sessionId mClientPath = withServerError do
+contextMenu :: (Error ServerError :> es, Reader Env :> es, IOE :> es, Log :> es,  FileSystem :> es) => SessionId -> ConfirmDesktopOnly -> Maybe ClientPath -> Eff es (Html ())
+contextMenu sessionId _ mClientPath = withServerError do
   clientPath <- withQueryParam mClientPath
   root <- Env.getRoot sessionId
   let filePath = ClientPath.fromClientPath root clientPath

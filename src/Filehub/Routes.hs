@@ -54,10 +54,14 @@ import Filehub.Types
       Resolution(..)
     )
 import GHC.Generics (Generic)
+import Filehub.Server.Resoluiton (ConfirmMobilOnly, ConfirmDesktopOnly)
+import Filehub.Server.ReadOnly (ConfirmReadOnly)
 
 
 type instance AuthServerData (AuthProtect "session") = SessionId
-type instance AuthServerData (AuthProtect "readonly") = ()
+type instance AuthServerData (AuthProtect "readonly") = ConfirmReadOnly
+type instance AuthServerData (AuthProtect "desktop-only") = ConfirmDesktopOnly
+type instance AuthServerData (AuthProtect "mobile-only") = ConfirmMobilOnly
 
 
 data Api mode = Api
@@ -141,6 +145,7 @@ data Api mode = Api
                     :> "file"
                     :> "detail"
                     :> AuthProtect "session"
+                    :> AuthProtect "desktop-only"
                     :> QueryParam "file" ClientPath
                     :> Get '[HTML] (Html ())
 
@@ -148,6 +153,7 @@ data Api mode = Api
   , editorModal     :: mode :- "modal"
                     :> "editor"
                     :> AuthProtect "session"
+                    :> AuthProtect "desktop-only"
                     :> QueryParam "file" ClientPath
                     :> Get '[HTML] (Html ())
 
@@ -192,6 +198,7 @@ data Api mode = Api
 
   , contextMenu     :: mode :- "contextmenu"
                     :> AuthProtect "session"
+                    :> AuthProtect "desktop-only"
                     :> QueryParam "file" ClientPath
                     :> Get '[HTML] (Html ())
 

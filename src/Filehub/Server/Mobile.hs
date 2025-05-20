@@ -12,7 +12,6 @@ import Prelude hiding (readFile)
 import Prelude hiding (readFile)
 
 
-
 index :: SessionId -> Filehub (Html ())
 index sessionId =
   undefined

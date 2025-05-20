@@ -6,7 +6,6 @@ module Filehub.Server
   , sessionMiddleware
   ) where
 
-import Data.ByteString.Char8 (ByteString)
 import Data.ByteString.Char8 qualified as ByteString.Char8
 import Data.String.Interpolate (i)
 import Data.UUID qualified as UUID
@@ -43,7 +42,7 @@ import Network.HTTP.Types.Status (mkStatus)
 import Network.Wai
 import Network.Wai.Application.Static
 import Prelude hiding (readFile)
-import Servant ( Raw, Tagged(..), ServerT, ServerError(..), ServerError, FromHttpApiData (..) )
+import Servant ( Raw, Tagged(..), ServerT, ServerError(..), ServerError)
 import Servant.Server.Generic (AsServerT)
 import Log (runLogT, logTrace_)
 import Network.URI.Encode qualified as URI
@@ -65,7 +64,7 @@ import Filehub.ClientPath qualified as ClientPath
 import Filehub.Selected qualified as Selected
 import Filehub.Sort (sortFiles)
 import Filehub.Template.Desktop qualified as Template.Desktop
-import Filehub.Server.Internal (withQueryParam, runStorage, clear)
+import Filehub.Server.Internal (withQueryParam, runStorage, clear, parseHeader')
 import Filehub.Types
     ( ClientPath(..),
       NewFile(..),
@@ -140,16 +139,11 @@ dynamicRaw env = Servant.Tagged $ \req respond -> do
             bytes
 
 
-parseHeader' :: FromHttpApiData a => ByteString -> Maybe a
-parseHeader' x = either (const Nothing) Just $ parseHeader x
-
-
 -- | If session is not present, create a new session
 sessionMiddleware :: Env -> Middleware
 sessionMiddleware env@Env{ logger, logLevel } app req respond = runLogT "sessionMiddleware" logger logLevel $ do
   let mCookie = lookup "Cookie" $ requestHeaders req
   let mSessionId = mCookie >>= parseHeader' >>= Cookies.getSessionId
-  let mResolution = mCookie >>= parseHeader' >>= Cookies.getResolution
   case mSessionId of
     Just sessionId -> do
       eSession <- liftIO . runFilehub env $ SessionPool.getSession sessionId & withServerError
@@ -157,8 +151,8 @@ sessionMiddleware env@Env{ logger, logLevel } app req respond = runLogT "session
         Left _ -> do
           logTrace_ [i|Invalid session: #{sessionId}|]
           respondWithNewSession
-        Right session -> do
-          logTrace_ [i|Existed session, #{sessionId} #{session ^. #resolution} #{mResolution}|]
+        Right _ -> do
+          logTrace_ [i|Existed session, #{sessionId} |]
           liftIO $ app req respond
     Nothing -> do
       logTrace_ [i|No session found.|]

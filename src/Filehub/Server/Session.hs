@@ -1,4 +1,4 @@
-module Filehub.Auth where
+module Filehub.Server.Session where
 
 import Servant.Server.Experimental.Auth (AuthHandler, mkAuthHandler)
 import Servant (FromHttpApiData (..), errBody, err401, throwError, Handler (..))

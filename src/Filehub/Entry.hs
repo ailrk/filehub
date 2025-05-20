@@ -13,8 +13,9 @@ import Network.Wai.Middleware.RequestLogger (logStdout)
 import Network.Wai.Handler.Warp (setPort, defaultSettings, runSettings)
 import Servant (serveWithContextT, Context (..), Application, serveDirectoryWebApp, (:<|>) (..))
 import System.Directory (makeAbsolute)
-import Filehub.Auth qualified as Auth
-import Filehub.ReadOnly qualified as ReadOnly
+import Filehub.Server.Session qualified as Session
+import Filehub.Server.ReadOnly qualified as ReadOnly
+import Filehub.Server.Resoluiton qualified as Resoluiton
 import Filehub.Monad
 import Filehub.Options (Options(..), parseOptions)
 import Filehub.Env
@@ -38,8 +39,10 @@ application env
       :<|> serveDirectoryWebApp env.dataDir
       :<|> Server.dynamicRaw env
 
-    ctx = Auth.sessionHandler env
+    ctx = Session.sessionHandler env
         :. ReadOnly.readOnlyHandler env
+        :. Resoluiton.desktopOnlyHandler env
+        :. Resoluiton.mobileOnlyHandler env
         :. EmptyContext
 
 ------------------------------------
