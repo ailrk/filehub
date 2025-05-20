@@ -1,20 +1,22 @@
 module Filehub.Cookie
   ( Cookies'(..)
   , SetCookie(..)
+  , parseCookies
   , getSessionId
   , setSessionId
-  , getSessionId'
+  , getResolution
   , renderSetCookie
   ) where
 
-import Web.Cookie (Cookies, SetCookie(..), parseCookies, defaultSetCookie)
+import Web.Cookie (Cookies, SetCookie(..), defaultSetCookie)
 import Web.Cookie qualified as Cookie
 import Servant (FromHttpApiData (..))
 import Data.Text.Encoding qualified as T
 import Data.UUID qualified as UUID
-import Filehub.Types (Session(..), SessionId (..))
+import Filehub.Types (Session(..), SessionId (..), Resolution)
 import Lens.Micro ((<&>))
 import Data.ByteString (ByteString)
+import Data.Text.Encoding qualified as Text
 
 
 newtype Cookies' = Cookies' Cookies
@@ -22,21 +24,30 @@ newtype Cookies' = Cookies' Cookies
 
 
 instance FromHttpApiData Cookies' where
-  parseHeader = return . Cookies' . parseCookies
-  parseQueryParam = return . Cookies' . parseCookies . T.encodeUtf8
+  parseHeader = return . Cookies' . Cookie.parseCookies
+  parseQueryParam = return . Cookies' . Cookie.parseCookies . T.encodeUtf8
+
+
+parseCookies :: ByteString -> Cookies'
+parseCookies = Cookies' . Cookie.parseCookies
 
 
 renderSetCookie :: SetCookie -> ByteString
 renderSetCookie = Cookie.renderSetCookieBS
 
 
-getSessionId' :: Cookies' -> Maybe SessionId
-getSessionId' (Cookies' cookies) = getSessionId cookies
+getSessionId :: Cookies' -> Maybe SessionId
+getSessionId (Cookies' cookies) = go
+  where
+    go = lookup "sessionId" cookies >>= UUID.fromASCIIBytes <&> SessionId
 
 
-getSessionId :: Cookies -> Maybe SessionId
-getSessionId cookies =
-  lookup "sessionId" cookies >>= UUID.fromASCIIBytes <&> SessionId
+getResolution :: Cookies' -> Maybe Resolution
+getResolution (Cookies' cookies) = go
+  where
+    go = do
+      raw <- lookup "resolution" cookies <&> Text.decodeUtf8
+      either (const Nothing) Just $ parseUrlPiece raw
 
 
 setSessionId :: Session -> SetCookie

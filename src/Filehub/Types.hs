@@ -11,6 +11,8 @@ module Filehub.Types
   , SessionId(..)
   , SessionPool(..)
   , Env(..)
+  , Resolution(..)
+  , Display(..)
   , TargetId(..)
   , Target(..)
   , S3Target(..)
@@ -35,6 +37,7 @@ import Amazonka qualified
 import Control.Concurrent.Timer qualified as Timer
 import Data.HashTable.IO (BasicHashTable)
 import Data.Hashable (Hashable)
+import Data.Text qualified as Text
 import Data.Text (Text)
 import Data.Text.Lazy.Encoding qualified as LText
 import Data.Time (UTCTime, NominalDiffTime)
@@ -53,6 +56,37 @@ import Servant
       ToHttpApiData(..),
       FromHttpApiData(..) )
 import Web.FormUrlEncoded (FromForm (..), parseUnique, parseAll)
+import Text.Read (readMaybe)
+
+
+data Resolution = Resolution
+  { width :: Int
+  , height :: Int
+  }
+  deriving (Show, Eq, Ord)
+
+
+instance ToHttpApiData Resolution where
+  toUrlPiece (Resolution w h) = toUrlPiece $ show w ++ "x" ++ show h
+
+
+-- | e.g 1920x1080
+instance FromHttpApiData Resolution where
+  parseUrlPiece res =
+    case Text.splitOn "x" res of
+      x:y:_ -> do
+        maybe (Left "invalid resolution") (\(w, h) -> pure $ Resolution w h) do
+          w <- readMaybe $ Text.unpack x
+          h <- readMaybe $ Text.unpack y
+          pure (w, h)
+      _ -> Left "unknown resolution"
+
+
+data Display
+  = Mobile
+  | Desktop
+  | NoDisplay
+  deriving (Show, Eq, Ord)
 
 
 newtype SessionId = SessionId UUID
@@ -61,6 +95,7 @@ newtype SessionId = SessionId UUID
 
 data Session = Session
   { sessionId :: SessionId
+  , resolution :: Maybe Resolution
   , expireDate :: UTCTime
   , targets :: [TargetSessionData]
   , copyState :: CopyState

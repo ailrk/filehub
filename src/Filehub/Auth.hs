@@ -28,6 +28,6 @@ sessionHandler env = mkAuthHandler handler
       sessionId <- either throw401 pure do
         header <- toEither "cookie not found" $ lookup "Cookie" $ requestHeaders req
         cookie <- bimap (Text.encodeUtf8 . Text.fromStrict) id $ parseHeader header
-        toEither "can't get sessionId" $ Cookie.getSessionId' cookie
+        toEither "can't get sessionId" $ Cookie.getSessionId cookie
       _ <- toServantHandler env $ SessionPool.getSession sessionId & withServerError
       pure sessionId

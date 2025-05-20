@@ -50,7 +50,8 @@ import Filehub.Types
       TargetId,
       Selected(..),
       FilehubEvent(..),
-      SessionId
+      SessionId,
+      Resolution(..)
     )
 import GHC.Generics (Generic)
 
@@ -60,7 +61,13 @@ type instance AuthServerData (AuthProtect "readonly") = ()
 
 
 data Api mode = Api
-  { index           :: mode :- AuthProtect "session" :> Get '[HTML] (Html ())
+  { init            :: mode :- "init"
+                    :> AuthProtect "session"
+                    :> QueryParam "res" Resolution
+                    :> Get '[HTML] (Html ())
+
+
+  , index           :: mode :- AuthProtect "session" :> Get '[HTML] (Html ())
 
 
   , cd              :: mode :- "cd"

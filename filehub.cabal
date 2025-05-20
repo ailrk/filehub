@@ -111,6 +111,8 @@ library
       Filehub.Server.Desktop
       Filehub.Server.Mobile
       Filehub.Server
+      Filehub.Template
+      Filehub.Template.Internal
       Filehub.Template.Desktop
       Filehub.Template.Mobile
       Filehub.Error

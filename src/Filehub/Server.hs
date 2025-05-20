@@ -1,13 +1,18 @@
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE NamedFieldPuns #-}
-module Filehub.Server where
+module Filehub.Server
+  ( server
+  , dynamicRaw
+  , sessionMiddleware
+  ) where
 
+import Data.ByteString.Char8 (ByteString)
 import Data.ByteString.Char8 qualified as ByteString.Char8
 import Data.String.Interpolate (i)
 import Data.UUID qualified as UUID
 import Effectful ( MonadIO(liftIO), liftIO, liftIO, runEff )
 import Effectful.Reader.Dynamic (runReader)
-import Filehub.Cookie ( getSessionId )
+import Filehub.Cookie ( getSessionId, parseCookies )
 import Filehub.Cookie qualified as Cookies
 import Filehub.Env (Env (..), TargetView (..))
 import Filehub.Env qualified as Env
@@ -22,20 +27,21 @@ import Filehub.Types
       SessionId(..),
       File(..),
       Session(..),
-      SessionId(..))
+      SessionId(..), Display (..), Resolution (..))
 import Filehub.Server.Desktop qualified as Server.Desktop
+import Filehub.Server.Mobile qualified as Server.Mobile
+import Filehub.Template qualified as Template
 import Lens.Micro
 import Lens.Micro.Platform ()
 import Network.HTTP.Types.Status (mkStatus)
 import Network.Wai
 import Network.Wai.Application.Static
 import Prelude hiding (readFile)
-import Prelude hiding (readFile)
 import Servant ( Raw, Tagged(..), ServerT, ServerError(..), ServerError, FromHttpApiData (..) )
 import Servant.Server.Generic (AsServerT)
-import Web.Cookie (parseCookies)
 import Log (runLogT, logTrace_)
 import Network.URI.Encode qualified as URI
+import Effectful.Log (logAttention_)
 
 
 -- | Handle static file access
@@ -90,25 +96,30 @@ dynamicRaw env = Servant.Tagged $ \req respond -> do
             bytes
 
 
+parseHeader' :: FromHttpApiData a => ByteString -> Maybe a
+parseHeader' x = either (const Nothing) Just $ parseHeader x
+
+
 -- | If session is not present, create a new session
 sessionMiddleware :: Env -> Middleware
 sessionMiddleware env@Env{ logger, logLevel } app req respond = runLogT "sessionMiddleware" logger logLevel $ do
   let mCookie = lookup "Cookie" $ requestHeaders req
-  case mCookie >>= parseHeader' >>= Cookies.getSessionId' of
+  let mSessionId = mCookie >>= parseHeader' >>= Cookies.getSessionId
+  let mResolution = mCookie >>= parseHeader' >>= Cookies.getResolution
+  case mSessionId of
     Just sessionId -> do
       eSession <- liftIO . runFilehub env $ SessionPool.getSession sessionId & withServerError
       case eSession of
         Left _ -> do
           logTrace_ [i|Invalid session: #{sessionId}|]
           respondWithNewSession
-        Right _ -> do
-          logTrace_ [i|Existed session, #{sessionId}|]
+        Right session -> do
+          logTrace_ [i|Existed session, #{sessionId} #{session ^. #resolution} #{mResolution}|]
           liftIO $ app req respond
     Nothing -> do
       logTrace_ [i|No session found.|]
       respondWithNewSession
   where
-    parseHeader' x = either (const Nothing) Just $ parseHeader x
     respondWithNewSession = do
       session <- liftIO . runEff . runReader env $ SessionPool.newSession
       let sessionId@(SessionId sid) = session.sessionId
@@ -124,7 +135,25 @@ sessionMiddleware env@Env{ logger, logLevel } app req respond = runLogT "session
 -- | Server definition
 server :: Api (AsServerT Filehub)
 server = Api
-  { index = Server.Desktop.server.index
+  { init = \sessionId mRes -> do
+      case mRes of
+        Just res -> do
+          Env.updateSession sessionId $
+            \s -> s & #resolution .~ Just res
+          server.index sessionId
+        Nothing -> do
+          logAttention_ "No resolution info from /init. Set to 360x800 as default"
+          Env.updateSession sessionId $
+            \s -> s & #resolution .~ Just (Resolution 360 800)
+          server.index sessionId
+
+
+  , index = \sessionId -> do
+      Env.getDisplay sessionId & withServerError >>= \case
+        NoDisplay -> do -- boostrap
+          pure $ Template.bootstrap
+        Desktop -> Server.Desktop.server.index sessionId
+        Mobile -> Server.Mobile.server.index sessionId
 
 
   , cd = Server.Desktop.server.cd

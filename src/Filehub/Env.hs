@@ -5,6 +5,7 @@ module Filehub.Env
   , setCurrentDir
   , getSortFileBy
   , setSortFileBy
+  , getDisplay
   , module Filehub.SessionPool
   , module Filehub.Env.Internal
   , module Filehub.Target
@@ -19,7 +20,7 @@ import Effectful.Reader.Dynamic (Reader)
 import Effectful ((:>), Eff, IOE)
 import Effectful.Log (Log)
 import Filehub.Types
-    ( Env(..), Session(..), SessionId, Target(..), SortFileBy)
+    ( Env(..), Session(..), SessionId, Target(..), SortFileBy, Display (..), Resolution(..))
 import Filehub.Error (FilehubError (..))
 import Filehub.SessionPool (getSession, updateSession)
 import Filehub.Env.Internal (getSessionPool, getDataDir, getTheme, getReadOnly, getSessionDuration, getTargets)
@@ -51,3 +52,15 @@ getSortFileBy sessionId = (^. #sessionData . #sortedFileBy) <$> Target.currentTa
 setSortFileBy :: (Reader Env :> es, IOE :> es) => SessionId -> SortFileBy -> Eff es ()
 setSortFileBy sessionId order = do
   updateSession sessionId (\s -> s & #targets . ix s.index . #sortedFileBy .~ order)
+
+
+getDisplay :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es Display
+getDisplay sessionId = do
+  session <- getSession sessionId
+  case session ^. #resolution of
+    Just resolution -> pure $ classify resolution
+    Nothing -> pure NoDisplay
+  where
+    classify (Resolution width _)
+      | width < 768 = Mobile
+      | otherwise = Desktop

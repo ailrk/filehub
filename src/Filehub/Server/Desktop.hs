@@ -24,6 +24,7 @@ import Filehub.Sort (sortFiles)
 import Filehub.Storage (Storage)
 import Filehub.Storage qualified as Storage
 import Filehub.Template.Desktop qualified as Template.Desktop
+import Filehub.Template.Internal qualified as Template
 import Filehub.Types
     ( ClientPath(..),
       NewFile(..),
@@ -61,7 +62,10 @@ import UnliftIO (catch, SomeException)
 -- | Server definition
 server :: Api (AsServerT Filehub)
 server = Api
-  { index = fmap Template.Desktop.withDefault . index'
+  { init = pure undefined
+
+
+  , index = fmap Template.withDefault . index'
 
 
   , cd = \sessionId mClientPath -> do

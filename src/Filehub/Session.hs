@@ -31,6 +31,7 @@ createSession = do
   expireDate <- createExpireDate
   pure Session
     { sessionId = sessionId
+    , resolution = Nothing
     , expireDate = expireDate
     , targets = targetToSessionData <$> targets
     , copyState = NoCopyPaste

@@ -1,8 +1,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 
 module Filehub.Template.Mobile
-  ( withDefault
-  , index
+  ( index
   , sideBar
   , controlPanel
   , view
@@ -20,8 +19,6 @@ module Filehub.Template.Mobile
 
 
 import Data.Aeson ((.=))
-import Data.Aeson qualified as Aeson
-import Data.Aeson.Types (Pair)
 import Data.Bifunctor (Bifunctor(..))
 import Data.ByteString.Lazy qualified as LBS
 import Data.Foldable (traverse_, Foldable (..))
@@ -55,6 +52,7 @@ import Filehub.ClientPath qualified as ClientPath
 import Filehub.Viewer qualified as Viewer
 import Filehub.Target (TargetView(..))
 import Filehub.Target qualified as Target
+import Filehub.Template.Internal (bold, toClientPath, toHxVals)
 import Lens.Micro
 import Lens.Micro.Platform ()
 import Lucid
@@ -416,10 +414,6 @@ fileDetailModal file = do
           td_ (toHtml file.mimetype)
 
 
-bold :: Html () -> Html ()
-bold t = span_ [ class_ "bold" ] t
-
-
 editorModal :: Bool -> FilePath -> LBS.ByteString -> Html ()
 editorModal readOnly filename content = do
 
@@ -470,27 +464,6 @@ editorModal readOnly filename content = do
                   , type_ "button"
                   , term "_" "on click trigger Close"
                   ] "CLOSE"
-
-
-------------------------------------
--- default
-------------------------------------
-
-
-withDefault :: Html () -> Html ()
-withDefault html = do
-  meta_ [ name_ "viewport", content_ "width=device-width, initial-scale=1.0" ]
-  link_ [ rel_ "stylesheet", href_ "https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" ]
-
-  script_ [ src_ "https://unpkg.com/hyperscript.org@0.9.13" ] ("" :: Text)
-  script_ [ src_ "https://unpkg.com/htmx.org@2.0.3" ] ("" :: Text)
-
-  link_ [ rel_ "stylesheet", href_ "/static/filehub/viewer.css" ]
-  script_ [ src_ "/static/filehub/viewer.js", type_ "module" ] ("" :: Text)
-
-  link_ [ rel_ "stylesheet", href_ "/static/filehub/ui.css" ]
-  script_ [ src_ "/static/filehub/ui.js", type_ "module" ] ("" :: Text)
-  html
 
 
 ------------------------------------
@@ -815,16 +788,3 @@ componentIds = ComponentIds
   , editorModal = "editor-modal"
   , contextMenu = "contextmenu"
   }
-
-
-------------------------------------
--- helpers
-------------------------------------
-
-
-toClientPath :: FilePath -> FilePath -> Text
-toClientPath root p = Text.pack . (.unClientPath) $ ClientPath.toClientPath root p
-
-
-toHxVals :: [Pair] -> Text
-toHxVals xs = (xs & Aeson.object & Aeson.encode & LText.decodeUtf8) ^. strict
