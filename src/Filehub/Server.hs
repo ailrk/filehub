@@ -53,7 +53,6 @@ import Prelude hiding (readFile)
 import Servant ( addHeader, err500 )
 import UnliftIO (catch)
 import Lucid
-
 import Control.Monad (when)
 import Data.Maybe (fromMaybe, isJust)
 import Data.Foldable (forM_)
