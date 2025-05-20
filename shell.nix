@@ -7,6 +7,7 @@ hspkgs.shellFor {
     hspkgs.haskell-language-server
     hspkgs.hlint
     hspkgs.cabal2nix
+    hspkgs.ghcprofview
     pkgs.ghciwatch
     pkgs.bashInteractive
   ];
