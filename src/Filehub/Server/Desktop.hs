@@ -10,7 +10,7 @@ import Filehub.ClientPath qualified as ClientPath
 import Filehub.Env (Env (..), TargetView (..))
 import Filehub.Env qualified as Env
 import Filehub.Target qualified as Target
-import Filehub.Error ( withServerError, FilehubError(..), FilehubError(..), withServerError )
+import Filehub.Error ( withServerError, withServerError )
 import Filehub.Monad ( Filehub )
 import Filehub.Selected qualified as Selected
 import Filehub.Sort (sortFiles)
@@ -20,8 +20,7 @@ import Filehub.Template.Internal qualified as Template
 import Filehub.Server.Internal (withQueryParam, runStorage, clear)
 import Filehub.Types
     ( SessionId(..),
-      SessionId(..),
-      Selected (..), ClientPath)
+      SessionId(..), ClientPath)
 import Filehub.ControlPanel qualified as ControlPanel
 import Filehub.Copy qualified as Copy
 import Lens.Micro
@@ -31,7 +30,6 @@ import Prelude hiding (readFile)
 import Prelude hiding (readFile)
 import Servant ( ServerError(..), ServerError, err500 )
 import System.FilePath (takeFileName)
-import Log (logAttention_)
 import UnliftIO (catch, SomeException)
 import Effectful.Log (Log)
 import Effectful.FileSystem (FileSystem)
@@ -65,19 +63,6 @@ editorModal sessionId _ mClientPath = withServerError do
     let filename = takeFileName p
     readOnly <- Env.getReadOnly
     pure $ Template.Desktop.editorModal readOnly filename content
-
-
-selectRows :: (Error ServerError :> es, Reader Env :> es, Log :> es, IOE :> es) => SessionId -> Selected -> Eff es (Html ())
-selectRows sessionId selected = do
-  case selected of
-    NoSelection -> do
-      logAttention_ [i|No selection: #{sessionId}|]
-      throwError InvalidSelection & withServerError
-    _ -> do
-      Selected.setSelected sessionId selected
-      Template.Desktop.controlPanel
-        <$> Env.getReadOnly
-        <*> ControlPanel.getControlPanelState sessionId & withServerError
 
 
 copy :: (Error ServerError :> es, Reader Env :> es, IOE :> es, FileSystem :> es, Log :> es) => SessionId -> p -> Eff es (Html ())

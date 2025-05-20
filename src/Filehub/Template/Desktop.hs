@@ -80,21 +80,19 @@ index readOnly sideBar' view' controlPanelState = do
 
 controlPanel :: Bool -> ControlPanelState -> Html ()
 controlPanel True _ = do
-    div_ [ id_ elementId ] do
+    div_ [ id_ controlPanelId ] do
       span_ [ class_ "btn-like field " ] do
         i_ [ class_ "bx bx-lock-alt" ] mempty
         span_ "Read-only is enabled"
-  where
-    elementId = componentIds.controlPanel
 controlPanel False state = do
   case state of
     ControlPanelDefault ->
-      div_ [ id_ elementId ] do
+      div_ [ id_ controlPanelId ] do
         newFolderBtn
         newFileBtn
         uploadBtn
     ControlPanelSelecting ->
-      div_ [ id_ elementId ] do
+      div_ [ id_ controlPanelId ] do
         newFolderBtn
         newFileBtn
         uploadBtn
@@ -102,19 +100,17 @@ controlPanel False state = do
         deleteBtn
         cancelBtn
     ControlPanelCopied ->
-      div_ [ id_ elementId ] do
+      div_ [ id_ controlPanelId ] do
         newFolderBtn
         newFileBtn
         uploadBtn
         pasteBtn
         cancelBtn
-  where
-    elementId = componentIds.controlPanel
 
 
 view :: Html () -> Html () -> Html ()
 view table' pathBreadcrumb' = do
-  div_ [ id_ componentIds.view ] do
+  div_ [ id_ viewId ] do
     toolBar pathBreadcrumb'
     table'
 
@@ -128,10 +124,9 @@ toolBar pathBreadcrumb' = do
 
 sideBar :: [Target] -> TargetView -> Html ()
 sideBar targets (TargetView currentTarget _ _) = do
-  div_ [ id_ elementId ] do
+  div_ [ id_ sideBarId ] do
     traverse_ targetIcon targets
   where
-    elementId = componentIds.sideBar
 
     targetIcon :: Target -> Html ()
     targetIcon target = do
@@ -172,7 +167,7 @@ pathBreadcrumb currentDir root = do
         & adjustLast (addAttr " active")
         & fmap toLi
         & sequence_
-  div_ [ class_ "breadcrumb", id_ componentIds.pathBreadcrumb ] do
+  div_ [ class_ "breadcrumb", id_ pathBreadcrumbId ] do
     ol_ breadcrumbItems
   where
     adjustLast f xs = Seq.adjust f (length xs - 1) xs
@@ -181,7 +176,7 @@ pathBreadcrumb currentDir root = do
       where
         attrs =
           [ term "hx-get" ("/cd?dir=" <> toClientPath root p)
-          , term "hx-target" ("#" <> componentIds.view)
+          , term "hx-target" ("#" <> viewId)
           , term "hx-swap" "outerHTML"
           ]
 
@@ -321,7 +316,7 @@ search (SearchWord searchWord) target root files selected order = do
 
 searchBar :: Html ()
 searchBar = do
-  div_ [ id_ componentIds.searchBar ] do
+  div_ [ id_ searchBarId ] do
     input_ [ class_ "form-control "
            , type_ "input"
            , name_ "search"
@@ -340,7 +335,7 @@ searchBar = do
 
 newFileModal :: Html ()
 newFileModal = do
-  modal [ id_ componentIds.newFileModal ] do
+  modal [ id_ newFileModalId ] do
     bold "File"
     br_ mempty >> br_ mempty
     form_ [ term "hx-post" "/files/new"
@@ -366,7 +361,7 @@ newFileModal = do
 
 newFolderModal :: Html ()
 newFolderModal = do
-  modal [ id_ componentIds.newFolderModal ] do
+  modal [ id_ newFolderModalId ] do
     bold "Folder"
     br_ mempty >> br_ mempty
     form_ [ term "hx-post" "/folders/new"
@@ -391,7 +386,7 @@ newFolderModal = do
 
 fileDetailModal :: File -> Html ()
 fileDetailModal file = do
-  modal [ id_ componentIds.fileDetailModal ] do
+  modal [ id_ fileDetailModalId ] do
     bold "Detail"
     br_ mempty >> br_ mempty
 
@@ -417,7 +412,7 @@ fileDetailModal file = do
 editorModal :: Bool -> FilePath -> LBS.ByteString -> Html ()
 editorModal readOnly filename content = do
 
-  modal [ id_ componentIds.editorModal ] do
+  modal [ id_ editorModalId ] do
     case readOnly of
       True -> bold "Read-only"
       False -> bold "Edit"
@@ -506,7 +501,7 @@ modal attrs body = do
 
 table :: Target -> FilePath -> [File] -> Selected -> SortFileBy -> Html ()
 table target root files selected order = do
-  table_ [ id_ componentIds.table ] do
+  table_ [ id_ tableId ] do
     thead_ do
       tr_ do
         th_ do
@@ -625,7 +620,7 @@ table target root files selected order = do
               [ case file.content of
                   Dir _ ->
                     [ term "hx-get" ("/cd?dir=" <> toClientPath root file.path)
-                    , term "hx-target" ("#" <> componentIds.view)
+                    , term "hx-target" ("#" <> viewId)
                     , term "hx-swap" "outerHTML"
                     ]
                   Content
@@ -679,14 +674,14 @@ contextMenu readOnly root file = do
   let textClientPath = toClientPath root file.path
 
   div_ [ class_ "dropdown-content "
-       , id_ componentIds.contextMenu
+       , id_ contextMenuId
       ] do
 
     case file.content of
       Dir _ -> do
         div_ [ class_ "dropdown-item"
              , term "hx-get" ("/cd?dir=" <> textClientPath )
-             , term "hx-target" ("#" <> componentIds.view)
+             , term "hx-target" ("#" <> viewId)
              , term "hx-swap" "outerHTML"
              ] $
           span_ "Open"
@@ -755,36 +750,35 @@ contextMenu readOnly root file = do
 -- component ids
 ------------------------------------
 
+viewId :: Text
+viewId = "view"
 
-data ComponentIds = ComponentIds
-  { view :: Text
-  , controlPanel :: Text
-  , sideBar :: Text
-  , searchBar :: Text
-  , pathBreadcrumb :: Text
-  , table :: Text
-  , newFileModal :: Text
-  , newFolderModal :: Text
-  , fileDetailModal :: Text
-  , uploadModal :: Text
-  , editorModal :: Text
-  , contextMenu :: Text
-  }
-  deriving Show
+controlPanelId :: Text
+controlPanelId = "control-panel"
 
+sideBarId :: Text
+sideBarId = "side-bar"
 
-componentIds :: ComponentIds
-componentIds = ComponentIds
-  { view = "view"
-  , controlPanel = "control-panel"
-  , sideBar = "side-bar"
-  , searchBar = "search-bar"
-  , pathBreadcrumb = "path-breadcrumb"
-  , table = "table"
-  , newFileModal = "new-file-modal"
-  , newFolderModal = "new-folder-modal"
-  , fileDetailModal = "file-detail-modal"
-  , uploadModal = "upload-modal"
-  , editorModal = "editor-modal"
-  , contextMenu = "contextmenu"
-  }
+searchBarId :: Text
+searchBarId = "search-bar"
+
+pathBreadcrumbId :: Text
+pathBreadcrumbId = "path-breadcrumb"
+
+tableId :: Text
+tableId = "table"
+
+newFileModalId :: Text
+newFileModalId = "new-file-modal"
+
+newFolderModalId :: Text
+newFolderModalId = "new-folder-modal"
+
+fileDetailModalId :: Text
+fileDetailModalId = "file-detail-modal"
+
+editorModalId :: Text
+editorModalId = "editor-modal"
+
+contextMenuId :: Text
+contextMenuId = "contextmenu"

@@ -36,6 +36,8 @@ import Filehub.Types
 import Filehub.Server.Desktop qualified as Server.Desktop
 import Filehub.Server.Mobile qualified as Server.Mobile
 import Filehub.Template qualified as Template
+import Filehub.Template.Desktop qualified as Template.Desktop
+import Filehub.Template.Desktop qualified as Template.Mobile
 import Lens.Micro
 import Lens.Micro.Platform ()
 import Network.HTTP.Types.Status (mkStatus)
@@ -62,7 +64,6 @@ import Effectful.FileSystem.IO.ByteString.Lazy (readFile)
 import Filehub.ClientPath qualified as ClientPath
 import Filehub.Selected qualified as Selected
 import Filehub.Sort (sortFiles)
-import Filehub.Template.Desktop qualified as Template.Desktop
 import Filehub.Server.Internal (withQueryParam, runStorage, clear, parseHeader')
 import Filehub.Types
     ( ClientPath(..),
@@ -84,6 +85,8 @@ import Prelude hiding (readFile)
 import Prelude hiding (readFile)
 import System.FilePath ((</>), takeFileName)
 import Text.Printf (printf)
+import Filehub.ControlPanel qualified as ControlPanel
+import Debug.Trace
 
 
 -- | Handle static file access
@@ -186,7 +189,9 @@ server = Api
 
 
   , index = \sessionId -> do
-      Env.getDisplay sessionId & withServerError >>= \case
+      display <- Env.getDisplay sessionId & withServerError
+      traceM (show display)
+      case display of
         NoDisplay -> pure Template.bootstrap
         Desktop -> Server.Desktop.index sessionId
         Mobile -> Server.Mobile.index sessionId
@@ -237,10 +242,10 @@ server = Api
       view sessionId
 
 
-  , newFileModal = \_ _ -> pure Template.Desktop.newFileModal
+  , newFileModal = \_ _ _ -> pure Template.Desktop.newFileModal
 
 
-  , newFolderModal = \_ _ -> pure Template.Desktop.newFolderModal
+  , newFolderModal = \_ _ _ -> pure Template.Desktop.newFolderModal
 
 
   , fileDetailModal = Server.Desktop.fileDetailModal
@@ -250,13 +255,17 @@ server = Api
 
 
   , search = \sessionId searchWord -> do
+      display <- Env.getDisplay sessionId & withServerError
       withServerError . runStorage sessionId $ do
         TargetView target _ _ <- Env.currentTarget sessionId & withServerError
         root <- Env.getRoot sessionId
         files <- Storage.lsCwd
         order <- Env.getSortFileBy sessionId
         selected <- Selected.getSelected sessionId
-        pure $ Template.Desktop.search searchWord target root files selected order
+        case display of
+          Mobile -> pure $ Template.Mobile.search searchWord target root files selected order
+          Desktop -> pure $ Template.Desktop.search searchWord target root files selected order
+          NoDisplay -> undefined
 
 
   , sortTable = \sessionId order -> do
@@ -264,7 +273,24 @@ server = Api
       addHeader TableSorted <$> view sessionId
 
 
-  , selectRows = Server.Desktop.selectRows
+  , selectRows = \sessionId selected -> do
+      display <- Env.getDisplay sessionId & withServerError
+      case selected of
+        NoSelection -> do
+          logAttention_ [i|No selection: #{sessionId}|]
+          throwError InvalidSelection & withServerError
+        _ -> do
+          Selected.setSelected sessionId selected
+          case display of
+            Desktop ->
+              Template.Desktop.controlPanel
+                <$> Env.getReadOnly
+                <*> ControlPanel.getControlPanelState sessionId & withServerError
+            Mobile ->
+              Template.Mobile.controlPanel
+                <$> Env.getReadOnly
+                <*> ControlPanel.getControlPanelState sessionId & withServerError
+            NoDisplay -> undefined
 
 
   , upload = \sessionId _ multipart -> do

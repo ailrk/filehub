@@ -61,6 +61,10 @@ getDisplay sessionId = do
     Just resolution -> pure $ classify resolution
     Nothing -> pure NoDisplay
   where
-    classify (Resolution width _)
-      | width < 768 = Mobile
-      | otherwise = Desktop
+    classify :: Resolution -> Display
+    classify (Resolution w h)
+      | isMobile = Mobile
+      | otherwise    = Desktop
+      where
+        aspect = fromIntegral w / fromIntegral h :: Double
+        isMobile = w < 768 || aspect < 0.75

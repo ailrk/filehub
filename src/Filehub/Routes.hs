@@ -130,6 +130,7 @@ data Api mode = Api
   , newFileModal    :: mode :- "modal"
                     :> "new-file"
                     :> AuthProtect "session"
+                    :> AuthProtect "desktop-only"
                     :> AuthProtect "readonly"
                     :> Get '[HTML] (Html ())
 
@@ -137,6 +138,7 @@ data Api mode = Api
   , newFolderModal  :: mode :- "modal"
                     :> "new-folder"
                     :> AuthProtect "session"
+                    :> AuthProtect "desktop-only"
                     :> AuthProtect "readonly"
                     :> Get '[HTML] (Html ())
 
