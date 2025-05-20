@@ -188,8 +188,7 @@ server = Api
 
   , index = \sessionId -> do
       Env.getDisplay sessionId & withServerError >>= \case
-        NoDisplay -> do -- boostrap
-          pure $ Template.bootstrap
+        NoDisplay -> pure Template.bootstrap
         Desktop -> Server.Desktop.index sessionId
         Mobile -> Server.Mobile.index sessionId
 

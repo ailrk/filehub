@@ -41,8 +41,9 @@ import Filehub.Server.Resoluiton (ConfirmDesktopOnly)
 
 index :: SessionId -> Eff  [Reader Env, Log, Error ServerError, FileSystem, Concurrent, IOE] (Html ())
 index sessionId = do
+  display <- Env.getDisplay sessionId & withServerError
   clear sessionId
-  fmap Template.withDefault $ index' sessionId
+  fmap (Template.withDefault display) $ index' sessionId
 
 
 fileDetailModal :: (Error ServerError :> es, Reader Env :> es, IOE :> es, Log :> es,  FileSystem :> es) => SessionId -> ConfirmDesktopOnly -> Maybe ClientPath -> Eff es (Html ())
