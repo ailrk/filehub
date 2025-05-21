@@ -15,6 +15,7 @@ import * as ViewerHandlers from './handlers/viewer.js';
 import * as Cookie from './cookie.js';
 import { Display } from './def.js';
 
+console.info("registering event listeners")
 
 let display: Display = Cookie.getCookie('display')! as Display
 

@@ -48,10 +48,16 @@ index :: Bool
       -> Html ()
 index readOnly sideBar' view' controlPanelState = do
   div_ [ id_ "index" ] do
+    overlay
     sideBar'
     view'
     controlPanel readOnly controlPanelState
     controlPanelBtn
+
+
+overlay :: Html ()
+overlay = div_ [ id_ overlayId ] mempty
+
 
 
 sideBar :: [Target] -> TargetView -> Html ()
@@ -71,10 +77,10 @@ sideBar targets (TargetView currentTarget _ _) = do
         case target of
           S3Target (S3Target_ { bucket }) -> do
             i_ [ class_ "bx bxs-cube" ] mempty
-            span_  [iii| #{bucket} |]
+            span_  [iii| /#{bucket} |]
           FileTarget (FileTarget_ { root }) -> do
             i_ [ class_ "bx bx-folder" ] mempty
-            span_ [iii| #{takeFileName root} |]
+            span_ [iii| /#{takeFileName root} |]
       `with` targetAttr target
       where
         targetAttr t = [class_ " current-target" | Target.getTargetId currentTarget == Target.getTargetId t]
@@ -83,7 +89,7 @@ sideBar targets (TargetView currentTarget _ _) = do
 controlPanelBtn :: Html ()
 controlPanelBtn =
   button_ [ id_ controlPanelBtnId
-          , term "_" [i|on click toggle .show on \##{controlPanelId}|]
+          , term "_" [i|on click toggle .show on \##{overlayId} toggle .show on \##{controlPanelId}|]
           ] do
     span_ [ class_ "field " ] do
       span_ "+"
@@ -129,7 +135,7 @@ view table' = do
 menuBtn :: Html ()
 menuBtn =
   button_ [ id_ menuBtnId
-          , term "_" [i|on click toggle .show on \##{sideBarId}|]
+          , term "_" [i|on click toggle .show on \##{overlayId} wait 50ms toggle .show on \##{sideBarId}|]
           ] do
     span_ [ class_ "field " ] do
       i_ [ class_ "bx bx-menu" ] mempty
@@ -163,7 +169,6 @@ searchBar = do
            , term "hx-swap" "outerHTML"
            ]
 
-
 table :: Target -> FilePath -> [File] -> Selected -> SortFileBy -> Html ()
 table target root files selected order = do
   table_ [ id_ tableId ] do
@@ -178,6 +183,7 @@ table target root files selected order = do
             modifiedDateElement file
             i_ [ class_ "bx bx-wifi-0"] mempty
             sizeElement file
+          `with` click file
       where
         attrs :: [Attribute]
         attrs = mconcat
@@ -214,25 +220,7 @@ table target root files selected order = do
                , title_ (Text.pack displayName)
                ]
       where
-        name =
-          span_ (toHtml displayName) `with`
-            mconcat
-              [ case file.content of
-                  Dir _ ->
-                    [ term "hx-get" ("/cd?dir=" <> toClientPath root file.path)
-                    , term "hx-target" ("#" <> viewId)
-                    , term "hx-swap" "outerHTML"
-                    ]
-                  Content
-                    | file.mimetype `isMime` "application/pdf" -> openBlank file
-                    | file.mimetype `isMime` "video" || file.mimetype `isMime` "mp4" -> open file
-                    | file.mimetype `isMime` "audio" || file.mimetype `isMime` "mp3" -> open file
-                    | file.mimetype `isMime` "image" -> open file
-                    | otherwise -> editor file
-              , case file.content of
-                  Dir _ -> [ class_ "dir " ]
-                  _ -> mempty
-              ]
+        name = span_ (toHtml displayName)
 
         icon =
           case file.content of
@@ -244,25 +232,43 @@ table target root files selected order = do
             S3Target _ -> file.path
             FileTarget _ -> takeFileName file.path
 
-
-    openBlank file =
-      -- Client path are percent encoded, but we need to use unencoded raw path here.
-      let ClientPath path = ClientPath.toClientPath root file.path
-       in [ term "_" [iii| on click js window.open('#{path}', '_blank'); end |] ]
-
-
-    open file =
-      let ClientPath path = ClientPath.toClientPath root file.path
-          imgIdx = Maybe.fromJust $ Map.lookup file resourceIdxMap -- image index always exists
-       in [ term "_" [iii| on click send Open(path: '#{path}', index: #{imgIdx}) to body |] ]
-
-
-    editor file =
-      [ term "hx-get" "/modal/editor"
-      , term "hx-vals" $ [ "file" .= toClientPath root file.path ] & toHxVals
-      , term "hx-target" "#index"
-      , term "hx-swap" "beforeend"
+    click file =
+      mconcat
+      [ case file.content of
+          Dir _ ->
+            [ term "hx-get" ("/cd?dir=" <> toClientPath root file.path)
+            , term "hx-target" ("#" <> viewId)
+            , term "hx-swap" "outerHTML"
+            ]
+          Content
+            | file.mimetype `isMime` "application/pdf" -> openBlank
+            | file.mimetype `isMime` "video" || file.mimetype `isMime` "mp4" -> open
+            | file.mimetype `isMime` "audio" || file.mimetype `isMime` "mp3" -> open
+            | file.mimetype `isMime` "image" -> open
+            | otherwise -> editor
+      , case file.content of
+          Dir _ -> [ class_ "dir " ]
+          _ -> mempty
       ]
+      where
+        openBlank =
+          -- Client path are percent encoded, but we need to use unencoded raw path here.
+          let ClientPath path = ClientPath.toClientPath root file.path
+           in [ term "_" [iii| on click js window.open('#{path}', '_blank'); end |] ]
+
+
+        open =
+          let ClientPath path = ClientPath.toClientPath root file.path
+              imgIdx = Maybe.fromJust $ Map.lookup file resourceIdxMap -- image index always exists
+           in [ term "_" [iii| on click send Open(path: '#{path}', index: #{imgIdx}) to body |] ]
+
+
+        editor =
+          [ term "hx-get" "/modal/editor"
+          , term "hx-vals" $ [ "file" .= toClientPath root file.path ] & toHxVals
+          , term "hx-target" "#index"
+          , term "hx-swap" "beforeend"
+          ]
 
 
     resourceIdxMap :: Map File Int
@@ -420,3 +426,6 @@ searchBarId = "search-bar"
 
 tableId :: Text
 tableId = "table"
+
+overlayId :: Text
+overlayId = "overlay"

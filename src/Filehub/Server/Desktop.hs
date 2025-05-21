@@ -3,11 +3,10 @@
 module Filehub.Server.Desktop where
 
 import Data.String.Interpolate (i)
-import Effectful ( Eff, (:>), IOE, withRunInIO )
-import Effectful.Error.Dynamic (throwError, Error)
-import Effectful.Reader.Dynamic (Reader)
+import Effectful ( withRunInIO )
+import Effectful.Error.Dynamic (throwError)
 import Filehub.ClientPath qualified as ClientPath
-import Filehub.Env (Env (..), TargetView (..))
+import Filehub.Env (TargetView (..))
 import Filehub.Env qualified as Env
 import Filehub.Target qualified as Target
 import Filehub.Error ( withServerError, withServerError )
@@ -16,7 +15,6 @@ import Filehub.Selected qualified as Selected
 import Filehub.Sort (sortFiles)
 import Filehub.Storage qualified as Storage
 import Filehub.Template.Desktop qualified as Template.Desktop
-import Filehub.Template.Internal qualified as Template
 import Filehub.Server.Internal (withQueryParam, runStorage, clear)
 import Filehub.Types
     ( SessionId(..),
@@ -27,24 +25,19 @@ import Lens.Micro
 import Lens.Micro.Platform ()
 import Lucid
 import Prelude hiding (readFile)
-import Prelude hiding (readFile)
-import Servant ( ServerError(..), ServerError, err500 )
+import Servant ( err500, errBody )
 import System.FilePath (takeFileName)
 import UnliftIO (catch, SomeException)
-import Effectful.Log (Log)
-import Effectful.FileSystem (FileSystem)
-import Effectful.Concurrent (Concurrent)
 import Filehub.Server.Resoluiton (ConfirmDesktopOnly)
 
 
-index :: SessionId -> Eff  [Reader Env, Log, Error ServerError, FileSystem, Concurrent, IOE] (Html ())
+index :: SessionId -> Filehub (Html ())
 index sessionId = do
-  display <- Env.getDisplay sessionId & withServerError
   clear sessionId
-  fmap (Template.withDefault display) $ index' sessionId
+  index' sessionId
 
 
-fileDetailModal :: (Error ServerError :> es, Reader Env :> es, IOE :> es, Log :> es,  FileSystem :> es) => SessionId -> ConfirmDesktopOnly -> Maybe ClientPath -> Eff es (Html ())
+fileDetailModal :: SessionId -> ConfirmDesktopOnly -> Maybe ClientPath -> Filehub (Html ())
 fileDetailModal sessionId _ mClientPath = withServerError do
   clientPath <- withQueryParam mClientPath
   root <- Env.getRoot sessionId
@@ -52,7 +45,7 @@ fileDetailModal sessionId _ mClientPath = withServerError do
   pure (Template.Desktop.fileDetailModal file)
 
 
-editorModal :: (Error ServerError :> es, Reader Env :> es, IOE :> es, Log :> es, FileSystem :> es) => SessionId -> ConfirmDesktopOnly -> Maybe ClientPath -> Eff es (Html ())
+editorModal :: SessionId -> ConfirmDesktopOnly -> Maybe ClientPath -> Filehub (Html ())
 editorModal sessionId _ mClientPath = withServerError do
     clientPath <- withQueryParam mClientPath
     root <- Env.getRoot sessionId
@@ -65,7 +58,7 @@ editorModal sessionId _ mClientPath = withServerError do
     pure $ Template.Desktop.editorModal readOnly filename content
 
 
-copy :: (Error ServerError :> es, Reader Env :> es, IOE :> es, FileSystem :> es, Log :> es) => SessionId -> p -> Eff es (Html ())
+copy :: SessionId -> p -> Filehub (Html ())
 copy sessionId _ = withServerError do
   Copy.select sessionId
   Copy.copy sessionId
@@ -74,7 +67,7 @@ copy sessionId _ = withServerError do
     <*> ControlPanel.getControlPanelState sessionId
 
 
-paste :: SessionId -> p -> Eff [Reader Env, Log, Error ServerError, FileSystem, Concurrent, IOE] (Html ())
+paste :: SessionId -> p -> Filehub (Html ())
 paste sessionId _ = do
   withRunInIO $ \unlift -> do
     unlift (Copy.paste sessionId & withServerError) `catch` \(_ :: SomeException) -> unlift do
@@ -82,7 +75,7 @@ paste sessionId _ = do
   index' sessionId
 
 
-contextMenu :: (Error ServerError :> es, Reader Env :> es, IOE :> es, Log :> es,  FileSystem :> es) => SessionId -> ConfirmDesktopOnly -> Maybe ClientPath -> Eff es (Html ())
+contextMenu :: SessionId -> ConfirmDesktopOnly -> Maybe ClientPath -> Filehub (Html ())
 contextMenu sessionId _ mClientPath = withServerError do
   clientPath <- withQueryParam mClientPath
   root <- Env.getRoot sessionId

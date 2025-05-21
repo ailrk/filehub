@@ -37,6 +37,7 @@ import Filehub.Types
       SessionId(..), Display (..), Resolution (..))
 import Filehub.Server.Desktop qualified as Server.Desktop
 import Filehub.Server.Mobile qualified as Server.Mobile
+import Filehub.Template.Internal qualified as Template
 import Filehub.Template qualified as Template
 import Filehub.Template.Desktop qualified as Template.Desktop
 import Filehub.Template.Mobile qualified as Template.Mobile
@@ -55,6 +56,7 @@ import Filehub.Types
       Selected (..))
 import Filehub.Viewer qualified as Viewer
 import Filehub.ControlPanel qualified as ControlPanel
+import Debug.Trace
 
 
 -- | Server definition
@@ -65,20 +67,23 @@ server = Api
         Just res -> do
           Env.updateSession sessionId $
             \s -> s & #resolution .~ Just res
-          server.index sessionId
+          index sessionId
         Nothing -> do
           logAttention_ "No resolution info from /init. Set to 360x800 as default"
           Env.updateSession sessionId $
             \s -> s & #resolution .~ Just (Resolution 360 800)
-          server.index sessionId
+          index sessionId
 
 
+  -- Note only the top level index will load resources (js, css, etc) if display is valid.
+  -- Whenver you need to re-render the index page, call the `index` free function instead,
+  -- which only render the element #index.
   , index = \sessionId -> do
       display <- Env.getDisplay sessionId & withServerError
       case display of
-        NoDisplay -> pure Template.bootstrap
-        Desktop -> Server.Desktop.index sessionId
-        Mobile -> Server.Mobile.index sessionId
+        NoDisplay ->  pure Template.bootstrap
+        Desktop -> fmap (Template.withDefault display) $ Server.Desktop.index sessionId
+        Mobile -> fmap (Template.withDefault display) $ Server.Mobile.index sessionId
 
 
   , cd = \sessionId mClientPath -> do
@@ -118,7 +123,7 @@ server = Api
                   forM_ (fmap (ClientPath.fromClientPath root) (x:xs)) $ \path -> do
                     runStorage sessionId  $ Storage.delete path
           clear sessionId
-      server.index sessionId
+      index sessionId
 
 
   , newFolder = \sessionId _ (NewFolder path) -> do
@@ -179,7 +184,7 @@ server = Api
 
   , upload = \sessionId _ multipart -> do
       runStorage sessionId $ Storage.upload multipart
-      server.index sessionId
+      index sessionId
 
 
   , download = \sessionId mClientPath -> do
@@ -194,9 +199,7 @@ server = Api
   , paste = Server.Desktop.paste
 
 
-  , cancel = \sessionId -> do
-      clear sessionId
-      server.index sessionId
+  , cancel = index
 
 
   , contextMenu = Server.Desktop.contextMenu
@@ -217,10 +220,14 @@ server = Api
       let restore = Env.changeCurrentTarget sessionId savedTargetId & withServerError
       targetId <- withQueryParam mTargetId
       Env.changeCurrentTarget sessionId targetId & withServerError
+
       html <- withRunInIO $ \unlift -> do
-        unlift (server.index sessionId) `catch` \(_ :: SomeException) -> unlift do
+        traceM "[Change Target] 1"
+        unlift (index sessionId) `catch` \(_ :: SomeException) -> unlift do
           restore
           throwError (err500 { errBody = [i|Invalid target|]})
+
+      traceM "[Change Target] 2"
       pure $ addHeader TargetChanged html
 
 
@@ -235,6 +242,17 @@ server = Api
 
   , healthz = pure "ok"
   }
+
+
+
+index :: SessionId -> Filehub (Html ())
+index sessionId = do
+  display <- Env.getDisplay sessionId & withServerError
+  case display of
+    NoDisplay -> pure Template.bootstrap
+    Desktop -> Server.Desktop.index sessionId
+    Mobile -> Server.Mobile.index sessionId
+
 
 
 view :: SessionId -> Filehub (Html ())

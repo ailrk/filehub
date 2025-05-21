@@ -10,7 +10,6 @@ import Lens.Micro.Platform ()
 import Lucid
 import Prelude hiding (readFile)
 import Filehub.Template.Mobile qualified as Template.Mobile
-import Filehub.Template.Internal qualified as Template
 import Filehub.Env (TargetView (..))
 import Filehub.Env qualified as Env
 import Filehub.Target qualified as Target
@@ -27,9 +26,8 @@ import Prelude hiding (readFile)
 
 index :: SessionId -> Filehub (Html ())
 index sessionId = do
-  display <- Env.getDisplay sessionId & withServerError
   clear sessionId
-  fmap (Template.withDefault display) $ index' sessionId
+  index' sessionId
 
 
 index' :: SessionId -> Filehub (Html ())

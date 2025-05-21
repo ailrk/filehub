@@ -1,12 +1,14 @@
 export function register() {
-    document.addEventListener('click', e => {
-        if (e.target.matches('#menu-btn *')) {
-            return;
-        }
-        let sidebar = document.getElementById('side-bar');
-        if (sidebar && sidebar.classList.contains('show')) {
-            console.log('hi ', sidebar.classList);
-            sidebar.classList.remove('show');
-        }
-    });
+    document.addEventListener('click', handle);
+}
+function handle(e) {
+    if (e.target.closest('#menu-btn')) {
+        return;
+    }
+    let sidebar = document.getElementById('side-bar');
+    let overlay = document.getElementById('overlay');
+    if (sidebar && sidebar.classList.contains('show')) {
+        sidebar.classList.remove('show');
+        overlay.classList.remove('show');
+    }
 }
