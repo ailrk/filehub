@@ -105,6 +105,7 @@ library
       , amazonka
       , amazonka-s3
       , conduit
+      , vault
 
     exposed-modules:
       Filehub.Cookie
@@ -114,6 +115,8 @@ library
       Filehub.Server.ReadOnly
       Filehub.Server.Session
       Filehub.Server.Resoluiton
+      Filehub.Server.Display
+      Filehub.Server.DynamicRaw
       Filehub.Server
       Filehub.Template
       Filehub.Template.Internal

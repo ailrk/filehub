@@ -71,10 +71,10 @@ sideBar targets (TargetView currentTarget _ _) = do
         case target of
           S3Target (S3Target_ { bucket }) -> do
             i_ [ class_ "bx bxs-cube" ] mempty
-            span_  [iii| [S3] #{bucket} |]
+            span_  [iii| #{bucket} |]
           FileTarget (FileTarget_ { root }) -> do
             i_ [ class_ "bx bx-folder" ] mempty
-            span_ [iii| [FileSystem] #{takeFileName root} |]
+            span_ [iii| #{takeFileName root} |]
       `with` targetAttr target
       where
         targetAttr t = [class_ " current-target" | Target.getTargetId currentTarget == Target.getTargetId t]
@@ -82,12 +82,11 @@ sideBar targets (TargetView currentTarget _ _) = do
 
 controlPanelBtn :: Html ()
 controlPanelBtn =
-  button_ [ class_ "btn btn-control conotrol-panel-btn"
+  button_ [ id_ controlPanelBtnId
+          , term "_" [i|on click toggle .show on \##{controlPanelId}|]
           ] do
     span_ [ class_ "field " ] do
-      i_ [ class_ "bx bxs-paste" ] mempty
       span_ "+"
-
 
 
 controlPanel :: Bool -> ControlPanelState -> Html ()
@@ -127,9 +126,19 @@ view table' = do
     table'
 
 
+menuBtn :: Html ()
+menuBtn =
+  button_ [ id_ menuBtnId
+          , term "_" [i|on click toggle .show on \##{sideBarId}|]
+          ] do
+    span_ [ class_ "field " ] do
+      i_ [ class_ "bx bx-menu" ] mempty
+
+
 toolBar :: Html ()
 toolBar = do
-  div_ [ id_ "tool-bar" ] do
+  div_ [ id_ toolBarId ] do
+    menuBtn
     searchBar
 
 
@@ -163,9 +172,12 @@ table target root files selected order = do
     record :: (Int, File) -> Html ()
     record (idx, file) =
       tr_ attrs do
-        td_ $ fileNameElement file
-        td_ $ modifiedDateElement file
-        td_ $ sizeElement file
+        td_ do
+          fileNameElement file
+          span_ [class_ "file-meta"] do
+            modifiedDateElement file
+            i_ [ class_ "bx bx-wifi-0"] mempty
+            sizeElement file
       where
         attrs :: [Attribute]
         attrs = mconcat
@@ -257,14 +269,13 @@ table target root files selected order = do
     resourceIdxMap = Map.fromList $ Viewer.takeResourceFiles files `zip` [0..]
 
 
-
 ------------------------------------
 -- buttons
 ------------------------------------
 
 newFolderBtn :: Html ()
 newFolderBtn =
-  button_ [ class_ "btn btn-control "
+  button_ [ class_ "action-btn"
           , term "_"
               [iii|
                 on click
@@ -286,7 +297,7 @@ newFolderBtn =
 
 newFileBtn :: Html ()
 newFileBtn  =
-  button_ [ class_ "btn btn-control "
+  button_ [ class_ "action-btn"
           , term "_"
               [iii|
                 on click
@@ -320,7 +331,7 @@ uploadBtn = do
          , term "hx-trigger" "change"
          ]
 
-  button_ [ class_ "btn btn-control"
+  button_ [ class_ "action-btn"
           , onclick_ [iii|document.querySelector('\##{fileInputId}').click()|]
           ] do
     span_ [ class_ "field " ] do
@@ -330,7 +341,7 @@ uploadBtn = do
 
 copyBtn :: Html ()
 copyBtn = do
-  button_ [ class_ "btn btn-control"
+  button_ [ class_ "action-btn"
           , type_ "submit"
           , term "hx-get" "/files/copy"
           , term "hx-target" "#control-panel"
@@ -343,7 +354,7 @@ copyBtn = do
 
 pasteBtn :: Html ()
 pasteBtn = do
-  button_ [ class_ "btn btn-control"
+  button_ [ class_ "action-btn"
           , type_ "submit"
           , term "hx-get" "/files/paste"
           , term "hx-target" "#index"
@@ -356,7 +367,7 @@ pasteBtn = do
 
 deleteBtn :: Html ()
 deleteBtn = do
-  button_ [ class_ "btn btn-control"
+  button_ [ class_ "action-btn"
           , type_ "submit"
           , term "hx-delete" "/files/delete?selected"
           , term "hx-target" "#index"
@@ -370,7 +381,7 @@ deleteBtn = do
 
 cancelBtn :: Html ()
 cancelBtn = do
-  button_ [ class_ "btn btn-control"
+  button_ [ class_ "action-btn"
           , type_ "submit"
           , term "hx-get" "/cancel"
           , term "hx-target" "#index"
@@ -389,11 +400,20 @@ cancelBtn = do
 viewId :: Text
 viewId = "view"
 
+menuBtnId :: Text
+menuBtnId = "menu-btn"
+
+controlPanelBtnId :: Text
+controlPanelBtnId = "control-panel-btn"
+
 controlPanelId :: Text
 controlPanelId = "control-panel"
 
 sideBarId :: Text
 sideBarId = "side-bar"
+
+toolBarId :: Text
+toolBarId = "tool-bar"
 
 searchBarId :: Text
 searchBarId = "search-bar"

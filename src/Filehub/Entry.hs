@@ -13,15 +13,17 @@ import Network.Wai.Middleware.RequestLogger (logStdout)
 import Network.Wai.Handler.Warp (setPort, defaultSettings, runSettings)
 import Servant (serveWithContextT, Context (..), Application, serveDirectoryWebApp, (:<|>) (..))
 import System.Directory (makeAbsolute)
-import Filehub.Server.Session qualified as Session
-import Filehub.Server.ReadOnly qualified as ReadOnly
-import Filehub.Server.Resoluiton qualified as Resoluiton
+import Filehub.Server.Session qualified as Server.Session
+import Filehub.Server.ReadOnly qualified as Server.ReadOnly
+import Filehub.Server.Resoluiton qualified as Server.Resoluiton
+import Filehub.Server.Display qualified as Server.Display
+import Filehub.Server.DynamicRaw qualified as Server.DynamicRaw
+import Filehub.Server qualified as Server
 import Filehub.Monad
 import Filehub.Options (Options(..), parseOptions)
 import Filehub.Env
 import Filehub.SessionPool qualified as SessionPool
 import Filehub.Target qualified as Target
-import Filehub.Server qualified as Server
 import Filehub.Routes qualified as Routes
 import Filehub.Log qualified as Log
 import Lens.Micro
@@ -31,18 +33,19 @@ import Effectful.Log (runLogT, defaultLogLevel)
 
 application :: Env -> Application
 application env
-  = Server.sessionMiddleware env
+  = Server.Session.sessionMiddleware env
+  . Server.Display.displayMiddleware env
   . serveWithContextT Routes.api ctx (toServantHandler env)
   $ server
   where
     server = Server.server
       :<|> serveDirectoryWebApp env.dataDir
-      :<|> Server.dynamicRaw env
+      :<|> Server.DynamicRaw.dynamicRaw env
 
-    ctx = Session.sessionHandler env
-        :. ReadOnly.readOnlyHandler env
-        :. Resoluiton.desktopOnlyHandler env
-        :. Resoluiton.mobileOnlyHandler env
+    ctx = Server.Session.sessionHandler env
+        :. Server.ReadOnly.readOnlyHandler env
+        :. Server.Resoluiton.desktopOnlyHandler env
+        :. Server.Resoluiton.mobileOnlyHandler env
         :. EmptyContext
 
 ------------------------------------

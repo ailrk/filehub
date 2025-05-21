@@ -1,6 +1,6 @@
 declare var htmx: any;
 import type { ViewerInited } from '../def.js';
-import { closeDropdowns } from './closeDropdown.js';
+import { closeDropdowns } from './desktop/closeDropdown.js';
 import Viewer from '../viewer.js';
 
 /* States */

@@ -1,18 +1,37 @@
-module Filehub.Server.Session where
+{-# LANGUAGE NamedFieldPuns #-}
+module Filehub.Server.Session
+  ( sessionHandler
+  , sessionMiddleware
+  )
+  where
 
-import Servant.Server.Experimental.Auth (AuthHandler, mkAuthHandler)
-import Servant (FromHttpApiData (..), errBody, err401, throwError, Handler (..))
-import Network.Wai (Request (..))
-import Filehub.Types (SessionId)
-import Filehub.Cookie qualified as Cookie
-import Data.Text.Lazy.Encoding qualified as Text
-import Lens.Micro
-import Filehub.Env (Env(..))
-import Filehub.Error (withServerError)
+import Data.String.Interpolate (i)
+import Data.UUID qualified as UUID
 import Data.Bifunctor (Bifunctor(..))
 import Data.Text.Lazy qualified as Text
+import Data.Text.Lazy.Encoding qualified as Text
+import Effectful ( MonadIO(liftIO), liftIO, liftIO, runEff )
+import Effectful.Reader.Dynamic (runReader)
+import Servant.Server.Experimental.Auth (AuthHandler, mkAuthHandler)
+import Servant (FromHttpApiData (..), err401, throwError, Handler (..), errBody)
+import Filehub.Types (SessionId)
+import Filehub.Cookie qualified as Cookie
+import Filehub.Env (Env(..))
+import Filehub.Error (withServerError)
 import Filehub.SessionPool qualified as SessionPool
 import Filehub.Monad (toServantHandler)
+import Filehub.Server.Internal (parseHeader')
+import Filehub.Cookie qualified as Cookies
+import Filehub.Monad ( runFilehub )
+import Filehub.Types
+    ( Session(..),
+      SessionId(..))
+import Lens.Micro.Platform ()
+import Network.Wai
+import Prelude hiding (readFile)
+import Log (runLogT, logTrace_)
+import Lens.Micro.Platform ()
+import Lens.Micro
 
 
 sessionHandler :: Env -> AuthHandler Request SessionId
@@ -31,3 +50,35 @@ sessionHandler env = mkAuthHandler handler
         toEither "can't get sessionId" $ Cookie.getSessionId cookie
       _ <- toServantHandler env $ SessionPool.getSession sessionId & withServerError
       pure sessionId
+
+
+
+-- | If session is not present, create a new session
+sessionMiddleware :: Env -> Middleware
+sessionMiddleware env@Env{ logger, logLevel } app req respond = runLogT "sessionMiddleware" logger logLevel $ do
+  let mCookie = lookup "Cookie" $ requestHeaders req
+  let mSessionId = mCookie >>= parseHeader' >>= Cookies.getSessionId
+  case mSessionId of
+    Just sessionId -> do
+      eSession <- liftIO . runFilehub env $ SessionPool.getSession sessionId & withServerError
+      case eSession of
+        Left _ -> do
+          logTrace_ [i|Invalid session: #{sessionId}|]
+          respondWithNewSession
+        Right _ -> do
+          logTrace_ [i|Existed session, #{sessionId} |]
+          liftIO $ app req respond
+    Nothing -> do
+      logTrace_ [i|No session found.|]
+      respondWithNewSession
+  where
+    respondWithNewSession = do
+      session <- liftIO . runEff . runReader env $ SessionPool.newSession
+      let sessionId@(SessionId sid) = session.sessionId
+      let setCookieHeader = ("Set-Cookie", Cookies.renderSetCookie $ Cookies.setSessionId session)
+      let injectedCookieHeader = ("Cookie", "sessionId=" <> UUID.toASCIIBytes sid)
+      let req' = req { requestHeaders = injectedCookieHeader : requestHeaders req }
+      logTrace_ [i|New session: #{sessionId}|]
+      liftIO $ app req' $ \res ->
+        let res' = mapResponseHeaders (setCookieHeader :) res
+         in respond res'

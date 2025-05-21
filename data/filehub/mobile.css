@@ -1,0 +1,316 @@
+@import url("/theme.css");
+
+html, body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  scrollbar-width: none;
+  user-select: none;
+  font-family: sans-serif;
+  background-color: var(--background2);
+  color: var(--frontground);
+}
+
+
+input {
+  font-size: 1em;
+  background-color: var(--background3);
+  color: var(--frontground);
+  border: none;
+  outline: none;
+  border-radius: 5px;
+
+  &:focus {
+    outline: transparent;
+  }
+}
+
+
+/* Sidebar: hidden by default, slide in from left */
+#side-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 260px;
+  height: 100%;
+  background: var(--background1);
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+  transform: translateX(-100%);
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  opacity: 0;
+  z-index: 1000;
+}
+
+/* Sidebar target icons */
+#side-bar .target-icon {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  border-bottom: 1px solid #eee;
+  color: var(--frontground);
+  background-color: var(--background1);
+  transition: background 0.2s ease;
+}
+
+#side-bar .target-icon:hover {
+  background-color: var(--background2);
+}
+
+#side-bar .target-icon i {
+  font-size: 1.25rem;
+  color: var(--frontground);
+}
+
+#side-bar .target-icon span {
+  font-size: 1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Highlight for the currently selected target */
+#side-bar .target-icon.current-target {
+  background-color: var(--secondary);
+  color: white;
+}
+
+#side-bar .target-icon.current-target i {
+  color: white;
+}
+
+#side-bar.show {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+
+/* Menu button: top-left toggle */
+#menu-btn {
+  top: 1rem;
+  left: 1rem;
+  background: var(--background2);
+  color: var(--frontground);
+  border: none;
+  padding: 1rem;
+  font-size: 1.5rem;
+  z-index: 1100;
+  cursor: pointer;
+}
+
+
+/* Control panel modal */
+#control-panel {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  max-width: 100%;
+  background: var(--background1);
+  border-top: 1px solid var(--background3);
+  box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+  transform: translateY(100%);
+  transition: transform 0.3s ease;
+  z-index: 1000;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+
+#control-panel.show {
+  transform: translateY(0);
+}
+
+
+#tool-bar {
+  position: sticky;
+  top: 0;
+  background: var(--background2);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  overflow: hidden;
+  border-left: 1px solid var(--background3);
+  border-bottom: 1px solid var(--background3);
+}
+
+
+#tool-bar #search-bar {
+  padding: 0 2rem;
+}
+
+
+table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  background-color: var(--background1);
+  color: var(--frontground);
+  margin: 1rem 0;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+td, th {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+thead {
+  background-color: var(--background3);
+}
+
+
+thead th {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-weight: bold;
+  border-bottom: 2px solid var(--background2);
+}
+
+
+tbody td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--background3);
+}
+
+
+tbody tr:nth-child(even) {
+  background-color: var(--background2);
+}
+
+
+tbody tr:hover {
+  background-color: var(--background3);
+}
+
+
+tfoot {
+  background-color: var(--background2);
+}
+
+
+tfoot td {
+  padding: 0.75rem 1rem;
+  font-weight: bold;
+  border-top: 2px solid var(--background3);
+}
+
+
+/* Buttons inside control panel */
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: transparent; /* removed gray background */
+  border: none;
+  padding: 0.75rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  color: var(--frontground); /* optional: match theme text color */
+}
+
+.action-btn:hover {
+  background: var(--background2);
+}
+
+
+.action-btn i {
+  font-size: 1.25rem;
+  color: var(--secondary);
+}
+
+
+#control-panel-btn {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  width: 56px;
+  height: 56px;
+  border-radius: 100% !important;
+  background-color: var(--secondary);
+  color: white;
+  font-size: 2rem;
+  font-weight: bold;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  z-index: 1100;
+  transition: background-color 0.2s ease;
+}
+
+
+.file-meta {
+  display: inline-flex;
+  font-size: 0.85rem;
+  color: #777; /* dimmer color */
+  margin-top: 0.25rem;
+}
+
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+
+.bxs-folder {
+  color: var(--secondary);
+}
+
+
+.bx-caret-right:hover {
+  color: var(--secondary);
+}
+
+
+.bx-caret-down:hover {
+  color: var(--secondary);
+}
+
+
+.form-control {
+  padding: 0.8rem 0.5rem;
+}
+
+
+input.form-control {
+  width: 100%;
+}
+
+
+.closed {
+  display: none;
+}
+
+
+.selected {
+  background: var(--background3);
+}
+
+
+.balloon {
+  background: var(--secondary);
+  color: var(--frontground);
+  position: absolute;
+  top: 10px;
+  right: 5px;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  animation: fadeInBallon 0.3s ease;
+  font-size: 0.9rem;
+  z-index: 1500;
+}

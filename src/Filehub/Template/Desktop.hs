@@ -590,7 +590,7 @@ table target root files selected order = do
     sizeElement :: File -> Html ()
     sizeElement file =
       span_ (toHtml displaySize)
-        `with` [ class_ "field "
+        `with` [ class_ "field file-meta"
                , title_ (Text.pack displaySize)
                ]
       where
@@ -600,7 +600,7 @@ table target root files selected order = do
     modifiedDateElement :: File -> Html ()
     modifiedDateElement file =
       span_ (toHtml displayTime)
-        `with` [ class_ "field "
+        `with` [ class_ "field file-meta"
                , title_ (Text.pack displayTime)
                ]
       where

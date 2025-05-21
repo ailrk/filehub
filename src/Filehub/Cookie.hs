@@ -4,7 +4,7 @@ module Filehub.Cookie
   , parseCookies
   , getSessionId
   , setSessionId
-  , getResolution
+  , setDisplay
   , renderSetCookie
   ) where
 
@@ -13,10 +13,10 @@ import Web.Cookie qualified as Cookie
 import Servant (FromHttpApiData (..))
 import Data.Text.Encoding qualified as T
 import Data.UUID qualified as UUID
-import Filehub.Types (Session(..), SessionId (..), Resolution)
+import Filehub.Types (Session(..), SessionId (..), Display)
 import Lens.Micro ((<&>))
 import Data.ByteString (ByteString)
-import Data.Text.Encoding qualified as Text
+import Data.ByteString.Char8 qualified as ByteString
 
 
 newtype Cookies' = Cookies' Cookies
@@ -42,14 +42,6 @@ getSessionId (Cookies' cookies) = go
     go = lookup "sessionId" cookies >>= UUID.fromASCIIBytes <&> SessionId
 
 
-getResolution :: Cookies' -> Maybe Resolution
-getResolution (Cookies' cookies) = go
-  where
-    go = do
-      raw <- lookup "resolution" cookies <&> Text.decodeUtf8
-      either (const Nothing) Just $ parseUrlPiece raw
-
-
 setSessionId :: Session -> SetCookie
 setSessionId session =
   defaultSetCookie
@@ -57,9 +49,22 @@ setSessionId session =
     , setCookieValue = bytes
     , setCookieExpires = Just session.expireDate
     , setCookieHttpOnly = True
+    , setCookiePath = Just "/"
     , setCookieSecure = False -- Since there is no authentication, Secure is set to False
     }
   where
     bytes =
       let SessionId sid = session.sessionId
        in UUID.toASCIIBytes sid
+
+
+setDisplay :: Display -> SetCookie
+setDisplay display =
+  defaultSetCookie
+    { setCookieName = "display"
+    , setCookieValue = ByteString.pack $ show display
+    , setCookieExpires = Nothing
+    , setCookieHttpOnly = False
+    , setCookiePath = Just "/"
+    , setCookieSecure = False
+    }

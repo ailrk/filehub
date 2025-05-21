@@ -18,7 +18,6 @@ import Filehub.Error ( withServerError, withServerError )
 import Filehub.Selected qualified as Selected
 import Filehub.Sort (sortFiles)
 import Filehub.Storage qualified as Storage
-import Filehub.Template.Desktop qualified as Template.Desktop
 import Filehub.Server.Internal (runStorage, clear)
 import Filehub.ControlPanel qualified as ControlPanel
 import Lens.Micro
@@ -31,17 +30,6 @@ index sessionId = do
   display <- Env.getDisplay sessionId & withServerError
   clear sessionId
   fmap (Template.withDefault display) $ index' sessionId
-
-
-view :: SessionId -> Filehub (Html ())
-view sessionId = do
-  root <- Env.getRoot sessionId & withServerError
-  order <- Env.getSortFileBy sessionId & withServerError
-  files <- sortFiles order <$> runStorage sessionId Storage.lsCwd & withServerError
-  TargetView target _ _ <- Env.currentTarget sessionId & withServerError
-  selected <- Selected.getSelected sessionId & withServerError
-  let table = Template.Desktop.table target root files selected order
-  pure $ Template.Mobile.view table
 
 
 index' :: SessionId -> Filehub (Html ())
@@ -58,3 +46,14 @@ sideBar sessionId = withServerError $
   Template.Mobile.sideBar
   <$> Env.getTargets
   <*> Target.currentTarget sessionId
+
+
+view :: SessionId -> Filehub (Html ())
+view sessionId = do
+  root <- Env.getRoot sessionId & withServerError
+  order <- Env.getSortFileBy sessionId & withServerError
+  files <- sortFiles order <$> runStorage sessionId Storage.lsCwd & withServerError
+  TargetView target _ _ <- Env.currentTarget sessionId & withServerError
+  selected <- Selected.getSelected sessionId & withServerError
+  let table = Template.Mobile.table target root files selected order
+  pure $ Template.Mobile.view table
