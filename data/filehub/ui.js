@@ -28,7 +28,13 @@ switch (display) {
 ErrorsHandlers.register();
 ViewerHandlers.register();
 SelectedHandlers.register();
-/* Reinitialize the resolution again before refresh the page */
+/* Reinitialize the resolution again before refresh the page
+ * This happens before the browser sending the request to reload the page,
+ * so we can guarantee when the page is reloaded the resolution is up to date.
+ * */
 window.addEventListener("beforeunload", async (_) => {
-    navigator.sendBeacon('/init', new URLSearchParams({ res: window.innerWidth + 'x' + window.innerHeight }));
+    await fetch('/init', { method: 'POST',
+        headers: { "Content-Type": "application/x-www-form-urlencoded", },
+        body: new URLSearchParams({ res: window.innerWidth + 'x' + window.innerHeight })
+    });
 });

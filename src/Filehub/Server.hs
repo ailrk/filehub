@@ -82,7 +82,6 @@ server = Api
       display <- Env.getDisplay sessionId & withServerError
       case display of
         NoDisplay -> pure Template.bootstrap
-        -- NoDisplay -> fmap (Template.withDefault Desktop) $ Server.Desktop.index sessionId
         Desktop -> fmap (Template.withDefault display) $ Server.Desktop.index sessionId
         Mobile -> fmap (Template.withDefault display) $ Server.Mobile.index sessionId
 
