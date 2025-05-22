@@ -67,8 +67,8 @@ type instance AuthServerData (AuthProtect "mobile-only") = ConfirmMobilOnly
 data Api mode = Api
   { init            :: mode :- "init"
                     :> AuthProtect "session"
-                    :> QueryParam "res" Resolution
-                    :> Get '[HTML] (Html ())
+                    :> ReqBody '[FormUrlEncoded] Resolution
+                    :> Post '[HTML] (Html ())
 
 
   , index           :: mode :- AuthProtect "session" :> Get '[HTML] (Html ())

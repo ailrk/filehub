@@ -11,6 +11,7 @@ import Data.Time (UTCTime, addUTCTime, NominalDiffTime)
 import Data.Time qualified as Time
 import Filehub.Types (Session(..), SessionId(..), Env(..), Target (..), TargetSessionData (..), FileTarget(..), CopyState (..), Selected (..), SortFileBy(..))
 import Filehub.Env.Internal qualified as Env
+import Filehub.UserAgent qualified as UserAgent
 
 
 createSessionId :: (IOE :> es) => Eff es SessionId
@@ -32,6 +33,7 @@ createSession = do
   pure Session
     { sessionId = sessionId
     , resolution = Nothing
+    , deviceType = UserAgent.Unknown
     , expireDate = expireDate
     , targets = targetToSessionData <$> targets
     , copyState = NoCopyPaste

@@ -4,6 +4,7 @@ module Filehub.Cookie
   , parseCookies
   , getSessionId
   , setSessionId
+  , getDisplay
   , setDisplay
   , renderSetCookie
   ) where
@@ -11,7 +12,7 @@ module Filehub.Cookie
 import Web.Cookie (Cookies, SetCookie(..), defaultSetCookie)
 import Web.Cookie qualified as Cookie
 import Servant (FromHttpApiData (..))
-import Data.Text.Encoding qualified as T
+import Data.Text.Encoding qualified as Text
 import Data.UUID qualified as UUID
 import Filehub.Types (Session(..), SessionId (..), Display)
 import Lens.Micro ((<&>))
@@ -25,7 +26,7 @@ newtype Cookies' = Cookies' Cookies
 
 instance FromHttpApiData Cookies' where
   parseHeader = return . Cookies' . Cookie.parseCookies
-  parseQueryParam = return . Cookies' . Cookie.parseCookies . T.encodeUtf8
+  parseQueryParam = return . Cookies' . Cookie.parseCookies . Text.encodeUtf8
 
 
 parseCookies :: ByteString -> Cookies'
@@ -56,6 +57,12 @@ setSessionId session =
     bytes =
       let SessionId sid = session.sessionId
        in UUID.toASCIIBytes sid
+
+
+getDisplay :: Cookies' -> Maybe Display
+getDisplay (Cookies' cookies) = do
+  bytes <- lookup "display" cookies
+  either (const Nothing) Just $ parseUrlPiece $ Text.decodeUtf8 bytes
 
 
 setDisplay :: Display -> SetCookie

@@ -57,6 +57,7 @@ import Servant
       FromHttpApiData(..) )
 import Web.FormUrlEncoded (FromForm (..), parseUnique, parseAll)
 import Text.Read (readMaybe)
+import Filehub.UserAgent (DeviceType)
 
 
 data Resolution = Resolution
@@ -82,11 +83,28 @@ instance FromHttpApiData Resolution where
       _ -> Left "unknown resolution"
 
 
+instance FromForm Resolution where
+  fromForm f = do
+    res <- parseUnique "res" f
+    parseUrlPiece res
+
+
 data Display
   = Mobile
   | Desktop
   | NoDisplay
   deriving (Show, Eq, Ord)
+
+
+instance ToHttpApiData Display where
+  toUrlPiece = toUrlPiece . show
+
+
+instance FromHttpApiData Display where
+  parseUrlPiece "Mobile" = pure Mobile
+  parseUrlPiece "Desktop" = pure Desktop
+  parseUrlPiece "NoDisplay" = pure NoDisplay
+  parseUrlPiece _ = Left "unknown display"
 
 
 newtype SessionId = SessionId UUID
@@ -96,6 +114,7 @@ newtype SessionId = SessionId UUID
 data Session = Session
   { sessionId :: SessionId
   , resolution :: Maybe Resolution
+  , deviceType :: DeviceType
   , expireDate :: UTCTime
   , targets :: [TargetSessionData]
   , copyState :: CopyState

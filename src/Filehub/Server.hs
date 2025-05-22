@@ -62,26 +62,27 @@ import Debug.Trace
 -- | Server definition
 server :: Api (AsServerT Filehub)
 server = Api
-  { init = \sessionId mRes -> do
-      case mRes of
-        Just res -> do
-          Env.updateSession sessionId $
-            \s -> s & #resolution .~ Just res
-          index sessionId
-        Nothing -> do
-          logAttention_ "No resolution info from /init. Set to 360x800 as default"
-          Env.updateSession sessionId $
-            \s -> s & #resolution .~ Just (Resolution 360 800)
-          index sessionId
+  { init = \sessionId res -> do
+      Env.updateSession sessionId $
+        \s -> s & #resolution .~ Just res
+      index sessionId
 
 
-  -- Note only the top level index will load resources (js, css, etc) if display is valid.
+  -- Only the top level index will load resources (js, css, etc) if display is valid.
   -- Whenver you need to re-render the index page, call the `index` free function instead,
   -- which only render the element #index.
+  --
+  -- `bootstrap` is used to query the device resolution before rendering anything. Once
+  -- the session is bootstrapped, display information will be available for all subsequent
+  -- requests.
+  --
+  -- The frontend js deletes the `display` cookie on `pageunload`, so the backend can
+  -- start a full reload from the bootstrap stage.
   , index = \sessionId -> do
       display <- Env.getDisplay sessionId & withServerError
       case display of
-        NoDisplay ->  pure Template.bootstrap
+        NoDisplay -> pure Template.bootstrap
+        -- NoDisplay -> fmap (Template.withDefault Desktop) $ Server.Desktop.index sessionId
         Desktop -> fmap (Template.withDefault display) $ Server.Desktop.index sessionId
         Mobile -> fmap (Template.withDefault display) $ Server.Mobile.index sessionId
 

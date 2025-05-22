@@ -122,8 +122,10 @@ library
       Filehub.Template.Internal
       Filehub.Template.Desktop
       Filehub.Template.Mobile
+      Filehub.UserAgent
       Filehub.Error
       Filehub.ClientPath
+      Filehub.Display
       Filehub.Mime
       Filehub.Theme
       Filehub.Viewer

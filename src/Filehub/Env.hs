@@ -20,12 +20,13 @@ import Effectful.Reader.Dynamic (Reader)
 import Effectful ((:>), Eff, IOE)
 import Effectful.Log (Log)
 import Filehub.Types
-    ( Env(..), Session(..), SessionId, Target(..), SortFileBy, Display (..), Resolution(..))
+    ( Env(..), Session(..), SessionId, Target(..), SortFileBy, Display (..))
 import Filehub.Error (FilehubError (..))
 import Filehub.SessionPool (getSession, updateSession)
 import Filehub.Env.Internal (getSessionPool, getDataDir, getTheme, getReadOnly, getSessionDuration, getTargets)
 import Filehub.Target (getTargetId, currentTarget, changeCurrentTarget, TargetView (..))
 import Filehub.Target qualified as Target
+import Filehub.Display qualified as Display
 
 
 getRoot :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es FilePath
@@ -58,13 +59,5 @@ getDisplay :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es)
 getDisplay sessionId = do
   session <- getSession sessionId
   case session ^. #resolution of
-    Just resolution -> pure $ classify resolution
+    Just resolution -> pure $ Display.classify resolution
     Nothing -> pure NoDisplay
-  where
-    classify :: Resolution -> Display
-    classify (Resolution w h)
-      | isMobile = Mobile
-      | otherwise    = Desktop
-      where
-        aspect = fromIntegral w / fromIntegral h :: Double
-        isMobile = w < 768 || aspect < 0.75

@@ -17,21 +17,21 @@ import Servant (FromHttpApiData (..), err401, throwError, Handler (..), errBody)
 import Filehub.Types (SessionId)
 import Filehub.Cookie qualified as Cookie
 import Filehub.Env (Env(..))
-import Filehub.Error (withServerError)
+import Filehub.Error (withServerError, FilehubError)
 import Filehub.SessionPool qualified as SessionPool
-import Filehub.Monad (toServantHandler)
+import Filehub.Monad (toServantHandler, toIO)
 import Filehub.Server.Internal (parseHeader')
 import Filehub.Cookie qualified as Cookies
-import Filehub.Monad ( runFilehub )
 import Filehub.Types
     ( Session(..),
       SessionId(..))
-import Lens.Micro.Platform ()
 import Network.Wai
 import Prelude hiding (readFile)
-import Log (runLogT, logTrace_)
+import Log (logTrace_)
 import Lens.Micro.Platform ()
 import Lens.Micro
+import Network.HTTP.Types (status500)
+import Effectful.Error.Dynamic (runErrorNoCallStack)
 
 
 sessionHandler :: Env -> AuthHandler Request SessionId
@@ -52,15 +52,14 @@ sessionHandler env = mkAuthHandler handler
       pure sessionId
 
 
-
 -- | If session is not present, create a new session
 sessionMiddleware :: Env -> Middleware
-sessionMiddleware env@Env{ logger, logLevel } app req respond = runLogT "sessionMiddleware" logger logLevel $ do
+sessionMiddleware env app req respond = toIO onErr env do
   let mCookie = lookup "Cookie" $ requestHeaders req
   let mSessionId = mCookie >>= parseHeader' >>= Cookies.getSessionId
   case mSessionId of
     Just sessionId -> do
-      eSession <- liftIO . runFilehub env $ SessionPool.getSession sessionId & withServerError
+      eSession <- runErrorNoCallStack @FilehubError $ SessionPool.getSession sessionId
       case eSession of
         Left _ -> do
           logTrace_ [i|Invalid session: #{sessionId}|]
@@ -73,7 +72,7 @@ sessionMiddleware env@Env{ logger, logLevel } app req respond = runLogT "session
       respondWithNewSession
   where
     respondWithNewSession = do
-      session <- liftIO . runEff . runReader env $ SessionPool.newSession
+      session <- SessionPool.newSession
       let sessionId@(SessionId sid) = session.sessionId
       let setCookieHeader = ("Set-Cookie", Cookies.renderSetCookie $ Cookies.setSessionId session)
       let injectedCookieHeader = ("Cookie", "sessionId=" <> UUID.toASCIIBytes sid)
@@ -82,3 +81,4 @@ sessionMiddleware env@Env{ logger, logLevel } app req respond = runLogT "session
       liftIO $ app req' $ \res ->
         let res' = mapResponseHeaders (setCookieHeader :) res
          in respond res'
+    onErr _ = respond $ responseLBS status500 [] "server error" -- impossible

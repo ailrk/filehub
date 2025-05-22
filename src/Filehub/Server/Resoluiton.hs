@@ -17,7 +17,7 @@ import Filehub.Monad (runFilehub)
 import UnliftIO (MonadIO(..))
 import Data.ByteString.Lazy (ByteString)
 
--- | withness
+-- | Withness
 data ConfirmDesktopOnly = ConfirmDesktopOnly
 data ConfirmMobilOnly = ConfirmMobilOnly
 

@@ -28,3 +28,7 @@ switch (display) {
 ErrorsHandlers.register();
 ViewerHandlers.register();
 SelectedHandlers.register();
+/* Reinitialize the resolution again before refresh the page */
+window.addEventListener("beforeunload", async (_) => {
+    navigator.sendBeacon('/init', new URLSearchParams({ res: window.innerWidth + 'x' + window.innerHeight }));
+});
