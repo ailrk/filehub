@@ -48,5 +48,4 @@ window.addEventListener("beforeunload", async (_) => {
       headers: { "Content-Type": "application/x-www-form-urlencoded", },
       body: new URLSearchParams({ res: window.innerWidth + 'x' + window.innerHeight })
     })
-  history.replaceState({}, "", "/");
 })

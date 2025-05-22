@@ -32,7 +32,9 @@ import Filehub.ClientPath qualified as ClientPath
 import Filehub.Viewer qualified as Viewer
 import Filehub.Target (TargetView(..))
 import Filehub.Target qualified as Target
-import Filehub.Template.Internal (toClientPath, toHxVals)
+import Filehub.Template.Internal (viewId, toClientPath, toHxVals, sideBarId, controlPanelId, toolBarId, tableId, searchBar)
+import Filehub.Template.Internal qualified as Template
+
 import Lens.Micro
 import Lens.Micro.Platform ()
 import Lucid
@@ -92,44 +94,13 @@ controlPanelBtn =
   button_ [ id_ controlPanelBtnId
           , term "_" [i|on click toggle .show on \##{overlayId} toggle .show on \##{controlPanelId}|]
           ] do
-    span_ [ class_ "field " ] do
-      span_ "+"
+    i_ [ class_ "bx bx-plus" ] mempty
 
 
-controlPanel :: Bool -> ControlPanelState -> Html ()
-controlPanel True _ = do
-    div_ [ id_ controlPanelId ] do
-      span_ [ class_ "btn-like field " ] do
-        i_ [ class_ "bx bx-lock-alt" ] mempty
-        span_ "Read-only is enabled"
-controlPanel False state = do
-  case state of
-    ControlPanelDefault ->
-      div_ [ id_ controlPanelId ] do
-        newFolderBtn
-        newFileBtn
-        uploadBtn
-    ControlPanelSelecting ->
-      div_ [ id_ controlPanelId ] do
-        newFolderBtn
-        newFileBtn
-        uploadBtn
-        copyBtn
-        deleteBtn
-        cancelBtn
-    ControlPanelCopied ->
-      div_ [ id_ controlPanelId ] do
-        newFolderBtn
-        newFileBtn
-        uploadBtn
-        pasteBtn
-        cancelBtn
-
-
-view :: Html () -> Html ()
-view table' = do
+view :: Html () -> Html () -> Html ()
+view table' pathBreadcrumb' = do
   div_ [ id_ viewId ] do
-    toolBar
+    toolBar pathBreadcrumb'
     table'
 
 
@@ -142,11 +113,13 @@ menuBtn =
       i_ [ class_ "bx bx-menu" ] mempty
 
 
-toolBar :: Html ()
-toolBar = do
+toolBar :: Html () -> Html ()
+toolBar pathBreadcrumb' = do
   div_ [ id_ toolBarId ] do
-    menuBtn
-    searchBar
+    div_ do
+      menuBtn
+      searchBar
+    pathBreadcrumb'
 
 
 search :: SearchWord -> Target -> FilePath -> [File] -> Selected -> SortFileBy -> Html ()
@@ -156,19 +129,6 @@ search (SearchWord searchWord) target root files selected order = do
   let filteredFiles = files ^.. each . filtered isMatched
   table target root (sortFiles order filteredFiles) selected order
 
-
-searchBar :: Html ()
-searchBar = do
-  div_ [ id_ searchBarId ] do
-    input_ [ class_ "form-control "
-           , type_ "input"
-           , name_ "search"
-           , placeholder_ "Search as you type"
-           , term "hx-post" "/search"
-           , term "hx-trigger" "input changed delay:200ms, search"
-           , term "hx-target" "#table"
-           , term "hx-swap" "outerHTML"
-           ]
 
 table :: Target -> FilePath -> [File] -> Selected -> SortFileBy -> Html ()
 table target root files selected order = do
@@ -278,157 +238,146 @@ table target root files selected order = do
     resourceIdxMap = Map.fromList $ Viewer.takeResourceFiles files `zip` [0..]
 
 
-------------------------------------
--- buttons
-------------------------------------
+controlPanel :: Bool -> ControlPanelState -> Html ()
+controlPanel =
+  Template.controlPanel
+    newFolderBtn
+    newFileBtn
+    uploadBtn
+    copyBtn
+    pasteBtn
+    deleteBtn
+    cancelBtn
 
-newFolderBtn :: Html ()
-newFolderBtn =
-  button_ [ class_ "action-btn"
-          , term "_"
-              [iii|
-                on click
-                  set name to prompt('New folder')
-                  if name is not null
-                  then call
-                    htmx.ajax('POST',
-                              '/folders/new',
-                              { target: '\##{viewId}',
-                                values: {'new-folder': name},
-                                swap: 'outerHTML'
-                              })
-                |]
-          ] do
-    span_ [ class_ "field " ] do
-      i_ [ class_ "bx bx-folder-plus" ] mempty
-      span_ "New Folder"
-
-
-newFileBtn :: Html ()
-newFileBtn  =
-  button_ [ class_ "action-btn"
-          , term "_"
-              [iii|
-                on click
-                  set name to prompt('New file')
-                  if name is not null
-                  then call
-                    htmx.ajax('POST',
-                              '/files/new',
-                              { target: '\##{viewId}',
-                                values: {'new-file': name},
-                                swap: 'outerHTML'
-                              })
-                |]
-          ] do
-    span_ [ class_ "field " ] do
-      i_ [ class_ "bx bxs-file-plus" ] mempty
-      span_ "New File"
+  where
+    newFolderBtn :: Html ()
+    newFolderBtn =
+      button_ [ class_ "action-btn"
+              , term "_"
+                  [iii|
+                    on click
+                      set name to prompt('New folder')
+                      if name is not null
+                      then call
+                        htmx.ajax('POST',
+                                  '/folders/new',
+                                  { target: '\##{viewId}',
+                                    values: {'new-folder': name},
+                                    swap: 'outerHTML'
+                                  })
+                    |]
+              ] do
+        span_ [ class_ "field " ] do
+          i_ [ class_ "bx bx-folder-plus" ] mempty
+          span_ "New Folder"
 
 
-uploadBtn :: Html ()
-uploadBtn = do
-  let fileInputId = "file-input"
-  input_ [ type_ "file"
-         , name_ "file"
-         , id_ fileInputId
-         , style_ "display:none"
-         , term "hx-encoding" "multipart/form-data"
-         , term "hx-post" "/upload"
-         , term "hx-target" "#index"
-         , term "hx-swap" "outerHTML"
-         , term "hx-trigger" "change"
-         ]
-
-  button_ [ class_ "action-btn"
-          , onclick_ [iii|document.querySelector('\##{fileInputId}').click()|]
-          ] do
-    span_ [ class_ "field " ] do
-      i_ [ class_ "bx bx-upload" ] mempty
-      span_ "Upload"
-
-
-copyBtn :: Html ()
-copyBtn = do
-  button_ [ class_ "action-btn"
-          , type_ "submit"
-          , term "hx-get" "/files/copy"
-          , term "hx-target" "#control-panel"
-          , term "hx-swap" "outerHTML"
-          ] do
-    span_ [ class_ "field " ] do
-      i_ [ class_ "bx bxs-copy-alt" ] mempty
-      span_ "Copy"
+    newFileBtn :: Html ()
+    newFileBtn  =
+      button_ [ class_ "action-btn"
+              , term "_"
+                  [iii|
+                    on click
+                      set name to prompt('New file')
+                      if name is not null
+                      then call
+                        htmx.ajax('POST',
+                                  '/files/new',
+                                  { target: '\##{viewId}',
+                                    values: {'new-file': name},
+                                    swap: 'outerHTML'
+                                  })
+                    |]
+              ] do
+        span_ [ class_ "field " ] do
+          i_ [ class_ "bx bxs-file-plus" ] mempty
+          span_ "New File"
 
 
-pasteBtn :: Html ()
-pasteBtn = do
-  button_ [ class_ "action-btn"
-          , type_ "submit"
-          , term "hx-get" "/files/paste"
-          , term "hx-target" "#index"
-          , term "hx-swap" "outerHTML"
-          ] do
-    span_ [ class_ "field " ] do
-      i_ [ class_ "bx bxs-paste" ] mempty
-      span_ "Paste"
+    uploadBtn :: Html ()
+    uploadBtn = do
+      let fileInputId = "file-input"
+      input_ [ type_ "file"
+             , name_ "file"
+             , id_ fileInputId
+             , style_ "display:none"
+             , term "hx-encoding" "multipart/form-data"
+             , term "hx-post" "/upload"
+             , term "hx-target" "#index"
+             , term "hx-swap" "outerHTML"
+             , term "hx-trigger" "change"
+             ]
+
+      button_ [ class_ "action-btn"
+              , onclick_ [iii|document.querySelector('\##{fileInputId}').click()|]
+              ] do
+        span_ [ class_ "field " ] do
+          i_ [ class_ "bx bx-upload" ] mempty
+          span_ "Upload"
 
 
-deleteBtn :: Html ()
-deleteBtn = do
-  button_ [ class_ "action-btn"
-          , type_ "submit"
-          , term "hx-delete" "/files/delete?selected"
-          , term "hx-target" "#index"
-          , term "hx-swap" "outerHTML"
-          , term "hx-confirm" ("Are you sure about deleting selected files?")
-          ] do
-    span_ [ class_ "field " ] do
-      i_ [ class_ "bx bxs-trash" ] mempty
-      span_ "Delete"
+    copyBtn :: Html ()
+    copyBtn = do
+      button_ [ class_ "action-btn"
+              , type_ "submit"
+              , term "hx-get" "/files/copy"
+              , term "hx-target" "#control-panel"
+              , term "hx-swap" "outerHTML"
+              ] do
+        span_ [ class_ "field " ] do
+          i_ [ class_ "bx bxs-copy-alt" ] mempty
+          span_ "Copy"
 
 
-cancelBtn :: Html ()
-cancelBtn = do
-  button_ [ class_ "action-btn"
-          , type_ "submit"
-          , term "hx-get" "/cancel"
-          , term "hx-target" "#index"
-          , term "hx-swap" "outerHTML"
-          ] do
-    span_ [ class_ "field " ] do
-      i_ [ class_ "bx bxs-message-alt-x" ] mempty
-      span_ "Cancel"
+    pasteBtn :: Html ()
+    pasteBtn = do
+      button_ [ class_ "action-btn"
+              , type_ "submit"
+              , term "hx-get" "/files/paste"
+              , term "hx-target" "#index"
+              , term "hx-swap" "outerHTML"
+              ] do
+        span_ [ class_ "field " ] do
+          i_ [ class_ "bx bxs-paste" ] mempty
+          span_ "Paste"
 
+
+    deleteBtn :: Html ()
+    deleteBtn = do
+      button_ [ class_ "action-btn"
+              , type_ "submit"
+              , term "hx-delete" "/files/delete?selected"
+              , term "hx-target" "#index"
+              , term "hx-swap" "outerHTML"
+              , term "hx-confirm" ("Are you sure about deleting selected files?")
+              ] do
+        span_ [ class_ "field " ] do
+          i_ [ class_ "bx bxs-trash" ] mempty
+          span_ "Delete"
+
+
+    cancelBtn :: Html ()
+    cancelBtn = do
+      button_ [ class_ "action-btn"
+              , type_ "submit"
+              , term "hx-get" "/cancel"
+              , term "hx-target" "#index"
+              , term "hx-swap" "outerHTML"
+              ] do
+        span_ [ class_ "field " ] do
+          i_ [ class_ "bx bxs-message-alt-x" ] mempty
+          span_ "Cancel"
 
 
 ------------------------------------
 -- component ids
 ------------------------------------
 
-viewId :: Text
-viewId = "view"
-
 menuBtnId :: Text
 menuBtnId = "menu-btn"
 
 controlPanelBtnId :: Text
 controlPanelBtnId = "control-panel-btn"
-
-controlPanelId :: Text
-controlPanelId = "control-panel"
-
-sideBarId :: Text
-sideBarId = "side-bar"
-
-toolBarId :: Text
-toolBarId = "tool-bar"
-
-searchBarId :: Text
-searchBarId = "search-bar"
-
-tableId :: Text
-tableId = "table"
 
 overlayId :: Text
 overlayId = "overlay"

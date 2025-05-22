@@ -19,7 +19,6 @@ import Filehub.Server.Internal (parseHeader')
 import Lens.Micro.Platform ()
 import Network.HTTP.Types (hUserAgent, status500)
 import Control.Monad (when)
-import Filehub.Types (Display(..))
 
 
 displayMiddleware :: Env -> Middleware

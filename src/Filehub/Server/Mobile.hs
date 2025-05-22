@@ -10,6 +10,7 @@ import Lens.Micro.Platform ()
 import Lucid
 import Prelude hiding (readFile)
 import Filehub.Template.Mobile qualified as Template.Mobile
+import Filehub.Template.Internal qualified as Template
 import Filehub.Env (TargetView (..))
 import Filehub.Env qualified as Env
 import Filehub.Target qualified as Target
@@ -54,4 +55,7 @@ view sessionId = do
   TargetView target _ _ <- Env.currentTarget sessionId & withServerError
   selected <- Selected.getSelected sessionId & withServerError
   let table = Template.Mobile.table target root files selected order
-  pure $ Template.Mobile.view table
+  pathBreadcrumb <- Template.pathBreadcrumb
+    <$> (Env.getCurrentDir sessionId & withServerError)
+    <*> (Env.getRoot sessionId & withServerError)
+  pure $ Template.Mobile.view table pathBreadcrumb

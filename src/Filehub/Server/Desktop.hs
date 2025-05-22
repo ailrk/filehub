@@ -15,6 +15,7 @@ import Filehub.Selected qualified as Selected
 import Filehub.Sort (sortFiles)
 import Filehub.Storage qualified as Storage
 import Filehub.Template.Desktop qualified as Template.Desktop
+import Filehub.Template.Internal qualified as Template
 import Filehub.Server.Internal (withQueryParam, runStorage, clear)
 import Filehub.Types
     ( SessionId(..),
@@ -114,6 +115,6 @@ view sessionId = do
 
 pathBreadcrumb :: SessionId -> Filehub (Html ())
 pathBreadcrumb sessionId =
-  Template.Desktop.pathBreadcrumb
+  Template.pathBreadcrumb
   <$> (Env.getCurrentDir sessionId & withServerError)
   <*> (Env.getRoot sessionId & withServerError)

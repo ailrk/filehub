@@ -34,7 +34,7 @@ import Filehub.Routes (Api (..))
 import Filehub.Storage qualified as Storage
 import Filehub.Types
     ( SessionId(..),
-      SessionId(..), Display (..), Resolution (..))
+      SessionId(..), Display (..))
 import Filehub.Server.Desktop qualified as Server.Desktop
 import Filehub.Server.Mobile qualified as Server.Mobile
 import Filehub.Template.Internal qualified as Template

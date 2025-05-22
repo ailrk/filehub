@@ -135,8 +135,6 @@ button {
   position: sticky;
   top: 0;
   background: var(--background2);
-  display: flex;
-  justify-content: space-between;
   align-items: center;
   overflow: hidden;
   border-left: 1px solid var(--background3);
@@ -145,9 +143,65 @@ button {
 
 
 #tool-bar #search-bar {
-  padding: 0 2rem;
+  padding-right: 1rem;
+  width: 70%;
 }
 
+
+#tool-bar > div:first-of-type {
+    gap: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 10px;
+}
+
+
+#tool-bar #path-breadcrumb {
+    white-space: nowrap;
+    scrollbar-width: none;
+    overflow-y: auto;
+    width: 50%;
+    padding-left: 1rem;
+}
+
+
+/* breadcrumb */
+.breadcrumb {
+  cursor: pointer;
+  padding: 0 0.5rem;
+
+  & ol {
+    margin: 0;
+    padding: 0;
+    align-items: center;
+  }
+
+
+  & li {
+    display: inline-block;
+    margin: 1rem 0rem;
+    padding: 5px 1px 5px 1px;
+  }
+
+  & li:hover {
+    background: var(--background3);
+    border-radius: 2px;
+  }
+
+
+  & li:not(:last-child)::after {
+    margin: 0.1rem;
+    color: var(--tertiary);
+    content: "/";
+  }
+
+
+  & li.active{
+    color: var(--tertiary);
+  }
+
+}
 
 table {
   width: 100%;
