@@ -10,8 +10,7 @@ import Data.UUID qualified as UUID
 import Data.Bifunctor (Bifunctor(..))
 import Data.Text.Lazy qualified as Text
 import Data.Text.Lazy.Encoding qualified as Text
-import Effectful ( MonadIO(liftIO), liftIO, liftIO, runEff )
-import Effectful.Reader.Dynamic (runReader)
+import Effectful ( MonadIO(liftIO))
 import Servant.Server.Experimental.Auth (AuthHandler, mkAuthHandler)
 import Servant (FromHttpApiData (..), err401, throwError, Handler (..), errBody)
 import Filehub.Types (SessionId)

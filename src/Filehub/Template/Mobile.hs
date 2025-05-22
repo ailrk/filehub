@@ -73,6 +73,7 @@ sideBar targets (TargetView currentTarget _ _) = do
            , term "hx-vals" $ [ "target" .= toUrlPiece (Target.getTargetId target)] & toHxVals
            , term "hx-target" "#index"
            , term "hx-swap" "outerHTML"
+           , term "hx-push-url" "true"
            ] do
         case target of
           S3Target (S3Target_ { bucket }) -> do
@@ -239,6 +240,7 @@ table target root files selected order = do
             [ term "hx-get" ("/cd?dir=" <> toClientPath root file.path)
             , term "hx-target" ("#" <> viewId)
             , term "hx-swap" "outerHTML"
+            , term "hx-push-url" "true"
             ]
           Content
             | file.mimetype `isMime` "application/pdf" -> openBlank
@@ -268,6 +270,7 @@ table target root files selected order = do
           , term "hx-vals" $ [ "file" .= toClientPath root file.path ] & toHxVals
           , term "hx-target" "#index"
           , term "hx-swap" "beforeend"
+          , term "hx-push-url" "true"
           ]
 
 
