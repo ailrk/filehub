@@ -62,15 +62,15 @@ class Viewer {
     }
     load() {
         let resource = this.resources[this.index];
-        let url = this.resources[this.index].url;
+        let [url, mimetype] = resource;
         let content = document.createElement('div');
         content.innerHTML = 'No content';
-        if (resource.mimetype.startsWith('image')) {
+        if (mimetype.startsWith('image')) {
             let img = document.createElement('img');
             img.src = url.toString();
             content = img;
         }
-        else if (resource.mimetype.startsWith('video')) {
+        else if (mimetype.startsWith('video')) {
             let video = document.createElement('video');
             let source = document.createElement('source');
             video.setAttribute('controls', '');
@@ -81,7 +81,7 @@ class Viewer {
             video.appendChild(source);
             content = video;
         }
-        else if (resource.mimetype.startsWith('audio')) {
+        else if (mimetype.startsWith('audio')) {
             let audio = document.createElement('audio');
             let source = document.createElement('source');
             audio.setAttribute('controls', '');

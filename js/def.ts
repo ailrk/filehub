@@ -1,8 +1,4 @@
-export interface Resource {
-  url: string,
-  mimetype: string
-}
-
+export type Resource = [url: string, mimetype: string]
 
 export interface ViewerInited {
   resources: Resource[],

@@ -341,11 +341,7 @@ data Resource = Resource
 
 
 instance ToJSON Resource where
-  toJSON (Resource { url = RawClientPath path, mimetype }) =
-    Aeson.object
-      [ "url" .= toJSON path
-      , "mimetype" .= mimetype
-      ]
+  toJSON (Resource { url = RawClientPath path, mimetype }) = toJSON [ toJSON path , toJSON mimetype ]
 
 
 data FilehubEvent
