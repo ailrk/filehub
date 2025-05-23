@@ -142,9 +142,9 @@ library
       Filehub.Links
       Filehub.Routes
       Filehub.ControlPanel
+      Filehub.Storage.Internal
       Filehub.Storage.File
       Filehub.Storage.S3
-      Filehub.Storage.Effect
       Filehub.Storage.Context
       Filehub.Storage
       Filehub.Target.File

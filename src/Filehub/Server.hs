@@ -31,7 +31,6 @@ import Filehub.Env qualified as Env
 import Filehub.Error ( withServerError, FilehubError(..), FilehubError(..), withServerError )
 import Filehub.Monad ( Filehub )
 import Filehub.Routes (Api (..))
-import Filehub.Storage qualified as Storage
 import Filehub.Types
     ( SessionId(..),
       SessionId(..), Display (..))
@@ -43,9 +42,10 @@ import Filehub.Template.Desktop qualified as Template.Desktop
 import Filehub.Template.Mobile qualified as Template.Mobile
 import Filehub.ClientPath qualified as ClientPath
 import Filehub.Selected qualified as Selected
-import Filehub.Server.Internal (withQueryParam, runStorage, clear)
+import Filehub.Server.Internal (withQueryParam, clear)
 import Filehub.Types
-    ( ClientPath(..),
+    ( File(..),
+      ClientPath(..),
       UpdatedFile(..),
       ClientPath(..),
       NewFile(..),
@@ -53,12 +53,12 @@ import Filehub.Types
       SortFileBy(..),
       UpdatedFile(..),
       Theme(..),
-      File(..),
       Selected (..))
 import Filehub.Viewer qualified as Viewer
 import Filehub.ControlPanel qualified as ControlPanel
 import Data.ByteString.Char8 qualified as ByteString
 import Data.ByteString.Lazy qualified as LBS
+import Filehub.Storage (getStorage, Storage(..))
 
 
 -- | Server definition
@@ -90,30 +90,37 @@ server = Api
 
   , cd = \sessionId mClientPath -> do
       clientPath <- withQueryParam mClientPath
-      root <- Env.getRoot sessionId & withServerError
-      runStorage sessionId $ Storage.cd (ClientPath.fromClientPath root clientPath) & withServerError
+      withServerError do
+        root <- Env.getRoot sessionId
+        storage <- getStorage sessionId
+        storage.cd (ClientPath.fromClientPath root clientPath)
       view sessionId <&> addHeader DirChanged
 
 
   , newFile = \sessionId _ (NewFile path) -> do
-      runStorage sessionId $ Storage.new (Text.unpack path) & withServerError
+      withServerError do
+        storage <- getStorage sessionId
+        storage.new (Text.unpack path)
       view sessionId
 
 
   , updateFile = \sessionId _ (UpdatedFile clientPath content) -> do
       let path = clientPath.unClientPath
-      _ <- runStorage sessionId $ Storage.write path (Text.encodeUtf8 content ^. lazy)
+      withServerError do
+        storage <- getStorage sessionId
+        storage.write path (Text.encodeUtf8 content ^. lazy)
       view sessionId
 
 
   , deleteFile = \sessionId _ mClientPath deleteSelected -> do
       withServerError do
         root <- Env.getRoot sessionId
+        storage <- getStorage sessionId
 
         when (isJust mClientPath) do
           clientPath <- withQueryParam mClientPath
           let p = ClientPath.fromClientPath root clientPath
-          runStorage sessionId  $ Storage.delete p
+          storage.delete p
 
         when deleteSelected do
           allSelecteds <- Selected.allSelecteds sessionId
@@ -123,13 +130,15 @@ server = Api
                 NoSelection -> pure ()
                 Selected x xs -> do
                   forM_ (fmap (ClientPath.fromClientPath root) (x:xs)) $ \path -> do
-                    runStorage sessionId  $ Storage.delete path
+                    storage.delete path
           clear sessionId
       index sessionId
 
 
   , newFolder = \sessionId _ (NewFolder path) -> do
-      runStorage sessionId $ Storage.newFolder (Text.unpack path) & withServerError
+      withServerError do
+        storage <- getStorage sessionId
+        storage.newFolder (Text.unpack path)
       view sessionId
 
 
@@ -145,18 +154,18 @@ server = Api
   , editorModal = Server.Desktop.editorModal
 
 
-  , search = \sessionId searchWord -> do
-      display <- Env.getDisplay sessionId & withServerError
-      withServerError . runStorage sessionId $ do
-        TargetView target _ _ <- Env.currentTarget sessionId & withServerError
-        root <- Env.getRoot sessionId
-        files <- Storage.lsCwd
-        order <- Env.getSortFileBy sessionId
-        selected <- Selected.getSelected sessionId
-        case display of
-          Mobile -> pure $ Template.Mobile.search searchWord target root files selected order
-          Desktop -> pure $ Template.Desktop.search searchWord target root files selected order
-          NoDisplay -> undefined
+  , search = \sessionId searchWord -> withServerError do
+      display <- Env.getDisplay sessionId
+      storage <- getStorage sessionId
+      TargetView target _ _ <- Env.currentTarget sessionId
+      root <- Env.getRoot sessionId
+      files <- storage.lsCwd
+      order <- Env.getSortFileBy sessionId
+      selected <- Selected.getSelected sessionId
+      case display of
+        Mobile -> pure $ Template.Mobile.search searchWord target root files selected order
+        Desktop -> pure $ Template.Desktop.search searchWord target root files selected order
+        NoDisplay -> undefined
 
 
   , sortTable = \sessionId order -> do
@@ -185,13 +194,17 @@ server = Api
 
 
   , upload = \sessionId _ multipart -> do
-      runStorage sessionId $ Storage.upload multipart
+      withServerError do
+        storage <- getStorage sessionId
+        storage.upload multipart
       index sessionId
 
 
   , download = \sessionId mClientPath -> do
       clientPath@(ClientPath path) <- withQueryParam mClientPath
-      bs <- runStorage sessionId $ Storage.download clientPath
+      bs <- withServerError do
+        storage <- getStorage sessionId
+        storage.download clientPath
       pure $ addHeader (printf "attachement; filename=%s" (takeFileName path)) bs
 
 
@@ -216,9 +229,10 @@ server = Api
 
 
   , changeTarget = \sessionId mTargetId -> do
-      savedTargetId <- do
-        TargetView saved _ _ <- Target.currentTarget sessionId & withServerError
+      savedTargetId <- withServerError do
+        TargetView saved _ _ <- Target.currentTarget sessionId
         pure $ Target.getTargetId saved
+
       let restore = Env.changeCurrentTarget sessionId savedTargetId & withServerError
       targetId <- withQueryParam mTargetId
       Env.changeCurrentTarget sessionId targetId & withServerError
@@ -267,12 +281,11 @@ view sessionId = do
 
 serve :: SessionId -> Maybe ClientPath -> Filehub (Headers '[ Header "Content-Type" String ] LBS.ByteString)
 serve sessionId mFile = do
-  -- root <- Env.getRoot sessionId & withServerError
-  root <- Env.getCurrentDir sessionId & withServerError
-  clientPath <- withQueryParam mFile
-  let path = ClientPath.fromClientPath root clientPath
-  (file, bytes) <- withServerError . Storage.runStorage sessionId $ do
-    file <- Storage.get path
-    bytes <- Storage.read file
-    pure (file, bytes)
-  pure $ addHeader (ByteString.unpack file.mimetype) bytes
+  withServerError do
+    storage <- getStorage sessionId
+    root <- Env.getCurrentDir sessionId
+    clientPath <- withQueryParam mFile
+    let path = ClientPath.fromClientPath root clientPath
+    file <- storage.get path
+    bytes <- storage.read file
+    pure $ addHeader (ByteString.unpack file.mimetype) bytes

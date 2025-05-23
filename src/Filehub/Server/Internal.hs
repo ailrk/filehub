@@ -5,10 +5,7 @@ import Effectful ( Eff, (:>), IOE )
 import Effectful.Error.Dynamic (throwError, Error)
 import Effectful.Reader.Dynamic (Reader)
 import Filehub.Env (Env (..))
-import Filehub.Error ( withServerError, FilehubError(..), FilehubError(..), withServerError )
 import Filehub.Selected qualified as Selected
-import Filehub.Storage (Storage)
-import Filehub.Storage qualified as Storage
 import Filehub.Types
     ( SessionId(..),
       SessionId(..))
@@ -27,10 +24,6 @@ withQueryParam m =
   case m of
     Just a -> pure a
     Nothing -> throwError err400
-
-
-runStorage :: _ => SessionId -> Eff (Storage : Error FilehubError : es) a -> Eff es a
-runStorage sessionId = withServerError . Storage.runStorage sessionId
 
 
 -- | Completely reset all state machines. This should be the only place to reset state.

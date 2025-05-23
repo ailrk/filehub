@@ -21,8 +21,7 @@ import Filehub.Types (Env, CopyState(..), SessionId, File(..), Selected (..))
 import Filehub.Error (FilehubError (..))
 import Filehub.Env (TargetView(..))
 import Filehub.Env qualified as Env
-import Filehub.Storage (runStorage)
-import Filehub.Storage qualified as Storage
+import Filehub.Storage (getStorage, Storage(..))
 import Filehub.Target qualified as Target
 import Filehub.Selected qualified as Selected
 import Filehub.ClientPath qualified as ClientPath
@@ -65,8 +64,9 @@ select sessionId = do
               throwError SelectError
         Selected x xs -> do
           root <- Env.getRoot sessionId
+          storage <- getStorage sessionId
           let paths = (x:xs) & fmap (ClientPath.fromClientPath root)
-          files <- traverse (runStorage sessionId . Storage.get) paths
+          files <- traverse storage.get paths
           state <- getCopyState sessionId
           case state of
             NoCopyPaste -> setCopyState sessionId (CopySelected [(target, files)])
@@ -96,19 +96,19 @@ copy sessionId = do
 paste :: (Reader Env :> es, IOE :> es, FileSystem :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es ()
 paste sessionId = do
   state <- getCopyState sessionId
+  storage <- getStorage sessionId
   case state of
     Paste selections -> do
       TargetView to _ _ <- Env.currentTarget sessionId
       logAttention "SELECTIONS: "  (fmap (\(t, s) -> (show (Target.getTargetId t), show s)) selections)
-
       forM_ selections $ \(from, files) -> do
         forM_ files $ \file -> do
           bytes <- Target.withTarget sessionId (Target.getTargetId from) do
-            runStorage sessionId $ Storage.read file
+            storage.read file
           Target.withTarget sessionId (Target.getTargetId to) do
             dirPath <- Env.getCurrentDir sessionId
             let destination = dirPath </> takeFileName file.path
-            runStorage sessionId $ Storage.write destination bytes
+            storage.write destination bytes
       setCopyState sessionId NoCopyPaste
       Selected.clearSelectedAllTargets sessionId
     _ -> do

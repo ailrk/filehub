@@ -1,7 +1,7 @@
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE ConstraintKinds #-}
 
-module Filehub.Storage.File (runStorageFile) where
+module Filehub.Storage.File (storage) where
 
 import Codec.Archive.Zip (ZipOption(..))
 import Codec.Archive.Zip qualified as Zip
@@ -11,7 +11,6 @@ import Data.Generics.Labels ()
 import Data.Text qualified as Text
 import Data.Time.Clock.POSIX qualified as Time
 import Effectful ( Eff, Eff, MonadIO(liftIO) )
-import Effectful.Dispatch.Dynamic (interpret)
 import Effectful.Error.Dynamic (throwError)
 import Effectful.FileSystem
 import Effectful.FileSystem.IO (withFile, IOMode (..))
@@ -21,13 +20,13 @@ import Filehub.ClientPath (fromClientPath)
 import Filehub.Env qualified as Env
 import Filehub.Error (FilehubError(..))
 import Filehub.Storage.Context qualified as Storage
-import Filehub.Storage.Effect (Storage (..))
 import Filehub.Types ( SessionId, File(..), FileContent(..), ClientPath )
 import Network.Mime (defaultMimeLookup)
 import Prelude hiding (read, readFile, writeFile)
 import Servant.Multipart (MultipartData(..), Mem, FileData (..))
 import System.FilePath ( (</>) )
 import System.Posix qualified as Posix
+import Filehub.Storage.Internal (Storage(..))
 
 
 get :: Storage.Context es => SessionId -> FilePath -> Eff es File
@@ -160,20 +159,22 @@ download sessionId clientPath = do
       pure $ Zip.fromArchive archive
 
 
-runStorageFile :: Storage.Context es => SessionId -> Eff (Storage : es) a -> Eff es a
-runStorageFile sessionId = interpret $ \_ -> \case
-  Get path -> get sessionId path
-  Read file -> read sessionId file
-  Write path bytes -> write sessionId path bytes
-  Delete path -> delete sessionId path
-  New path -> new sessionId path
-  NewFolder path -> newFolder sessionId path
-  IsDirectory path -> isDirectory sessionId path
-  Ls path -> ls sessionId path
-  Cd path -> cd sessionId path
-  LsCwd -> lsCwd sessionId
-  Upload multipart -> upload sessionId multipart
-  Download clientPath -> download sessionId clientPath
+storage :: Storage.Context es => SessionId -> (Storage (Eff es))
+storage sessionId =
+  Storage
+    { get = get sessionId
+    , read = read sessionId
+    , write = write sessionId
+    , delete = delete sessionId
+    , new = new sessionId
+    , newFolder = newFolder sessionId
+    , ls = ls sessionId
+    , cd = cd sessionId
+    , lsCwd = lsCwd sessionId
+    , upload = upload sessionId
+    , download = download sessionId
+    , isDirectory = isDirectory sessionId
+    }
 
 
 --

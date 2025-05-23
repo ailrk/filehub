@@ -1,6 +1,6 @@
 {-# LANGUAGE ConstraintKinds #-}
 
-module Filehub.Storage.S3 (runStorageS3) where
+module Filehub.Storage.S3 (storage) where
 
 import Amazonka (send, runResourceT, toBody)
 import Amazonka.Data (sinkBody)
@@ -20,14 +20,13 @@ import Data.Maybe (fromMaybe)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Effectful (Eff, Eff, MonadIO (..))
-import Effectful.Dispatch.Dynamic (interpret)
 import Effectful.Error.Dynamic (throwError)
 import Filehub.ClientPath (fromClientPath)
 import Filehub.Env qualified as Env
 import Filehub.Target (TargetView(..))
 import Filehub.Error (FilehubError (..))
 import Filehub.Storage.Context qualified as Storage
-import Filehub.Storage.Effect (Storage (..))
+import Filehub.Storage.Internal (Storage(..))
 import Filehub.Types (File(..), FileContent(..), ClientPath, SessionId, S3Target(..))
 import Lens.Micro
 import Network.Mime (defaultMimeLookup)
@@ -186,22 +185,22 @@ download sessionId clientPath = do
       pure $ Zip.fromArchive archive
 
 
-
-runStorageS3 :: Storage.Context es => SessionId -> Eff (Storage : es) a -> Eff es a
-runStorageS3 sessionId = interpret $ \_ -> \case
-  Get path -> get sessionId path
-  Read file -> read sessionId file
-  Write path bytes -> write sessionId path bytes
-  Delete path -> delete sessionId path
-  New path -> new sessionId path
-  NewFolder path -> newFolder sessionId path
-  Ls path -> ls sessionId path
-  Cd path -> cd sessionId path
-  LsCwd -> lsCwd sessionId
-  Upload multipart -> upload sessionId multipart
-  Download clientPath -> download sessionId clientPath
-  IsDirectory path -> isDirectory sessionId path
-
+storage :: Storage.Context es => SessionId -> (Storage (Eff es))
+storage sessionId =
+  Storage
+    { get = get sessionId
+    , read = read sessionId
+    , write = write sessionId
+    , delete = delete sessionId
+    , new = new sessionId
+    , newFolder = newFolder sessionId
+    , ls = ls sessionId
+    , cd = cd sessionId
+    , lsCwd = lsCwd sessionId
+    , upload = upload sessionId
+    , download = download sessionId
+    , isDirectory = isDirectory sessionId
+    }
 
 --
 -- | Helpers

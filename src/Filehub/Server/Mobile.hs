@@ -17,12 +17,12 @@ import Filehub.Target qualified as Target
 import Filehub.Error ( withServerError, withServerError )
 import Filehub.Selected qualified as Selected
 import Filehub.Sort (sortFiles)
-import Filehub.Storage qualified as Storage
-import Filehub.Server.Internal (runStorage, clear)
+import Filehub.Server.Internal (clear)
 import Filehub.ControlPanel qualified as ControlPanel
 import Lens.Micro
 import Lens.Micro.Platform ()
 import Prelude hiding (readFile)
+import Filehub.Storage (getStorage, Storage(..))
 
 
 index :: SessionId -> Filehub (Html ())
@@ -49,9 +49,10 @@ sideBar sessionId = withServerError $
 
 view :: SessionId -> Filehub (Html ())
 view sessionId = do
+  storage <- getStorage sessionId & withServerError
   root <- Env.getRoot sessionId & withServerError
   order <- Env.getSortFileBy sessionId & withServerError
-  files <- sortFiles order <$> runStorage sessionId Storage.lsCwd & withServerError
+  files <- sortFiles order <$> storage.lsCwd & withServerError
   TargetView target _ _ <- Env.currentTarget sessionId & withServerError
   selected <- Selected.getSelected sessionId & withServerError
   let table = Template.Mobile.table target root files selected order

@@ -14,13 +14,13 @@ import Effectful.Error.Dynamic (throwError, Error)
 import Effectful.FileSystem
 import Effectful.Log (Log, logAttention)
 import Effectful.Reader.Dynamic (Reader)
-import Filehub.ClientPath (fromClientPath, toRawClientPath, toClientPath)
+import Filehub.ClientPath (fromClientPath, toClientPath)
 import Filehub.Env (Env(..))
 import Filehub.Env qualified as Env
 import Filehub.Error (FilehubError(..))
 import Filehub.Mime (isMime)
 import Filehub.Sort (sortFiles)
-import Filehub.Storage (isDirectory, ls, runStorage)
+import Filehub.Storage (Storage(..), getStorage)
 import Filehub.Types ( File(..), ClientPath(..), SessionId, FilehubEvent(..), Resource (..), RawClientPath (..) )
 import Lens.Micro.Platform ()
 import Network.Mime (MimeType)
@@ -39,14 +39,15 @@ takeResourceFiles = filter (isResource . (.mimetype))
 initViewer :: (Reader Env :> es, Log :> es, Error FilehubError :> es, IOE :> es, FileSystem :> es)
            => SessionId -> FilePath -> ClientPath -> Eff es FilehubEvent
 initViewer sessionId root clientPath = do
+  storage <- getStorage sessionId
   let filePath = fromClientPath root clientPath
   let dir = takeDirectory filePath
-  isDir <- runStorage sessionId $ isDirectory dir
+  isDir <- storage.isDirectory dir
   when (not isDir) $ do
     logAttention "[initViewer] invalid dir" dir
     throwError InvalidDir
   order <- Env.getSortFileBy sessionId
-  files <- takeResourceFiles . sortFiles order <$> runStorage sessionId (ls dir)
+  files <- takeResourceFiles . sortFiles order <$> (storage.ls dir)
   let idx = fromMaybe 0 $ List.elemIndex filePath (fmap (.path) files)
   let toResource f =
         Resource
