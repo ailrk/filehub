@@ -107,8 +107,7 @@ sidebarBtn =
   button_ [ id_ sidebarBtnId
           , term "_" [i|on click toggle .show on \##{overlayId} wait 50ms toggle .show on \##{sideBarId}|]
           ] do
-    span_ [ class_ "field " ] do
-      i_ [ class_ "bx bx-menu" ] mempty
+    i_ [ class_ "bx bx-menu" ] mempty
 
 
 toolBar :: Html () -> Html ()

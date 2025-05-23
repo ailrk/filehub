@@ -14,7 +14,7 @@ html, body {
 body {
   display: block;
   background: var(--background1);
-  font-family: 'Monaco', monospace;
+  font-family: system-ui, -apple-system, sans-serif;
   color: var(--frontground);
 }
 
@@ -152,9 +152,9 @@ textarea {
   & #table {
     padding: 1rem 1rem;
     border-collapse: separate;
-    border-spacing: 0 3px;
+    border-spacing: 0 5px;
     width: 100%;
-    overflow-x: auto;
+    table-layout: fixed;
 
     & td, th {
       overflow: hidden;
@@ -303,6 +303,8 @@ textarea.form-control {
   display: inline-flex;
   align-items: stretch;
   gap: 0.25rem;
+  -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: none; /* prevent random size adjustment on iOS */
 }
 
 
