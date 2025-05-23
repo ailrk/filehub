@@ -61,7 +61,6 @@ overlay :: Html ()
 overlay = div_ [ id_ overlayId ] mempty
 
 
-
 sideBar :: [Target] -> TargetView -> Html ()
 sideBar targets (TargetView currentTarget _ _) = do
   div_ [ id_ sideBarId ] do
@@ -75,7 +74,6 @@ sideBar targets (TargetView currentTarget _ _) = do
            , term "hx-vals" $ [ "target" .= toUrlPiece (Target.getTargetId target)] & toHxVals
            , term "hx-target" "#index"
            , term "hx-swap" "outerHTML"
-           , term "hx-push-url" "true"
            ] do
         case target of
           S3Target (S3Target_ { bucket }) -> do
@@ -200,7 +198,6 @@ table target root files selected order = do
             [ term "hx-get" ("/cd?dir=" <> toClientPath root file.path)
             , term "hx-target" ("#" <> viewId)
             , term "hx-swap" "outerHTML"
-            , term "hx-push-url" "true"
             ]
           Content
             | file.mimetype `isMime` "application/pdf" -> openBlank
@@ -216,7 +213,7 @@ table target root files selected order = do
         openBlank =
           -- Client path are percent encoded, but we need to use unencoded raw path here.
           let ClientPath path = ClientPath.toClientPath root file.path
-           in [ term "_" [iii| on click js window.open('#{path}', '_blank'); end |] ]
+           in [ term "_" [iii| on click js window.open('/serve?file=#{path}', '_blank'); end |] ]
 
 
         open =
@@ -230,7 +227,6 @@ table target root files selected order = do
           , term "hx-vals" $ [ "file" .= toClientPath root file.path ] & toHxVals
           , term "hx-target" "#index"
           , term "hx-swap" "beforeend"
-          , term "hx-push-url" "true"
           ]
 
 

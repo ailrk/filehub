@@ -26,12 +26,12 @@
 }
 
 .viewer-container {
+  position: fixed;
   bottom: 0;
   direction: ltr;
   left: 0;
   line-height: 0;
   overflow: hidden;
-  position: absolute;
   right: 0;
   -webkit-tap-highlight-color: transparent;
   top: 0;

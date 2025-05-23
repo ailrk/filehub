@@ -17,7 +17,6 @@ import Filehub.Server.Session qualified as Server.Session
 import Filehub.Server.ReadOnly qualified as Server.ReadOnly
 import Filehub.Server.Resoluiton qualified as Server.Resoluiton
 import Filehub.Server.Display qualified as Server.Display
-import Filehub.Server.DynamicRaw qualified as Server.DynamicRaw
 import Filehub.Server qualified as Server
 import Filehub.Monad
 import Filehub.Options (Options(..), parseOptions)
@@ -40,7 +39,6 @@ application env
   where
     server = Server.server
       :<|> serveDirectoryWebApp env.dataDir
-      :<|> Server.DynamicRaw.dynamicRaw env
 
     ctx = Server.Session.sessionHandler env
         :. Server.ReadOnly.readOnlyHandler env

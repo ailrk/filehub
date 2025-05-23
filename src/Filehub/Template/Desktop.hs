@@ -103,7 +103,6 @@ sideBar targets (TargetView currentTarget _ _) = do
            , term "hx-vals" $ [ "target" .= toUrlPiece (Target.getTargetId target)] & toHxVals
            , term "hx-target" "#index"
            , term "hx-swap" "outerHTML"
-           , term "hx-push-url" "true"
            ] do
         case target of
           S3Target _ -> do
@@ -141,7 +140,6 @@ controlPanel =
               , term "hx-get" "/modal/new-folder"
               , term "hx-target" "#index"
               , term "hx-swap" "beforeend"
-              , term "hx-push-url" "true"
               ] do
         span_ [ class_ "field " ] do
           i_ [ class_ "bx bx-folder-plus" ] mempty
@@ -155,7 +153,6 @@ controlPanel =
               , term "hx-get" "/modal/new-file"
               , term "hx-target" "#index"
               , term "hx-swap" "beforeend"
-              , term "hx-push-url" "true"
               ] do
         span_ [ class_ "field " ] do
           i_ [ class_ "bx bxs-file-plus" ] mempty
@@ -174,7 +171,6 @@ controlPanel =
              , term "hx-target" "#index"
              , term "hx-swap" "outerHTML"
              , term "hx-trigger" "change"
-             , term "hx-push-url" "true"
              ]
 
       button_ [ class_ "btn btn-control"
@@ -506,7 +502,6 @@ table target root files selected order = do
       , term "hx-vals" $ [ "by" .= toUrlPiece o ] & toHxVals
       , term "hx-swap" "outerHTML"
       , term "hx-target" "#view"
-      , term "hx-push-url" "true"
       ]
 
 
@@ -545,7 +540,6 @@ table target root files selected order = do
                     [ term "hx-get" ("/cd?dir=" <> toClientPath root file.path)
                     , term "hx-target" ("#" <> viewId)
                     , term "hx-swap" "outerHTML"
-                    , term "hx-push-url" "true"
                     ]
                   Content
                     | file.mimetype `isMime` "application/pdf" -> openBlank file
@@ -572,7 +566,7 @@ table target root files selected order = do
     openBlank file =
       -- Client path are percent encoded, but we need to use unencoded raw path here.
       let ClientPath path = ClientPath.toClientPath root file.path
-       in [ term "_" [iii| on click js window.open('#{path}', '_blank'); end |] ]
+       in [ term "_" [iii| on click js window.open('/serve?file=#{path}', '_blank'); end |] ]
 
 
     open file =
@@ -586,7 +580,6 @@ table target root files selected order = do
       , term "hx-vals" $ [ "file" .= toClientPath root file.path ] & toHxVals
       , term "hx-target" "#index"
       , term "hx-swap" "beforeend"
-      , term "hx-push-url" "true"
       ]
 
 
@@ -620,7 +613,6 @@ contextMenu readOnly root file = do
                , term "hx-vals" $ [ "file" .= textClientPath ] & toHxVals
                , term "hx-target" "this"
                , term "hx-swap" "none"
-               , term "hx-push-url" "true"
                ] $
             span_ "Play"
         | file.mimetype `isMime` "video" -> do
@@ -629,7 +621,6 @@ contextMenu readOnly root file = do
                , term "hx-vals" $ [ "file" .= textClientPath ] & toHxVals
                , term "hx-target" "this"
                , term "hx-swap" "none"
-               , term "hx-push-url" "true"
                ] $
             span_ "Play"
         | file.mimetype `isMime` "image" -> do
@@ -638,7 +629,6 @@ contextMenu readOnly root file = do
                , term "hx-vals" $ [ "file" .= textClientPath ] & toHxVals
                , term "hx-target" "this"
                , term "hx-swap" "none"
-               , term "hx-push-url" "true"
                ] $
             span_ "View"
         | file.mimetype `isMime` "text" -> do
@@ -647,7 +637,6 @@ contextMenu readOnly root file = do
                , term "hx-vals" $ [ "file" .= textClientPath ] & toHxVals
                , term "hx-target" "#index"
                , term "hx-swap" "beforeend"
-               , term "hx-push-url" "true"
                ] $
             span_ "Edit"
         | otherwise ->
@@ -664,7 +653,6 @@ contextMenu readOnly root file = do
              , term "hx-target" "#index"
              , term "hx-swap" "outerHTML"
              , term "hx-confirm" ("Are you sure about deleting " <> textClientPath <> "?")
-             , term "hx-push-url" "true"
              ] $
           span_ "Delete"
 
@@ -673,7 +661,6 @@ contextMenu readOnly root file = do
          , term "hx-vals" $ [ "file" .= textClientPath ] & toHxVals
          , term "hx-target" "#index"
          , term "hx-swap" "beforeend"
-         , term "hx-push-url" "true"
          ] $
       span_ "Details"
 

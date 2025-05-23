@@ -17,10 +17,11 @@ module Filehub.ClientPath
   where
 
 
-import Data.List ((\\))
 import System.FilePath ((</>))
+import System.FilePath.Posix (normalise)
 import Filehub.Types (ClientPath(..), RawClientPath(..))
 import Network.URI.Encode qualified as URI.Encode
+import Data.List (stripPrefix)
 
 
 -- | Convert a file path into a ClientPath.
@@ -36,18 +37,34 @@ fromClientPath root (ClientPath cp) =
    in fromRawClientPath root (RawClientPath decoded)
 
 
+-- | Remove the root part from the path, don't encode any characters.
+--   root should starts with '/'. If not toRawClientPath will append one before stripping.
+--   The path returned is guaranteed not start with '/'
 toRawClientPath :: FilePath -> FilePath -> RawClientPath
-toRawClientPath root path =
-  let p = path \\ root
-   in RawClientPath
-     case p of
-       '/':p' -> p'
-       _ -> p
+toRawClientPath root path = do
+  RawClientPath (ensureUnslash $ removePrefix (ensureSlash root) path)
 
 
 fromRawClientPath :: FilePath -> RawClientPath -> FilePath
-fromRawClientPath root (RawClientPath cp) =
-   root </>
-     case cp of
-       '/': rest -> rest
-       _ -> cp
+fromRawClientPath root (RawClientPath cp) = root </> ensureUnslash cp
+
+
+removePrefix :: FilePath -> FilePath -> FilePath
+removePrefix prefix path =
+  case stripPrefix (normalise prefix) (normalise path) of
+    Just removed -> removed
+    Nothing -> path
+
+
+ensureSlash :: FilePath -> FilePath
+ensureSlash path =
+  case path of
+    '/':_ -> path
+    _ -> '/':path
+
+
+ensureUnslash :: FilePath -> FilePath
+ensureUnslash path =
+  case path of
+    '/':rest -> rest
+    _ -> path

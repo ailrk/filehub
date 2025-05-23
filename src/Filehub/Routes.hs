@@ -210,11 +210,18 @@ data Api mode = Api
                     :> QueryParam "file" ClientPath
                     :> Get '[HTML] (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
 
+
   , changeTarget    :: mode :- "target"
                     :> "change"
                     :> AuthProtect "session"
                     :> QueryParam "target" TargetId
                     :> Get '[HTML] (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
+
+
+  , serve           :: mode :- "serve"
+                    :> AuthProtect "session"
+                    :> QueryParam "file" ClientPath
+                    :> Get '[OctetStream] (Headers '[ Header "Content-Type" String ] LBS.ByteString)
 
 
   , themeCss        :: mode :- "theme.css" :> Get '[OctetStream] LBS.ByteString
@@ -227,7 +234,6 @@ data Api mode = Api
 
 type API = NamedRoutes Api
       :<|> "static" :> Raw -- static files for the app
-      :<|> Raw -- direct access of the underlying directory
 
 
 api :: Proxy API

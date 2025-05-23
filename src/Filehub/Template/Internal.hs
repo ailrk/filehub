@@ -61,7 +61,6 @@ pathBreadcrumb currentDir root = do
           [ term "hx-get" ("/cd?dir=" <> toClientPath root p)
           , term "hx-target" ("#" <> viewId)
           , term "hx-swap" "outerHTML"
-          , term "hx-push-url" "true"
           ]
 
     addAttr a = first (class_ a :)

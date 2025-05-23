@@ -15,7 +15,7 @@ import Lens.Micro
 import Lens.Micro.Platform ()
 import Lucid
 import Prelude hiding (readFile)
-import Servant ( errBody)
+import Servant ( errBody, Headers, Header)
 import Servant.Server.Generic (AsServerT)
 import Control.Exception (SomeException)
 import Servant ( addHeader, err500 )
@@ -53,10 +53,12 @@ import Filehub.Types
       SortFileBy(..),
       UpdatedFile(..),
       Theme(..),
+      File(..),
       Selected (..))
 import Filehub.Viewer qualified as Viewer
 import Filehub.ControlPanel qualified as ControlPanel
-import Debug.Trace
+import Data.ByteString.Char8 qualified as ByteString
+import Data.ByteString.Lazy qualified as LBS
 
 
 -- | Server definition
@@ -208,7 +210,7 @@ server = Api
   , initViewer = \sessionId mClientPath -> do
       withServerError do
         clientPath <- withQueryParam mClientPath
-        root <- Env.getRoot sessionId
+        root <- Env.getCurrentDir sessionId
         payload <- Viewer.initViewer sessionId root clientPath
         pure $ addHeader payload mempty
 
@@ -222,12 +224,10 @@ server = Api
       Env.changeCurrentTarget sessionId targetId & withServerError
 
       html <- withRunInIO $ \unlift -> do
-        traceM "[Change Target] 1"
         unlift (index sessionId) `catch` \(_ :: SomeException) -> unlift do
           restore
           throwError (err500 { errBody = [i|Invalid target|]})
 
-      traceM "[Change Target] 2"
       pure $ addHeader TargetChanged html
 
 
@@ -240,9 +240,11 @@ server = Api
           Light -> dir </> "light.css"
 
 
+  , serve = serve
+
+
   , healthz = pure "ok"
   }
-
 
 
 index :: SessionId -> Filehub (Html ())
@@ -254,7 +256,6 @@ index sessionId = do
     Mobile -> Server.Mobile.index sessionId
 
 
-
 view :: SessionId -> Filehub (Html ())
 view sessionId = do
   display <- Env.getDisplay sessionId & withServerError
@@ -262,3 +263,16 @@ view sessionId = do
     Desktop -> Server.Desktop.view sessionId
     Mobile -> Server.Mobile.view sessionId
     NoDisplay -> Server.Mobile.view sessionId
+
+
+serve :: SessionId -> Maybe ClientPath -> Filehub (Headers '[ Header "Content-Type" String ] LBS.ByteString)
+serve sessionId mFile = do
+  -- root <- Env.getRoot sessionId & withServerError
+  root <- Env.getCurrentDir sessionId & withServerError
+  clientPath <- withQueryParam mFile
+  let path = ClientPath.fromClientPath root clientPath
+  (file, bytes) <- withServerError . Storage.runStorage sessionId $ do
+    file <- Storage.get path
+    bytes <- Storage.read file
+    pure (file, bytes)
+  pure $ addHeader (ByteString.unpack file.mimetype) bytes
