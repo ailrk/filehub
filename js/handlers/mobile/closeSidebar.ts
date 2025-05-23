@@ -4,7 +4,7 @@ export function register() {
 
 
 function handle(e: MouseEvent) {
-  if ((e.target as Element).closest('#menu-btn')) {
+  if ((e.target as Element).closest('#sidebar-btn')) {
     return;
   }
   let sidebar = document.getElementById('side-bar')

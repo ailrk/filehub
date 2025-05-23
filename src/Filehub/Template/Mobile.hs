@@ -102,9 +102,9 @@ view table' pathBreadcrumb' = do
     table'
 
 
-menuBtn :: Html ()
-menuBtn =
-  button_ [ id_ menuBtnId
+sidebarBtn :: Html ()
+sidebarBtn =
+  button_ [ id_ sidebarBtnId
           , term "_" [i|on click toggle .show on \##{overlayId} wait 50ms toggle .show on \##{sideBarId}|]
           ] do
     span_ [ class_ "field " ] do
@@ -115,7 +115,7 @@ toolBar :: Html () -> Html ()
 toolBar pathBreadcrumb' = do
   div_ [ id_ toolBarId ] do
     div_ do
-      menuBtn
+      sidebarBtn
       searchBar
     pathBreadcrumb'
 
@@ -228,7 +228,6 @@ table target root files selected order = do
           , term "hx-target" "#index"
           , term "hx-swap" "beforeend"
           ]
-
 
     resourceIdxMap :: Map File Int
     resourceIdxMap = Map.fromList $ Viewer.takeResourceFiles files `zip` [0..]
@@ -369,8 +368,8 @@ controlPanel =
 -- component ids
 ------------------------------------
 
-menuBtnId :: Text
-menuBtnId = "menu-btn"
+sidebarBtnId :: Text
+sidebarBtnId = "sidebar-btn"
 
 controlPanelBtnId :: Text
 controlPanelBtnId = "control-panel-btn"

@@ -93,7 +93,7 @@ button {
 
 
 /* Menu button: top-left toggle */
-#menu-btn {
+#sidebar-btn{
   top: 1rem;
   left: 1rem;
   background: var(--background2);

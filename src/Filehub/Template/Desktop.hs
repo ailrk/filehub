@@ -572,7 +572,7 @@ table target root files selected order = do
     open file =
       let ClientPath path = ClientPath.toClientPath root file.path
           imgIdx = Maybe.fromJust $ Map.lookup file resourceIdxMap -- image index always exists
-       in [ term "_" [iii| on click send Open(path: '#{path}', index: #{imgIdx}) to body |] ]
+       in [ term "_" [iii| on click send Open(path: '=#{path}', index: #{imgIdx}) to body |] ]
 
 
     editor file =
