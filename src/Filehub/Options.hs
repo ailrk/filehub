@@ -15,7 +15,7 @@ import Log (LogLevel(..))
 data Options = Options
   { port :: Int
   , theme :: Theme
-  , verosity :: LogLevel
+  , verbosity :: LogLevel
   , readOnly :: Bool
   , targets :: [TargetOption]
   }

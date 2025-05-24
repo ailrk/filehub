@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 module Filehub.Target
   ( TargetView(..)
-  , fromTargetOptions
   , getTargetId
   , currentTarget
   , changeCurrentTarget
@@ -9,7 +8,6 @@ module Filehub.Target
   , getS3Target
   ) where
 
-import Filehub.Options ( TargetOption(..) )
 import Filehub.Types
     ( Target(..),
       TargetSessionData(..),
@@ -27,16 +25,12 @@ import Effectful.Reader.Dynamic (Reader)
 import Effectful ((:>), Eff, IOE)
 import Effectful.Error.Dynamic (Error, throwError)
 import Effectful.Log (Log, logAttention, logTrace_)
-import UnliftIO (MonadUnliftIO)
 import Lens.Micro hiding (to)
 import Lens.Micro.Platform ()
 import GHC.Generics (Generic)
 import Filehub.Error (FilehubError (..))
 import Filehub.SessionPool qualified as SessionPool
 import Filehub.Env.Internal qualified as Env
-import Filehub.Target.File qualified as Env.File
-import Filehub.Target.S3 qualified as Env.S3
-import Log (MonadLog)
 
 
 data TargetView = TargetView
@@ -50,13 +44,6 @@ data TargetView = TargetView
 getTargetId :: Target -> TargetId
 getTargetId (S3Target t) = t.targetId
 getTargetId (FileTarget t) = t.targetId
-
-
-fromTargetOptions :: (MonadUnliftIO m, MonadLog m) => [TargetOption] -> m [Target]
-fromTargetOptions tos = traverse transform tos
-  where
-    transform (FSTargetOption to) = FileTarget <$> Env.File.initTarget to
-    transform (S3TargetOption to) = S3Target <$> Env.S3.initTarget to
 
 
 currentTarget :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es TargetView

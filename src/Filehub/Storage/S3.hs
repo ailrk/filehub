@@ -1,6 +1,6 @@
 {-# LANGUAGE ConstraintKinds #-}
 
-module Filehub.Storage.S3 (storage) where
+module Filehub.Storage.S3 (storage, initialize) where
 
 import Amazonka (send, runResourceT, toBody)
 import Amazonka.Data (sinkBody)
@@ -8,6 +8,7 @@ import Amazonka.Data qualified as Amazonka
 import Amazonka.S3 (Object(..), CommonPrefix)
 import Amazonka.S3 qualified as Amazonka
 import Amazonka.S3.Lens qualified as Amazonka
+import Amazonka qualified
 import Codec.Archive.Zip (ZipOption(..))
 import Codec.Archive.Zip qualified as Zip
 import Conduit qualified
@@ -19,7 +20,7 @@ import Data.List (uncons)
 import Data.Maybe (fromMaybe)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
-import Effectful (Eff, Eff, MonadIO (..))
+import Effectful (Eff, Eff, MonadIO (..), IOE, (:>))
 import Effectful.Error.Dynamic (throwError)
 import Filehub.ClientPath (fromClientPath)
 import Filehub.Env qualified as Env
@@ -32,6 +33,21 @@ import Lens.Micro
 import Network.Mime (defaultMimeLookup)
 import Prelude hiding (read, readFile, writeFile)
 import Servant.Multipart (MultipartData(..), Mem, FileData (..))
+import Filehub.Options ( S3TargetOption(..) )
+import Filehub.Types
+    ( TargetId(..) )
+import Data.UUID.V4 qualified as UUID
+import Data.Generics.Labels ()
+import Data.String.Interpolate (i)
+import Data.ByteString.Char8 qualified as ByteString
+import Text.Read (readMaybe)
+import Lens.Micro.Platform ()
+import Log.Class (logInfo_)
+import System.Environment qualified as Environment
+import Network.URI qualified as URI
+import Network.URI (URI(..), URIAuth(..))
+import Effectful.Log (Log)
+
 
 
 get :: Storage.Context es => SessionId -> FilePath -> Eff es File
@@ -201,6 +217,40 @@ storage sessionId =
     , download = download sessionId
     , isDirectory = isDirectory sessionId
     }
+
+
+-- | The default `discover` method only discover `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`,
+--   and `AWS_SESSION_TOKEN`. To set custom endpoint url, we also need to hand `AWS_ENDPOINT_URL`.
+initialize :: (IOE :> es, Log :> es) => S3TargetOption -> Eff es S3Target
+initialize opt = do
+  targetId <- liftIO $ TargetId <$> UUID.nextRandom
+  let bucket = Text.pack opt.bucket
+  service <- liftIO makeS3Service
+  env <- liftIO $ Amazonka.configureService service <$> Amazonka.newEnv Amazonka.discover
+  logInfo_ [i|Initialized: #{targetId} - S3 #{bucket}|]
+  pure $ S3Target_ targetId bucket env
+  where
+    makeS3Service :: IO Amazonka.Service
+    makeS3Service = do
+      mUrl <- lookupAWSEndpointURL
+      let setEndpointURL =
+            case mUrl of
+              Just url ->
+                case url.uriAuthority of
+                  Nothing -> id
+                  Just auth -> do
+                    let host = ByteString.pack auth.uriRegName
+                    let port = fromMaybe 443 . readMaybe $ auth.uriPort
+                    Amazonka.setEndpoint True host port
+              Nothing -> id
+      pure $ setEndpointURL Amazonka.defaultService
+
+      where
+        lookupAWSEndpointURL = do
+          Environment.lookupEnv "AWS_ENDPOINT_URL" <&> \case
+            Nothing -> Nothing
+            Just "" -> Nothing
+            Just v -> URI.parseURI $ v
 
 --
 -- | Helpers

@@ -1,7 +1,7 @@
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE ConstraintKinds #-}
 
-module Filehub.Storage.File (storage) where
+module Filehub.Storage.File (storage, initialize) where
 
 import Codec.Archive.Zip (ZipOption(..))
 import Codec.Archive.Zip qualified as Zip
@@ -10,7 +10,7 @@ import Data.ByteString.Lazy qualified as LBS
 import Data.Generics.Labels ()
 import Data.Text qualified as Text
 import Data.Time.Clock.POSIX qualified as Time
-import Effectful ( Eff, Eff, MonadIO(liftIO) )
+import Effectful ( Eff, Eff, (:>), IOE )
 import Effectful.Error.Dynamic (throwError)
 import Effectful.FileSystem
 import Effectful.FileSystem.IO (withFile, IOMode (..))
@@ -21,12 +21,22 @@ import Filehub.Env qualified as Env
 import Filehub.Error (FilehubError(..))
 import Filehub.Storage.Context qualified as Storage
 import Filehub.Types ( SessionId, File(..), FileContent(..), ClientPath )
+import Filehub.Storage.Internal (Storage(..))
+import Filehub.Options ( FSTargetOption(..) )
+import Filehub.Types
+    ( FileTarget(..),
+      TargetId(..) )
 import Network.Mime (defaultMimeLookup)
 import Prelude hiding (read, readFile, writeFile)
 import Servant.Multipart (MultipartData(..), Mem, FileData (..))
 import System.FilePath ( (</>) )
 import System.Posix qualified as Posix
-import Filehub.Storage.Internal (Storage(..))
+import Data.UUID.V4 qualified as UUID
+import Data.Generics.Labels ()
+import Data.String.Interpolate (i)
+import UnliftIO (MonadIO (..))
+import Lens.Micro.Platform ()
+
 
 
 get :: Storage.Context es => SessionId -> FilePath -> Eff es File
@@ -175,6 +185,14 @@ storage sessionId =
     , download = download sessionId
     , isDirectory = isDirectory sessionId
     }
+
+
+initialize :: (IOE :> es, Log :> es, FileSystem :> es) => FSTargetOption -> Eff es FileTarget
+initialize opt = do
+  targetId <- liftIO $ TargetId <$> UUID.nextRandom
+  root <- makeAbsolute opt.root
+  logInfo_ [i|Initialized: #{targetId} - FS #{root}|]
+  pure $ FileTarget_ targetId Nothing root
 
 
 --

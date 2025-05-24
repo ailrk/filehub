@@ -147,8 +147,6 @@ library
       Filehub.Storage.S3
       Filehub.Storage.Context
       Filehub.Storage
-      Filehub.Target.File
-      Filehub.Target.S3
       Filehub.Target
       Filehub.Env.Internal
       Filehub.Env
