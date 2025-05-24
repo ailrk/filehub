@@ -94,7 +94,6 @@ sideBar targets (TargetView currentTarget _ _) = do
   div_ [ id_ sideBarId ] do
     traverse_ targetIcon targets
   where
-
     targetIcon :: Target -> Html ()
     targetIcon target = do
       div_ [ class_ "target-icon"
@@ -129,8 +128,8 @@ controlPanel =
     pasteBtn
     deleteBtn
     cancelBtn
+    Nothing
   where
-
     newFolderBtn :: Html ()
     newFolderBtn =
       button_ [ class_ "btn btn-control "

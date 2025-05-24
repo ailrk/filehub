@@ -95,7 +95,7 @@ searchBar = do
 
 
 controlPanel
-  :: Html () -> Html () -> Html () -> Html () -> Html () -> Html () -> Html ()
+  :: Html () -> Html () -> Html () -> Html () -> Html () -> Html () -> Html () -> Maybe (Html ())
   -> Bool -> ControlPanelState -> Html ()
 controlPanel
   newFolderBtn
@@ -105,6 +105,7 @@ controlPanel
   pasteBtn
   deleteBtn
   cancelBtn
+  mScroll2TopBtn
   readOnly state = do
   case readOnly of
     True ->
@@ -112,6 +113,7 @@ controlPanel
         span_ [ class_ "btn-like field " ] do
           i_ [ class_ "bx bx-lock-alt" ] mempty
           span_ "Read-only"
+        maybe mempty id mScroll2TopBtn
     False ->
       case state of
         ControlPanelDefault ->
@@ -119,6 +121,7 @@ controlPanel
             newFolderBtn
             newFileBtn
             uploadBtn
+            maybe mempty id mScroll2TopBtn
         ControlPanelSelecting ->
           div_ [ id_ controlPanelId ] do
             newFolderBtn
@@ -127,6 +130,7 @@ controlPanel
             copyBtn
             deleteBtn
             cancelBtn
+            maybe mempty id mScroll2TopBtn
         ControlPanelCopied ->
           div_ [ id_ controlPanelId ] do
             newFolderBtn
@@ -134,6 +138,7 @@ controlPanel
             uploadBtn
             pasteBtn
             cancelBtn
+            maybe mempty id mScroll2TopBtn
 
 
 bold :: Html () -> Html ()

@@ -305,7 +305,7 @@ controlPanel =
     pasteBtn
     deleteBtn
     cancelBtn
-
+    (Just scroll2TopBtn)
   where
     newFolderBtn :: Html ()
     newFolderBtn =
@@ -424,6 +424,18 @@ controlPanel =
         span_ [ class_ "field " ] do
           i_ [ class_ "bx bxs-message-alt-x" ] mempty
           span_ "Cancel"
+
+
+    scroll2TopBtn :: Html ()
+    scroll2TopBtn = do
+      button_ [ class_ "action-btn"
+              , type_ "submit"
+              , term "_" "on click call window.scroll(0, 0)"
+              ] do
+        span_ [ class_ "field " ] do
+          i_ [ class_ "bx bx-vertical-top" ] mempty
+          span_ "Back to top"
+
 
 
 ------------------------------------
