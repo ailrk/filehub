@@ -7,6 +7,8 @@ import Data.Text qualified as Text
 import Data.Text.Lazy.Encoding qualified as LText
 import Filehub.Types ( ClientPath(..), Display(..), ControlPanelState (..))
 import Filehub.ClientPath qualified as ClientPath
+import Filehub.Links ( apiLinks, linkToText )
+import Filehub.Routes (Api(..))
 import Lens.Micro
 import Lens.Micro.Platform ()
 import Lucid
@@ -58,7 +60,7 @@ pathBreadcrumb currentDir root = do
     toAttrsTuple p = (attrs, p)
       where
         attrs =
-          [ term "hx-get" ("/cd?dir=" <> toClientPath root p)
+          [ term "hx-get" $ linkToText (apiLinks.cd (Just (ClientPath.toClientPath root p)))
           , term "hx-target" ("#" <> viewId)
           , term "hx-swap" "outerHTML"
           ]
@@ -85,7 +87,7 @@ searchBar = do
            , type_ "input"
            , name_ "search"
            , placeholder_ "Search as you type"
-           , term "hx-post" "/search"
+           , term "hx-post" $ linkToText apiLinks.search
            , term "hx-trigger" "input changed delay:200ms, search"
            , term "hx-target" "#table"
            , term "hx-swap" "outerHTML"

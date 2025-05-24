@@ -12,7 +12,6 @@ import Data.Generics.Labels ()
 import Servant.Multipart
     ( MultipartData(..), Mem, MultipartData(..), Mem )
 import Prelude hiding (readFile, writeFile)
-import Prelude hiding (readFile, writeFile)
 
 
 data Storage m = Storage

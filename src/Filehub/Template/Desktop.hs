@@ -17,7 +17,6 @@ module Filehub.Template.Desktop
   where
 
 
-import Data.Aeson ((.=))
 import Data.ByteString.Lazy qualified as LBS
 import Data.Foldable (traverse_)
 import Data.Map (Map)
@@ -40,6 +39,7 @@ import Filehub.Types
       FileTarget(..),
       Selected,
       ControlPanelState(..) )
+import Filehub.Routes (Api(..))
 import Filehub.Sort (sortFiles)
 import Filehub.Mime (isMime)
 import Filehub.Size (toReadableSize)
@@ -48,14 +48,13 @@ import Filehub.ClientPath qualified as ClientPath
 import Filehub.Viewer qualified as Viewer
 import Filehub.Target (TargetView(..))
 import Filehub.Target qualified as Target
-import Filehub.Template.Internal (bold, toClientPath, toHxVals, viewId, tableId, sideBarId, searchBar)
-
+import Filehub.Template.Internal (bold, toClientPath, viewId, tableId, sideBarId, searchBar)
 import Filehub.Template.Internal qualified as Template
+import Filehub.Links ( apiLinks, linkToText )
 import Lens.Micro
 import Lens.Micro.Platform ()
 import Lucid
 import Network.URI.Encode qualified as URI.Encode
-import Servant (ToHttpApiData(..))
 import System.FilePath (takeFileName)
 import Text.Fuzzy (simpleFilter)
 
@@ -99,8 +98,7 @@ sideBar targets (TargetView currentTarget _ _) = do
     targetIcon :: Target -> Html ()
     targetIcon target = do
       div_ [ class_ "target-icon"
-           , term "hx-get" "/target/change"
-           , term "hx-vals" $ [ "target" .= toUrlPiece (Target.getTargetId target)] & toHxVals
+           , term "hx-get" $ linkToText (apiLinks.changeTarget (Just (Target.getTargetId target)))
            , term "hx-target" "#index"
            , term "hx-swap" "outerHTML"
            ] do
@@ -137,7 +135,7 @@ controlPanel =
     newFolderBtn =
       button_ [ class_ "btn btn-control "
               , type_ "submit"
-              , term "hx-get" "/modal/new-folder"
+              , term "hx-get" $ linkToText apiLinks.newFolderModal
               , term "hx-target" "#index"
               , term "hx-swap" "beforeend"
               ] do
@@ -150,7 +148,7 @@ controlPanel =
     newFileBtn  =
       button_ [ class_ "btn btn-control"
               , type_ "submit"
-              , term "hx-get" "/modal/new-file"
+              , term "hx-get" $ linkToText apiLinks.newFileModal
               , term "hx-target" "#index"
               , term "hx-swap" "beforeend"
               ] do
@@ -167,7 +165,7 @@ controlPanel =
              , id_ fileInputId
              , style_ "display:none"
              , term "hx-encoding" "multipart/form-data"
-             , term "hx-post" "/upload"
+             , term "hx-post" $ linkToText apiLinks.upload
              , term "hx-target" "#index"
              , term "hx-swap" "outerHTML"
              , term "hx-trigger" "change"
@@ -185,7 +183,7 @@ controlPanel =
     copyBtn = do
       button_ [ class_ "btn btn-control"
               , type_ "submit"
-              , term "hx-get" "/files/copy"
+              , term "hx-get" $ linkToText apiLinks.copy
               , term "hx-target" "#control-panel"
               , term "hx-swap" "outerHTML"
               ] do
@@ -198,7 +196,7 @@ controlPanel =
     pasteBtn = do
       button_ [ class_ "btn btn-control"
               , type_ "submit"
-              , term "hx-get" "/files/paste"
+              , term "hx-get" $ linkToText apiLinks.paste
               , term "hx-target" "#index"
               , term "hx-swap" "outerHTML"
               ] do
@@ -211,7 +209,7 @@ controlPanel =
     deleteBtn = do
       button_ [ class_ "btn btn-control"
               , type_ "submit"
-              , term "hx-delete" "/files/delete?selected"
+              , term "hx-get" $ linkToText (apiLinks.deleteFile Nothing False)
               , term "hx-target" "#index"
               , term "hx-swap" "outerHTML"
               , term "hx-confirm" ("Are you sure about deleting selected files?")
@@ -224,7 +222,7 @@ controlPanel =
     cancelBtn = do
       button_ [ class_ "action-btn"
               , type_ "submit"
-              , term "hx-get" "/cancel"
+              , term "hx-get" $ linkToText apiLinks.cancel
               , term "hx-target" "#index"
               , term "hx-swap" "outerHTML"
               ] do
@@ -256,7 +254,7 @@ newFileModal = do
   modal [ id_ newFileModalId ] do
     bold "File"
     br_ mempty >> br_ mempty
-    form_ [ term "hx-post" "/files/new"
+    form_ [ term "hx-post" $ linkToText (apiLinks.newFile)
           , term "hx-target" "#view"
           , term "hx-swap" "outerHTML"
           ] do
@@ -282,7 +280,7 @@ newFolderModal = do
   modal [ id_ newFolderModalId ] do
     bold "Folder"
     br_ mempty >> br_ mempty
-    form_ [ term "hx-post" "/folders/new"
+    form_ [ term "hx-post" $ linkToText (apiLinks.newFolder)
           , term "hx-target" "#view"
           , term "hx-swap" "outerHTML"
           ] do
@@ -335,9 +333,8 @@ editorModal readOnly filename content = do
       True -> bold "Read-only"
       False -> bold "Edit"
 
-    br_ mempty >> br_ mempty
-
-    form_ [ term "hx-put" "/files/update"
+
+    form_ [ term "hx-put" $ linkToText (apiLinks.updateFile)
           , term "hx-confirm" ("Save the edit of " <> Text.pack filename <> "?")
           ] do
       input_ [ class_ "form-control "
@@ -498,8 +495,7 @@ table target root files selected order = do
 
 
     sortControl o =
-      [ term "hx-get" "/table/sort"
-      , term "hx-vals" $ [ "by" .= toUrlPiece o ] & toHxVals
+      [ term "hx-get" $ linkToText (apiLinks.sortTable (Just o))
       , term "hx-swap" "outerHTML"
       , term "hx-target" "#view"
       ]
@@ -537,7 +533,7 @@ table target root files selected order = do
             mconcat
               [ case file.content of
                   Dir _ ->
-                    [ term "hx-get" ("/cd?dir=" <> toClientPath root file.path)
+                    [ term "hx-get" $ linkToText (apiLinks.cd (Just (ClientPath.toClientPath root file.path)))
                     , term "hx-target" ("#" <> viewId)
                     , term "hx-swap" "outerHTML"
                     ]
@@ -576,12 +572,10 @@ table target root files selected order = do
 
 
     editor file =
-      [ term "hx-get" "/modal/editor"
-      , term "hx-vals" $ [ "file" .= toClientPath root file.path ] & toHxVals
+      [ term "hx-get" $ linkToText (apiLinks.editorModal (Just (ClientPath.toClientPath root file.path)))
       , term "hx-target" "#index"
       , term "hx-swap" "beforeend"
       ]
-
 
     resourceIdxMap :: Map File Int
     resourceIdxMap = Map.fromList $ Viewer.takeResourceFiles files `zip` [0..]
@@ -590,6 +584,7 @@ table target root files selected order = do
 contextMenu :: Bool -> FilePath -> File -> Html ()
 contextMenu readOnly root file = do
   let textClientPath = toClientPath root file.path
+  let clientPath = ClientPath.toClientPath root file.path
 
   div_ [ class_ "dropdown-content "
        , id_ contextMenuId
@@ -598,7 +593,7 @@ contextMenu readOnly root file = do
     case file.content of
       Dir _ -> do
         div_ [ class_ "dropdown-item"
-             , term "hx-get" ("/cd?dir=" <> textClientPath )
+             , term "hx-get" $ linkToText (apiLinks.editorModal (Just clientPath))
              , term "hx-target" ("#" <> viewId)
              , term "hx-swap" "outerHTML"
              ] $
@@ -609,32 +604,28 @@ contextMenu readOnly root file = do
             a_ [ href_ (URI.Encode.decodeText textClientPath) , target_ "blank" ] "View"
         | file.mimetype `isMime` "audio" -> do
           div_ [ class_ "dropdown-item"
-               , term "hx-get" ("/viewer?=" <> textClientPath)
-               , term "hx-vals" $ [ "file" .= textClientPath ] & toHxVals
+               , term "hx-get" $ linkToText (apiLinks.initViewer (Just clientPath))
                , term "hx-target" "this"
                , term "hx-swap" "none"
                ] $
             span_ "Play"
         | file.mimetype `isMime` "video" -> do
           div_ [ class_ "dropdown-item"
-               , term "hx-get" ("/viewer?=" <> textClientPath)
-               , term "hx-vals" $ [ "file" .= textClientPath ] & toHxVals
+               , term "hx-get" $ linkToText (apiLinks.initViewer (Just clientPath))
                , term "hx-target" "this"
                , term "hx-swap" "none"
                ] $
             span_ "Play"
         | file.mimetype `isMime` "image" -> do
           div_ [ class_ "dropdown-item"
-               , term "hx-get" ("/viewer?=" <> textClientPath)
-               , term "hx-vals" $ [ "file" .= textClientPath ] & toHxVals
+               , term "hx-get" $ linkToText (apiLinks.initViewer (Just clientPath))
                , term "hx-target" "this"
                , term "hx-swap" "none"
                ] $
             span_ "View"
         | file.mimetype `isMime` "text" -> do
           div_ [ class_ "dropdown-item"
-               , term "hx-get" "/modal/editor"
-               , term "hx-vals" $ [ "file" .= textClientPath ] & toHxVals
+               , term "hx-get" $ linkToText (apiLinks.editorModal (Just clientPath))
                , term "hx-target" "#index"
                , term "hx-swap" "beforeend"
                ] $
@@ -648,8 +639,7 @@ contextMenu readOnly root file = do
       True -> mempty
       False -> do
         div_ [ class_ "dropdown-item"
-             , term "hx-delete" "/files/delete"
-             , term "hx-vals" $ [ "file" .= textClientPath ] & toHxVals
+             , term "hx-get" $ linkToText (apiLinks.deleteFile (Just clientPath) False)
              , term "hx-target" "#index"
              , term "hx-swap" "outerHTML"
              , term "hx-confirm" ("Are you sure about deleting " <> textClientPath <> "?")
@@ -657,8 +647,7 @@ contextMenu readOnly root file = do
           span_ "Delete"
 
     div_ [ class_ "dropdown-item"
-         , term "hx-get" "/modal/file/detail"
-         , term "hx-vals" $ [ "file" .= textClientPath ] & toHxVals
+         , term "hx-get" $ linkToText (apiLinks.fileDetailModal (Just clientPath))
          , term "hx-target" "#index"
          , term "hx-swap" "beforeend"
          ] $

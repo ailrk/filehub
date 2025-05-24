@@ -3,7 +3,6 @@
 module Filehub.Template.Mobile where
 
 
-import Data.Aeson ((.=))
 import Data.Foldable (traverse_)
 import Data.Map (Map)
 import Data.Map qualified as Map
@@ -30,15 +29,15 @@ import Filehub.Size (toReadableSize)
 import Filehub.Selected qualified as Selected
 import Filehub.ClientPath qualified as ClientPath
 import Filehub.Viewer qualified as Viewer
+import Filehub.Routes (Api(..))
 import Filehub.Target (TargetView(..))
 import Filehub.Target qualified as Target
-import Filehub.Template.Internal (viewId, toClientPath, toHxVals, sideBarId, controlPanelId, toolBarId, tableId, searchBar)
+import Filehub.Template.Internal (viewId, sideBarId, controlPanelId, toolBarId, tableId, searchBar)
 import Filehub.Template.Internal qualified as Template
-
+import Filehub.Links ( apiLinks, linkToText )
 import Lens.Micro
 import Lens.Micro.Platform ()
 import Lucid
-import Servant (ToHttpApiData(..))
 import System.FilePath (takeFileName)
 import Text.Fuzzy (simpleFilter)
 
@@ -70,8 +69,7 @@ sideBar targets (TargetView currentTarget _ _) = do
     targetIcon :: Target -> Html ()
     targetIcon target = do
       div_ [ class_ "target-icon"
-           , term "hx-get" "/target/change"
-           , term "hx-vals" $ [ "target" .= toUrlPiece (Target.getTargetId target)] & toHxVals
+           , term "hx-get" $ linkToText (apiLinks.changeTarget (Just (Target.getTargetId target)))
            , term "hx-target" "#index"
            , term "hx-swap" "outerHTML"
            ] do
@@ -194,7 +192,7 @@ table target root files selected order = do
       mconcat
       [ case file.content of
           Dir _ ->
-            [ term "hx-get" ("/cd?dir=" <> toClientPath root file.path)
+            [ term "hx-get" $ linkToText (apiLinks.cd (Just (ClientPath.toClientPath root file.path)))
             , term "hx-target" ("#" <> viewId)
             , term "hx-swap" "outerHTML"
             ]
@@ -209,21 +207,20 @@ table target root files selected order = do
           _ -> mempty
       ]
       where
+        clientPath@(ClientPath path) = ClientPath.toClientPath root file.path
+
         openBlank =
           -- Client path are percent encoded, but we need to use unencoded raw path here.
-          let ClientPath path = ClientPath.toClientPath root file.path
-           in [ term "_" [iii| on click js window.open('/serve?file=#{path}', '_blank'); end |] ]
+           [ term "_" [iii| on click js window.open('/serve?file=#{path}', '_blank'); end |] ]
 
 
         open =
-          let ClientPath path = ClientPath.toClientPath root file.path
-              imgIdx = Maybe.fromJust $ Map.lookup file resourceIdxMap -- image index always exists
+          let imgIdx = Maybe.fromJust $ Map.lookup file resourceIdxMap -- image index always exists
            in [ term "_" [iii| on click send Open(path: '#{path}', index: #{imgIdx}) to body |] ]
 
 
         editor =
-          [ term "hx-get" "/modal/editor"
-          , term "hx-vals" $ [ "file" .= toClientPath root file.path ] & toHxVals
+          [ term "hx-get" $ linkToText (apiLinks.editorModal (Just clientPath))
           , term "hx-target" "#index"
           , term "hx-swap" "beforeend"
           ]
@@ -296,7 +293,7 @@ controlPanel =
              , id_ fileInputId
              , style_ "display:none"
              , term "hx-encoding" "multipart/form-data"
-             , term "hx-post" "/upload"
+             , term "hx-post" $ linkToText apiLinks.upload
              , term "hx-target" "#index"
              , term "hx-swap" "outerHTML"
              , term "hx-trigger" "change"
@@ -314,7 +311,7 @@ controlPanel =
     copyBtn = do
       button_ [ class_ "action-btn"
               , type_ "submit"
-              , term "hx-get" "/files/copy"
+              , term "hx-get" $ linkToText apiLinks.copy
               , term "hx-target" "#control-panel"
               , term "hx-swap" "outerHTML"
               ] do
@@ -327,7 +324,7 @@ controlPanel =
     pasteBtn = do
       button_ [ class_ "action-btn"
               , type_ "submit"
-              , term "hx-get" "/files/paste"
+              , term "hx-get" $ linkToText apiLinks.paste
               , term "hx-target" "#index"
               , term "hx-swap" "outerHTML"
               ] do
@@ -340,7 +337,7 @@ controlPanel =
     deleteBtn = do
       button_ [ class_ "action-btn"
               , type_ "submit"
-              , term "hx-delete" "/files/delete?selected"
+              , term "hx-get" $ linkToText (apiLinks.deleteFile Nothing False)
               , term "hx-target" "#index"
               , term "hx-swap" "outerHTML"
               , term "hx-confirm" ("Are you sure about deleting selected files?")
@@ -354,7 +351,7 @@ controlPanel =
     cancelBtn = do
       button_ [ class_ "action-btn"
               , type_ "submit"
-              , term "hx-get" "/cancel"
+              , term "hx-get" $ linkToText apiLinks.cancel
               , term "hx-target" "#index"
               , term "hx-swap" "outerHTML"
               ] do

@@ -37,7 +37,6 @@ displayMiddleware  env app req respond = toIO onErr env do
     when (session ^. #deviceType /= deviceType) do
       SessionPool.updateSession sessionId $ #deviceType .~ deviceType
 
-
   -- set display cookie
   -- Note only the server set the cookie.
   setCookieHeader <- do
