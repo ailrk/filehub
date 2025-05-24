@@ -333,7 +333,6 @@ editorModal readOnly filename content = do
       True -> bold "Read-only"
       False -> bold "Edit"
 
-
     form_ [ term "hx-put" $ linkToText (apiLinks.updateFile)
           , term "hx-confirm" ("Save the edit of " <> Text.pack filename <> "?")
           ] do

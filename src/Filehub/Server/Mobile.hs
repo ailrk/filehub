@@ -49,15 +49,17 @@ sideBar sessionId = withServerError $
 
 view :: SessionId -> Filehub (Html ())
 view sessionId = do
-  table <- withServerError do
+  (table, toolBar) <- withServerError do
     storage <- getStorage sessionId
     root <- Env.getRoot sessionId
     order <- Env.getSortFileBy sessionId
     files <- sortFiles order <$> storage.lsCwd
     TargetView target _ _ <- Env.currentTarget sessionId
     selected <- Selected.getSelected sessionId
-    pure $ Template.Mobile.table target root files selected order
+    let table = Template.Mobile.table target root files selected
+    let toolBar = Template.Mobile.sortTool order
+    pure (table, toolBar)
   pathBreadcrumb <- Template.pathBreadcrumb
     <$> (Env.getCurrentDir sessionId & withServerError)
     <*> (Env.getRoot sessionId & withServerError)
-  pure $ Template.Mobile.view table pathBreadcrumb
+  pure $ Template.Mobile.view table toolBar pathBreadcrumb

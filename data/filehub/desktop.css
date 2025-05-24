@@ -180,7 +180,6 @@ textarea {
 }
 
 
-
 /* breadcrumb */
 .breadcrumb {
   cursor: pointer;
@@ -535,7 +534,7 @@ textarea.form-control {
 .balloon {
   background: var(--secondary);
   color: var(--frontground);
-  position: absolute;
+  position: fixed;
   bottom: 10px;
   left: 5px;
   padding: 0.75rem 1rem;

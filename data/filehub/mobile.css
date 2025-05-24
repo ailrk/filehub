@@ -149,11 +149,26 @@ button {
 
 
 #tool-bar > div:first-of-type {
-    gap: 0.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding-top: 10px;
+  gap: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 10px;
+}
+
+
+#tool-bar > div:nth-of-type(2) {
+  gap: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+
+#tool-bar #sort-control {
+  display: flex;
+  gap: 5px;
+  padding-right: 10px;
 }
 
 
@@ -384,7 +399,7 @@ input.form-control {
 .balloon {
   background: var(--secondary);
   color: var(--frontground);
-  position: absolute;
+  position: fixed;
   bottom: 10px;
   left: 5px;
   padding: 0.75rem 1rem;

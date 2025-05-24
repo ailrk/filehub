@@ -93,10 +93,10 @@ controlPanelBtn =
     i_ [ class_ "bx bx-plus" ] mempty
 
 
-view :: Html () -> Html () -> Html ()
-view table' pathBreadcrumb' = do
+view :: Html () -> Html () -> Html () -> Html ()
+view table' sortTool' pathBreadcrumb' = do
   div_ [ id_ viewId ] do
-    toolBar pathBreadcrumb'
+    toolBar sortTool' pathBreadcrumb'
     table'
 
 
@@ -108,13 +108,15 @@ sidebarBtn =
     i_ [ class_ "bx bx-menu" ] mempty
 
 
-toolBar :: Html () -> Html ()
-toolBar pathBreadcrumb' = do
+toolBar :: Html () -> Html () -> Html ()
+toolBar sortTool' pathBreadcrumb' = do
   div_ [ id_ toolBarId ] do
     div_ do
       sidebarBtn
       searchBar
-    pathBreadcrumb'
+    div_ do
+      pathBreadcrumb'
+      sortTool'
 
 
 search :: SearchWord -> Target -> FilePath -> [File] -> Selected -> SortFileBy -> Html ()
@@ -122,11 +124,75 @@ search (SearchWord searchWord) target root files selected order = do
   let matched = files <&> Text.pack . (.path) & simpleFilter searchWord
   let isMatched file = Text.pack file.path `elem` matched
   let filteredFiles = files ^.. each . filtered isMatched
-  table target root (sortFiles order filteredFiles) selected order
+  table target root (sortFiles order filteredFiles) selected
 
 
-table :: Target -> FilePath -> [File] -> Selected -> SortFileBy -> Html ()
-table target root files selected order = do
+sortTool :: SortFileBy -> Html ()
+sortTool order = do
+  div_ [ id_ sortControlId ] do
+    span_ [ class_ "field " ] do
+      "Name"
+      sortIconName
+      `with` sortControlName
+    span_ [ class_ "field " ] do
+      "Time"
+      sortIconMTime
+      `with` sortControlMTime
+    span_ [ class_ "field " ] do
+      "Size"
+      sortIconSize
+      `with` sortControlSize
+  where
+    sortControl o =
+      [ term "hx-get" $ linkToText (apiLinks.sortTable (Just o))
+      , term "hx-swap" "outerHTML"
+      , term "hx-target" "#view"
+      ]
+
+    sortControlName =
+      case order of
+        ByNameUp -> sortControl ByNameDown
+        ByNameDown -> sortControl ByNameUp
+        _ -> sortControl ByNameUp
+
+
+    sortControlMTime =
+      case order of
+        ByModifiedUp -> sortControl ByModifiedDown
+        ByModifiedDown -> sortControl ByModifiedUp
+        _ -> sortControl ByModifiedUp
+
+
+    sortControlSize =
+      case order of
+        BySizeUp -> sortControl BySizeDown
+        BySizeDown -> sortControl BySizeUp
+        _ -> sortControl BySizeUp
+
+
+    sortIconName =
+      case order of
+        ByNameUp -> i_ [ class_ "bx bxs-up-arrow"] mempty
+        ByNameDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
+        _ -> i_ [ class_ "bx bx-sort"] mempty
+
+
+    sortIconMTime =
+      case order of
+        ByModifiedUp -> i_ [ class_ "bx bxs-up-arrow"] mempty
+        ByModifiedDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
+        _ -> i_ [ class_ "bx bx-sort"] mempty
+
+
+    sortIconSize =
+      case order of
+        BySizeUp -> i_ [ class_ "bx bxs-up-arrow"] mempty
+        BySizeDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
+        _ -> i_ [ class_ "bx bx-sort"] mempty
+
+
+table :: Target -> FilePath -> [File] -> Selected -> Html ()
+table target root files selected = do
   table_ [ id_ tableId ] do
     tbody_ $ traverse_ record ([0..] `zip` files)
   where
@@ -369,6 +435,9 @@ sidebarBtnId = "sidebar-btn"
 
 controlPanelBtnId :: Text
 controlPanelBtnId = "control-panel-btn"
+
+sortControlId :: Text
+sortControlId = "sort-control"
 
 overlayId :: Text
 overlayId = "overlay"

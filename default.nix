@@ -6,12 +6,12 @@
 , network-uri, optparse-applicative, servant, servant-lucid
 , servant-multipart, servant-server, string-interpolate, suspend
 , text, time, timers, transformers, unix, unliftio
-, unordered-containers, uri-encode, uuid, wai, wai-app-static
-, wai-extra, warp, zip-archive
+, unordered-containers, uri-encode, uuid, vault, wai
+, wai-app-static, wai-extra, warp, zip-archive
 }:
 mkDerivation {
   pname = "filehub";
-  version = "0.1.1.0";
+  version = "0.1.2.0";
   src = ./.;
   isLibrary = true;
   isExecutable = true;
@@ -24,8 +24,8 @@ mkDerivation {
     microlens-platform mime-types network-uri optparse-applicative
     servant servant-lucid servant-multipart servant-server
     string-interpolate suspend text time timers transformers unix
-    unliftio unordered-containers uri-encode uuid wai wai-app-static
-    wai-extra warp zip-archive
+    unliftio unordered-containers uri-encode uuid vault wai
+    wai-app-static wai-extra warp zip-archive
   ];
   executableHaskellDepends = [ base ];
   license = "unknown";
