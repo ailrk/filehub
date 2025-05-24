@@ -111,7 +111,7 @@ controlPanel
       div_ [ id_ controlPanelId ] do
         span_ [ class_ "btn-like field " ] do
           i_ [ class_ "bx bx-lock-alt" ] mempty
-          span_ "Read-only is enabled"
+          span_ "Read-only"
     False ->
       case state of
         ControlPanelDefault ->

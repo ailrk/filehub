@@ -593,7 +593,7 @@ contextMenu readOnly root file = do
     case file.content of
       Dir _ -> do
         div_ [ class_ "dropdown-item"
-             , term "hx-get" $ linkToText (apiLinks.editorModal (Just clientPath))
+             , term "hx-get" $ linkToText (apiLinks.cd (Just clientPath))
              , term "hx-target" ("#" <> viewId)
              , term "hx-swap" "outerHTML"
              ] $
@@ -633,7 +633,7 @@ contextMenu readOnly root file = do
         | otherwise ->
             mempty
     div_ [ class_ "dropdown-item" ] $
-      a_ [ href_ ("/download?file=" <> textClientPath ) ] "Download"
+      a_ [ href_ (linkToText $ apiLinks.download (Just clientPath)) ] "Download"
 
     case readOnly of
       True -> mempty
