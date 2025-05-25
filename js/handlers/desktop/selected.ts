@@ -1,37 +1,26 @@
 declare var htmx: any;
-let selectedIds: Set<string> = new Set();
-const handlers: Map<string, EventListener> = new Map();
+/* Ctrl_left-left_click to multi select
+ * Hold ctrl left and click on file will select it.
+ * Keep ctrl hold and click multiple files will select multiple.
+ * Keep ctrl hold, click on a file and drag will select files on the pass.
+ * */
 
+const selectedIds: Set<string> = new Set();
 
 export function register() {
-  registerRows()
   document.body.addEventListener('TargetChanged', _ => { selectedIds.clear() })
   document.body.addEventListener('htmx:afterSettle', _ => {
     collect()
-    registerRows()
   })
-}
 
+  const table = document.querySelector('#table'); // change selector to fit your layout
 
-function registerRows() {
-  unregisterRows()
-  let rows: NodeListOf<HTMLElement> = document.querySelectorAll('#table tr')
-  rows.forEach(row => {
-    const id = row.dataset.path!
-    const h = (e: Event) => handle(row, e)
-    handlers.set(id, h)
-    row.addEventListener('click', h, true)
-  })
-}
-
-
-function unregisterRows() {
-  let rows: NodeListOf<HTMLElement> = document.querySelectorAll('#table tr')
-  rows.forEach(row => {
-    const id = row.dataset.path!
-    const h = handlers.get(id)
-    h && row.removeEventListener('click', h, true)
-  })
+  table!.addEventListener('click', e => {
+    let tr = (e.target as Element).closest('tr');
+    if (tr) {
+      handle(tr, e)
+    }
+  }, true);
 }
 
 
@@ -46,10 +35,10 @@ function collect() {
   })
 }
 
-
-function handle(row: Element, evt: Event) {
+/* Select handler */
+export function handle(row: HTMLElement, evt: Event) {
   let e = evt as MouseEvent;
-  const id = (row as HTMLElement).dataset.path!
+  const id = row.dataset.path!
   // disable the default behavior when ctrl is pressed.
   if (e.ctrlKey || e.metaKey) {
     e.preventDefault()

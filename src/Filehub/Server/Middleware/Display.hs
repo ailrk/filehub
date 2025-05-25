@@ -1,7 +1,7 @@
 -- | set the display in cookie
 {-# LANGUAGE NamedFieldPuns #-}
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
-module Filehub.Server.Display where
+module Filehub.Server.Middleware.Display where
 
 import Effectful ( MonadIO(liftIO), liftIO, liftIO )
 import Filehub.Cookie qualified as Cookies

@@ -7,6 +7,10 @@ html, body {
   padding: 0;
   scrollbar-width: none;
   user-select: none;
+  -webkit-user-select: none; /* Safari */
+  -moz-user-select: none;    /* Firefox */
+  -ms-user-select: none;     /* Internet Explorer/Edge */
+  user-select: none;         /* Standard */
   font-family: system-ui, -apple-system, sans-serif;
   background-color: var(--background2);
   color: var(--frontground);
@@ -333,11 +337,32 @@ tfoot td {
   inset: 0; /* top: 0; right: 0; bottom: 0; left: 0; */
   background: rgba(0, 0, 0, 0.1);
   z-index: 1000; /* ensure it’s above most other elements */
-  display: none; /* hide by default */
+  display: none;
 }
 
 #overlay.show {
   display: block;
+}
+
+#selected-counter {
+  display: none;
+}
+
+#selected-counter.show {
+  display: inline-flex;
+  position: fixed;
+  background-color: var(--secondary);
+  color: var(--frontground);
+  padding: 10px;
+  border-radius: 5px;
+  top: 160px;
+  right: 10px;
+  gap: 5px;
+  z-index: 900; /* ensure it’s above most other elements */
+}
+
+#selected-counter.show i {
+  font-size: larger;
 }
 
 .file-meta {
@@ -392,7 +417,7 @@ input.form-control {
 
 
 .selected {
-  background: var(--background3);
+  background-color: var(--background3) !important;
 }
 
 

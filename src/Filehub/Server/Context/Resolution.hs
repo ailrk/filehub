@@ -2,7 +2,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Filehub.Server.Resoluiton where
+module Filehub.Server.Context.Resolution where
 
 import Servant
 import Filehub.Types (Env(..), Display (..))

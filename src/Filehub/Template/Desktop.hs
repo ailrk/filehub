@@ -208,7 +208,7 @@ controlPanel =
     deleteBtn = do
       button_ [ class_ "btn btn-control"
               , type_ "submit"
-              , term "hx-get" $ linkToText (apiLinks.deleteFile Nothing False)
+              , term "hx-delete" $ linkToText (apiLinks.deleteFile Nothing True)
               , term "hx-target" "#index"
               , term "hx-swap" "outerHTML"
               , term "hx-confirm" ("Are you sure about deleting selected files?")
@@ -219,9 +219,9 @@ controlPanel =
 
     cancelBtn :: Html ()
     cancelBtn = do
-      button_ [ class_ "action-btn"
+      button_ [ class_ "btn btn-control"
               , type_ "submit"
-              , term "hx-get" $ linkToText apiLinks.cancel
+              , term "hx-post" $ linkToText apiLinks.cancel
               , term "hx-target" "#index"
               , term "hx-swap" "outerHTML"
               ] do
@@ -566,7 +566,7 @@ table target root files selected order = do
     open file =
       let ClientPath path = ClientPath.toClientPath root file.path
           imgIdx = Maybe.fromJust $ Map.lookup file resourceIdxMap -- image index always exists
-       in [ term "_" [iii| on click send Open(path: '=#{path}', index: #{imgIdx}) to body |] ]
+       in [ term "_" [iii| on click send Open(path: '#{path}', index: #{imgIdx}) to body |] ]
 
 
     editor file =
@@ -637,7 +637,7 @@ contextMenu readOnly root file = do
       True -> mempty
       False -> do
         div_ [ class_ "dropdown-item"
-             , term "hx-get" $ linkToText (apiLinks.deleteFile (Just clientPath) False)
+             , term "hx-delete" $ linkToText (apiLinks.deleteFile (Just clientPath) False)
              , term "hx-target" "#index"
              , term "hx-swap" "outerHTML"
              , term "hx-confirm" ("Are you sure about deleting " <> textClientPath <> "?")

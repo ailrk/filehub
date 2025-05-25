@@ -136,7 +136,7 @@ data TargetSessionData = TargetSessionData
 
 
 data Selected
-  = Selected ClientPath [ClientPath]
+  = Selected ClientPath [ClientPath] -- non empty list
   | NoSelection
   deriving (Show, Eq)
 
@@ -250,7 +250,7 @@ newtype ClientPath = ClientPath { unClientPath :: FilePath }
 
 
 -- | ClientPath but not percent encoded
-newtype RawClientPath = RawClientPath { unDecodedClientPath :: FilePath }
+newtype RawClientPath = RawClientPath { unRawClientPath :: FilePath }
   deriving (Show, Eq, Semigroup, Monoid)
 
 

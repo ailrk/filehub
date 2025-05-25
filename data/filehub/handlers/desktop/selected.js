@@ -1,30 +1,21 @@
-let selectedIds = new Set();
-const handlers = new Map();
+/* Ctrl_left-left_click to multi select
+ * Hold ctrl left and click on file will select it.
+ * Keep ctrl hold and click multiple files will select multiple.
+ * Keep ctrl hold, click on a file and drag will select files on the pass.
+ * */
+const selectedIds = new Set();
 export function register() {
-    registerRows();
     document.body.addEventListener('TargetChanged', _ => { selectedIds.clear(); });
     document.body.addEventListener('htmx:afterSettle', _ => {
         collect();
-        registerRows();
     });
-}
-function registerRows() {
-    unregisterRows();
-    let rows = document.querySelectorAll('#table tr');
-    rows.forEach(row => {
-        const id = row.dataset.path;
-        const h = (e) => handle(row, e);
-        handlers.set(id, h);
-        row.addEventListener('click', h, true);
-    });
-}
-function unregisterRows() {
-    let rows = document.querySelectorAll('#table tr');
-    rows.forEach(row => {
-        const id = row.dataset.path;
-        const h = handlers.get(id);
-        h && row.removeEventListener('click', h, true);
-    });
+    const table = document.querySelector('#table'); // change selector to fit your layout
+    table.addEventListener('click', e => {
+        let tr = e.target.closest('tr');
+        if (tr) {
+            handle(tr, e);
+        }
+    }, true);
 }
 // Collect selected rows to the set `selectedIds`
 function collect() {
@@ -36,7 +27,8 @@ function collect() {
         }
     });
 }
-function handle(row, evt) {
+/* Select handler */
+export function handle(row, evt) {
     let e = evt;
     const id = row.dataset.path;
     // disable the default behavior when ctrl is pressed.

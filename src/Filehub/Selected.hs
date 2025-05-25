@@ -2,6 +2,7 @@ module Filehub.Selected
   ( getSelected
   , setSelected
   , anySelected
+  , countSelected
   , clearSelected
   , clearSelectedAllTargets
   , toList
@@ -26,6 +27,7 @@ import Filehub.Env qualified as Env
 import Filehub.Target qualified as Target
 import Prelude hiding (elem)
 import Prelude qualified
+import Control.Monad (join)
 
 
 getSelected :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es Selected
@@ -47,12 +49,17 @@ anySelected sessionId = do
   pure result
 
 
+-- | Get all selected files grouped by targets
 allSelecteds :: (Reader Env :> es, IOE :> es, Error FilehubError :> es, Log :> es) => SessionId -> Eff es [(Target, Selected)]
 allSelecteds sessionId = do
   session <- Env.getSession sessionId
   let selecteds = session ^. #targets & fmap (^. #selected)
   targets <- Env.getTargets
   pure $ targets `zip` selecteds
+
+
+countSelected :: (Reader Env :> es, IOE :> es, Error FilehubError :> es, Log :> es) => SessionId -> Eff es Int
+countSelected sessionId = length . join . fmap (toList . snd) <$> allSelecteds sessionId
 
 
 clearSelected :: (Reader Env :> es, IOE :> es) => SessionId -> Eff es ()

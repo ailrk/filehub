@@ -42,7 +42,7 @@ import Filehub.Template.Desktop qualified as Template.Desktop
 import Filehub.Template.Mobile qualified as Template.Mobile
 import Filehub.ClientPath qualified as ClientPath
 import Filehub.Selected qualified as Selected
-import Filehub.Server.Internal (withQueryParam, clear)
+import Filehub.Server.Internal (withQueryParam, clear, copy, paste)
 import Filehub.Types
     ( File(..),
       ClientPath(..),
@@ -59,6 +59,7 @@ import Filehub.ControlPanel qualified as ControlPanel
 import Data.ByteString.Char8 qualified as ByteString
 import Data.ByteString.Lazy qualified as LBS
 import Filehub.Storage (getStorage, Storage(..))
+import Debug.Trace (traceM)
 
 
 -- | Server definition
@@ -174,30 +175,21 @@ server = Api
 
 
   , selectRows = \sessionId selected -> do
-      display <- Env.getDisplay sessionId & withServerError
       case selected of
         NoSelection -> do
           logAttention_ [i|No selection: #{sessionId}|]
           throwError InvalidSelection & withServerError
         _ -> do
           Selected.setSelected sessionId selected
-          case display of
-            Desktop ->
-              Template.Desktop.controlPanel
-                <$> Env.getReadOnly
-                <*> ControlPanel.getControlPanelState sessionId & withServerError
-            Mobile ->
-              Template.Mobile.controlPanel
-                <$> Env.getReadOnly
-                <*> ControlPanel.getControlPanelState sessionId & withServerError
-            NoDisplay -> undefined
+          count <- Selected.countSelected sessionId & withServerError
+          addHeader count <$> controlPanel sessionId
 
 
   , upload = \sessionId _ multipart -> do
       withServerError do
         storage <- getStorage sessionId
         storage.upload multipart
-      index sessionId
+      index' sessionId
 
 
   , download = \sessionId mClientPath -> do
@@ -208,13 +200,20 @@ server = Api
       pure $ addHeader (printf "attachement; filename=%s" (takeFileName path)) bs
 
 
-  , copy = Server.Desktop.copy
+  , copy = \sessionId _ -> do
+      copy sessionId
+      controlPanel sessionId
 
 
-  , paste = Server.Desktop.paste
+  , paste = \sessionId _ -> do
+      paste sessionId
+      index sessionId
 
 
-  , cancel = index
+  , cancel = \sessionId -> do
+      clear sessionId
+      count <- Selected.countSelected sessionId & withServerError
+      addHeader count <$> index sessionId
 
 
   , contextMenu = Server.Desktop.contextMenu
@@ -224,6 +223,7 @@ server = Api
       withServerError do
         clientPath <- withQueryParam mClientPath
         root <- Env.getCurrentDir sessionId
+        traceM (show clientPath)
         payload <- Viewer.initViewer sessionId root clientPath
         pure $ addHeader payload mempty
 
@@ -238,7 +238,7 @@ server = Api
       Env.changeCurrentTarget sessionId targetId & withServerError
 
       html <- withRunInIO $ \unlift -> do
-        unlift (index sessionId) `catch` \(_ :: SomeException) -> unlift do
+        unlift (index' sessionId) `catch` \(_ :: SomeException) -> unlift do
           restore
           throwError (err500 { errBody = [i|Invalid target|]})
 
@@ -261,6 +261,7 @@ server = Api
   }
 
 
+-- | index that reset the state
 index :: SessionId -> Filehub (Html ())
 index sessionId = do
   display <- Env.getDisplay sessionId & withServerError
@@ -270,6 +271,16 @@ index sessionId = do
     Mobile -> Server.Mobile.index sessionId
 
 
+-- | index that preserves state
+index' :: SessionId -> Filehub (Html ())
+index' sessionId = do
+  display <- Env.getDisplay sessionId & withServerError
+  case display of
+    NoDisplay -> index sessionId
+    Desktop -> Server.Desktop.index' sessionId
+    Mobile -> Server.Mobile.index' sessionId
+
+
 view :: SessionId -> Filehub (Html ())
 view sessionId = do
   display <- Env.getDisplay sessionId & withServerError
@@ -277,6 +288,27 @@ view sessionId = do
     Desktop -> Server.Desktop.view sessionId
     Mobile -> Server.Mobile.view sessionId
     NoDisplay -> Server.Mobile.view sessionId
+
+
+controlPanel :: SessionId -> Filehub (Html ())
+controlPanel sessionId = do
+  display <- Env.getDisplay sessionId & withServerError
+  case display of
+    Desktop ->
+      Template.Desktop.controlPanel
+        <$> Env.getReadOnly
+        <*> ControlPanel.getControlPanelState sessionId
+          & withServerError
+    Mobile ->
+      Template.Mobile.controlPanel
+        <$> Env.getReadOnly
+        <*> ControlPanel.getControlPanelState sessionId
+          & withServerError
+    NoDisplay ->
+      Template.Mobile.controlPanel
+        <$> Env.getReadOnly
+        <*> ControlPanel.getControlPanelState sessionId
+          & withServerError
 
 
 serve :: SessionId -> Maybe ClientPath -> Filehub (Headers '[ Header "Content-Type" String ] LBS.ByteString)

@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
-module Filehub.Server.ReadOnly where
+module Filehub.Server.Context.ReadOnly where
 
 import Servant
 import Filehub.Types (Env(..))

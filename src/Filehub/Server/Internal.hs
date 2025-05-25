@@ -1,7 +1,7 @@
 {-# LANGUAGE PartialTypeSignatures #-}
 module Filehub.Server.Internal where
 
-import Effectful ( Eff, (:>), IOE )
+import Effectful ( Eff, (:>), IOE, MonadUnliftIO (..) )
 import Effectful.Error.Dynamic (throwError, Error)
 import Effectful.Reader.Dynamic (Reader)
 import Filehub.Env (Env (..))
@@ -13,9 +13,28 @@ import Filehub.Copy qualified as Copy
 import Lens.Micro.Platform ()
 import Prelude hiding (readFile)
 import Prelude hiding (readFile)
-import Servant ( ServerError(..), ServerError, FromHttpApiData (..) )
+import Servant ( ServerError(..), ServerError, FromHttpApiData (..), err500 )
 import Servant.Server (err400)
 import Data.ByteString (ByteString)
+import Filehub.Monad (Filehub)
+import Control.Exception (SomeException, catch)
+import Data.String.Interpolate (i)
+import Filehub.Error (withServerError)
+import Lens.Micro ((&))
+
+
+copy :: SessionId -> Filehub ()
+copy sessionId = withServerError do
+  Copy.select sessionId
+  Copy.copy sessionId
+
+
+paste :: SessionId -> Filehub ()
+paste sessionId = do
+  withRunInIO $ \unlift -> do
+    unlift (Copy.paste sessionId & withServerError) `catch` \(_ :: SomeException) -> unlift do
+      throwError (err500 { errBody = [i|Paste failed|]})
+  -- index' sessionId
 
 
 -- | Ensure a query parameter presents, otherwise it's a client error

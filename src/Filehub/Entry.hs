@@ -13,10 +13,12 @@ import Network.Wai.Middleware.RequestLogger (logStdout)
 import Network.Wai.Handler.Warp (setPort, defaultSettings, runSettings)
 import Servant (serveWithContextT, Context (..), Application, serveDirectoryWebApp, (:<|>) (..))
 import System.Directory (makeAbsolute)
-import Filehub.Server.Session qualified as Server.Session
-import Filehub.Server.ReadOnly qualified as Server.ReadOnly
-import Filehub.Server.Resoluiton qualified as Server.Resoluiton
-import Filehub.Server.Display qualified as Server.Display
+import Filehub.Server.Middleware qualified as Server.Middleware
+import Filehub.Server.Middleware.Session qualified as Server.Middleware.Session
+import Filehub.Server.Middleware.Display qualified as Server.Middleware.Display
+import Filehub.Server.Context.Session qualified as Server.Context.Session
+import Filehub.Server.Context.ReadOnly qualified as Server.Context.ReadOnly
+import Filehub.Server.Context.Resolution qualified as Server.Context.Resolution
 import Filehub.Server qualified as Server
 import Filehub.Monad
 import Filehub.Options (Options(..), parseOptions, TargetOption (..))
@@ -35,18 +37,19 @@ import Effectful.FileSystem (runFileSystem)
 
 application :: Env -> Application
 application env
-  = Server.Session.sessionMiddleware env
-  . Server.Display.displayMiddleware env
+  = Server.Middleware.exposeHeaders
+  . Server.Middleware.Session.sessionMiddleware env
+  . Server.Middleware.Display.displayMiddleware env
   . serveWithContextT Routes.api ctx (toServantHandler env)
   $ server
   where
     server = Server.server
       :<|> serveDirectoryWebApp env.dataDir
 
-    ctx = Server.Session.sessionHandler env
-        :. Server.ReadOnly.readOnlyHandler env
-        :. Server.Resoluiton.desktopOnlyHandler env
-        :. Server.Resoluiton.mobileOnlyHandler env
+    ctx = Server.Context.Session.sessionHandler env
+        :. Server.Context.ReadOnly.readOnlyHandler env
+        :. Server.Context.Resolution.desktopOnlyHandler env
+        :. Server.Context.Resolution.mobileOnlyHandler env
         :. EmptyContext
 
 ------------------------------------

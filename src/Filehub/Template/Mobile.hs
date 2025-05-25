@@ -50,6 +50,7 @@ index :: Bool
 index readOnly sideBar' view' controlPanelState = do
   div_ [ id_ "index" ] do
     overlay
+    selectedCounter
     sideBar'
     view'
     controlPanel readOnly controlPanelState
@@ -258,7 +259,7 @@ table target root files selected = do
       mconcat
       [ case file.content of
           Dir _ ->
-            [ term "hx-get" $ linkToText (apiLinks.cd (Just (ClientPath.toClientPath root file.path)))
+            [ term "hx-get" $ linkToText (apiLinks.cd (Just clientPath))
             , term "hx-target" ("#" <> viewId)
             , term "hx-swap" "outerHTML"
             ]
@@ -403,7 +404,7 @@ controlPanel =
     deleteBtn = do
       button_ [ class_ "action-btn"
               , type_ "submit"
-              , term "hx-get" $ linkToText (apiLinks.deleteFile Nothing False)
+              , term "hx-delete" $ linkToText (apiLinks.deleteFile Nothing True)
               , term "hx-target" "#index"
               , term "hx-swap" "outerHTML"
               , term "hx-confirm" ("Are you sure about deleting selected files?")
@@ -417,7 +418,7 @@ controlPanel =
     cancelBtn = do
       button_ [ class_ "action-btn"
               , type_ "submit"
-              , term "hx-get" $ linkToText apiLinks.cancel
+              , term "hx-post" $ linkToText apiLinks.cancel
               , term "hx-target" "#index"
               , term "hx-swap" "outerHTML"
               ] do
@@ -437,6 +438,18 @@ controlPanel =
           span_ "Back to top"
 
 
+selectedCounter :: Html ()
+selectedCounter = do
+  div_ [ id_ selectedCounterId
+       , term "hx-post" $ linkToText apiLinks.cancel
+       , term "hx-target" "#index"
+       , term "hx-swap" "outerHTML"
+       , class_ "field "
+       ] do
+    span_ "0"
+    span_ "selected"
+    i_ [ class_ "bx bx-x" ] mempty
+
 
 ------------------------------------
 -- component ids
@@ -450,6 +463,9 @@ controlPanelBtnId = "control-panel-btn"
 
 sortControlId :: Text
 sortControlId = "sort-control"
+
+selectedCounterId :: Text
+selectedCounterId = "selected-counter"
 
 overlayId :: Text
 overlayId = "overlay"

@@ -109,13 +109,15 @@ library
 
     exposed-modules:
       Filehub.Cookie
+      Filehub.Server.Context.ReadOnly
+      Filehub.Server.Context.Resolution
+      Filehub.Server.Context.Session
+      Filehub.Server.Middleware.Display
+      Filehub.Server.Middleware.Session
+      Filehub.Server.Middleware
       Filehub.Server.Internal
       Filehub.Server.Desktop
       Filehub.Server.Mobile
-      Filehub.Server.ReadOnly
-      Filehub.Server.Session
-      Filehub.Server.Resoluiton
-      Filehub.Server.Display
       Filehub.Server
       Filehub.Template
       Filehub.Template.Internal

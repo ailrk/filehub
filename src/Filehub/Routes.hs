@@ -54,14 +54,18 @@ import Filehub.Types
       Resolution(..)
     )
 import GHC.Generics (Generic)
-import Filehub.Server.Resoluiton (ConfirmMobilOnly, ConfirmDesktopOnly)
-import Filehub.Server.ReadOnly (ConfirmReadOnly)
+import Filehub.Server.Context.Resolution (ConfirmMobilOnly, ConfirmDesktopOnly)
+import Filehub.Server.Context.ReadOnly (ConfirmReadOnly)
 
 
 type instance AuthServerData (AuthProtect "session") = SessionId
 type instance AuthServerData (AuthProtect "readonly") = ConfirmReadOnly
 type instance AuthServerData (AuthProtect "desktop-only") = ConfirmDesktopOnly
 type instance AuthServerData (AuthProtect "mobile-only") = ConfirmMobilOnly
+
+-- | Filehub custom headers are in format `X-Filehub-*`. They are usually used to report the server state
+--   change to the frontend. E.g when /cancel is called, the server will clear the selection and copy state.
+--   the new state like the total number of selected items is reported via `X-Filehub-Selected-Count`.
 
 
 data Api mode = Api
@@ -177,7 +181,7 @@ data Api mode = Api
                     :> "select"
                     :> AuthProtect "session"
                     :> ReqBody '[FormUrlEncoded] Selected
-                    :> Post '[HTML] (Html ())
+                    :> Post '[HTML] (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))
 
 
   , upload          :: mode :- "upload"
@@ -195,7 +199,7 @@ data Api mode = Api
 
   , cancel          :: mode :- "cancel"
                     :> AuthProtect "session"
-                    :> Get '[HTML] (Html ())
+                    :> Post '[HTML] (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ())) -- changes session state, need to report back
 
 
   , contextMenu     :: mode :- "contextmenu"

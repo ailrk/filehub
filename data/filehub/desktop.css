@@ -125,8 +125,6 @@ textarea {
   overflow-x: auto;
   scrollbar-color: var(--background1) var(--background3); /* thumb color, track color */
 
-  /* scrollbar-width: none; */
-
   & #tool-bar {
     position: sticky;
     top: 0;

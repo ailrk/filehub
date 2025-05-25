@@ -2,9 +2,6 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Filehub.Server.Desktop where
 
-import Data.String.Interpolate (i)
-import Effectful ( withRunInIO )
-import Effectful.Error.Dynamic (throwError)
 import Filehub.ClientPath qualified as ClientPath
 import Filehub.Env (TargetView (..))
 import Filehub.Env qualified as Env
@@ -21,15 +18,12 @@ import Filehub.Types
     ( SessionId(..),
       SessionId(..), ClientPath)
 import Filehub.ControlPanel qualified as ControlPanel
-import Filehub.Copy qualified as Copy
 import Lens.Micro
 import Lens.Micro.Platform ()
 import Lucid
 import Prelude hiding (readFile)
-import Servant ( err500, errBody )
 import System.FilePath (takeFileName)
-import UnliftIO (catch, SomeException)
-import Filehub.Server.Resoluiton (ConfirmDesktopOnly)
+import Filehub.Server.Context.Resolution (ConfirmDesktopOnly)
 import Filehub.Storage (getStorage)
 
 
@@ -60,23 +54,6 @@ editorModal sessionId _ mClientPath = withServerError do
   let filename = takeFileName p
   readOnly <- Env.getReadOnly
   pure $ Template.Desktop.editorModal readOnly filename content
-
-
-copy :: SessionId -> p -> Filehub (Html ())
-copy sessionId _ = withServerError do
-  Copy.select sessionId
-  Copy.copy sessionId
-  Template.Desktop.controlPanel
-    <$> Env.getReadOnly
-    <*> ControlPanel.getControlPanelState sessionId
-
-
-paste :: SessionId -> p -> Filehub (Html ())
-paste sessionId _ = do
-  withRunInIO $ \unlift -> do
-    unlift (Copy.paste sessionId & withServerError) `catch` \(_ :: SomeException) -> unlift do
-      throwError (err500 { errBody = [i|Paste failed|]})
-  index' sessionId
 
 
 contextMenu :: SessionId -> ConfirmDesktopOnly -> Maybe ClientPath -> Filehub (Html ())
