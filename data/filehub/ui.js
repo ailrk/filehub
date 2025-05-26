@@ -6,7 +6,8 @@ import * as Mobile from './handlers/mobile.js';
 import * as ErrorsHandlers from './handlers/errors.js';
 import * as ViewerHandlers from './handlers/viewer.js';
 import * as Cookie from './cookie.js';
-console.info("registering event listeners");
+import * as Debug from './debug.js';
+Debug.init();
 let display = Cookie.getCookie('display');
 /* Install handlers */
 switch (display) {

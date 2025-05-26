@@ -22,13 +22,9 @@ let touchendHandler;
 let clearSelectedHandler = _ => selectedIds.clear();
 let mousePosition = [];
 /* The number of selected entries, should only be set by `X-File-Selected-Count` */
-// let selectedCount: number = 0;
 let selectedCount = createObservableCell(0, showSelectedCounter);
 export function register() {
     document.body.addEventListener('TargetChanged', clearSelectedHandler);
-    // document.body.addEventListener('htmx:beforeOnLoad', e => {
-    //   updateSelectedCount(e)
-    // });
     document.body.addEventListener('htmx:afterSettle', e => {
         let table = document.querySelector('#table');
         updateSelectedCount(e);
@@ -38,21 +34,18 @@ export function register() {
             clearSelectedHandler(e);
             collectFromHtml();
         }
-        console.log('settle', selectedCount.get());
-        // updateSelectedCount(e)
-        showSelectedCounter(selectedCount.get());
+        showSelectedCounter(selectedCount.get()); // make sure if selectedCount > 0 the counter stick across page reload.
     });
     registerAll();
 }
 function updateSelectedCount(e) {
     let count = parseInt(e.detail.xhr.getResponseHeader('X-Filehub-Selected-Count'));
-    console.log(count);
     if (!Number.isNaN(count)) {
         selectedCount.set(count);
-        console.log('update', selectedCount.get());
     }
 }
 function registerAll() {
+    console.log('register all');
     let selectedCounter = document.querySelector('#selected-counter');
     let table = document.querySelector('#table');
     selectedCounter.addEventListener('click', clearSelectedHandler);
@@ -66,51 +59,29 @@ function registerAll() {
 }
 /* Fully reset the handlers in the page. */
 function unregisterAll() {
+    console.log('unregister all');
     let table = document.querySelector('#table');
     let selectedCounter = document.querySelector('#selected-counter');
     table.removeEventListener('mousemove', guard);
     table.removeEventListener('mousemove', drag);
+    table.removeEventListener('touchmove', guard);
+    table.removeEventListener('touchmove', drag);
     table.removeEventListener('click', preventDefault);
     selectedCounter.removeEventListener('click', clearSelectedHandler);
     unregisterTableTouch();
     unregisterTableMouse();
 }
-/* Abort selection timer if acceleration is higher than a thresdshold */
-function guard(e) {
-    let evt = e;
-    let [x, y] = [evt.clientX, evt.clientY];
-    let prev = mousePosition.pop();
-    let t = performance.now();
-    let acceleration = 0;
-    if (prev) {
-        let [xprev, yprev, vxprev, vyprev, tprev] = prev;
-        let dx = x - xprev;
-        let dy = y - yprev;
-        let dt = t - tprev;
-        let vx = dx / dt;
-        let vy = dy / dt;
-        let ax = (vx - vxprev) / dt;
-        let ay = (vy - vyprev) / dt;
-        let a = Math.sqrt(ax * ax + ay * ay);
-        acceleration = a;
-        mousePosition.push([x, y, vx, vy, t]);
-    }
-    else {
-        mousePosition.push([x, y, 0, 0, t]);
-    }
-    if (holdTimer && acceleration > 0.03) {
-        clearTimeout(holdTimer);
-    }
-}
 function preventDefault(e) {
     e.preventDefault();
 }
+/* mousedown/touchstart */
 function makeStarthandler(table, movevt) {
     return (e) => {
+        console.log('start');
         // If mouse moved before holding is triggerd, cancel the current timer and start a new one.
         // We want to make sure you have to hold on one place for some time to trigger the selection.
         table.addEventListener(movevt, guard);
-        table.addEventListener('onclick', preventDefault, true);
+        table.addEventListener('click', preventDefault, true);
         holdTimer = setTimeout(() => {
             // Entering holding mode
             table.removeEventListener(movevt, guard);
@@ -125,14 +96,17 @@ function makeStarthandler(table, movevt) {
         }, 500);
     };
 }
+/* mouseup/touchend */
 function makeEndHandler(table, movevt) {
     return (_) => {
+        console.log('end');
         if (holdTimer) {
             clearTimeout(holdTimer);
         }
         table.removeEventListener(movevt, guard);
         table.removeEventListener(movevt, drag);
-        table.removeEventListener('onclick', preventDefault);
+        table.classList.remove('no-touch-action');
+        table.removeEventListener('click', preventDefault);
     };
 }
 function registerTableMouse() {
@@ -171,7 +145,6 @@ function unregisterTableTouch() {
 function showSelectedCounter(count) {
     // watch selected id and display selected counter accordingly.
     let selectedCounter = document.querySelector('#selected-counter');
-    console.log('--', count);
     if (count > 0) {
         selectedCounter.firstChild.innerText = count.toString();
         selectedCounter.classList.add('show');
@@ -192,9 +165,67 @@ function collectFromHtml() {
         }
     });
 }
+// touch-action: none;
+/* Abort selection timer if acceleration is higher than a thresdshold
+ * */
+function guard(e) {
+    console.log('guard');
+    let table = document.querySelector('#table'); // prevent scrolling
+    table.classList.add('no-touch-action');
+    let x = 0;
+    let y = 0;
+    if (e instanceof MouseEvent) {
+        x = e.clientX;
+        y = e.clientY;
+    }
+    else if (e instanceof TouchEvent) {
+        x = e.touches[0].clientX;
+        y = e.touches[0].clientY;
+    }
+    else {
+        console.error('invalid move event type');
+    }
+    let prev = mousePosition.pop();
+    let t = performance.now();
+    let acceleration = 0;
+    if (prev) {
+        let [xprev, yprev, vxprev, vyprev, tprev] = prev;
+        let dx = x - xprev;
+        let dy = y - yprev;
+        let dt = t - tprev;
+        let vx = dx / dt;
+        let vy = dy / dt;
+        let ax = (vx - vxprev) / dt;
+        let ay = (vy - vyprev) / dt;
+        let a = Math.sqrt(ax * ax + ay * ay);
+        acceleration = a;
+        mousePosition.push([x, y, vx, vy, t]);
+    }
+    else {
+        mousePosition.push([x, y, 0, 0, t]);
+    }
+    if (holdTimer && acceleration > 0.03) {
+        clearTimeout(holdTimer);
+    }
+}
 function drag(e) {
+    console.log('drag');
+    let table = document.querySelector('#table'); // prevent scrolling
+    table.classList.add('no-touch-action');
     e.preventDefault();
-    let tr = e.target.closest('tr');
+    let tr = null;
+    if (e instanceof MouseEvent) {
+        tr = e.target.closest('tr');
+    }
+    else if (e instanceof TouchEvent) {
+        let x = e.touches[0].clientX;
+        let y = e.touches[0].clientY;
+        let ele = document.elementFromPoint(x, y);
+        tr = ele.closest('tr');
+    }
+    else {
+        console.error('invalid move event type');
+    }
     if (tr) {
         const id = tr.dataset.path;
         if (!selectedIds.has(id)) {
@@ -204,6 +235,7 @@ function drag(e) {
 }
 /* Select handler */
 function select(row) {
+    console.log('select');
     let id = row.dataset.path;
     function select(hooks) {
         hooks.prepare();

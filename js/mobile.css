@@ -226,7 +226,7 @@ table {
   width: 100%;
   table-layout: fixed;
   border-collapse: collapse;
-  background-color: var(--background1);
+  background-color: var(--background2);
   color: var(--frontground);
   margin: 1rem 0;
   box-shadow: 0 2px 4px rgba(0,0,0,0.05);
@@ -259,13 +259,8 @@ tbody td {
 }
 
 
-tbody tr:nth-child(even) {
-  background-color: var(--background2);
-}
-
-
 tbody tr:hover {
-  background-color: var(--background3);
+  background-color: var(--background1);
 }
 
 
@@ -421,6 +416,11 @@ input.form-control {
 }
 
 
+.no-touch-action {
+  touch-action: none;
+}
+
+
 .balloon {
   background: var(--secondary);
   color: var(--frontground);
@@ -434,4 +434,11 @@ input.form-control {
   animation: fadeInBallon 0.3s ease;
   font-size: 0.9rem;
   z-index: 1500;
+}
+
+
+.debug {
+  position: fixed;
+  top: 5px;
+  left: 5px
 }

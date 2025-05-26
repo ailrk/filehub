@@ -59,6 +59,7 @@ function updateSelectedCount(e: Event) {
 }
 
 function registerAll() {
+  console.log('register all')
   let selectedCounter = document.querySelector('#selected-counter')!
   let table = document.querySelector('#table')!;
   selectedCounter.addEventListener('click', clearSelectedHandler)
@@ -74,44 +75,17 @@ function registerAll() {
 
 /* Fully reset the handlers in the page. */
 function unregisterAll() {
+  console.log('unregister all')
   let table = document.querySelector('#table')!;
   let selectedCounter = document.querySelector('#selected-counter')!
   table.removeEventListener('mousemove', guard)
   table.removeEventListener('mousemove', drag)
+  table.removeEventListener('touchmove', guard)
+  table.removeEventListener('touchmove', drag)
   table.removeEventListener('click', preventDefault)
   selectedCounter.removeEventListener('click', clearSelectedHandler)
   unregisterTableTouch()
   unregisterTableMouse()
-}
-
-
-/* Abort selection timer if acceleration is higher than a thresdshold */
-function guard(e: Event) {
-  let evt = e as MouseEvent
-  let [x, y] = [evt.clientX, evt.clientY]
-  let prev = mousePosition.pop()
-  let t = performance.now()
-  let acceleration = 0
-
-  if (prev) {
-    let [xprev, yprev, vxprev, vyprev, tprev] = prev
-    let dx = x - xprev
-    let dy = y - yprev
-    let dt = t - tprev
-    let vx = dx/dt
-    let vy = dy/dt
-    let ax = (vx - vxprev)/dt
-    let ay = (vy - vyprev)/dt
-    let a = Math.sqrt(ax * ax + ay * ay)
-    acceleration = a
-    mousePosition.push([x, y, vx, vy, t])
-  } else {
-    mousePosition.push([x, y, 0, 0, t])
-  }
-
-  if (holdTimer && acceleration > 0.03) {
-    clearTimeout(holdTimer)
-  }
 }
 
 
@@ -120,12 +94,14 @@ function preventDefault(e: Event) {
 }
 
 
-function makeStarthandler(table: HTMLElement, movevt: string) {
+/* mousedown/touchstart */
+function makeStarthandler(table: HTMLElement, movevt: 'mousemove' | 'touchmove') {
   return (e: Event) => {
+    console.log('start')
     // If mouse moved before holding is triggerd, cancel the current timer and start a new one.
     // We want to make sure you have to hold on one place for some time to trigger the selection.
     table.addEventListener(movevt, guard)
-    table.addEventListener('onclick', preventDefault, true)
+    table.addEventListener('click', preventDefault, true)
 
     holdTimer = setTimeout(() => {
       // Entering holding mode
@@ -143,12 +119,15 @@ function makeStarthandler(table: HTMLElement, movevt: string) {
 }
 
 
+/* mouseup/touchend */
 function makeEndHandler(table: HTMLElement, movevt: string) {
   return (_: Event) => {
+    console.log('end')
     if (holdTimer) { clearTimeout(holdTimer) }
     table.removeEventListener(movevt, guard)
     table.removeEventListener(movevt, drag)
-    table.removeEventListener('onclick', preventDefault)
+    table.classList.remove('no-touch-action')
+    table.removeEventListener('click', preventDefault)
   }
 }
 
@@ -174,11 +153,11 @@ function unregisterTableMouse() {
 
 
 function registerTableTouch() {
-  let table = document.querySelector('#table');
+  let table = document.querySelector('#table')!;
   touchstartHandler = makeStarthandler(table! as HTMLElement, 'touchmove')
   touchendHandler = makeEndHandler(table! as HTMLElement, 'touchmove')
-  table!.addEventListener('touchstart', touchstartHandler, { capture: true })
-  table!.addEventListener('touchend', touchendHandler, { capture: true })
+  table.addEventListener('touchstart', touchstartHandler, { capture: true })
+  table.addEventListener('touchend', touchendHandler, { capture: true })
 }
 
 
@@ -220,9 +199,71 @@ function collectFromHtml() {
 }
 
 
+
+  // touch-action: none;
+/* Abort selection timer if acceleration is higher than a thresdshold
+ * */
+function guard(e: Event) {
+  console.log('guard')
+  let table = document.querySelector('#table')!; // prevent scrolling
+  table.classList.add('no-touch-action');
+  let x: number = 0;
+  let y: number = 0;
+  if (e instanceof MouseEvent) {
+    x = e.clientX
+    y = e.clientY
+  } else if (e instanceof TouchEvent) {
+    x = e.touches[0].clientX
+    y = e.touches[0].clientY
+  } else {
+    console.error('invalid move event type')
+  }
+
+  let prev = mousePosition.pop()
+  let t = performance.now()
+  let acceleration = 0
+
+  if (prev) {
+    let [xprev, yprev, vxprev, vyprev, tprev] = prev
+    let dx = x - xprev
+    let dy = y - yprev
+    let dt = t - tprev
+    let vx = dx/dt
+    let vy = dy/dt
+    let ax = (vx - vxprev)/dt
+    let ay = (vy - vyprev)/dt
+    let a = Math.sqrt(ax * ax + ay * ay)
+    acceleration = a
+    mousePosition.push([x, y, vx, vy, t])
+  } else {
+    mousePosition.push([x, y, 0, 0, t])
+  }
+
+  if (holdTimer && acceleration > 0.03) {
+    clearTimeout(holdTimer)
+  }
+}
+
+
+
 function drag(e: Event) {
+  console.log('drag')
+  let table = document.querySelector('#table')!; // prevent scrolling
+  table.classList.add('no-touch-action');
   e.preventDefault()
-  let tr = (e.target as Element).closest('tr');
+
+  let tr: HTMLElement | null = null;
+  if (e instanceof MouseEvent) {
+    tr = (e.target as Element).closest('tr')!;
+  } else if (e instanceof TouchEvent) {
+    let x = e.touches[0].clientX
+    let y = e.touches[0].clientY
+    let ele = document.elementFromPoint(x, y)!;
+    tr = ele.closest('tr')!;
+  } else {
+    console.error('invalid move event type')
+  }
+
   if (tr) {
     const id = tr.dataset.path!;
     if (!selectedIds.has(id))  {
@@ -234,6 +275,7 @@ function drag(e: Event) {
 
 /* Select handler */
 function select(row: HTMLElement) {
+  console.log('select')
   let id = row.dataset.path!
   function select(
     hooks: {
