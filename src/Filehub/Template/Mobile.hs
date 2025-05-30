@@ -377,7 +377,6 @@ controlPanel =
     copyBtn :: Html ()
     copyBtn = do
       button_ [ class_ "action-btn"
-              , type_ "submit"
               , term "hx-get" $ linkToText apiLinks.copy
               , term "hx-target" "#control-panel"
               , term "hx-swap" "outerHTML"
@@ -390,7 +389,6 @@ controlPanel =
     pasteBtn :: Html ()
     pasteBtn = do
       button_ [ class_ "action-btn"
-              , type_ "submit"
               , term "hx-get" $ linkToText apiLinks.paste
               , term "hx-target" "#index"
               , term "hx-swap" "outerHTML"
@@ -403,7 +401,6 @@ controlPanel =
     deleteBtn :: Html ()
     deleteBtn = do
       button_ [ class_ "action-btn"
-              , type_ "submit"
               , term "hx-delete" $ linkToText (apiLinks.deleteFile Nothing True)
               , term "hx-target" "#index"
               , term "hx-swap" "outerHTML"
@@ -417,7 +414,6 @@ controlPanel =
     cancelBtn :: Html ()
     cancelBtn = do
       button_ [ class_ "action-btn"
-              , type_ "submit"
               , term "hx-post" $ linkToText apiLinks.cancel
               , term "hx-target" "#index"
               , term "hx-swap" "outerHTML"
@@ -430,7 +426,6 @@ controlPanel =
     scroll2TopBtn :: Html ()
     scroll2TopBtn = do
       button_ [ class_ "action-btn"
-              , type_ "submit"
               , term "_" "on click call window.scroll(0, 0)"
               ] do
         span_ [ class_ "field " ] do

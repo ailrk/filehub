@@ -33,6 +33,8 @@ input {
 
 button {
     touch-action: manipulation;
+    -webkit-appearance: none; /* Avoid weird webkit rendering */
+    appearance: none;
 }
 
 
@@ -143,6 +145,7 @@ button {
   overflow: hidden;
   border-left: 1px solid var(--background3);
   border-bottom: 1px solid var(--background3);
+  touch-action: none;
 }
 
 

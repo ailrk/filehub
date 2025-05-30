@@ -6,26 +6,42 @@ declare var htmx: any;
  * */
 
 const selectedIds: Set<string> = new Set();
+let clearSelectedHandler: EventListener = _ => selectedIds.clear();
 
 export function register() {
   document.body.addEventListener('TargetChanged', _ => { selectedIds.clear() })
-  document.body.addEventListener('htmx:afterSettle', _ => {
-    collect()
+  document.body.addEventListener('htmx:afterSettle', e => {
+    unregisterAll()
+    registerAll()
+    clearSelectedHandler(e)
+    collectFromHtml()
   })
 
-  const table = document.querySelector('#table'); // change selector to fit your layout
-
-  table!.addEventListener('click', e => {
-    let tr = (e.target as Element).closest('tr');
-    if (tr) {
-      handle(tr, e)
-    }
-  }, true);
+  registerAll();
 }
 
 
+function registerAll() {
+  const table = document.querySelector('#table'); // change selector to fit your layout
+  table!.addEventListener('click', handleRecord, true);
+}
+
+
+function unregisterAll() {
+  const table = document.querySelector('#table'); // change selector to fit your layout
+  table!.removeEventListener('click', handleRecord);
+}
+
+
+function handleRecord(e: Event) {
+  let tr = (e.target as Element).closest('tr');
+  if (tr) {
+    handle(tr, e)
+  }
+}
+
 // Collect selected rows to the set `selectedIds`
-function collect() {
+function collectFromHtml() {
   let rows: NodeListOf<HTMLElement> = document.querySelectorAll('#table tr')
   rows.forEach(row => {
     const id = row.dataset.path!

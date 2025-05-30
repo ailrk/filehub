@@ -4,21 +4,33 @@
  * Keep ctrl hold, click on a file and drag will select files on the pass.
  * */
 const selectedIds = new Set();
+let clearSelectedHandler = _ => selectedIds.clear();
 export function register() {
     document.body.addEventListener('TargetChanged', _ => { selectedIds.clear(); });
-    document.body.addEventListener('htmx:afterSettle', _ => {
-        collect();
+    document.body.addEventListener('htmx:afterSettle', e => {
+        unregisterAll();
+        registerAll();
+        clearSelectedHandler(e);
+        collectFromHtml();
     });
+    registerAll();
+}
+function registerAll() {
     const table = document.querySelector('#table'); // change selector to fit your layout
-    table.addEventListener('click', e => {
-        let tr = e.target.closest('tr');
-        if (tr) {
-            handle(tr, e);
-        }
-    }, true);
+    table.addEventListener('click', handleRecord, true);
+}
+function unregisterAll() {
+    const table = document.querySelector('#table'); // change selector to fit your layout
+    table.removeEventListener('click', handleRecord);
+}
+function handleRecord(e) {
+    let tr = e.target.closest('tr');
+    if (tr) {
+        handle(tr, e);
+    }
 }
 // Collect selected rows to the set `selectedIds`
-function collect() {
+function collectFromHtml() {
     let rows = document.querySelectorAll('#table tr');
     rows.forEach(row => {
         const id = row.dataset.path;

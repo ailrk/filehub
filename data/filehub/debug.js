@@ -2,6 +2,7 @@
 export function init() {
     // Reference to an output container, use 'pre' styling for JSON output
     let output = document.createElement('pre');
+    output.style = 'pointer-events: none;';
     output.classList.add('debug');
     document.body.appendChild(output);
     // Reference to native method(s)

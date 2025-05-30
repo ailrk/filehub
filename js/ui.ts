@@ -12,7 +12,7 @@ import * as Cookie from './cookie.js';
 import { Display } from './def.js';
 import * as Debug from './debug.js';
 
-// Debug.init()
+Debug.init()
 let display: Display = Cookie.getCookie('display')! as Display
 
 /* Install handlers */
