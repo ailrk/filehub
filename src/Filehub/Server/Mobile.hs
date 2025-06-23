@@ -17,28 +17,18 @@ import Filehub.Target qualified as Target
 import Filehub.Error ( withServerError, withServerError )
 import Filehub.Selected qualified as Selected
 import Filehub.Sort (sortFiles)
-import Filehub.Server.Internal (clear, withQueryParam)
+import Filehub.Server.Internal (withQueryParam)
 import Filehub.ControlPanel qualified as ControlPanel
 import Lens.Micro
 import Lens.Micro.Platform ()
 import Prelude hiding (readFile)
 import Filehub.Storage (getStorage, Storage(..))
 import System.FilePath (takeFileName)
-import Debug.Trace
 import Filehub.ClientPath qualified as ClientPath
 
 
 index :: SessionId -> Filehub (Html ())
 index sessionId = do
-  clear sessionId
-  index' sessionId
-
-
-index' :: SessionId -> Filehub (Html ())
-index' sessionId = do
-  n <- Selected.countSelected sessionId & withServerError
-  traceM ( show n)
-
   Template.Mobile.index
     <$> Env.getReadOnly
     <*> sideBar sessionId

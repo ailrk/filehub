@@ -13,7 +13,7 @@ import Filehub.Sort (sortFiles)
 import Filehub.Storage qualified as Storage
 import Filehub.Template.Desktop qualified as Template.Desktop
 import Filehub.Template.Internal qualified as Template
-import Filehub.Server.Internal (withQueryParam, clear)
+import Filehub.Server.Internal (withQueryParam)
 import Filehub.Types
     ( SessionId(..),
       SessionId(..), ClientPath)
@@ -26,11 +26,6 @@ import System.FilePath (takeFileName)
 import Filehub.Server.Context.Resolution (ConfirmDesktopOnly)
 import Filehub.Storage (getStorage)
 
-
-index :: SessionId -> Filehub (Html ())
-index sessionId = do
-  clear sessionId
-  index' sessionId
 
 
 fileDetailModal :: SessionId -> ConfirmDesktopOnly -> Maybe ClientPath -> Filehub (Html ())
@@ -67,8 +62,8 @@ contextMenu sessionId _ mClientPath = withServerError do
   pure $ Template.Desktop.contextMenu readOnly root file
 
 
-index' :: SessionId -> Filehub (Html ())
-index' sessionId =
+index :: SessionId -> Filehub (Html ())
+index sessionId =
   Template.Desktop.index
   <$> Env.getReadOnly
   <*> sideBar sessionId

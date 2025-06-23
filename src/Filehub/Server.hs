@@ -68,6 +68,7 @@ server = Api
   { init = \sessionId res -> do
       Env.updateSession sessionId $
         \s -> s & #resolution .~ Just res
+      clear sessionId
       index sessionId
 
 
@@ -83,6 +84,7 @@ server = Api
   -- start a full reload from the bootstrap stage.
   , index = \sessionId -> do
       display <- Env.getDisplay sessionId & withServerError
+      clear sessionId
       case display of
         NoDisplay -> pure Template.bootstrap
         Desktop -> fmap (Template.withDefault display) $ Server.Desktop.index sessionId
@@ -195,7 +197,7 @@ server = Api
       withServerError do
         storage <- getStorage sessionId
         storage.upload multipart
-      index' sessionId
+      index sessionId
 
 
   , download = \sessionId mClientPath -> do
@@ -245,7 +247,7 @@ server = Api
       Env.changeCurrentTarget sessionId targetId & withServerError
 
       html <- withRunInIO $ \unlift -> do
-        unlift (index' sessionId) `catch` \(_ :: SomeException) -> unlift do
+        unlift (index sessionId) `catch` \(_ :: SomeException) -> unlift do
           restore
           throwError (err500 { errBody = [i|Invalid target|]})
 
@@ -276,16 +278,6 @@ index sessionId = do
     NoDisplay -> pure Template.bootstrap
     Desktop -> Server.Desktop.index sessionId
     Mobile -> Server.Mobile.index sessionId
-
-
--- | index that preserves state
-index' :: SessionId -> Filehub (Html ())
-index' sessionId = do
-  display <- Env.getDisplay sessionId & withServerError
-  case display of
-    NoDisplay -> index sessionId
-    Desktop -> Server.Desktop.index' sessionId
-    Mobile -> Server.Mobile.index' sessionId
 
 
 view :: SessionId -> Filehub (Html ())
