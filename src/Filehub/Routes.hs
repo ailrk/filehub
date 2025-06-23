@@ -226,6 +226,11 @@ data Api mode = Api
                     :> Get '[HTML] (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
 
 
+  -- Servant api forces you to provide a content type at compile time, but we want to dynamically determine the content type instead.
+  -- The current set up will add two Content-Type headers to the response. One for octet-stream one for the actual content type.
+  -- The type level fix is too hacky, I decided to simply strip the unwanted header in a wai middleware.
+  -- Check the dedupHeadersKeepLast middleware, if there are duplicated headers, it will keep the last one. In this case we will
+  -- discard the octet-stream and keep the content-type we set in the handler.
   , serve           :: mode :- "serve"
                     :> AuthProtect "session"
                     :> QueryParam "file" ClientPath

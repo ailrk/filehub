@@ -40,6 +40,7 @@ application :: Env -> Application
 application env
   = Server.Middleware.exposeHeaders
   . Server.Middleware.Session.sessionMiddleware env
+  . Server.Middleware.dedupHeadersKeepLast
   . Server.Middleware.Display.displayMiddleware env
   . serveWithContextT Routes.api ctx (toServantHandler env)
   $ server

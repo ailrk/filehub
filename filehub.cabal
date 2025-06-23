@@ -107,6 +107,7 @@ library
       , amazonka-s3
       , conduit
       , vault
+      , case-insensitive
 
     exposed-modules:
       Filehub.Cookie

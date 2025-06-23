@@ -331,5 +331,5 @@ serve sessionId mFile = do
     conduit <- storage.readStream file
     pure
       $ addHeader (ByteString.unpack file.mimetype)
-      $ addHeader "inline"
+      $ addHeader (printf "inline; filename=%s" (takeFileName path))
       $ conduit
