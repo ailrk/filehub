@@ -229,7 +229,9 @@ data Api mode = Api
   , serve           :: mode :- "serve"
                     :> AuthProtect "session"
                     :> QueryParam "file" ClientPath
-                    :> StreamGet NoFraming OctetStream (Headers '[ Header "Content-Type" String ] (ConduitT () ByteString (ResourceT IO) ()))
+                    :> StreamGet NoFraming OctetStream (Headers '[ Header "Content-Type" String
+                                                                 , Header "Content-Disposition" String
+                                                                 ] (ConduitT () ByteString (ResourceT IO) ()))
 
 
   , themeCss        :: mode :- "theme.css" :> Get '[OctetStream] LBS.ByteString

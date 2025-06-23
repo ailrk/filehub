@@ -318,7 +318,9 @@ controlPanel sessionId = do
           & withServerError
 
 
-serve :: SessionId -> Maybe ClientPath -> Filehub (Headers '[ Header "Content-Type" String] (ConduitT () ByteString (ResourceT IO) ()))
+serve :: SessionId -> Maybe ClientPath -> Filehub (Headers '[ Header "Content-Type" String
+                                                            , Header "Content-Disposition" String
+                                                            ] (ConduitT () ByteString (ResourceT IO) ()))
 serve sessionId mFile = do
   withServerError do
     storage <- getStorage sessionId
@@ -327,4 +329,7 @@ serve sessionId mFile = do
     let path = ClientPath.fromClientPath root clientPath
     file <- storage.get path
     conduit <- storage.readStream file
-    pure $ addHeader (ByteString.unpack file.mimetype) conduit
+    pure
+      $ addHeader (ByteString.unpack file.mimetype)
+      $ addHeader "inline"
+      $ conduit
