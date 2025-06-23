@@ -195,7 +195,7 @@ controlPanel =
     pasteBtn = do
       button_ [ class_ "btn btn-control"
               , type_ "submit"
-              , term "hx-get" $ linkToText apiLinks.paste
+              , term "hx-post" $ linkToText apiLinks.paste
               , term "hx-target" "#index"
               , term "hx-swap" "outerHTML"
               ] do

@@ -125,7 +125,7 @@ data Api mode = Api
                     :> "paste"
                     :> AuthProtect "session"
                     :> AuthProtect "readonly"
-                    :> Get '[HTML] (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))
+                    :> Post '[HTML] (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))
 
 
   , newFolder       :: mode :- "folders"

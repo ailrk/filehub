@@ -390,7 +390,7 @@ controlPanel =
     pasteBtn :: Html ()
     pasteBtn = do
       button_ [ class_ "action-btn"
-              , term "hx-get" $ linkToText apiLinks.paste
+              , term "hx-post" $ linkToText apiLinks.paste
               , term "hx-target" "#index"
               , term "hx-swap" "outerHTML"
               ] do
