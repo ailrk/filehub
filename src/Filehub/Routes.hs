@@ -111,7 +111,7 @@ data Api mode = Api
                     :> AuthProtect "readonly"
                     :> QueryParam "file" ClientPath
                     :> QueryFlag "selected"
-                    :> Delete '[HTML] (Html ())
+                    :> Delete '[HTML] (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))
 
 
   , copy            :: mode :- "files"
@@ -125,7 +125,7 @@ data Api mode = Api
                     :> "paste"
                     :> AuthProtect "session"
                     :> AuthProtect "readonly"
-                    :> Get '[HTML] (Html ())
+                    :> Get '[HTML] (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))
 
 
   , newFolder       :: mode :- "folders"
@@ -204,7 +204,7 @@ data Api mode = Api
 
   , cancel          :: mode :- "cancel"
                     :> AuthProtect "session"
-                    :> Post '[HTML] (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ())) -- changes session state, need to report back
+                    :> Post '[HTML] (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))
 
 
   , contextMenu     :: mode :- "contextmenu"

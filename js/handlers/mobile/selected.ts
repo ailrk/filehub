@@ -30,7 +30,7 @@ let clearSelectedHandler: EventListener = _ => selectedIds.clear();
 let mousePosition: [x: number, y: number, vx: number, vy: number, t: number][] = [];
 
 /* The number of selected entries, should only be set by `X-File-Selected-Count` */
-let selectedCount: ObservableCell<number> = createObservableCell(0, showSelectedCounter);
+let selectedCount: ObservableCell<number> = createObservableCell(0, _ => {});
 
 
 export function register() {
@@ -38,25 +38,25 @@ export function register() {
 
   document.body.addEventListener('htmx:afterSettle', e => {
     let table = document.querySelector('#table')!;
-    updateSelectedCount(e)
+
+    // update selected count
+    let count: number = parseInt((e as CustomEvent).detail.xhr.getResponseHeader('X-Filehub-Selected-Count'));
+    if (!Number.isNaN(count)) {
+      selectedCount.set(count)
+    }
+
     if ((e as CustomEvent).detail.elt.contains(table)) { // only rebind when table's parents is re-rendered.
       unregisterAll()
       registerAll()
       clearSelectedHandler(e)
       collectFromHtml()
     }
+
     showSelectedCounter(selectedCount.get()) // make sure if selectedCount > 0 the counter stick across page reload.
   })
   registerAll()
 }
 
-
-function updateSelectedCount(e: Event) {
-    let count: number = parseInt((e as CustomEvent).detail.xhr.getResponseHeader('X-Filehub-Selected-Count'));
-    if (!Number.isNaN(count)) {
-      selectedCount.set(count)
-    }
-}
 
 function registerAll() {
   console.log('register all')
@@ -197,7 +197,6 @@ function collectFromHtml() {
     }
   })
 }
-
 
 
   // touch-action: none;

@@ -22,12 +22,16 @@ let touchendHandler;
 let clearSelectedHandler = _ => selectedIds.clear();
 let mousePosition = [];
 /* The number of selected entries, should only be set by `X-File-Selected-Count` */
-let selectedCount = createObservableCell(0, showSelectedCounter);
+let selectedCount = createObservableCell(0, _ => { });
 export function register() {
     document.body.addEventListener('TargetChanged', clearSelectedHandler);
     document.body.addEventListener('htmx:afterSettle', e => {
         let table = document.querySelector('#table');
-        updateSelectedCount(e);
+        // update selected count
+        let count = parseInt(e.detail.xhr.getResponseHeader('X-Filehub-Selected-Count'));
+        if (!Number.isNaN(count)) {
+            selectedCount.set(count);
+        }
         if (e.detail.elt.contains(table)) { // only rebind when table's parents is re-rendered.
             unregisterAll();
             registerAll();
@@ -37,12 +41,6 @@ export function register() {
         showSelectedCounter(selectedCount.get()); // make sure if selectedCount > 0 the counter stick across page reload.
     });
     registerAll();
-}
-function updateSelectedCount(e) {
-    let count = parseInt(e.detail.xhr.getResponseHeader('X-Filehub-Selected-Count'));
-    if (!Number.isNaN(count)) {
-        selectedCount.set(count);
-    }
 }
 function registerAll() {
     console.log('register all');

@@ -132,8 +132,9 @@ server = Api
                 Selected x xs -> do
                   forM_ (fmap (ClientPath.fromClientPath root) (x:xs)) $ \path -> do
                     storage.delete path
-          clear sessionId
-      index sessionId
+      clear sessionId
+      count <- Selected.countSelected sessionId & withServerError
+      addHeader count <$> index sessionId
 
 
   , newFolder = \sessionId _ (NewFolder path) -> do
@@ -207,7 +208,9 @@ server = Api
 
   , paste = \sessionId _ -> do
       paste sessionId
-      index sessionId
+      clear sessionId
+      count <- Selected.countSelected sessionId & withServerError
+      addHeader count <$> index sessionId
 
 
   , cancel = \sessionId -> do

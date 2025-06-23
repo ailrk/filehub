@@ -23,6 +23,7 @@ import Lens.Micro
 import Lens.Micro.Platform ()
 import Prelude hiding (readFile)
 import Filehub.Storage (getStorage, Storage(..))
+import Debug.Trace
 
 
 index :: SessionId -> Filehub (Html ())
@@ -32,12 +33,16 @@ index sessionId = do
 
 
 index' :: SessionId -> Filehub (Html ())
-index' sessionId =
+index' sessionId = do
+  n <- Selected.countSelected sessionId & withServerError
+  traceM ( show n)
+
   Template.Mobile.index
-  <$> Env.getReadOnly
-  <*> sideBar sessionId
-  <*> view sessionId
-  <*> (ControlPanel.getControlPanelState sessionId & withServerError)
+    <$> Env.getReadOnly
+    <*> sideBar sessionId
+    <*> view sessionId
+    <*> (ControlPanel.getControlPanelState sessionId & withServerError)
+    <*> (Selected.countSelected sessionId & withServerError)
 
 
 sideBar :: SessionId -> Filehub (Html ())

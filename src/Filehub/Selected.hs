@@ -55,11 +55,24 @@ allSelecteds sessionId = do
   session <- Env.getSession sessionId
   let selecteds = session ^. #targets & fmap (^. #selected)
   targets <- Env.getTargets
-  pure $ targets `zip` selecteds
+  pure (allSelecteds' selecteds targets)
+
+
+allSelecteds' :: [Selected] -> [Target] -> [(Target, Selected)]
+allSelecteds' selecteds targets = targets `zip` selecteds
 
 
 countSelected :: (Reader Env :> es, IOE :> es, Error FilehubError :> es, Log :> es) => SessionId -> Eff es Int
-countSelected sessionId = length . join . fmap (toList . snd) <$> allSelecteds sessionId
+countSelected sessionId = do
+  session <- Env.getSession sessionId
+  let selecteds = session ^. #targets & fmap (^. #selected)
+  targets <- Env.getTargets
+  pure $ countSelected' selecteds targets
+
+
+countSelected' :: [Selected] -> [Target] -> Int
+countSelected' selecteds targets =
+  length . join . fmap (toList . snd) $ allSelecteds' selecteds targets
 
 
 clearSelected :: (Reader Env :> es, IOE :> es) => SessionId -> Eff es ()

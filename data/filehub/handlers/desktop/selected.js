@@ -16,11 +16,11 @@ export function register() {
     registerAll();
 }
 function registerAll() {
-    const table = document.querySelector('#table'); // change selector to fit your layout
+    const table = document.querySelector('#table');
     table.addEventListener('click', handleRecord, true);
 }
 function unregisterAll() {
-    const table = document.querySelector('#table'); // change selector to fit your layout
+    const table = document.querySelector('#table');
     table.removeEventListener('click', handleRecord);
 }
 function handleRecord(e) {

@@ -1,4 +1,5 @@
 declare var htmx: any;
+
 /* Ctrl_left-left_click to multi select
  * Hold ctrl left and click on file will select it.
  * Keep ctrl hold and click multiple files will select multiple.
@@ -22,13 +23,13 @@ export function register() {
 
 
 function registerAll() {
-  const table = document.querySelector('#table'); // change selector to fit your layout
+  const table = document.querySelector('#table');
   table!.addEventListener('click', handleRecord, true);
 }
 
 
 function unregisterAll() {
-  const table = document.querySelector('#table'); // change selector to fit your layout
+  const table = document.querySelector('#table');
   table!.removeEventListener('click', handleRecord);
 }
 
@@ -39,6 +40,7 @@ function handleRecord(e: Event) {
     handle(tr, e)
   }
 }
+
 
 // Collect selected rows to the set `selectedIds`
 function collectFromHtml() {

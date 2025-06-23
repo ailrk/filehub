@@ -46,11 +46,12 @@ index :: Bool
       -> Html ()
       -> Html ()
       -> ControlPanelState
+      -> Int
       -> Html ()
-index readOnly sideBar' view' controlPanelState = do
+index readOnly sideBar' view' controlPanelState selectedCount = do
   div_ [ id_ "index" ] do
     overlay
-    selectedCounter
+    selectedCounter selectedCount
     sideBar'
     view'
     controlPanel readOnly controlPanelState
@@ -433,18 +434,17 @@ controlPanel =
           span_ "Back to top"
 
 
-selectedCounter :: Html ()
-selectedCounter = do
+selectedCounter :: Int -> Html ()
+selectedCounter n = do
   div_ [ id_ selectedCounterId
        , term "hx-post" $ linkToText apiLinks.cancel
        , term "hx-target" "#index"
        , term "hx-swap" "outerHTML"
        , class_ "field "
        ] do
-    span_ "0"
+    span_ [i|#{n}|]
     span_ "selected"
     i_ [ class_ "bx bx-x" ] mempty
-
 
 ------------------------------------
 -- component ids
