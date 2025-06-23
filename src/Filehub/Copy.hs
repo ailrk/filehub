@@ -16,7 +16,7 @@ import Effectful (Eff, (:>), Eff, (:>), IOE)
 import Effectful.Error.Dynamic (Error, throwError)
 import Effectful.Reader.Dynamic (Reader)
 import Effectful.FileSystem (FileSystem)
-import Effectful.Log (Log, logAttention_, logAttention)
+import Effectful.Log (Log, logAttention_)
 import Filehub.Types (Env, CopyState(..), SessionId, File(..), Selected (..))
 import Filehub.Error (FilehubError (..))
 import Filehub.Env (TargetView(..))
@@ -96,16 +96,16 @@ copy sessionId = do
 paste :: (Reader Env :> es, IOE :> es, FileSystem :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es ()
 paste sessionId = do
   state <- getCopyState sessionId
-  storage <- getStorage sessionId
   case state of
     Paste selections -> do
       TargetView to _ _ <- Env.currentTarget sessionId
-      logAttention "SELECTIONS: "  (fmap (\(t, s) -> (show (Target.getTargetId t), show s)) selections)
       forM_ selections $ \(from, files) -> do
         forM_ files $ \file -> do
           bytes <- Target.withTarget sessionId (Target.getTargetId from) do
+            storage <- getStorage sessionId
             storage.read file
           Target.withTarget sessionId (Target.getTargetId to) do
+            storage <- getStorage sessionId
             dirPath <- Env.getCurrentDir sessionId
             let destination = dirPath </> takeFileName file.path
             storage.write destination bytes

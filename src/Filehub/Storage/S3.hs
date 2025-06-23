@@ -5,7 +5,6 @@ module Filehub.Storage.S3 (storage, initialize) where
 import Codec.Archive.Zip (ZipOption(..))
 import Codec.Archive.Zip qualified as Zip
 import Amazonka (send, runResourceT, toBody, ResponseBody (..))
-import Amazonka.Data (sinkBody)
 import Amazonka.Data qualified as Amazonka
 import Amazonka.S3 (Object(..), CommonPrefix)
 import Amazonka.S3 qualified as Amazonka
@@ -86,15 +85,9 @@ isDirectory sessionId filePath = do
 
 read :: Storage.Context es => SessionId -> File -> Eff es LBS.ByteString
 read sessionId file = do
-  s3 <- getS3 sessionId
-  let bucket = Amazonka.BucketName s3.bucket
-  let key = Amazonka.ObjectKey $ Text.pack file.path
-  let request = Amazonka.newGetObject bucket key
-  content <- runResourceT do
-    resp <- send s3.env request
-    content <- liftIO $ sinkBody (resp ^. Amazonka.getObjectResponse_body) Conduit.sinkLazy
-    pure content
-  pure content
+  stream <- readStream sessionId file
+  chunks <- liftIO $ runResourceT . Conduit.runConduit $ stream Conduit..| Conduit.sinkList
+  pure $ LBS.fromChunks chunks
 
 
 readStream :: Storage.Context es => SessionId -> File -> Eff es (ConduitT () ByteString (ResourceT IO) ())

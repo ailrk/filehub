@@ -37,7 +37,6 @@ import Data.Generics.Labels ()
 import Data.String.Interpolate (i)
 import UnliftIO (MonadIO (..))
 import Lens.Micro.Platform ()
-import Debug.Trace
 import Data.ByteString (ByteString)
 
 
@@ -223,6 +222,6 @@ isPathBrokenSymLink path = do
 
 
 toFilePath :: Storage.Context es => SessionId -> FilePath -> Eff es FilePath
-toFilePath sessionId name = trace (show name) do
+toFilePath sessionId name = do
   currentDir <- Env.getCurrentDir sessionId
   makeAbsolute (currentDir </> name)

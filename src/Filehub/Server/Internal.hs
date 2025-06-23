@@ -21,6 +21,7 @@ import Control.Exception (SomeException, catch)
 import Data.String.Interpolate (i)
 import Filehub.Error (withServerError)
 import Lens.Micro ((&))
+import Effectful.Log (logAttention)
 
 
 copy :: SessionId -> Filehub ()
@@ -32,7 +33,8 @@ copy sessionId = withServerError do
 paste :: SessionId -> Filehub ()
 paste sessionId = do
   withRunInIO $ \unlift -> do
-    unlift (Copy.paste sessionId & withServerError) `catch` \(_ :: SomeException) -> unlift do
+    unlift (Copy.paste sessionId & withServerError) `catch` \(e :: SomeException) -> unlift do
+      logAttention [i|Paste Failed |] (show e)
       throwError (err500 { errBody = [i|Paste failed|]})
 
 
