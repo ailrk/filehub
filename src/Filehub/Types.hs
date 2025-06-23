@@ -230,7 +230,7 @@ data FileContent
 
 
 data File = File
-  { path :: FilePath
+  { path :: FilePath -- absolute path
   , atime :: Maybe UTCTime
   , mtime :: Maybe UTCTime
   , size :: Maybe Integer

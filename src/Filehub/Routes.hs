@@ -30,7 +30,9 @@ import Servant
       Delete,
       QueryFlag,
       Header,
-      Headers
+      Headers,
+      StreamGet,
+      NoFraming
     )
 import Lucid
 import Lens.Micro.Platform ()
@@ -56,6 +58,8 @@ import Filehub.Types
 import GHC.Generics (Generic)
 import Filehub.Server.Context.Resolution (ConfirmMobilOnly, ConfirmDesktopOnly)
 import Filehub.Server.Context.ReadOnly (ConfirmReadOnly)
+import Data.ByteString (ByteString)
+import Conduit (ConduitT, ResourceT)
 
 
 type instance AuthServerData (AuthProtect "session") = SessionId
@@ -194,7 +198,7 @@ data Api mode = Api
   , download        :: mode :- "download"
                     :> AuthProtect "session"
                     :> QueryParam "file" ClientPath
-                    :> Get '[OctetStream] (Headers '[ Header "Content-Disposition" String ] LBS.ByteString)
+                    :> StreamGet NoFraming OctetStream (Headers '[ Header "Content-Disposition" String ] (ConduitT () ByteString (ResourceT IO) ()))
 
 
   , cancel          :: mode :- "cancel"
@@ -225,7 +229,7 @@ data Api mode = Api
   , serve           :: mode :- "serve"
                     :> AuthProtect "session"
                     :> QueryParam "file" ClientPath
-                    :> Get '[OctetStream] (Headers '[ Header "Content-Type" String ] LBS.ByteString)
+                    :> StreamGet NoFraming OctetStream (Headers '[ Header "Content-Type" String ] (ConduitT () ByteString (ResourceT IO) ()))
 
 
   , themeCss        :: mode :- "theme.css" :> Get '[OctetStream] LBS.ByteString

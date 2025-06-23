@@ -6,6 +6,7 @@ module Filehub.Storage.File (storage, initialize) where
 import Codec.Archive.Zip (ZipOption(..))
 import Codec.Archive.Zip qualified as Zip
 import Control.Monad (unless, when, forM_)
+import Conduit (ConduitT, ResourceT, sourceFile, sourceLazy)
 import Data.ByteString.Lazy qualified as LBS
 import Data.Generics.Labels ()
 import Data.Text qualified as Text
@@ -37,7 +38,7 @@ import Data.String.Interpolate (i)
 import UnliftIO (MonadIO (..))
 import Lens.Micro.Platform ()
 import Debug.Trace
-
+import Data.ByteString (ByteString)
 
 
 get :: Storage.Context es => SessionId -> FilePath -> Eff es File
@@ -84,6 +85,10 @@ isDirectory _ filePath = do
 
 read :: Storage.Context es => SessionId -> File -> Eff es LBS.ByteString
 read _ file = readFile file.path
+
+
+readStream :: SessionId -> File -> Eff es (ConduitT () ByteString (ResourceT IO) ())
+readStream _sessionId file = pure $ sourceFile file.path
 
 
 newFolder :: Storage.Context es => SessionId -> String -> Eff es ()
@@ -158,16 +163,16 @@ upload sessionId multipart = do
     write sessionId name content
 
 
-download :: Storage.Context es => SessionId -> ClientPath -> Eff es LBS.ByteString
+download :: Storage.Context es => SessionId -> ClientPath -> Eff es (ConduitT () ByteString (ResourceT IO) ())
 download sessionId clientPath = do
   root <- Env.getRoot sessionId
   let abspath = fromClientPath root clientPath
   file <- get sessionId abspath
   case file.content of
-    Content -> read sessionId file
+    Content -> readStream sessionId file
     Dir _ -> do
       archive <- liftIO $ Zip.addFilesToArchive [OptRecursive, OptPreserveSymbolicLinks] Zip.emptyArchive [file.path]
-      pure $ Zip.fromArchive archive
+      pure . sourceLazy $ Zip.fromArchive archive
 
 
 storage :: Storage.Context es => SessionId -> (Storage (Eff es))
@@ -175,6 +180,7 @@ storage sessionId =
   Storage
     { get = get sessionId
     , read = read sessionId
+    , readStream = readStream sessionId
     , write = write sessionId
     , delete = delete sessionId
     , new = new sessionId

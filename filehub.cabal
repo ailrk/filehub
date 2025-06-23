@@ -60,6 +60,7 @@ library
       , servant-lucid
       , servant-multipart
       , servant-server
+      , servant-conduit
       , servant
       , http-api-data
       , effectful

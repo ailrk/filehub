@@ -2,15 +2,15 @@
 
 module Filehub.Storage.S3 (storage, initialize) where
 
-import Amazonka (send, runResourceT, toBody)
+import Codec.Archive.Zip (ZipOption(..))
+import Codec.Archive.Zip qualified as Zip
+import Amazonka (send, runResourceT, toBody, ResponseBody (..))
 import Amazonka.Data (sinkBody)
 import Amazonka.Data qualified as Amazonka
 import Amazonka.S3 (Object(..), CommonPrefix)
 import Amazonka.S3 qualified as Amazonka
 import Amazonka.S3.Lens qualified as Amazonka
 import Amazonka qualified
-import Codec.Archive.Zip (ZipOption(..))
-import Codec.Archive.Zip qualified as Zip
 import Conduit qualified
 import Control.Monad (void)
 import Data.ByteString.Lazy qualified as LBS
@@ -47,7 +47,8 @@ import System.Environment qualified as Environment
 import Network.URI qualified as URI
 import Network.URI (URI(..), URIAuth(..))
 import Effectful.Log (Log)
-
+import Conduit (ConduitT, ResourceT, MonadTrans (..), sourceLazy)
+import Data.ByteString (ByteString)
 
 
 get :: Storage.Context es => SessionId -> FilePath -> Eff es File
@@ -94,6 +95,18 @@ read sessionId file = do
     content <- liftIO $ sinkBody (resp ^. Amazonka.getObjectResponse_body) Conduit.sinkLazy
     pure content
   pure content
+
+
+readStream :: Storage.Context es => SessionId -> File -> Eff es (ConduitT () ByteString (ResourceT IO) ())
+readStream sessionId file = do
+  s3 <- getS3 sessionId
+  let bucket = Amazonka.BucketName s3.bucket
+      key = Amazonka.ObjectKey $ Text.pack file.path
+      request = Amazonka.newGetObject bucket key
+  pure $ do
+    resp <- lift $ send s3.env request
+    let (ResponseBody conduit) = resp ^. Amazonka.getObjectResponse_body
+    conduit
 
 
 newFolder :: Storage.Context es => SessionId -> FilePath -> Eff es ()
@@ -189,16 +202,16 @@ upload sessionId multipart = do
     write sessionId name content
 
 
-download :: Storage.Context es => SessionId -> ClientPath -> Eff es LBS.ByteString
+download :: Storage.Context es => SessionId -> ClientPath -> Eff es (ConduitT () ByteString (ResourceT IO) ())
 download sessionId clientPath = do
   root <- Env.getRoot sessionId
   let abspath = fromClientPath root clientPath
   file <- get sessionId abspath
   case file.content of
-    Content -> read sessionId file
+    Content -> readStream sessionId file
     Dir _ -> do
       archive <- liftIO $ Zip.addFilesToArchive [OptRecursive, OptPreserveSymbolicLinks] Zip.emptyArchive [file.path]
-      pure $ Zip.fromArchive archive
+      pure . sourceLazy $ Zip.fromArchive archive
 
 
 storage :: Storage.Context es => SessionId -> (Storage (Eff es))
@@ -206,6 +219,7 @@ storage sessionId =
   Storage
     { get = get sessionId
     , read = read sessionId
+    , readStream = readStream sessionId
     , write = write sessionId
     , delete = delete sessionId
     , new = new sessionId

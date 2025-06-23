@@ -1,6 +1,6 @@
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE NamedFieldPuns #-}
-module Filehub.Server ( server) where
+module Filehub.Server (server) where
 
 import Data.String.Interpolate (i)
 import Data.Maybe (fromMaybe, isJust)
@@ -15,7 +15,7 @@ import Lens.Micro
 import Lens.Micro.Platform ()
 import Lucid
 import Prelude hiding (readFile)
-import Servant ( errBody, Headers, Header)
+import Servant (errBody, Headers, Header)
 import Servant.Server.Generic (AsServerT)
 import Control.Exception (SomeException)
 import Servant ( addHeader, err500 )
@@ -57,9 +57,10 @@ import Filehub.Types
 import Filehub.Viewer qualified as Viewer
 import Filehub.ControlPanel qualified as ControlPanel
 import Data.ByteString.Char8 qualified as ByteString
-import Data.ByteString.Lazy qualified as LBS
 import Filehub.Storage (getStorage, Storage(..))
 import Debug.Trace (traceM)
+import Data.ByteString (ByteString)
+import Conduit (ConduitT, ResourceT)
 
 
 -- | Server definition
@@ -311,7 +312,7 @@ controlPanel sessionId = do
           & withServerError
 
 
-serve :: SessionId -> Maybe ClientPath -> Filehub (Headers '[ Header "Content-Type" String ] LBS.ByteString)
+serve :: SessionId -> Maybe ClientPath -> Filehub (Headers '[ Header "Content-Type" String] (ConduitT () ByteString (ResourceT IO) ()))
 serve sessionId mFile = do
   withServerError do
     storage <- getStorage sessionId
@@ -319,5 +320,5 @@ serve sessionId mFile = do
     clientPath <- withQueryParam mFile
     let path = ClientPath.fromClientPath root clientPath
     file <- storage.get path
-    bytes <- storage.read file
-    pure $ addHeader (ByteString.unpack file.mimetype) bytes
+    conduit <- storage.readStream file
+    pure $ addHeader (ByteString.unpack file.mimetype) conduit

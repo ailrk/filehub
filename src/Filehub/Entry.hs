@@ -12,6 +12,7 @@ import UnliftIO (SomeException, hFlush, stdout, catch)
 import Network.Wai.Middleware.RequestLogger (logStdout)
 import Network.Wai.Handler.Warp (setPort, defaultSettings, runSettings)
 import Servant (serveWithContextT, Context (..), Application, serveDirectoryWebApp, (:<|>) (..))
+import Servant.Conduit ()
 import System.Directory (makeAbsolute)
 import Filehub.Server.Middleware qualified as Server.Middleware
 import Filehub.Server.Middleware.Session qualified as Server.Middleware.Session
