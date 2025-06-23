@@ -153,7 +153,12 @@ server = Api
   , fileDetailModal = Server.Desktop.fileDetailModal
 
 
-  , editorModal = Server.Desktop.editorModal
+  , editorModal = \sessionId mClientPath -> do
+      display <- Env.getDisplay sessionId & withServerError
+      case display of
+        Mobile -> Server.Mobile.editorModal sessionId mClientPath
+        Desktop -> Server.Desktop.editorModal sessionId mClientPath
+        NoDisplay -> undefined
 
 
   , search = \sessionId searchWord -> withServerError do

@@ -5,7 +5,7 @@ module Filehub.Server.Mobile where
 import Filehub.Monad ( Filehub )
 import Filehub.Types
     ( SessionId(..),
-      SessionId(..))
+      SessionId(..), ClientPath)
 import Lens.Micro.Platform ()
 import Lucid
 import Prelude hiding (readFile)
@@ -17,13 +17,15 @@ import Filehub.Target qualified as Target
 import Filehub.Error ( withServerError, withServerError )
 import Filehub.Selected qualified as Selected
 import Filehub.Sort (sortFiles)
-import Filehub.Server.Internal (clear)
+import Filehub.Server.Internal (clear, withQueryParam)
 import Filehub.ControlPanel qualified as ControlPanel
 import Lens.Micro
 import Lens.Micro.Platform ()
 import Prelude hiding (readFile)
 import Filehub.Storage (getStorage, Storage(..))
+import System.FilePath (takeFileName)
 import Debug.Trace
+import Filehub.ClientPath qualified as ClientPath
 
 
 index :: SessionId -> Filehub (Html ())
@@ -50,6 +52,20 @@ sideBar sessionId = withServerError $
   Template.Mobile.sideBar
   <$> Env.getTargets
   <*> Target.currentTarget sessionId
+
+
+editorModal :: SessionId -> Maybe ClientPath -> Filehub (Html ())
+editorModal sessionId mClientPath = withServerError do
+  clientPath <- withQueryParam mClientPath
+  storage <- getStorage sessionId
+  root <- Env.getRoot sessionId
+  let p = ClientPath.fromClientPath root clientPath
+  content <- do
+    f <- storage.get p
+    storage.read f
+  let filename = takeFileName p
+  readOnly <- Env.getReadOnly
+  pure $ Template.Mobile.editorModal readOnly filename content
 
 
 view :: SessionId -> Filehub (Html ())

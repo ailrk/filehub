@@ -222,7 +222,6 @@ button {
   & li.active{
     color: var(--tertiary);
   }
-
 }
 
 table {
@@ -236,6 +235,39 @@ table {
   border-radius: 8px;
   overflow: hidden;
 }
+
+
+#editor-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  max-width: 100%;
+  height: 100%;
+  background: var(--background1);
+  z-index: 9999;
+
+  input {
+    margin-left: 10px;
+    margin-right: 10px;
+    margin-bottom: 2px;
+    width: 95%;
+  }
+
+  textarea {
+    color: var(--frontground);
+    height: 97%;
+    width: 100%;
+    font-size: 1.05rem;
+    border: none;
+    padding: 1rem;
+    margin-bottom: 10px;
+    outline: none;
+    background: transparent;
+    resize: none;
+  }
+}
+
 
 td, th {
   overflow: hidden;
@@ -299,6 +331,27 @@ tfoot td {
 
 
 .action-btn i {
+  font-size: 1.25rem;
+  color: var(--secondary);
+}
+
+
+/* Buttons inside control panel */
+.btn {
+  font-weight: bold;
+  align-items: center;
+  gap: 0.5rem;
+  background: transparent; /* removed gray background */
+  border: none;
+  padding: 0.75rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  color: var(--frontground); /* optional: match theme text color */
+}
+
+
+.btn i {
   font-size: 1.25rem;
   color: var(--secondary);
 }

@@ -32,7 +32,10 @@ export function register() {
         if (!Number.isNaN(count)) {
             selectedCount.set(count);
         }
-        if (e.detail.elt.contains(table)) { // only rebind when table's parents is re-rendered.
+        if ( // only rebind when table's parents is re-rendered.
+        e.detail.elt.contains(table) &&
+            // don't need to rebind when rendering modals
+            !e.detail.pathInfo.responsePath.startsWith('/modal')) {
             unregisterAll();
             registerAll();
             clearSelectedHandler(e);

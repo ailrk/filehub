@@ -164,7 +164,6 @@ data Api mode = Api
   , editorModal     :: mode :- "modal"
                     :> "editor"
                     :> AuthProtect "session"
-                    :> AuthProtect "desktop-only"
                     :> QueryParam "file" ClientPath
                     :> Get '[HTML] (Html ())
 

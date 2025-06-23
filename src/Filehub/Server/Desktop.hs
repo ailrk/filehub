@@ -42,8 +42,8 @@ fileDetailModal sessionId _ mClientPath = withServerError do
   pure (Template.Desktop.fileDetailModal file)
 
 
-editorModal :: SessionId -> ConfirmDesktopOnly -> Maybe ClientPath -> Filehub (Html ())
-editorModal sessionId _ mClientPath = withServerError do
+editorModal :: SessionId -> Maybe ClientPath -> Filehub (Html ())
+editorModal sessionId mClientPath = withServerError do
   clientPath <- withQueryParam mClientPath
   storage <- getStorage sessionId
   root <- Env.getRoot sessionId

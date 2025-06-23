@@ -11,6 +11,8 @@ import Data.Maybe qualified as Maybe
 import Data.String.Interpolate (iii, i)
 import Data.Text (Text)
 import Data.Text qualified as Text
+import Data.Text.Lazy.Encoding qualified as LText
+import Data.ByteString.Lazy qualified as LBS
 import Data.Time.Format (formatTime, defaultTimeLocale)
 import Filehub.Types
     ( File(..),
@@ -32,7 +34,7 @@ import Filehub.Viewer qualified as Viewer
 import Filehub.Routes (Api(..))
 import Filehub.Target (TargetView(..))
 import Filehub.Target qualified as Target
-import Filehub.Template.Internal (viewId, sideBarId, controlPanelId, toolBarId, tableId, searchBar)
+import Filehub.Template.Internal (viewId, sideBarId, controlPanelId, toolBarId, tableId, searchBar, bold)
 import Filehub.Template.Internal qualified as Template
 import Filehub.Links ( apiLinks, linkToText )
 import Lens.Micro
@@ -269,7 +271,7 @@ table target root files selected = do
             | file.mimetype `isMime` "video" || file.mimetype `isMime` "mp4" -> open
             | file.mimetype `isMime` "audio" || file.mimetype `isMime` "mp3" -> open
             | file.mimetype `isMime` "image" -> open
-            | otherwise -> editor
+            | otherwise -> edit
       , case file.content of
           Dir _ -> [ class_ "dir " ]
           _ -> mempty
@@ -287,7 +289,7 @@ table target root files selected = do
            in [ term "_" [iii| on click send Open(path: '#{path}', index: #{imgIdx}) to body |] ]
 
 
-        editor =
+        edit =
           [ term "hx-get" $ linkToText (apiLinks.editorModal (Just clientPath))
           , term "hx-target" "#index"
           , term "hx-swap" "beforeend"
@@ -446,6 +448,54 @@ selectedCounter n = do
     span_ "selected"
     i_ [ class_ "bx bx-x" ] mempty
 
+
+editorModal :: Bool -> FilePath -> LBS.ByteString -> Html ()
+editorModal readOnly filename content = do
+  div_ [ id_ editorModalId, closeEditorScript ] do
+
+    form_ [ term "hx-put" $ linkToText (apiLinks.updateFile)
+          , term "hx-confirm" ("Save the edit of " <> Text.pack filename <> "?")
+          , term "hx-on::after-request" [i|document.querySelector('\##{editorModalId}').dispatchEvent(new Event('Close'))|]
+          ] do
+
+      button_ [ class_ "btn btn-modal-close "
+              , type_ "button"
+              , term "_" [i|on click send Close to \##{editorModalId}|]
+              ] "< Folders"
+
+      case readOnly of
+        True ->
+          mempty
+
+        False -> do
+          button_ [ class_ "btn btn-modal-confirm mr-2 "
+                  ] "DONE"
+
+      input_ [ class_ "form-control "
+             , type_ "text"
+             , name_ "path"
+             , value_ (Text.pack filename)
+             , style_ "display: none;"
+             , placeholder_ "Filename"
+             ]
+
+      textarea_
+        (mconcat
+          [
+            [ class_ "form-control "
+            , type_ "text"
+            , name_ "content"
+            , placeholder_ "Empty File"
+            ]
+          , if readOnly then [ readonly_ "readonly" ] else mempty
+          ]
+        )
+        (toHtml $ LText.decodeUtf8 content)
+
+  where
+    closeEditorScript = term "_" [i| on Close remove me end |]
+
+
 ------------------------------------
 -- component ids
 ------------------------------------
@@ -461,6 +511,9 @@ sortControlId = "sort-control"
 
 selectedCounterId :: Text
 selectedCounterId = "selected-counter"
+
+editorModalId :: Text
+editorModalId = "editor-modal"
 
 overlayId :: Text
 overlayId = "overlay"
