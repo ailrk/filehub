@@ -266,6 +266,13 @@ table {
     background: transparent;
     resize: none;
   }
+
+  form > div:first-of-type {
+    display: flex;
+    justify-content: space-between;
+    padding-left: 5px;
+    padding-right: 10px;
+  }
 }
 
 
@@ -296,6 +303,12 @@ tbody td {
 
 tbody tr:hover {
   background-color: var(--background1);
+}
+
+
+tbody > tr[data-path] > td > span.field > span {
+  scrollbar-width: none;
+  overflow-y: auto;
 }
 
 

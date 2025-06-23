@@ -43,6 +43,7 @@ import Filehub.Template.Mobile qualified as Template.Mobile
 import Filehub.ClientPath qualified as ClientPath
 import Filehub.Selected qualified as Selected
 import Filehub.Server.Internal (withQueryParam, clear, copy, paste)
+import Filehub.Theme qualified as Theme
 import Filehub.Types
     ( File(..),
       ClientPath(..),
@@ -60,6 +61,9 @@ import Data.ByteString.Char8 qualified as ByteString
 import Filehub.Storage (getStorage, Storage(..))
 import Data.ByteString (ByteString)
 import Conduit (ConduitT, ResourceT)
+import Data.Aeson (object, KeyValue (..), (.:), withObject)
+import Data.ByteString.Lazy qualified as LBS
+import Data.Aeson.Types (parseMaybe)
 
 
 -- | Server definition
@@ -84,11 +88,18 @@ server = Api
   -- start a full reload from the bootstrap stage.
   , index = \sessionId -> do
       display <- Env.getDisplay sessionId & withServerError
+      manifest <- server.manifest
+      let background
+            = fromMaybe "#000000"
+            $ flip parseMaybe manifest
+            $ withObject "manifest"
+            $ (.: "theme_color")
+
       clear sessionId
       case display of
         NoDisplay -> pure Template.bootstrap
-        Desktop -> fmap (Template.withDefault display) $ Server.Desktop.index sessionId
-        Mobile -> fmap (Template.withDefault display) $ Server.Mobile.index sessionId
+        Desktop -> fmap (Template.withDefault display background) $ Server.Desktop.index sessionId
+        Mobile -> fmap (Template.withDefault display background) $ Server.Mobile.index sessionId
 
 
   , cd = \sessionId mClientPath -> do
@@ -266,8 +277,24 @@ server = Api
   , serve = serve
 
 
+  , manifest = do
+      theme <- LBS.toStrict <$> server.themeCss
+      let background1 = fromMaybe "" $ Theme.parse "--background2" theme
+      let t = Text.pack
+      pure $
+        object
+          [ "name"       .= t "FileHub"
+          , "short_name" .= t "FileHub"
+          , "start_url"  .= t "/"
+          , "display"    .= t "standalone"
+          , "theme_color" .= t background1
+          , "background_color" .= t background1
+          ]
+
+
   , healthz = pure "ok"
   }
+
 
 
 -- | index that reset the state

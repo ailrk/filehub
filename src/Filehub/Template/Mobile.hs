@@ -34,7 +34,7 @@ import Filehub.Viewer qualified as Viewer
 import Filehub.Routes (Api(..))
 import Filehub.Target (TargetView(..))
 import Filehub.Target qualified as Target
-import Filehub.Template.Internal (viewId, sideBarId, controlPanelId, toolBarId, tableId, searchBar, bold)
+import Filehub.Template.Internal (viewId, sideBarId, controlPanelId, toolBarId, tableId, searchBar)
 import Filehub.Template.Internal qualified as Template
 import Filehub.Links ( apiLinks, linkToText )
 import Lens.Micro
@@ -458,18 +458,22 @@ editorModal readOnly filename content = do
           , term "hx-on::after-request" [i|document.querySelector('\##{editorModalId}').dispatchEvent(new Event('Close'))|]
           ] do
 
-      button_ [ class_ "btn btn-modal-close "
-              , type_ "button"
-              , term "_" [i|on click send Close to \##{editorModalId}|]
-              ] "< Folders"
+      div_ do
+        button_ [ class_ "btn btn-modal-close "
+                , type_ "button"
+                , term "_" [i|on click send Close to \##{editorModalId}|]
+                ] do
+          span_ [ class_ "field "] do
+            i_ [ class_ "bx bx-chevron-left" ] mempty
+            "Folders"
 
-      case readOnly of
-        True ->
-          mempty
+        case readOnly of
+          True ->
+            mempty
 
-        False -> do
-          button_ [ class_ "btn btn-modal-confirm mr-2 "
-                  ] "DONE"
+          False -> do
+            button_ [ class_ "btn btn-modal-confirm mr-2 field "
+                    ] "DONE"
 
       input_ [ class_ "form-control "
              , type_ "text"

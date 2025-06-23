@@ -110,6 +110,7 @@ class Viewer {
       video.setAttribute('loop', '');
       video.setAttribute('muted', '');
       source.src = url.toString();
+      source.type = mimetype;
       video.appendChild(source);
       content = video;
 
@@ -118,6 +119,7 @@ class Viewer {
       let source = document.createElement('source');
       audio.setAttribute('controls', '');
       source.src = url.toString();
+      source.type = mimetype;
       audio.appendChild(source);
       content = audio;
     }

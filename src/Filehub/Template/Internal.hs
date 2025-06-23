@@ -19,8 +19,8 @@ import System.FilePath (splitPath)
 import Data.Bifunctor (Bifunctor(..))
 
 
-withDefault :: Display -> Html () -> Html ()
-withDefault display html = do
+withDefault :: Display -> Text -> Html () -> Html ()
+withDefault display background html = do
   meta_ [ name_ "viewport", content_ "width=device-width, initial-scale=1.0" ]
   link_ [ rel_ "stylesheet", href_ "https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" ]
 
@@ -28,6 +28,14 @@ withDefault display html = do
   script_ [ src_ "https://unpkg.com/htmx.org@2.0.3" ] ("" :: Text)
 
   link_ [ rel_ "stylesheet", href_ "/static/filehub/viewer.css" ]
+  link_ [ rel_ "manifest", href_ "/manifest.json" ]
+
+  meta_ [ name_ "apple-mobile-web-app-capable", content_ "yes" ]
+  meta_ [ name_ "apple-mobile-web-app-status-bar-style", content_ "default" ]
+  meta_ [ name_ "apple-mobile-web-app-title", content_ "Filehub" ]
+
+  meta_ [ name_ "theme-color", content_ background ]
+
   script_ [ src_ "/static/filehub/viewer.js", type_ "module" ] ("" :: Text)
 
   case display of

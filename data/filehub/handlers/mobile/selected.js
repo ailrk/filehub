@@ -14,6 +14,7 @@ import { createObservableCell } from '../../containers/Observable.js';
  * that to render the UI instead.
  * */
 const selectedIds = new Set();
+const holdTime = 800;
 let holdTimer = null;
 let mousedownHandler;
 let mouseupHandler;
@@ -94,7 +95,7 @@ function makeStarthandler(table, movevt) {
             if (tr) {
                 select(tr);
             }
-        }, 500);
+        }, holdTime);
     };
 }
 /* mouseup/touchend */
@@ -255,14 +256,7 @@ function select(row) {
             console.error('failed to select');
         });
     }
-    if (selectedIds.has(id)) {
-        select({
-            prepare: () => { selectedIds.delete(id); },
-            confirm: () => { row.classList.remove('selected'); },
-            recover: () => { selectedIds.add(id); }
-        });
-    }
-    else {
+    if (!selectedIds.has(id)) {
         select({
             prepare: () => { selectedIds.add(id); },
             confirm: () => { row.classList.add('selected'); },

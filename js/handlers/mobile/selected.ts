@@ -21,6 +21,7 @@ import {
  * */
 const selectedIds: Set<string> = new Set();
 
+const holdTime: number = 800;
 let holdTimer: number | null = null;
 let mousedownHandler: EventListener | null;
 let mouseupHandler: EventListener | null;
@@ -117,7 +118,7 @@ function makeStarthandler(table: HTMLElement, movevt: 'mousemove' | 'touchmove')
       if (tr) {
         select(tr)
       }
-    }, 500);
+    }, holdTime);
   }
 }
 
@@ -304,13 +305,7 @@ function select(row: HTMLElement) {
       console.error('failed to select')
     })
   }
-  if (selectedIds.has(id)) {
-    select({
-      prepare: () => { selectedIds.delete(id) },
-      confirm: () => { row.classList.remove('selected') },
-      recover: () => { selectedIds.add(id) }
-    })
-  } else {
+  if (!selectedIds.has(id)) {
     select({
       prepare: () => { selectedIds.add(id) },
       confirm: () => { row.classList.add('selected') },
