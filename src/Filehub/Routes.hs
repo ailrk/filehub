@@ -32,7 +32,8 @@ import Servant
       Header,
       Headers,
       StreamGet,
-      NoFraming
+      NoFraming,
+      NoContent
     )
 import Lucid
 import Lens.Micro.Platform ()
@@ -216,7 +217,7 @@ data Api mode = Api
   , initViewer      :: mode :- "viewer"
                     :> AuthProtect "session"
                     :> QueryParam "file" ClientPath
-                    :> Get '[HTML] (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
+                    :> Get '[HTML] (Headers '[ Header "HX-Trigger" FilehubEvent] NoContent)
 
 
   , changeTarget    :: mode :- "target"

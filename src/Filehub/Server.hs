@@ -15,7 +15,7 @@ import Lens.Micro
 import Lens.Micro.Platform ()
 import Lucid
 import Prelude hiding (readFile)
-import Servant (errBody, Headers, Header)
+import Servant (errBody, Headers, Header, NoContent (..))
 import Servant.Server.Generic (AsServerT)
 import Control.Exception (SomeException)
 import Servant ( addHeader, err500 )
@@ -58,7 +58,6 @@ import Filehub.Viewer qualified as Viewer
 import Filehub.ControlPanel qualified as ControlPanel
 import Data.ByteString.Char8 qualified as ByteString
 import Filehub.Storage (getStorage, Storage(..))
-import Debug.Trace (traceM)
 import Data.ByteString (ByteString)
 import Conduit (ConduitT, ResourceT)
 
@@ -224,9 +223,8 @@ server = Api
       withServerError do
         clientPath <- withQueryParam mClientPath
         root <- Env.getCurrentDir sessionId
-        traceM (show clientPath)
         payload <- Viewer.initViewer sessionId root clientPath
-        pure $ addHeader payload mempty
+        pure $ addHeader payload NoContent
 
 
   , changeTarget = \sessionId mTargetId -> do

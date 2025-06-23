@@ -10,9 +10,9 @@ import * as ErrorsHandlers from './handlers/errors.js';
 import * as ViewerHandlers from './handlers/viewer.js';
 import * as Cookie from './cookie.js';
 import { Display } from './def.js';
-import * as Debug from './debug.js';
+// import * as Debug from './debug.js';
+// Debug.init()
 
-Debug.init()
 let display: Display = Cookie.getCookie('display')! as Display
 
 /* Install handlers */

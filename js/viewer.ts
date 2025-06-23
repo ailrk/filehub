@@ -139,7 +139,7 @@ class Viewer {
       this.hide();
     };
 
-    window.addEventListener('keydown', e => {
+    document.addEventListener('keydown', e => {
       if (this.state === 'shown') {
         switch (e.key) {
           case "ArrowLeft": this.prev(); break;

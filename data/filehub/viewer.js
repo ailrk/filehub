@@ -104,7 +104,7 @@ class Viewer {
         this.button.onclick = _ => {
             this.hide();
         };
-        window.addEventListener('keydown', e => {
+        document.addEventListener('keydown', e => {
             if (this.state === 'shown') {
                 switch (e.key) {
                     case "ArrowLeft":
