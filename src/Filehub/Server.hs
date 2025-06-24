@@ -294,7 +294,7 @@ server = Api
                     [ "src"     .= t "/static/filehub/web-app-manifest-192x192.png"
                     , "sizes"   .= t "192x192"
                     , "type"    .= t "image/png"
-                    , "purpose" .= t "maskable"
+                    , "purpose" .= t "any"
                     ]
               , object
                     [ "src"     .= t "/static/filehub/web-app-manifest-512x512.png"
