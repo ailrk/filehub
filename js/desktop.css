@@ -60,14 +60,12 @@ textarea {
 #control-panel {
   grid-area: control-panel;
   background-color: var(--background2);
-  border-bottom: 1px solid var(--background3);
-  border-left: 1px solid var(--background3);
 }
 
 
 #side-bar {
   grid-area: side-bar;
-  background-color: var(--background2);
+  background-color: var(--dark);
 
   & .target-icon {
     position: relative;
@@ -114,7 +112,8 @@ textarea {
   }
 
   & .target-icon.current-target {
-      border: solid 1px var(--frontground);
+      background: var(--secondary);
+      color: var(--light);
   }
 }
 
@@ -133,8 +132,6 @@ textarea {
     justify-content: space-between;
     align-items: center;
     overflow: hidden;
-    border-left: 1px solid var(--background3);
-    border-bottom: 1px solid var(--background3);
   }
 
   & #tool-bar #path-breadcrumb {
@@ -300,7 +297,7 @@ textarea.form-control {
 
 .field {
   display: inline-flex;
-  align-items: stretch;
+  align-items: center;
   gap: 0.25rem;
   -webkit-font-smoothing: antialiased;
   -webkit-text-size-adjust: none; /* prevent random size adjustment on iOS */
@@ -348,7 +345,6 @@ textarea.form-control {
     /* Sizing for visible dialog */
 
     /* Display properties for visible dialog*/
-    border: solid 1px #999;
     border-radius: 8px;
     background-color: var(--background2);
     padding-top: 20px;
