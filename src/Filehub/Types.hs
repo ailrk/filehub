@@ -1,6 +1,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Filehub.Types
   ( Session(..)
@@ -29,6 +30,7 @@ module Filehub.Types
   , Theme(..)
   , FilehubEvent(..)
   , Resource(..)
+  , Manifest
   )
   where
 
@@ -42,7 +44,7 @@ import Data.Text (Text)
 import Data.Text.Lazy.Encoding qualified as LText
 import Data.Time (UTCTime, NominalDiffTime)
 import Data.UUID (UUID)
-import Data.Aeson (ToJSON (..), (.=))
+import Data.Aeson (ToJSON (..), (.=), Value)
 import Data.Aeson qualified as Aeson
 import GHC.Generics (Generic)
 import Lens.Micro
@@ -54,10 +56,11 @@ import Servant
     ( FromHttpApiData(..),
       ToHttpApiData(..),
       ToHttpApiData(..),
-      FromHttpApiData(..) )
+      FromHttpApiData(..), Accept (..), MimeRender )
 import Web.FormUrlEncoded (FromForm (..), parseUnique, parseAll)
 import Text.Read (readMaybe)
 import Filehub.UserAgent (DeviceType)
+import Servant.API (MimeRender(..))
 
 
 data Resolution = Resolution
@@ -369,3 +372,14 @@ instance ToJSON FilehubEvent where
 
 instance ToHttpApiData FilehubEvent where
   toUrlPiece v = (v & Aeson.encode & LText.decodeUtf8) ^. strict
+
+
+data Manifest
+
+
+instance Accept Manifest where
+  contentType _ = "application/manifest+json"
+
+
+instance MimeRender Manifest Value where
+  mimeRender _ = Aeson.encode

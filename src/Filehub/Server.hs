@@ -8,7 +8,7 @@ import Data.Foldable (forM_)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Effectful.Log (logAttention_)
-import Effectful ( withRunInIO )
+import Effectful ( withRunInIO, MonadIO (liftIO) )
 import Effectful.Error.Dynamic (throwError)
 import Effectful.FileSystem.IO.ByteString.Lazy (readFile)
 import Lens.Micro
@@ -289,7 +289,26 @@ server = Api
           , "display"    .= t "standalone"
           , "theme_color" .= t background1
           , "background_color" .= t background1
+          , "icons" .=
+              [ object
+                    [ "src"     .= t "/static/filehub/web-app-manifest-192x192.png"
+                    , "sizes"   .= t "192x192"
+                    , "type"    .= t "image/png"
+                    , "purpose" .= t "maskable"
+                    ]
+              , object
+                    [ "src"     .= t "/static/filehub/web-app-manifest-512x512.png"
+                    , "sizes"   .= t "512x512"
+                    , "type"    .= t "image/png"
+                    , "purpose" .= t "maskable"
+                    ]
+              ]
           ]
+
+
+  , favicon = do
+      dir <- Env.getDataDir
+      liftIO $ LBS.readFile $ dir </> "filehub/favicon.ico"
 
 
   , healthz = pure "ok"

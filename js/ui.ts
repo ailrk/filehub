@@ -12,8 +12,8 @@ import * as Cookie from './cookie.js';
 import * as Theme from './handlers/theme.js';
 import { Display } from './def.js';
 
-import * as Debug from './debug.js';
-Debug.init()
+// import * as Debug from './debug.js';
+// Debug.init()
 
 let display: Display = Cookie.getCookie('display')! as Display
 

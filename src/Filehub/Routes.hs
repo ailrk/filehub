@@ -54,7 +54,7 @@ import Filehub.Types
       Selected(..),
       FilehubEvent(..),
       SessionId,
-      Resolution(..)
+      Resolution(..), Manifest
     )
 import GHC.Generics (Generic)
 import Filehub.Server.Context.Resolution (ConfirmMobilOnly, ConfirmDesktopOnly)
@@ -244,7 +244,10 @@ data Api mode = Api
   , themeCss        :: mode :- "theme.css" :> Get '[OctetStream] LBS.ByteString
 
 
-  , manifest        :: mode :- "manifest.json" :> Get '[JSON] Value
+  , manifest        :: mode :- "manifest.json" :> Get '[Manifest] Value
+
+
+  , favicon         :: mode :- "favicon.ico" :> Get '[OctetStream] LBS.ByteString
 
 
   , healthz :: mode :- "healthz" :> Get '[PlainText] Text

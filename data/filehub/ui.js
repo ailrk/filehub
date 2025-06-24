@@ -7,8 +7,8 @@ import * as ErrorsHandlers from './handlers/errors.js';
 import * as ViewerHandlers from './handlers/viewer.js';
 import * as Cookie from './cookie.js';
 import * as Theme from './handlers/theme.js';
-import * as Debug from './debug.js';
-Debug.init();
+// import * as Debug from './debug.js';
+// Debug.init()
 let display = Cookie.getCookie('display');
 /* Install handlers */
 switch (display) {

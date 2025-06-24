@@ -30,7 +30,7 @@ withDefault display background html = do
   link_ [ rel_ "stylesheet", href_ "/static/filehub/viewer.css" ]
   link_ [ rel_ "manifest", href_ "/manifest.json" ]
 
-  meta_ [ name_ "apple-mobile-web-app-capable", content_ "yes" ]
+  meta_ [ name_ "mobile-web-app-capable", content_ "yes" ]
   meta_ [ name_ "apple-mobile-web-app-status-bar-style", content_ "default" ]
   meta_ [ name_ "apple-mobile-web-app-title", content_ "Filehub" ]
 

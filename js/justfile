@@ -3,6 +3,8 @@ build:
     npx tsc
     cp ./*.css ./dist
     cp ./icons/*.png ./dist
+    cp ./icons/*.ico ./dist
+    cp ./icons/*.svg ./dist
 
 dot:
     dot -Tpng imgviewer.dot -o imgviewer.png

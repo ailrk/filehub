@@ -131,7 +131,7 @@ function registerTableTouch() {
     let table = document.querySelector('#table');
     touchstartHandler = makeStarthandler(table, 'touchmove');
     touchendHandler = makeEndHandler(table, 'touchmove');
-    table.addEventListener('touchstart', touchstartHandler, { capture: true });
+    table.addEventListener('touchstart', touchstartHandler, { capture: true, passive: true });
     table.addEventListener('touchend', touchendHandler, { capture: true });
 }
 function unregisterTableTouch() {
