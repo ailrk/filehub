@@ -14,7 +14,7 @@ import { createObservableCell } from '../../containers/Observable.js';
  * that to render the UI instead.
  * */
 const selectedIds = new Set();
-const holdTime = 800;
+const holdTime = 600;
 let holdTimer = null;
 let mousedownHandler;
 let mouseupHandler;

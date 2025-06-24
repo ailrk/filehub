@@ -21,7 +21,7 @@ import {
  * */
 const selectedIds: Set<string> = new Set();
 
-const holdTime: number = 800;
+const holdTime: number = 600;
 let holdTimer: number | null = null;
 let mousedownHandler: EventListener | null;
 let mouseupHandler: EventListener | null;

@@ -6,7 +6,6 @@ import * as Mobile from './handlers/mobile.js';
 import * as ErrorsHandlers from './handlers/errors.js';
 import * as ViewerHandlers from './handlers/viewer.js';
 import * as Cookie from './cookie.js';
-import * as Theme from './handlers/theme.js';
 // import * as Debug from './debug.js';
 // Debug.init()
 let display = Cookie.getCookie('display');
@@ -24,7 +23,6 @@ switch (display) {
 }
 ErrorsHandlers.register();
 ViewerHandlers.register();
-Theme.register();
 /* Reinitialize the resolution again before refresh the page
  * This happens before the browser sending the request to reload the page,
  * so we can guarantee when the page is reloaded the resolution is up to date.
