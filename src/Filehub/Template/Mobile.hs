@@ -51,6 +51,7 @@ index :: Bool
       -> Int
       -> Html ()
 index readOnly sideBar' view' controlPanelState selectedCount = do
+  safeAreaShim
   div_ [ id_ "index" ] do
     overlay
     selectedCounter selectedCount
@@ -58,6 +59,10 @@ index readOnly sideBar' view' controlPanelState selectedCount = do
     view'
     controlPanel readOnly controlPanelState
     controlPanelBtn
+
+
+safeAreaShim :: Html ()
+safeAreaShim = div_ [ id_ "safe-area-shim" ] mempty
 
 
 overlay :: Html ()

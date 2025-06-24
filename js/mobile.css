@@ -4,7 +4,6 @@ html, body {
   width: 100%;
   height: 100%;
   margin: 0;
-  padding: 0;
   scrollbar-width: none;
   user-select: none;
   -webkit-user-select: none; /* Safari */
@@ -14,6 +13,11 @@ html, body {
   font-family: system-ui, -apple-system, sans-serif;
   background-color: var(--background2);
   color: var(--frontground);
+}
+
+
+body {
+  padding-top: env(safe-area-inset-top);
 }
 
 
@@ -32,9 +36,19 @@ input {
 
 
 button {
-    touch-action: manipulation;
-    -webkit-appearance: none; /* Avoid weird webkit rendering */
-    appearance: none;
+  touch-action: manipulation;
+  -webkit-appearance: none; /* Avoid weird webkit rendering */
+  appearance: none;
+}
+
+
+#safe-area-shim {
+  top: 0;
+  width: 100%;
+  position: fixed;
+  height: env(safe-area-inset-top);
+  background: var(--background2);
+  z-index: 500;
 }
 
 
@@ -43,15 +57,17 @@ button {
   position: fixed;
   top: 0;
   left: 0;
+  padding-top: env(safe-area-inset-top);
   width: 260px;
   height: 100%;
   background: var(--background1);
-  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
   transform: translateX(-100%);
   transition: transform 0.1s ease, opacity 0.1s ease;
   opacity: 0;
   z-index: 1000;
 }
+
 
 /* Sidebar target icons */
 #side-bar .target-icon {
@@ -67,7 +83,7 @@ button {
 }
 
 #side-bar .target-icon:hover {
-  background-color: var(--background2);
+  background-color: var(--background1);
 }
 
 #side-bar .target-icon i {
@@ -139,7 +155,7 @@ button {
 
 #tool-bar {
   position: sticky;
-  top: 0;
+  top: env(safe-area-inset-top);
   background: var(--background2);
   align-items: center;
   overflow: hidden;
@@ -239,7 +255,7 @@ table {
 
 #editor-modal {
   position: fixed;
-  top: 0;
+  top: env(safe-area-inset-top);
   left: 0;
   width: 100%;
   max-width: 100%;
@@ -392,14 +408,15 @@ tfoot td {
   transition: background-color 0.1s ease;
 }
 
+
 #control-panel-btn * {
   font-size: 2rem;
 }
 
+
 #overlay {
   position: fixed;
   inset: 0; /* top: 0; right: 0; bottom: 0; left: 0; */
-  background: rgba(0, 0, 0, 0.1);
   z-index: 1000; /* ensure it’s above most other elements */
   display: none;
 }
