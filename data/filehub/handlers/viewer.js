@@ -9,9 +9,9 @@ export function register() {
 function initViewer(o) {
     closeDropdowns();
     viewer = new Viewer(o.resources, { index: o.index });
-    // Make sure the viewer content has context menu enabled.
     console.log(viewer.currentContent);
     viewer.show();
+    // Make sure the viewer content has context menu enabled.
     viewer.currentContent.addEventListener("contextmenu", event => {
         event.stopImmediatePropagation();
     }, { capture: true });
