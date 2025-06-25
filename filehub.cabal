@@ -11,149 +11,149 @@ data-files:         data/**/*.css
 
 common extensions
     default-extensions:
-      StrictData
-      LambdaCase
-      ImportQualifiedPost
-      OverloadedStrings
-      OverloadedRecordDot
-      OverloadedLabels
+      BlockArguments
+      DataKinds
       DerivingStrategies
       DuplicateRecordFields
-      NoFieldSelectors
-      QuasiQuotes
-      StandaloneDeriving
-      BlockArguments
-      RecordWildCards
-      DataKinds
-      TypeOperators
       FlexibleContexts
-      ScopedTypeVariables
-      TypeApplications
       GADTs
+      ImportQualifiedPost
       KindSignatures
+      LambdaCase
+      NoFieldSelectors
+      OverloadedLabels
+      OverloadedRecordDot
+      OverloadedStrings
+      QuasiQuotes
+      RecordWildCards
+      ScopedTypeVariables
+      StandaloneDeriving
+      StrictData
+      TypeApplications
+      TypeOperators
 
 
 common options
     ghc-options:
       -- force all warnings to be on and selectively disable some
-      -threaded
       -Weverything
-      -Wno-unticked-promoted-constructors
-      -Wno-unsafe
-      -Wno-missing-import-lists
+      -Wno-all-missed-specialisations
+      -Wno-ambiguous-fields
       -Wno-implicit-prelude
-      -Wno-missing-safe-haskell-mode
       -Wno-missing-deriving-strategies
+      -Wno-missing-export-lists
+      -Wno-missing-import-lists
+      -Wno-missing-kind-signatures
       -Wno-missing-local-signatures
+      -Wno-missing-safe-haskell-mode
       -Wno-monomorphism-restriction
       -Wno-safe
-      -Wno-all-missed-specialisations
-      -Wno-missing-kind-signatures
-      -Wno-ambiguous-fields
-      -Wno-missing-export-lists
+      -Wno-unsafe
+      -Wno-unticked-promoted-constructors
+      -threaded
 
 library
     import: extensions, options
     hs-source-dirs: src
     build-depends:
         base >=4.16.1.0
-      , servant-lucid
-      , servant-multipart
-      , servant-server
-      , servant-conduit
-      , servant
-      , http-api-data
-      , effectful
-      , log-effectful
-      , log-base
-      , directory
-      , unix
-      , text
-      , time
+      , aeson
+      , aeson-pretty
+      , amazonka
+      , amazonka-s3
+      , async
       , bytestring
+      , case-insensitive
+      , conduit
+      , containers
+      , cookie
+      , cryptohash-sha256
+      , directory
+      , effectful
+      , filepath
+      , fuzzy
+      , generic-lens
+      , hashable
+      , hashtables
+      , http-api-data
+      , http-types
+      , log-base
+      , log-effectful
       , lucid
       , microlens
       , microlens-platform
-      , aeson
-      , aeson-pretty
-      , generic-lens
-      , async
-      , uri-encode
-      , network-uri
-      , transformers
-      , unliftio
-      , warp
-      , wai-extra
-      , filepath
-      , optparse-applicative
-      , containers
-      , unordered-containers
-      , hashtables
-      , hashable
-      , fuzzy
-      , cookie
-      , string-interpolate
-      , zip-archive
-      , cryptohash-sha256
       , mime-types
-      , uuid
+      , network-uri
+      , optparse-applicative
+      , servant
+      , servant-conduit
+      , servant-lucid
+      , servant-multipart
+      , servant-server
+      , string-interpolate
+      , suspend
+      , text
+      , time
       , time
       , timers
-      , suspend
+      , transformers
+      , unix
+      , unliftio
+      , unordered-containers
+      , uri-encode
+      , uuid
+      , vault
       , wai
       , wai-app-static
-      , http-types
-      , amazonka
-      , amazonka-s3
-      , conduit
-      , vault
-      , case-insensitive
+      , wai-extra
+      , warp
+      , zip-archive
 
     exposed-modules:
+      Filehub.ClientPath
+      Filehub.ControlPanel
       Filehub.Cookie
+      Filehub.Copy
+      Filehub.Display
+      Filehub.Entry
+      Filehub.Env
+      Filehub.Env.Internal
+      Filehub.Error
+      Filehub.Links
+      Filehub.Log
+      Filehub.Mime
+      Filehub.Monad
+      Filehub.Options
+      Filehub.Routes
+      Filehub.Selected
+      Filehub.Server
       Filehub.Server.Context.ReadOnly
       Filehub.Server.Context.Resolution
       Filehub.Server.Context.Session
+      Filehub.Server.Desktop
+      Filehub.Server.Internal
+      Filehub.Server.Middleware
       Filehub.Server.Middleware.Display
       Filehub.Server.Middleware.Session
-      Filehub.Server.Middleware
-      Filehub.Server.Internal
-      Filehub.Server.Desktop
       Filehub.Server.Mobile
-      Filehub.Server
-      Filehub.Template
-      Filehub.Template.Internal
-      Filehub.Template.Desktop
-      Filehub.Template.Mobile
-      Filehub.UserAgent
-      Filehub.Error
-      Filehub.ClientPath
-      Filehub.Display
-      Filehub.Mime
-      Filehub.Theme
-      Filehub.Viewer
-      Filehub.Sort
-      Filehub.Size
       Filehub.Session
       Filehub.SessionPool
-      Filehub.Types
-      Filehub.Options
-      Filehub.Monad
-      Filehub.Entry
-      Filehub.Copy
-      Filehub.Log
-      Filehub.Selected
-      Filehub.Links
-      Filehub.Routes
-      Filehub.ControlPanel
-      Filehub.Storage.Internal
-      Filehub.Storage.File
-      Filehub.Storage.S3
-      Filehub.Storage.Context
+      Filehub.Size
+      Filehub.Sort
       Filehub.Storage
+      Filehub.Storage.Context
+      Filehub.Storage.File
+      Filehub.Storage.Internal
+      Filehub.Storage.S3
       Filehub.Target
-      Filehub.Env.Internal
-      Filehub.Env
+      Filehub.Template
+      Filehub.Template.Desktop
+      Filehub.Template.Internal
+      Filehub.Template.Mobile
+      Filehub.Theme
+      Filehub.Types
+      Filehub.UserAgent
+      Filehub.Viewer
       Paths_filehub
 
     default-language: Haskell2010
