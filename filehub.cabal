@@ -168,3 +168,18 @@ executable filehub
       , filehub
 
     default-language: Haskell2010
+
+
+test-suite filehub-test
+  import: extensions, options
+  type:              exitcode-stdio-1.0
+  hs-source-dirs:    test
+  main-is:           Main.hs
+  build-depends:
+      base >=4.16.1.0
+    , filehub
+    , hspec >= 2.7.10
+    , QuickCheck
+    , filepath
+    , uri-encode
+  default-language:   Haskell2010
