@@ -87,7 +87,7 @@ main = Log.withColoredStdoutLogger \logger -> do
       runSettings settings . logStdout $ application env
     handler (e :: SomeException) = putStrLn ("server is down " <> show e) >> hFlush stdout
 
-    fromTargetOptions opts = traverse transform opts
-      where
-        transform (FSTargetOption opt) = FileTarget <$> FS.initialize opt
-        transform (S3TargetOption opt) = S3Target <$> S3.initialize opt
+fromTargetOptions opts = traverse transform opts
+  where
+    transform (FSTargetOption opt) = FileTarget <$> FS.initialize opt
+    transform (S3TargetOption opt) = S3Target <$> S3.initialize opt

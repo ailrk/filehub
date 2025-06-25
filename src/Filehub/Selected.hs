@@ -39,14 +39,15 @@ setSelected sessionId selected = Env.updateSession sessionId $ \s -> s & #target
 
 
 anySelected :: (Reader Env :> es, IOE :> es, Error FilehubError :> es, Log :> es) => SessionId -> Eff es Bool
-anySelected sessionId = do
-  session <- Env.getSession sessionId
-  let result =
-        session
-        ^. #targets
-        & fmap (^. #selected)
-        & any (\case { Selected _ _ -> True; NoSelection -> False })
-  pure result
+anySelected sessionId = anySelected'  <$> Env.getSession sessionId
+
+
+anySelected' :: Session -> Bool
+anySelected' session =
+  session
+  ^. #targets
+  & fmap (^. #selected)
+  & any (\case { Selected _ _ -> True; NoSelection -> False })
 
 
 -- | Get all selected files grouped by targets

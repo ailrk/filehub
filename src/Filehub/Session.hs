@@ -39,20 +39,21 @@ createSession = do
     , copyState = NoCopyPaste
     , index = 0
     }
-  where
-    targetToSessionData :: Target -> TargetSessionData
-    targetToSessionData (S3Target _) =
-      TargetSessionData
-        { currentDir = ""
-        , sortedFileBy = ByNameUp
-        , selected = NoSelection
-        }
-    targetToSessionData (FileTarget target) =
-      TargetSessionData
-        { currentDir = target.root
-        , sortedFileBy = ByNameUp
-        , selected = NoSelection
-        }
+
+
+targetToSessionData :: Target -> TargetSessionData
+targetToSessionData (S3Target _) =
+  TargetSessionData
+    { currentDir = ""
+    , sortedFileBy = ByNameUp
+    , selected = NoSelection
+    }
+targetToSessionData (FileTarget target) =
+  TargetSessionData
+    { currentDir = target.root
+    , sortedFileBy = ByNameUp
+    , selected = NoSelection
+    }
 
 
 extendSession :: NominalDiffTime -> Session -> Session

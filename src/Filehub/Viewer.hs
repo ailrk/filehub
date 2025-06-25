@@ -36,6 +36,15 @@ takeResourceFiles :: [File] -> [File]
 takeResourceFiles = filter (isResource . (.mimetype))
 
 
+toResource :: FilePath -> File -> Resource
+toResource root f =
+  Resource
+    { url = let ClientPath path = toClientPath root f.path -- encode path url
+             in RawClientPath [i|/serve?file=#{path}|]
+                                              , mimetype = Text.decodeUtf8 f.mimetype
+    }
+
+
 initViewer :: (Reader Env :> es, Log :> es, Error FilehubError :> es, IOE :> es, FileSystem :> es)
            => SessionId -> FilePath -> ClientPath -> Eff es FilehubEvent
 initViewer sessionId root clientPath = do
@@ -49,11 +58,5 @@ initViewer sessionId root clientPath = do
   order <- Env.getSortFileBy sessionId
   files <- takeResourceFiles . sortFiles order <$> (storage.ls dir)
   let idx = fromMaybe 0 $ List.elemIndex filePath (fmap (.path) files)
-  let toResource f =
-        Resource
-          { url = let ClientPath path = toClientPath root f.path -- encode path url
-                   in RawClientPath [i|/serve?file=#{path}|]
-          , mimetype = Text.decodeUtf8 f.mimetype
-          }
-  let resources = fmap toResource files
+  let resources = fmap (toResource root) files
   pure $ ViewerInited resources idx

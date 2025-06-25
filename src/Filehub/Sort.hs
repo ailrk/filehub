@@ -16,6 +16,7 @@ byFileNamewithDirFirst file = do
   let name = takeFileName file.path :: String
   pre : name
 
+
 sortFiles :: SortFileBy -> [File] -> [File]
 sortFiles ByNameUp = sortOn byFileNamewithDirFirst
 sortFiles ByNameDown = reverse . sortFiles ByNameUp
