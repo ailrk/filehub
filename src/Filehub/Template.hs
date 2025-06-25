@@ -10,7 +10,7 @@ import Data.String.Interpolate (iii)
 --   Once we get what we need it will redirect to the real index.
 bootstrap :: Html ()
 bootstrap = do
-  html_ $ do
+  html_ do
     body_ $
       script_ [type_ "text/javascript"] $
         ([iii|
@@ -24,3 +24,10 @@ bootstrap = do
               })
             }).then(_ => { window.location.href = '/' })
         |] :: Text)
+
+
+offline :: Html ()
+offline = do
+  html_ do
+    body_
+      "offline"

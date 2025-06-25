@@ -32,6 +32,17 @@ switch (display) {
 ErrorsHandlers.register();
 ViewerHandlers.register();
 
+
+/* Register service worker, required for PWA support. */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register( '/static/filehub/serviceWorker.js', { type: "module" })
+      .then(reg => console.log('Service worker registered:', reg))
+      .catch(err => console.error('Service worker registration failed:', err));
+  });
+}
+
+
 /* Reinitialize the resolution again before refresh the page
  * This happens before the browser sending the request to reload the page,
  * so we can guarantee when the page is reloaded the resolution is up to date.

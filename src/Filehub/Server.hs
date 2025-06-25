@@ -311,6 +311,9 @@ server = Api
       liftIO $ LBS.readFile $ dir </> "filehub/favicon.ico"
 
 
+  , offline = pure Template.offline
+
+
   , healthz = pure "ok"
   }
 

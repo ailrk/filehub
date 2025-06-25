@@ -250,7 +250,10 @@ data Api mode = Api
   , favicon         :: mode :- "favicon.ico" :> Get '[OctetStream] LBS.ByteString
 
 
-  , healthz :: mode :- "healthz" :> Get '[PlainText] Text
+  , offline         :: mode :- "offline" :> Get '[HTML] (Html ())
+
+
+  , healthz         :: mode :- "healthz" :> Get '[PlainText] Text
   }
   deriving Generic
 
