@@ -1,16 +1,28 @@
-# Filehub
+<img src="./doc/filehub-chan.png" alt="filehub chan" style="display:block; width:240px; margin:auto;" />
 
+# Filehub
 
 Filehub is a simple, no frills, web based, self-hostable file browser.
 
-![demo1](./doc/filehub-demo4.png)
+![demo1](./doc/filehub-demo0.png)
 
 <div style="display: flex; gap: 10px;">
-  <img src="./doc/filehub-demo0.png" width="200"/>
-  <img src="./doc/filehub-demo1.png" width="200"/>
-  <img src="./doc/filehub-demo2.png" width="200"/>
-  <img src="./doc/filehub-demo3.png" width="200"/>
+  <img src="./doc/filehub-demo1.png" width="380"/>
+  <img src="./doc/filehub-demo2.png" width="380"/>
 </div>
+
+<div style="display: flex; gap: 10px;">
+  <img src="./doc/filehub-demo4.png" width="380"/>
+  <img src="./doc/filehub-demo3.png" width="380"/>
+</div>
+
+
+<div style="display: flex; gap: 10px;">
+  <img src="./doc/filehub-demo5.png" width="200"/>
+  <img src="./doc/filehub-demo6.png" width="200"/>
+  <img src="./doc/filehub-demo7.png" width="200"/>
+</div>
+
 
 
 ### Download
