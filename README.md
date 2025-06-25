@@ -2,7 +2,8 @@
 
 # Filehub
 
-Filehub is a simple, no frills, web based, self-hostable file browser.
+Filehub is a simple, no-frills, web-based, self-hosted file browser. It provides a unified interface for managing files across multiple backends simultaneously—for example, allowing you to browse and operate on files from both S3 and the local filesystem as if they were in the same place.
+
 
 ![demo1](./doc/filehub-demo0.png)
 
