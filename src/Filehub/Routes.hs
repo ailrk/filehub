@@ -33,7 +33,7 @@ import Servant
       Headers,
       StreamGet,
       NoFraming,
-      NoContent, JSON
+      NoContent,
     )
 import Lucid
 import Lens.Micro.Platform ()
@@ -61,7 +61,6 @@ import Filehub.Server.Context.Resolution (ConfirmMobilOnly, ConfirmDesktopOnly)
 import Filehub.Server.Context.ReadOnly (ConfirmReadOnly)
 import Data.ByteString (ByteString)
 import Conduit (ConduitT, ResourceT)
-import Data.Aeson (Object)
 import Amazonka.Data (Value)
 
 

@@ -9,7 +9,12 @@ export function register() {
 function initViewer(o) {
     closeDropdowns();
     viewer = new Viewer(o.resources, { index: o.index });
+    // Make sure the viewer content has context menu enabled.
+    console.log(viewer.currentContent);
     viewer.show();
+    viewer.currentContent.addEventListener("contextmenu", event => {
+        event.stopImmediatePropagation();
+    }, { capture: true });
 }
 /* Open a image. If the viewer is already initialized, show the image directly.
  * Otherwise request the backend for the image list to construct a new viewer.

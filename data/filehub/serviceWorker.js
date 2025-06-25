@@ -11,11 +11,9 @@ self.addEventListener('fetch', (event) => {
     if (event.request.mode === 'navigate') {
         event.respondWith((async () => {
             try {
-                console.log('1', event.request);
                 return await fetch(event.request);
             }
             catch {
-                console.log('2');
                 const cached = await caches.match(OFFLINE_URL);
                 return cached ?? new Response('Offline fallback not available', { status: 503 });
             }
