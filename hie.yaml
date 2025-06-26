@@ -7,4 +7,4 @@ cradle:
       component: "exe:filehub"
 
     - path: "test"
-      component: "test-suite:filehub-test"
+      component: "test-suite:filehub_test"

@@ -170,7 +170,7 @@ executable filehub
     default-language: Haskell2010
 
 
-test-suite filehub-test
+test-suite filehub_test
   import: extensions, options
   type:              exitcode-stdio-1.0
   hs-source-dirs:    test
@@ -178,8 +178,21 @@ test-suite filehub-test
   build-depends:
       base >=4.16.1.0
     , filehub
-    , hspec >= 2.7.10
+    , hspec
+    , hspec-wai
+    , http-types
+    , wai-extra
+    , wai
     , QuickCheck
     , filepath
     , uri-encode
+    , effectful
+    , log-effectful
+    , log-base
+    , servant-server
+    , containers
+    , time
+    , bytestring
+    , directory
+    , uuid
   default-language:   Haskell2010

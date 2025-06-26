@@ -3,7 +3,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
 
-module Filehub.Entry (main) where
+module Filehub.Entry (main, application) where
 
 import Effectful (runEff)
 import Data.Time (secondsToNominalDiffTime)
@@ -87,7 +87,7 @@ main = Log.withColoredStdoutLogger \logger -> do
       runSettings settings . logStdout $ application env
     handler (e :: SomeException) = putStrLn ("server is down " <> show e) >> hFlush stdout
 
-fromTargetOptions opts = traverse transform opts
-  where
-    transform (FSTargetOption opt) = FileTarget <$> FS.initialize opt
-    transform (S3TargetOption opt) = S3Target <$> S3.initialize opt
+    fromTargetOptions opts = traverse transform opts
+      where
+        transform (FSTargetOption opt) = FileTarget <$> FS.initialize opt
+        transform (S3TargetOption opt) = S3Target <$> S3.initialize opt

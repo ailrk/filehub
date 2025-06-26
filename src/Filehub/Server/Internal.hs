@@ -35,7 +35,7 @@ paste sessionId = do
   withRunInIO $ \unlift -> do
     unlift (Copy.paste sessionId & withServerError) `catch` \(e :: SomeException) -> unlift do
       logAttention [i|Paste Failed |] (show e)
-      throwError (err500 { errBody = [i|Paste failed|]})
+      throwError (err500 { errBody = [i|Paste failed #{e}|]})
 
 
 -- | Ensure a query parameter presents, otherwise it's a client error

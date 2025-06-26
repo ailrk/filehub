@@ -111,7 +111,7 @@ new sessionId name = do
 write :: Storage.Context es => SessionId -> String -> LBS.ByteString -> Eff es ()
 write sessionId name content = do
   filePath <- toFilePath sessionId name
-  withFile filePath ReadWriteMode (\h -> hPut h content)
+  withFile filePath WriteMode (\h -> hPut h content)
 
 
 delete :: Storage.Context es => SessionId -> String -> Eff es ()

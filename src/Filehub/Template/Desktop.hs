@@ -334,7 +334,7 @@ editorModal readOnly filename content = do
 
     br_ mempty >> br_ mempty
 
-    form_ [ term "hx-put" $ linkToText (apiLinks.updateFile)
+    form_ [ term "hx-post" $ linkToText (apiLinks.updateFile)
           , term "hx-confirm" ("Save the edit of " <> Text.pack filename <> "?")
           ] do
       input_ [ class_ "form-control "

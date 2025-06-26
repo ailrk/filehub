@@ -23,7 +23,6 @@ import Servant
       (:-),
       QueryParam,
       Post,
-      Put,
       ReqBody,
       FormUrlEncoded,
       OctetStream,
@@ -103,7 +102,7 @@ data Api mode = Api
                     :> AuthProtect "session"
                     :> AuthProtect "readonly"
                     :> ReqBody '[FormUrlEncoded] UpdatedFile
-                    :> Put '[HTML] (Html ())
+                    :> Post '[HTML] (Html ())
 
 
   , deleteFile      :: mode :- "files"

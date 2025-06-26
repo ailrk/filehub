@@ -458,7 +458,7 @@ editorModal :: Bool -> FilePath -> LBS.ByteString -> Html ()
 editorModal readOnly filename content = do
   div_ [ id_ editorModalId, closeEditorScript ] do
 
-    form_ [ term "hx-put" $ linkToText (apiLinks.updateFile)
+    form_ [ term "hx-post" $ linkToText (apiLinks.updateFile)
           , term "hx-confirm" ("Save the edit of " <> Text.pack filename <> "?")
           , term "hx-on::after-request" [i|document.querySelector('\##{editorModalId}').dispatchEvent(new Event('Close'))|]
           ] do
