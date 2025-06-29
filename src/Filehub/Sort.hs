@@ -1,11 +1,38 @@
-module Filehub.Sort (sortFiles) where
+module Filehub.Sort (SortFileBy(..), sortFiles) where
 
-import Filehub.Types
-  ( SortFileBy(..),
-    File(..),
-    FileContent (..))
 import Data.List ( sortOn )
 import System.FilePath ( takeFileName )
+import Servant (ToHttpApiData(..), FromHttpApiData(..))
+import Filehub.File (File(..), FileContent (..))
+
+
+data SortFileBy
+  = ByNameUp
+  | ByNameDown
+  | ByModifiedUp
+  | ByModifiedDown
+  | BySizeUp
+  | BySizeDown
+  deriving (Show, Eq)
+
+
+instance ToHttpApiData SortFileBy where
+  toUrlPiece ByNameUp = "nameUp"
+  toUrlPiece ByNameDown = "nameDown"
+  toUrlPiece ByModifiedUp = "modifiedUp"
+  toUrlPiece ByModifiedDown = "modifiedDown"
+  toUrlPiece BySizeUp = "sizeUp"
+  toUrlPiece BySizeDown = "sizeDown"
+
+
+instance FromHttpApiData SortFileBy where
+  parseUrlPiece "nameUp" = pure ByNameUp
+  parseUrlPiece "nameDown" = pure ByNameDown
+  parseUrlPiece "modifiedUp" = pure ByModifiedUp
+  parseUrlPiece "modifiedDown" = pure ByModifiedDown
+  parseUrlPiece "sizeUp" = pure BySizeUp
+  parseUrlPiece "sizeDown" = pure BySizeDown
+  parseUrlPiece _ = Left "Unknown order"
 
 
 byFileNamewithDirFirst :: File -> String

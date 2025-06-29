@@ -49,10 +49,9 @@ import Lens.Micro
 import Lens.Micro.Platform ()
 import Log (Logger, LogLevel)
 import Servant
-    ( FromHttpApiData(..),
-      ToHttpApiData(..),
-      ToHttpApiData(..),
-      FromHttpApiData(..), Accept (..), MimeRender )
+    ( ToHttpApiData(..),
+      Accept (..),
+      MimeRender )
 import Web.FormUrlEncoded (FromForm (..), parseUnique, parseAll)
 import Filehub.UserAgent (DeviceType)
 import Servant.API (MimeRender(..))
@@ -64,6 +63,7 @@ import Filehub.ClientPath (ClientPath(..), RawClientPath(..))
 import Filehub.File (File(..), FileContent(..))
 import Filehub.Theme (Theme(..))
 import Filehub.Display (Display(..), Resolution(..))
+import Filehub.Sort (SortFileBy(..))
 
 
 newtype SessionId = SessionId UUID
@@ -141,35 +141,6 @@ data Env = Env
   , logger :: Logger
   , logLevel :: LogLevel
   }
-
-
-data SortFileBy
-  = ByNameUp
-  | ByNameDown
-  | ByModifiedUp
-  | ByModifiedDown
-  | BySizeUp
-  | BySizeDown
-  deriving (Show, Eq)
-
-
-instance ToHttpApiData SortFileBy where
-  toUrlPiece ByNameUp = "nameUp"
-  toUrlPiece ByNameDown = "nameDown"
-  toUrlPiece ByModifiedUp = "modifiedUp"
-  toUrlPiece ByModifiedDown = "modifiedDown"
-  toUrlPiece BySizeUp = "sizeUp"
-  toUrlPiece BySizeDown = "sizeDown"
-
-
-instance FromHttpApiData SortFileBy where
-  parseUrlPiece "nameUp" = pure ByNameUp
-  parseUrlPiece "nameDown" = pure ByNameDown
-  parseUrlPiece "modifiedUp" = pure ByModifiedUp
-  parseUrlPiece "modifiedDown" = pure ByModifiedDown
-  parseUrlPiece "sizeUp" = pure BySizeUp
-  parseUrlPiece "sizeDown" = pure BySizeDown
-  parseUrlPiece _ = Left "Unknown order"
 
 
 newtype SearchWord = SearchWord Text deriving (Show, Eq, Generic)
