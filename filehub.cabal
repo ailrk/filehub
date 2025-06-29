@@ -149,7 +149,7 @@ library
       Filehub.Storage
       Filehub.Storage.Context
       Filehub.Storage.File
-      Filehub.Storage.Internal
+      Filehub.Storage.Types
       Filehub.Storage.S3
       Filehub.Target
       Filehub.Target.Class

@@ -22,7 +22,7 @@ import Filehub.Env qualified as Env
 import Filehub.Error (FilehubError(..))
 import Filehub.Storage.Context qualified as Storage
 import Filehub.Types ( SessionId, File(..), FileContent(..), ClientPath )
-import Filehub.Storage.Internal (Storage(..))
+import Filehub.Storage.Types (Storage(..))
 import Filehub.Options ( FSTargetOption(..) )
 import Filehub.Types
     ( FileTarget(..),

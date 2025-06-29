@@ -26,7 +26,7 @@ import Filehub.Env qualified as Env
 import Filehub.Target (TargetView(..))
 import Filehub.Error (FilehubError (..))
 import Filehub.Storage.Context qualified as Storage
-import Filehub.Storage.Internal (Storage(..))
+import Filehub.Storage.Types (Storage(..))
 import Filehub.Types (File(..), FileContent(..), ClientPath, SessionId, S3Target(..))
 import Lens.Micro
 import Network.Mime (defaultMimeLookup)
