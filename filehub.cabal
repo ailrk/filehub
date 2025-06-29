@@ -119,6 +119,7 @@ library
       Filehub.Env
       Filehub.Env.Internal
       Filehub.Error
+      Filehub.File
       Filehub.Links
       Filehub.Log
       Filehub.Mime

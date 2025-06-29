@@ -1,3 +1,4 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 -- | Conceal the full absolute path by splitting a absolute path into
 --   root part and the client part, the client part can be rendered safely in the frontend.
 --   ClientPath is percent encoded, the frontend code can safely display it in the UI.
@@ -9,7 +10,9 @@
 --   Note: S3 path is already absolute and fully qualified. Because root of S3 bucket is always "",
 --   client path acts like a noop.
 module Filehub.ClientPath
-  ( toClientPath
+  ( ClientPath(..)
+  , RawClientPath(..)
+  , toClientPath
   , fromClientPath
   , toRawClientPath
   , fromRawClientPath
@@ -19,9 +22,26 @@ module Filehub.ClientPath
 
 import System.FilePath ((</>))
 import System.FilePath.Posix (normalise)
-import Filehub.Types (ClientPath(..), RawClientPath(..))
 import Network.URI.Encode qualified as URI.Encode
 import Data.List (stripPrefix)
+import Servant (FromHttpApiData (..), ToHttpApiData (..))
+
+-- | Filepath without the root part. The path is percent encoded safe to show in the frontend.
+newtype ClientPath = ClientPath { unClientPath :: FilePath }
+  deriving (Show, Eq, Semigroup, Monoid)
+
+
+-- | ClientPath but not percent encoded
+newtype RawClientPath = RawClientPath { unRawClientPath :: FilePath }
+  deriving (Show, Eq, Semigroup, Monoid)
+
+
+instance ToHttpApiData ClientPath where
+  toUrlPiece (ClientPath p) = toUrlPiece p
+
+
+instance FromHttpApiData ClientPath where
+  parseUrlPiece p = ClientPath <$> parseUrlPiece p
 
 
 -- | Convert a file path into a ClientPath.

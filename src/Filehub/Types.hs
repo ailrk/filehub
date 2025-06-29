@@ -49,7 +49,6 @@ import GHC.Generics (Generic)
 import Lens.Micro
 import Lens.Micro.Platform ()
 import Log (Logger, LogLevel)
-import Network.Mime (MimeType)
 import Servant
     ( FromHttpApiData(..),
       ToHttpApiData(..),
@@ -63,6 +62,8 @@ import Filehub.Target.Types (Target (..))
 import Filehub.Target.S3 (S3Target(..))
 import Filehub.Target.File (FileTarget(..))
 import Filehub.Target.Types.TargetId (TargetId(..))
+import Filehub.ClientPath (ClientPath(..), RawClientPath(..))
+import Filehub.File (File(..), FileContent(..))
 
 
 data Resolution = Resolution
@@ -187,45 +188,6 @@ data Env = Env
   , logger :: Logger
   , logLevel :: LogLevel
   }
-
-
-data FileContent
-  = Content
-  | Dir (Maybe [File])
-  deriving (Show, Eq, Generic)
-
-
-data File = File
-  { path :: FilePath -- absolute path
-  , atime :: Maybe UTCTime
-  , mtime :: Maybe UTCTime
-  , size :: Maybe Integer
-  , mimetype :: MimeType
-  , content :: FileContent
-  }
-  deriving (Show, Eq, Generic)
-
-
-instance Ord File where
-  compare a b = compare a.path b.path
-
-
--- | Filepath without the root part. The path is percent encoded safe to show in the frontend.
-newtype ClientPath = ClientPath { unClientPath :: FilePath }
-  deriving (Show, Eq, Semigroup, Monoid)
-
-
--- | ClientPath but not percent encoded
-newtype RawClientPath = RawClientPath { unRawClientPath :: FilePath }
-  deriving (Show, Eq, Semigroup, Monoid)
-
-
-instance ToHttpApiData ClientPath where
-  toUrlPiece (ClientPath p) = toUrlPiece p
-
-
-instance FromHttpApiData ClientPath where
-  parseUrlPiece p = ClientPath <$> parseUrlPiece p
 
 
 data SortFileBy
