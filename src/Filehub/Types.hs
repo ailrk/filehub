@@ -38,7 +38,6 @@ module Filehub.Types
 import Control.Concurrent.Timer qualified as Timer
 import Data.HashTable.IO (BasicHashTable)
 import Data.Hashable (Hashable)
-import Data.Text qualified as Text
 import Data.Text (Text)
 import Data.Text.Lazy.Encoding qualified as LText
 import Data.Time (UTCTime, NominalDiffTime)
@@ -55,7 +54,6 @@ import Servant
       ToHttpApiData(..),
       FromHttpApiData(..), Accept (..), MimeRender )
 import Web.FormUrlEncoded (FromForm (..), parseUnique, parseAll)
-import Text.Read (readMaybe)
 import Filehub.UserAgent (DeviceType)
 import Servant.API (MimeRender(..))
 import Filehub.Target.Types (Target (..))
@@ -65,53 +63,7 @@ import Filehub.Target.Types.TargetId (TargetId(..))
 import Filehub.ClientPath (ClientPath(..), RawClientPath(..))
 import Filehub.File (File(..), FileContent(..))
 import Filehub.Theme (Theme(..))
-
-
-data Resolution = Resolution
-  { width :: Int
-  , height :: Int
-  }
-  deriving (Show, Eq, Ord)
-
-
-instance ToHttpApiData Resolution where
-  toUrlPiece (Resolution w h) = toUrlPiece $ show w ++ "x" ++ show h
-
-
--- | e.g 1920x1080
-instance FromHttpApiData Resolution where
-  parseUrlPiece res =
-    case Text.splitOn "x" res of
-      x:y:_ -> do
-        maybe (Left "invalid resolution") (\(w, h) -> pure $ Resolution w h) do
-          w <- readMaybe $ Text.unpack x
-          h <- readMaybe $ Text.unpack y
-          pure (w, h)
-      _ -> Left "unknown resolution"
-
-
-instance FromForm Resolution where
-  fromForm f = do
-    res <- parseUnique "res" f
-    parseUrlPiece res
-
-
-data Display
-  = Mobile
-  | Desktop
-  | NoDisplay
-  deriving (Show, Eq, Ord)
-
-
-instance ToHttpApiData Display where
-  toUrlPiece = toUrlPiece . show
-
-
-instance FromHttpApiData Display where
-  parseUrlPiece "Mobile" = pure Mobile
-  parseUrlPiece "Desktop" = pure Desktop
-  parseUrlPiece "NoDisplay" = pure NoDisplay
-  parseUrlPiece _ = Left "unknown display"
+import Filehub.Display (Display(..), Resolution(..))
 
 
 newtype SessionId = SessionId UUID
