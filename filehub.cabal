@@ -119,6 +119,7 @@ library
       Filehub.Entry
       Filehub.Env
       Filehub.Env.Internal
+      Filehub.Env.Types
       Filehub.Error
       Filehub.File
       Filehub.Links
@@ -142,6 +143,7 @@ library
       Filehub.Session
       Filehub.Session.Types
       Filehub.SessionPool
+      Filehub.SessionPool.Types
       Filehub.Size
       Filehub.Sort
       Filehub.Storage

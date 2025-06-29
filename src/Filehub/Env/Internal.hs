@@ -11,10 +11,13 @@ module Filehub.Env.Internal
 
 import Effectful.Reader.Dynamic (Reader, asks)
 import Effectful ((:>), Eff)
-import Filehub.Types (Env(..), SessionPool(..), Target, Theme)
 import Lens.Micro.Platform ()
 import Data.Time (NominalDiffTime)
 import Data.Generics.Labels ()
+import Filehub.Env.Types (Env(..))
+import Filehub.SessionPool.Types (SessionPool)
+import Filehub.Theme (Theme)
+import Filehub.Types (Target)
 
 
 getPort :: (Reader Env :> es) => Eff es Int

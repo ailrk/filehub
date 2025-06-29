@@ -32,8 +32,7 @@ import Filehub.Error ( withServerError, FilehubError(..), FilehubError(..), with
 import Filehub.Monad ( Filehub )
 import Filehub.Routes (Api (..))
 import Filehub.Types
-    ( SessionId(..),
-      SessionId(..), Display (..))
+    ( SessionId(..), Display (..))
 import Filehub.Server.Desktop qualified as Server.Desktop
 import Filehub.Server.Mobile qualified as Server.Mobile
 import Filehub.Template.Internal qualified as Template
@@ -316,7 +315,6 @@ server = Api
 
   , healthz = pure "ok"
   }
-
 
 
 -- | index that reset the state

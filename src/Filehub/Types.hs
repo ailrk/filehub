@@ -35,17 +35,13 @@ module Filehub.Types
   where
 
 
-import Control.Concurrent.Timer qualified as Timer
-import Data.HashTable.IO (BasicHashTable)
 import Data.Text (Text)
 import Data.Text.Lazy.Encoding qualified as LText
-import Data.Time (NominalDiffTime)
 import Data.Aeson (ToJSON (..), (.=), Value)
 import Data.Aeson qualified as Aeson
 import GHC.Generics (Generic)
 import Lens.Micro
 import Lens.Micro.Platform ()
-import Log (Logger, LogLevel)
 import Servant
     ( ToHttpApiData(..),
       Accept (..),
@@ -61,35 +57,17 @@ import Filehub.File (File(..), FileContent(..))
 import Filehub.Theme (Theme(..))
 import Filehub.Display (Display(..), Resolution(..))
 import Filehub.Sort (SortFileBy(..))
-import Filehub.Session.Types (SessionId(..), Session(..), TargetSessionData(..))
 import Filehub.Selected.Types (Selected(..))
 import Filehub.Copy.Types (CopyState(..))
-
-
-data SessionPool = SessionPool
-  { pool :: BasicHashTable SessionId Session
-  , gc :: Timer.TimerIO
-  -- ^ garbage collector, periodically clean up expired sessions.
-  }
+import Filehub.Session.Types (SessionId(..), Session(..), TargetSessionData(..))
+import Filehub.SessionPool.Types (SessionPool(..))
+import Filehub.Env.Types (Env(..))
 
 
 data ControlPanelState
   = ControlPanelDefault
   | ControlPanelSelecting
   | ControlPanelCopied
-
-
-data Env = Env
-  { port :: !Int
-  , theme :: Theme
-  , dataDir :: !FilePath
-  , sessionPool :: SessionPool
-  , sessionDuration :: NominalDiffTime
-  , targets :: [Target]
-  , readOnly :: Bool
-  , logger :: Logger
-  , logLevel :: LogLevel
-  }
 
 
 newtype SearchWord = SearchWord Text deriving (Show, Eq, Generic)
