@@ -1,6 +1,5 @@
 module Filehub.SessionPool
-  ( SessionPool(..)
-  , new
+  ( new
   , newSession
   , extendSession
   , deleteSession

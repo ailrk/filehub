@@ -117,8 +117,10 @@ library
       Filehub.Display
       Filehub.Entry
       Filehub.Env
+      Filehub.Env.Types
       Filehub.Env.Internal
       Filehub.Error
+      Filehub.File
       Filehub.Links
       Filehub.Log
       Filehub.Mime
@@ -137,15 +139,22 @@ library
       Filehub.Server.Middleware.Session
       Filehub.Server.Mobile
       Filehub.Session
+      Filehub.Session.Types
       Filehub.SessionPool
+      Filehub.SessionPool.Types
       Filehub.Size
       Filehub.Sort
       Filehub.Storage
       Filehub.Storage.Context
       Filehub.Storage.File
-      Filehub.Storage.Internal
+      Filehub.Storage.Types
       Filehub.Storage.S3
       Filehub.Target
+      Filehub.Target.Class
+      Filehub.Target.Types
+      Filehub.Target.Types.TargetId
+      Filehub.Target.File
+      Filehub.Target.S3
       Filehub.Template
       Filehub.Template.Desktop
       Filehub.Template.Internal

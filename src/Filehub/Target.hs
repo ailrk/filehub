@@ -5,14 +5,11 @@ module Filehub.Target
   , currentTarget
   , changeCurrentTarget
   , withTarget
-  , getS3Target
   ) where
 
 import Filehub.Types
     ( Target(..),
       TargetSessionData(..),
-      FileTarget(..),
-      S3Target(..),
       TargetId(..),
       Env(..),
       SessionId,
@@ -42,8 +39,9 @@ data TargetView = TargetView
 
 
 getTargetId :: Target -> TargetId
-getTargetId (S3Target t) = t.targetId
-getTargetId (FileTarget t) = t.targetId
+getTargetId = undefined
+-- getTargetId (S3Target t) = t.targetId
+-- getTargetId (FileTarget t) = t.targetId
 
 
 currentTarget :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es TargetView
@@ -80,11 +78,3 @@ withTarget sessionId targetId action = do
   result <- action
   changeCurrentTarget sessionId (getTargetId saved)
   pure result
-
-
-getS3Target :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es S3Target
-getS3Target sessionId = do
-  TargetView target _ _ <- currentTarget sessionId
-  case target of
-    S3Target t -> pure t
-    _ -> throwError TargetError

@@ -16,7 +16,7 @@ import Filehub.Target (TargetView(..))
 import Filehub.Storage.Context qualified as Storage
 import Filehub.Storage.File qualified as File
 import Filehub.Storage.S3 qualified as S3
-import Filehub.Storage.Internal (Storage(..))
+import Filehub.Storage.Types (Storage(..))
 import Filehub.Types (SessionId, Target(..))
 import Lens.Micro.Platform ()
 import Prelude hiding (read, readFile, writeFile)
@@ -25,6 +25,8 @@ import Prelude hiding (read, readFile, writeFile)
 getStorage :: Storage.Context es => SessionId -> Eff es (Storage (Eff es))
 getStorage sessionId = do
   TargetView target _ _ <- Env.currentTarget sessionId
-  case target of
-    S3Target _ -> pure $ S3.storage sessionId
-    FileTarget _ -> pure $ File.storage sessionId
+  undefined
+  -- case target of
+  --   undefined
+    -- S3Target _ -> pure $ S3.storage sessionId
+    -- FileTarget _ -> pure $ File.storage sessionId

@@ -89,5 +89,6 @@ main = Log.withColoredStdoutLogger \logger -> do
 
     fromTargetOptions opts = traverse transform opts
       where
-        transform (FSTargetOption opt) = FileTarget <$> FS.initialize opt
-        transform (S3TargetOption opt) = S3Target <$> S3.initialize opt
+        transform = undefined
+        -- transform (FSTargetOption opt) = FileTarget <$> FS.initialize opt
+        -- transform (S3TargetOption opt) = S3Target <$> S3.initialize opt

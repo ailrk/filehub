@@ -32,9 +32,10 @@ import Filehub.Display qualified as Display
 getRoot :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es FilePath
 getRoot sessionId = do
   TargetView target _ _ <- currentTarget sessionId
-  case target of
-    FileTarget _ -> pure $ target ^. #_FileTarget . #root
-    S3Target  _ -> pure ""
+  undefined
+  -- case target of
+  --   FileTarget _ -> pure $ target ^. #_FileTarget . #root
+  --   S3Target  _ -> pure ""
 
 
 getCurrentDir :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es FilePath

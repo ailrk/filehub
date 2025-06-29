@@ -1,5 +1,3 @@
-{-# LANGUAGE ConstraintKinds #-}
-
 module Filehub.Storage.S3 (storage, initialize) where
 
 import Codec.Archive.Zip (ZipOption(..))
@@ -26,8 +24,8 @@ import Filehub.Env qualified as Env
 import Filehub.Target (TargetView(..))
 import Filehub.Error (FilehubError (..))
 import Filehub.Storage.Context qualified as Storage
-import Filehub.Storage.Internal (Storage(..))
-import Filehub.Types (File(..), FileContent(..), ClientPath, SessionId, S3Target(..))
+import Filehub.Storage.Types (Storage(..))
+import Filehub.Types (File(..), FileContent(..), ClientPath, SessionId)
 import Lens.Micro
 import Network.Mime (defaultMimeLookup)
 import Prelude hiding (read, readFile, writeFile)
@@ -48,6 +46,7 @@ import Network.URI (URI(..), URIAuth(..))
 import Effectful.Log (Log)
 import Conduit (ConduitT, ResourceT, MonadTrans (..), sourceLazy)
 import Data.ByteString (ByteString)
+import Filehub.Target.S3 (S3Target (..))
 
 
 get :: Storage.Context es => SessionId -> FilePath -> Eff es File
@@ -207,7 +206,7 @@ download sessionId clientPath = do
       pure . sourceLazy $ Zip.fromArchive archive
 
 
-storage :: Storage.Context es => SessionId -> (Storage (Eff es))
+storage :: Storage.Context es => SessionId -> Storage (Eff es)
 storage sessionId =
   Storage
     { get = get sessionId
@@ -235,7 +234,7 @@ initialize opt = do
   service <- liftIO makeS3Service
   env <- liftIO $ Amazonka.configureService service <$> Amazonka.newEnv Amazonka.discover
   logInfo_ [i|Initialized: #{targetId} - S3 #{bucket}|]
-  pure $ S3Target_ targetId bucket env
+  pure $ S3Target targetId bucket env
   where
     makeS3Service :: IO Amazonka.Service
     makeS3Service = do
@@ -267,7 +266,8 @@ initialize opt = do
 getS3 :: Storage.Context es => SessionId -> Eff es S3Target
 getS3 sessionId = do
   TargetView target _ _ <- Env.currentTarget sessionId
-  maybe (throwError TargetError) pure $ target ^? #_S3Target
+  undefined
+  -- maybe (throwError TargetError) pure $ target ^? #_S3Target
 
 
 -- | Convert a file path to a dir path that ends with /

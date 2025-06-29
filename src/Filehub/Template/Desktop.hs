@@ -35,8 +35,6 @@ import Filehub.Types
       SortFileBy(..),
       ClientPath(..),
       Target(..),
-      S3Target(..),
-      FileTarget(..),
       Selected,
       ControlPanelState(..) )
 import Filehub.Routes (Api(..))
@@ -101,21 +99,22 @@ sideBar targets (TargetView currentTarget _ _) = do
            , term "hx-target" "#index"
            , term "hx-swap" "outerHTML"
            ] do
-        case target of
-          S3Target _ -> do
-            i_ [ class_ "bx bxs-cube" ] mempty
-          FileTarget _ -> do
-            i_ [ class_ "bx bx-folder" ] mempty
+              undefined
+        -- case target of
+        --   S3Target _ -> do
+        --     i_ [ class_ "bx bxs-cube" ] mempty
+        --   FileTarget _ -> do
+        --     i_ [ class_ "bx bx-folder" ] mempty
       `with` targetAttr target
       `with` tooltipInfo
       where
         targetAttr t = [class_ " current-target" | Target.getTargetId currentTarget == Target.getTargetId t]
-        tooltipInfo =
-          case target of
-            S3Target (S3Target_ { bucket }) ->
-              [ term "data-target-info" [iii| [S3] #{bucket} |] ]
-            FileTarget (FileTarget_ { root }) ->
-              [ term "data-target-info" [iii| [FileSystem] #{takeFileName root} |] ]
+        tooltipInfo = undefined
+          -- case target of
+          --   S3Target (S3Target_ { bucket }) ->
+          --     [ term "data-target-info" [iii| [S3] #{bucket} |] ]
+          --   FileTarget (FileTarget_ { root }) ->
+          --     [ term "data-target-info" [iii| [FileSystem] #{takeFileName root} |] ]
 
 
 controlPanel :: Bool -> ControlPanelState -> Html ()
@@ -529,7 +528,8 @@ table target root files selected order = do
                ]
       where
         name =
-          span_ (toHtml displayName) `with`
+          span_  undefined `with`
+          -- span_ (toHtml displayName) `with`
             mconcat
               [ case file.content of
                   Dir _ ->
@@ -554,9 +554,10 @@ table target root files selected order = do
             Content -> i_ [ class_ "bx bxs-file-blank "] mempty
 
         displayName =
-          case target of
-            S3Target _ -> file.path
-            FileTarget _ -> takeFileName file.path
+          undefined
+          -- case target of
+          --   S3Target _ -> file.path
+          --   FileTarget _ -> takeFileName file.path
 
 
     openBlank file =

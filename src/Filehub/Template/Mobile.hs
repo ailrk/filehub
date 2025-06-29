@@ -21,8 +21,6 @@ import Filehub.Types
       SortFileBy(..),
       ClientPath(..),
       Target(..),
-      S3Target(..),
-      FileTarget(..),
       Selected,
       ControlPanelState(..) )
 import Filehub.Sort (sortFiles)
@@ -82,13 +80,14 @@ sideBar targets (TargetView currentTarget _ _) = do
            , term "hx-target" "#index"
            , term "hx-swap" "outerHTML"
            ] do
-        case target of
-          S3Target (S3Target_ { bucket }) -> do
-            i_ [ class_ "bx bxs-cube" ] mempty
-            span_  [iii| /#{bucket} |]
-          FileTarget (FileTarget_ { root }) -> do
-            i_ [ class_ "bx bx-folder" ] mempty
-            span_ [iii| /#{takeFileName root} |]
+        undefined
+        -- case target of
+        --   S3Target (S3Target_ { bucket }) -> do
+        --     i_ [ class_ "bx bxs-cube" ] mempty
+        --     span_  [iii| /#{bucket} |]
+        --   FileTarget (FileTarget_ { root }) -> do
+        --     i_ [ class_ "bx bx-folder" ] mempty
+        --     span_ [iii| /#{takeFileName root} |]
       `with` targetAttr target
       where
         targetAttr t = [class_ " current-target" | Target.getTargetId currentTarget == Target.getTargetId t]
@@ -251,7 +250,7 @@ table target root files selected = do
                , title_ (Text.pack displayName)
                ]
       where
-        name = span_ (toHtml displayName)
+        name = undefined -- span_ (toHtml displayName)
 
         icon =
           case file.content of
@@ -259,9 +258,10 @@ table target root files selected = do
             Content -> i_ [ class_ "bx bxs-file-blank "] mempty
 
         displayName =
-          case target of
-            S3Target _ -> file.path
-            FileTarget _ -> takeFileName file.path
+          undefined
+          -- case target of
+          --   S3Target _ -> file.path
+          --   FileTarget _ -> takeFileName file.path
 
     click file =
       mconcat

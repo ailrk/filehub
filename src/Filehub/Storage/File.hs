@@ -1,5 +1,4 @@
 {-# LANGUAGE MultiWayIf #-}
-{-# LANGUAGE ConstraintKinds #-}
 
 module Filehub.Storage.File (storage, initialize) where
 
@@ -22,11 +21,9 @@ import Filehub.Env qualified as Env
 import Filehub.Error (FilehubError(..))
 import Filehub.Storage.Context qualified as Storage
 import Filehub.Types ( SessionId, File(..), FileContent(..), ClientPath )
-import Filehub.Storage.Internal (Storage(..))
+import Filehub.Storage.Types (Storage(..))
 import Filehub.Options ( FSTargetOption(..) )
-import Filehub.Types
-    ( FileTarget(..),
-      TargetId(..) )
+import Filehub.Types ( TargetId(..) )
 import Network.Mime (defaultMimeLookup)
 import Prelude hiding (read, readFile, writeFile)
 import Servant.Multipart (MultipartData(..), Mem, FileData (..))
@@ -38,6 +35,7 @@ import Data.String.Interpolate (i)
 import UnliftIO (MonadIO (..))
 import Lens.Micro.Platform ()
 import Data.ByteString (ByteString)
+import Filehub.Target.File (FileTarget (..))
 
 
 get :: Storage.Context es => SessionId -> FilePath -> Eff es File
@@ -198,7 +196,7 @@ initialize opt = do
   targetId <- liftIO $ TargetId <$> UUID.nextRandom
   root <- makeAbsolute opt.root
   logInfo_ [i|Initialized: #{targetId} - FS #{root}|]
-  pure $ FileTarget_ targetId Nothing root
+  pure $ FileTarget targetId Nothing root
 
 
 --

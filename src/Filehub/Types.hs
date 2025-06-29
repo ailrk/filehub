@@ -16,8 +16,6 @@ module Filehub.Types
   , Display(..)
   , TargetId(..)
   , Target(..)
-  , S3Target(..)
-  , FileTarget(..)
   , FileContent(..)
   , File(..)
   , ClientPath(..)
@@ -35,8 +33,6 @@ module Filehub.Types
   where
 
 
-import Amazonka qualified
-import Control.Concurrent.Timer qualified as Timer
 import Data.HashTable.IO (BasicHashTable)
 import Data.Hashable (Hashable)
 import Data.Text qualified as Text
@@ -50,8 +46,6 @@ import GHC.Generics (Generic)
 import Lens.Micro
 import Lens.Micro.Platform ()
 import Log (Logger, LogLevel)
-import Network.Mime (MimeType)
-import Network.URI.Encode qualified as URI.Encode
 import Servant
     ( FromHttpApiData(..),
       ToHttpApiData(..),
@@ -60,8 +54,30 @@ import Servant
 import Web.FormUrlEncoded (FromForm (..), parseUnique, parseAll)
 import Text.Read (readMaybe)
 import Filehub.UserAgent (DeviceType)
+import Filehub.Target.Types (Target(..), TargetId(..))
 import Servant.API (MimeRender(..))
+import Filehub.File (File(..), FileContent(..))
+import Filehub.ClientPath (ClientPath(..), RawClientPath (..))
 
+
+newtype SessionId = SessionId UUID
+  deriving (Show, Eq, Ord, Hashable)
+
+
+data Session = Session
+  { sessionId :: SessionId
+  , resolution :: Maybe Resolution
+  , deviceType :: DeviceType
+  , expireDate :: UTCTime
+  , targets :: [TargetSessionData]
+  , copyState :: CopyState
+  , index :: Int
+  }
+  deriving (Generic)
+
+
+instance Eq Session where
+  a == b = a.sessionId == b.sessionId
 
 data Resolution = Resolution
   { width :: Int
@@ -110,26 +126,6 @@ instance FromHttpApiData Display where
   parseUrlPiece _ = Left "unknown display"
 
 
-newtype SessionId = SessionId UUID
-  deriving (Show, Eq, Ord, Hashable)
-
-
-data Session = Session
-  { sessionId :: SessionId
-  , resolution :: Maybe Resolution
-  , deviceType :: DeviceType
-  , expireDate :: UTCTime
-  , targets :: [TargetSessionData]
-  , copyState :: CopyState
-  , index :: Int
-  }
-  deriving (Generic)
-
-
-instance Eq Session where
-  a == b = a.sessionId == b.sessionId
-
-
 data TargetSessionData = TargetSessionData
   { currentDir :: FilePath
   , sortedFileBy :: SortFileBy
@@ -152,13 +148,6 @@ instance FromForm Selected where
       x:xs->  pure $ Selected x xs
 
 
-data SessionPool = SessionPool
-  { pool :: BasicHashTable SessionId Session
-  , gc :: Timer.TimerIO
-  -- ^ garbage collector, periodically clean up expired sessions.
-  }
-
-
 data CopyState
  -- | Ready to paste
   = CopySelected [(Target, [File])]
@@ -172,97 +161,6 @@ data ControlPanelState
   = ControlPanelDefault
   | ControlPanelSelecting
   | ControlPanelCopied
-
-
-newtype TargetId = TargetId UUID deriving (Show, Eq, Ord, Hashable)
-
-
-instance ToHttpApiData TargetId where
-  toUrlPiece (TargetId p) = toUrlPiece p
-
-
-instance FromHttpApiData TargetId where
-  parseUrlPiece p = TargetId <$> parseUrlPiece (URI.Encode.decodeText p)
-
-
-data Target
-  = S3Target S3Target
-  | FileTarget FileTarget
-  deriving (Generic)
-
-
-instance Eq Target where
-  S3Target a == S3Target b = a.targetId == b.targetId
-  FileTarget a == FileTarget b = a.targetId == b.targetId
-  _ == _ = False
-
-
-data S3Target = S3Target_
-  { targetId :: TargetId
-  , bucket :: Text
-  , env :: Amazonka.Env
-  }
-  deriving (Generic)
-
-
-data FileTarget = FileTarget_
-  { targetId :: TargetId
-  , targetName :: Maybe Text
-  , root :: FilePath
-  }
-  deriving (Show, Eq, Generic)
-
-
-data Env = Env
-  { port :: !Int
-  , theme :: Theme
-  , dataDir :: !FilePath
-  , sessionPool :: SessionPool
-  , sessionDuration :: NominalDiffTime
-  , targets :: [Target]
-  , readOnly :: Bool
-  , logger :: Logger
-  , logLevel :: LogLevel
-  }
-
-
-data FileContent
-  = Content
-  | Dir (Maybe [File])
-  deriving (Show, Eq, Generic)
-
-
-data File = File
-  { path :: FilePath -- absolute path
-  , atime :: Maybe UTCTime
-  , mtime :: Maybe UTCTime
-  , size :: Maybe Integer
-  , mimetype :: MimeType
-  , content :: FileContent
-  }
-  deriving (Show, Eq, Generic)
-
-
-instance Ord File where
-  compare a b = compare a.path b.path
-
-
--- | Filepath without the root part. The path is percent encoded safe to show in the frontend.
-newtype ClientPath = ClientPath { unClientPath :: FilePath }
-  deriving (Show, Eq, Semigroup, Monoid)
-
-
--- | ClientPath but not percent encoded
-newtype RawClientPath = RawClientPath { unRawClientPath :: FilePath }
-  deriving (Show, Eq, Semigroup, Monoid)
-
-
-instance ToHttpApiData ClientPath where
-  toUrlPiece (ClientPath p) = toUrlPiece p
-
-
-instance FromHttpApiData ClientPath where
-  parseUrlPiece p = ClientPath <$> parseUrlPiece p
 
 
 data SortFileBy
