@@ -35,7 +35,6 @@ module Filehub.Types
   where
 
 
-import Amazonka qualified
 import Control.Concurrent.Timer qualified as Timer
 import Data.HashTable.IO (BasicHashTable)
 import Data.Hashable (Hashable)
@@ -51,7 +50,6 @@ import Lens.Micro
 import Lens.Micro.Platform ()
 import Log (Logger, LogLevel)
 import Network.Mime (MimeType)
-import Network.URI.Encode qualified as URI.Encode
 import Servant
     ( FromHttpApiData(..),
       ToHttpApiData(..),
@@ -61,6 +59,10 @@ import Web.FormUrlEncoded (FromForm (..), parseUnique, parseAll)
 import Text.Read (readMaybe)
 import Filehub.UserAgent (DeviceType)
 import Servant.API (MimeRender(..))
+import Filehub.Target.Types (Target (..))
+import Filehub.Target.S3 (S3Target(..))
+import Filehub.Target.File (FileTarget(..))
+import Filehub.Target.Types.TargetId (TargetId(..))
 
 
 data Resolution = Resolution
@@ -172,45 +174,6 @@ data ControlPanelState
   = ControlPanelDefault
   | ControlPanelSelecting
   | ControlPanelCopied
-
-
-newtype TargetId = TargetId UUID deriving (Show, Eq, Ord, Hashable)
-
-
-instance ToHttpApiData TargetId where
-  toUrlPiece (TargetId p) = toUrlPiece p
-
-
-instance FromHttpApiData TargetId where
-  parseUrlPiece p = TargetId <$> parseUrlPiece (URI.Encode.decodeText p)
-
-
-data Target
-  = S3Target S3Target
-  | FileTarget FileTarget
-  deriving (Generic)
-
-
-instance Eq Target where
-  S3Target a == S3Target b = a.targetId == b.targetId
-  FileTarget a == FileTarget b = a.targetId == b.targetId
-  _ == _ = False
-
-
-data S3Target = S3Target_
-  { targetId :: TargetId
-  , bucket :: Text
-  , env :: Amazonka.Env
-  }
-  deriving (Generic)
-
-
-data FileTarget = FileTarget_
-  { targetId :: TargetId
-  , targetName :: Maybe Text
-  , root :: FilePath
-  }
-  deriving (Show, Eq, Generic)
 
 
 data Env = Env

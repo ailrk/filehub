@@ -146,6 +146,11 @@ library
       Filehub.Storage.Internal
       Filehub.Storage.S3
       Filehub.Target
+      Filehub.Target.Class
+      Filehub.Target.Types
+      Filehub.Target.Types.TargetId
+      Filehub.Target.File
+      Filehub.Target.S3
       Filehub.Template
       Filehub.Template.Desktop
       Filehub.Template.Internal

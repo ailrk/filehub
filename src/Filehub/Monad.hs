@@ -14,7 +14,7 @@ import Effectful.Error.Dynamic (Error, runErrorNoCallStack)
 import Effectful.FileSystem (FileSystem, runFileSystem)
 import Effectful.Concurrent
 import Filehub.Env (Env(..))
-import Servant (Handler (..), ServerError, throwError)
+import Servant (Handler (..), ServerError)
 import Control.Monad.Trans.Except (ExceptT(ExceptT), runExceptT)
 import Control.Monad ((>=>))
 
