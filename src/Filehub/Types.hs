@@ -37,11 +37,9 @@ module Filehub.Types
 
 import Control.Concurrent.Timer qualified as Timer
 import Data.HashTable.IO (BasicHashTable)
-import Data.Hashable (Hashable)
 import Data.Text (Text)
 import Data.Text.Lazy.Encoding qualified as LText
-import Data.Time (UTCTime, NominalDiffTime)
-import Data.UUID (UUID)
+import Data.Time (NominalDiffTime)
 import Data.Aeson (ToJSON (..), (.=), Value)
 import Data.Aeson qualified as Aeson
 import GHC.Generics (Generic)
@@ -52,8 +50,7 @@ import Servant
     ( ToHttpApiData(..),
       Accept (..),
       MimeRender )
-import Web.FormUrlEncoded (FromForm (..), parseUnique, parseAll)
-import Filehub.UserAgent (DeviceType)
+import Web.FormUrlEncoded (FromForm (..), parseUnique)
 import Servant.API (MimeRender(..))
 import Filehub.Target.Types (Target (..))
 import Filehub.Target.S3 (S3Target(..))
@@ -64,48 +61,9 @@ import Filehub.File (File(..), FileContent(..))
 import Filehub.Theme (Theme(..))
 import Filehub.Display (Display(..), Resolution(..))
 import Filehub.Sort (SortFileBy(..))
-
-
-newtype SessionId = SessionId UUID
-  deriving (Show, Eq, Ord, Hashable)
-
-
-data Session = Session
-  { sessionId :: SessionId
-  , resolution :: Maybe Resolution
-  , deviceType :: DeviceType
-  , expireDate :: UTCTime
-  , targets :: [TargetSessionData]
-  , copyState :: CopyState
-  , index :: Int
-  }
-  deriving (Generic)
-
-
-instance Eq Session where
-  a == b = a.sessionId == b.sessionId
-
-
-data TargetSessionData = TargetSessionData
-  { currentDir :: FilePath
-  , sortedFileBy :: SortFileBy
-  , selected :: Selected
-  }
-  deriving (Generic)
-
-
-data Selected
-  = Selected ClientPath [ClientPath] -- non empty list
-  | NoSelection
-  deriving (Show, Eq)
-
-
-instance FromForm Selected where
-  fromForm f = do
-    selected <- parseAll "selected" f
-    case selected of
-      [] -> pure NoSelection
-      x:xs->  pure $ Selected x xs
+import Filehub.Session.Types (SessionId(..), Session(..), TargetSessionData(..))
+import Filehub.Selected.Types (Selected(..))
+import Filehub.Copy.Types (CopyState(..))
 
 
 data SessionPool = SessionPool
@@ -113,15 +71,6 @@ data SessionPool = SessionPool
   , gc :: Timer.TimerIO
   -- ^ garbage collector, periodically clean up expired sessions.
   }
-
-
-data CopyState
- -- | Ready to paste
-  = CopySelected [(Target, [File])]
-  -- | Start pasting files to target path
-  | Paste [(Target, [File])]
-  -- | No copy paste action being performed at the moment.
-  | NoCopyPaste
 
 
 data ControlPanelState

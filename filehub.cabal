@@ -114,6 +114,7 @@ library
       Filehub.ControlPanel
       Filehub.Cookie
       Filehub.Copy
+      Filehub.Copy.Types
       Filehub.Display
       Filehub.Entry
       Filehub.Env
@@ -127,6 +128,7 @@ library
       Filehub.Options
       Filehub.Routes
       Filehub.Selected
+      Filehub.Selected.Types
       Filehub.Server
       Filehub.Server.Context.ReadOnly
       Filehub.Server.Context.Resolution
@@ -138,6 +140,7 @@ library
       Filehub.Server.Middleware.Session
       Filehub.Server.Mobile
       Filehub.Session
+      Filehub.Session.Types
       Filehub.SessionPool
       Filehub.Size
       Filehub.Sort
