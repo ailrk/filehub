@@ -64,6 +64,7 @@ import Filehub.Target.File (FileTarget(..))
 import Filehub.Target.Types.TargetId (TargetId(..))
 import Filehub.ClientPath (ClientPath(..), RawClientPath(..))
 import Filehub.File (File(..), FileContent(..))
+import Filehub.Theme (Theme(..))
 
 
 data Resolution = Resolution
@@ -241,24 +242,6 @@ instance FromForm UpdatedFile where
     path <- parseUnique "path" f
     content <- parseUnique "content" f
     pure (UpdatedFile path content)
-
-
-data Theme = Dark | Light
-
-instance Show Theme where
-  show = \case
-    Dark -> "dark"
-    Light -> "light"
-
-
-instance Read Theme where
-  readsPrec _ s = do
-    let theme =
-          case s of
-          "dark" -> Dark
-          "light" -> Light
-          _ -> Dark
-    pure (theme, "")
 
 
 data Resource = Resource

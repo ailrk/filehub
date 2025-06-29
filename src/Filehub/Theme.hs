@@ -1,6 +1,7 @@
 {-# LANGUAGE ViewPatterns #-}
 module Filehub.Theme
-  ( defaultTheme
+  ( Theme(..)
+  , defaultTheme
   , parse
   ) where
 
@@ -17,11 +18,29 @@ module Filehub.Theme
 --
 -- All theme files should have the same format.
 
-import Filehub.Types (Theme(..))
 import Text.ParserCombinators.ReadP
 import Data.Char (isAlphaNum, isSpace)
 import Data.ByteString (ByteString)
 import Data.ByteString.Char8 qualified as ByteString
+
+
+data Theme = Dark | Light
+
+instance Show Theme where
+  show = \case
+    Dark -> "dark"
+    Light -> "light"
+
+
+instance Read Theme where
+  readsPrec _ s = do
+    let theme =
+          case s of
+          "dark" -> Dark
+          "light" -> Light
+          _ -> Dark
+    pure (theme, "")
+
 
 defaultTheme :: Theme
 defaultTheme = Dark
