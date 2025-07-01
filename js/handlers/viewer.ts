@@ -33,12 +33,14 @@ function initViewer(o: ViewerInited) {
 /* Open a image. If the viewer is already initialized, show the image directly.
  * Otherwise request the backend for the image list to construct a new viewer.
  *
+ * The path is already percent encoded, we don't need to encode it here.
+ *
  * NOTE:
  * The target is set to 'head'. htmx ajax must specify a target, but this ajax
  * call don't need a target at all. We pick head to avoid interference on
  * other event handlers.
  * */
 function open(path: string) {
-  let query = new URLSearchParams({ file: encodeURIComponent(path) });
+  let query = new URLSearchParams({ file: path });
   htmx.ajax('GET', `/viewer?${query.toString()}`, { target: 'head', swap: 'none'});
 }

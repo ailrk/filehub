@@ -5,14 +5,13 @@ module Filehub.Viewer
   )
   where
 
-import Control.Monad (when)
 import Data.List qualified as List
 import Data.Maybe (fromMaybe)
 import Data.Text.Encoding qualified as Text
 import Effectful ((:>), Eff, IOE)
-import Effectful.Error.Dynamic (throwError, Error)
+import Effectful.Error.Dynamic (Error)
 import Effectful.FileSystem
-import Effectful.Log (Log, logAttention)
+import Effectful.Log (Log)
 import Effectful.Reader.Dynamic (Reader)
 import Filehub.ClientPath (fromClientPath, toClientPath)
 import Filehub.Env (Env(..))
@@ -26,6 +25,7 @@ import Lens.Micro.Platform ()
 import Network.Mime (MimeType)
 import System.FilePath (takeDirectory)
 import Data.String.Interpolate (i)
+import Debug.Trace (traceM)
 
 
 isResource :: MimeType -> Bool
@@ -51,12 +51,9 @@ initViewer sessionId root clientPath = do
   storage <- getStorage sessionId
   let filePath = fromClientPath root clientPath
   let dir = takeDirectory filePath
-  isDir <- storage.isDirectory dir
-  when (not isDir) $ do
-    logAttention "[initViewer] invalid dir" dir
-    throwError InvalidDir
   order <- Env.getSortFileBy sessionId
   files <- takeResourceFiles . sortFiles order <$> (storage.ls dir)
+  traceM (show filePath)
   let idx = fromMaybe 0 $ List.elemIndex filePath (fmap (.path) files)
   let resources = fmap (toResource root) files
   pure $ ViewerInited resources idx

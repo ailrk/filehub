@@ -32,7 +32,6 @@ import Prelude hiding (read, readFile, writeFile)
 import Servant.Multipart (MultipartData(..), Mem, FileData (..))
 import Data.Generics.Labels ()
 import Lens.Micro.Platform ()
-import Effectful.Log (logAttention)
 import Conduit (ConduitT, ResourceT, MonadTrans (..), sourceLazy)
 import Data.ByteString (ByteString)
 import Filehub.Target.S3 (Backend(..), S3)
@@ -123,22 +122,15 @@ delete sessionId filePath = do
 
 
 ls :: Storage.Context es => SessionId -> FilePath -> Eff es [File]
-ls sessionId path = do
-  let normalizedPath = normalizeDirPath path
-  isDir <- isDirectory sessionId normalizedPath
-  if isDir
-     then do
-       s3 <- getS3 sessionId
-       let bucket = Amazonka.BucketName s3.bucket
-       let request = Amazonka.newListObjectsV2 bucket
-                   & Amazonka.listObjectsV2_prefix ?~ Text.pack "" -- root
-       resp <- runResourceT $ send s3.env request
-       let files = maybe [] (fmap toFile) $ resp ^. Amazonka.listObjectsV2Response_contents
-       let dirs = maybe [] (fmap toDir) $ resp ^. Amazonka.listObjectsV2Response_commonPrefixes
-       pure $ files <> dirs
-     else do
-       logAttention "[ls] invalid dir: " path
-       throwError InvalidDir
+ls sessionId _ = do
+   s3 <- getS3 sessionId
+   let bucket = Amazonka.BucketName s3.bucket
+   let request = Amazonka.newListObjectsV2 bucket
+               & Amazonka.listObjectsV2_prefix ?~ Text.pack "" -- root
+   resp <- runResourceT $ send s3.env request
+   let files = maybe [] (fmap toFile) $ resp ^. Amazonka.listObjectsV2Response_contents
+   let dirs = maybe [] (fmap toDir) $ resp ^. Amazonka.listObjectsV2Response_commonPrefixes
+   pure $ files <> dirs
   where
     toDir (commonPrefix :: CommonPrefix) =
       let dirPath = fromMaybe mempty $ commonPrefix ^. Amazonka.commonPrefix_prefix
@@ -163,22 +155,12 @@ ls sessionId path = do
          }
 
 
-cd :: Storage.Context es => SessionId -> FilePath -> Eff es ()
-cd sessionId path = do
-  isDir <- isDirectory sessionId normalizedPath
-  if isDir
-     then Env.setCurrentDir sessionId normalizedPath
-     else do
-       logAttention "[cd] Invalid dir: " path
-       throwError InvalidDir
-  where
-    normalizedPath = normalizeDirPath path
+cd :: SessionId -> FilePath -> Eff es ()
+cd _ _ = pure ()
 
 
 lsCwd :: Storage.Context es => SessionId -> Eff es [File]
-lsCwd sessionId = do
-  path <- Env.getCurrentDir sessionId
-  ls sessionId path
+lsCwd sessionId = ls sessionId ""
 
 
 upload :: Storage.Context es => SessionId -> MultipartData Mem -> Eff es ()

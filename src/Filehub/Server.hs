@@ -63,6 +63,7 @@ import Conduit (ConduitT, ResourceT)
 import Data.Aeson (object, KeyValue (..), (.:), withObject)
 import Data.ByteString.Lazy qualified as LBS
 import Data.Aeson.Types (parseMaybe)
+import Debug.Trace
 
 
 -- | Server definition
@@ -242,6 +243,7 @@ server = Api
   , initViewer = \sessionId mClientPath -> do
       withServerError do
         clientPath <- withQueryParam mClientPath
+        traceM (show clientPath)
         root <- Env.getCurrentDir sessionId
         payload <- Viewer.initViewer sessionId root clientPath
         pure $ addHeader payload NoContent

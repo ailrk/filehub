@@ -43,6 +43,7 @@ import Text.Fuzzy (simpleFilter)
 import Filehub.Target.File (Backend (..), FileSys)
 import Filehub.Target.S3 (Backend (..), S3)
 import Filehub.Target.Types (targetHandler)
+import Debug.Trace
 
 
 index :: Bool
