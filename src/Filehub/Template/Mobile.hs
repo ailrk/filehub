@@ -21,8 +21,6 @@ import Filehub.Types
       SortFileBy(..),
       ClientPath(..),
       Target(..),
-      S3Target(..),
-      FileTarget(..),
       Selected,
       ControlPanelState(..) )
 import Filehub.Sort (sortFiles)
@@ -32,7 +30,7 @@ import Filehub.Selected qualified as Selected
 import Filehub.ClientPath qualified as ClientPath
 import Filehub.Viewer qualified as Viewer
 import Filehub.Routes (Api(..))
-import Filehub.Target (TargetView(..))
+import Filehub.Target (TargetView(..), handleTarget)
 import Filehub.Target qualified as Target
 import Filehub.Template.Internal (viewId, sideBarId, controlPanelId, toolBarId, tableId, searchBar)
 import Filehub.Template.Internal qualified as Template
@@ -42,6 +40,9 @@ import Lens.Micro.Platform ()
 import Lucid
 import System.FilePath (takeFileName)
 import Text.Fuzzy (simpleFilter)
+import Filehub.Target.File (Backend (..), FileSys)
+import Filehub.Target.S3 (Backend (..), S3)
+import Filehub.Target.Types (targetHandler)
 
 
 index :: Bool
@@ -82,16 +83,17 @@ sideBar targets (TargetView currentTarget _ _) = do
            , term "hx-target" "#index"
            , term "hx-swap" "outerHTML"
            ] do
-        case target of
-          S3Target (S3Target_ { bucket }) -> do
-            i_ [ class_ "bx bxs-cube" ] mempty
-            span_  [iii| /#{bucket} |]
-          FileTarget (FileTarget_ { root }) -> do
-            i_ [ class_ "bx bx-folder" ] mempty
-            span_ [iii| /#{takeFileName root} |]
-      `with` targetAttr target
+        fromMaybe "unknown" $ handleTarget target
+          [ targetHandler @FileSys $ \(FileBackend { root }) -> do
+              i_ [ class_ "bx bx-folder" ] mempty
+              span_ [iii| /#{takeFileName root} |]
+          , targetHandler @S3 $ \(S3Backend { bucket }) -> do
+              i_ [ class_ "bx bxs-cube" ] mempty
+              span_  [iii| /#{bucket} |]
+          ]
+      `with` targetAttr
       where
-        targetAttr t = [class_ " current-target" | Target.getTargetId currentTarget == Target.getTargetId t]
+        targetAttr = [class_ " current-target" | Target.getTargetId currentTarget == Target.getTargetId target]
 
 
 controlPanelBtn :: Html ()
@@ -259,9 +261,10 @@ table target root files selected = do
             Content -> i_ [ class_ "bx bxs-file-blank "] mempty
 
         displayName =
-          case target of
-            S3Target _ -> file.path
-            FileTarget _ -> takeFileName file.path
+          fromMaybe "-" $ handleTarget target
+            [ targetHandler @S3 $ \_ -> file.path
+            , targetHandler @FileSys $ \_ -> takeFileName file.path
+            ]
 
     click file =
       mconcat

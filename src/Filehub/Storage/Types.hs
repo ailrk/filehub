@@ -1,11 +1,7 @@
 module Filehub.Storage.Types where
 
-import Filehub.Types
-    ( File,
-      File(..),
-      ClientPath,
-      File(..),
-      ClientPath )
+import Filehub.File (File)
+import Filehub.ClientPath (ClientPath)
 import Lens.Micro.Platform ()
 import Data.ByteString.Lazy qualified as LBS
 import Data.Generics.Labels ()

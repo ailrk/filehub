@@ -1,20 +1,21 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE TypeFamilies #-}
 module Filehub.Target.Types where
+import Filehub.Target.Class (IsTarget(..))
+import Data.Typeable (Typeable, cast)
 
 
-import GHC.Generics (Generic)
-import Filehub.Target.File (FileTarget(..))
-import Filehub.Target.S3 (S3Target(..))
+data Target where
+  Target :: (Typeable a, IsTarget a) => Backend a -> Target
 
 
-data Target
-  = S3Target S3Target
-  | FileTarget FileTarget
-  deriving (Generic)
+data TargetHandler r = forall a. (Typeable a, IsTarget a) => TargetHandler (Backend a -> r)
 
 
-instance Eq Target where
-  S3Target a == S3Target b = a.targetId == b.targetId
-  FileTarget a == FileTarget b = a.targetId == b.targetId
-  _ == _ = False
+targetHandler :: forall a r. (Typeable a, IsTarget a) => (Backend a -> r) -> TargetHandler r
+targetHandler = TargetHandler
+
+
+runTargetHandler :: Target -> TargetHandler r -> Maybe r
+runTargetHandler (Target t) (TargetHandler f) = fmap f (cast t)

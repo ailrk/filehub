@@ -22,7 +22,6 @@ import Filehub.Types
   , RawClientPath(..)
   , Theme(..)
   , Target(..)
-  , FileTarget(..)
   , TargetId(..))
 import System.Directory (createDirectoryIfMissing, removePathForcibly, doesFileExist, doesDirectoryExist)
 import Control.Monad (forM_)
@@ -30,6 +29,7 @@ import System.FilePath (takeDirectory)
 import Network.HTTP.Types.Header
 import Network.HTTP.Types (status200)
 import Data.ByteString.Char8 qualified as ByteString
+import Filehub.Target.File (Backend(..))
 
 
 main :: IO ()
@@ -202,7 +202,7 @@ serverSpec = before setup  $ after_ teardown do
               , sessionPool = sessionPool
               , sessionDuration = secondsToNominalDiffTime (60 * 60)
               , targets =
-                [ FileTarget FileTarget_
+                [ Target $ FileBackend
                   { targetId = tid
                   , targetName = Nothing
                   , root = root

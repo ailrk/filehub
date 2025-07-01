@@ -9,9 +9,15 @@ import Effectful ((:>), Eff, IOE, MonadIO (liftIO))
 import Data.UUID.V4 qualified as UUID
 import Data.Time (UTCTime, addUTCTime, NominalDiffTime)
 import Data.Time qualified as Time
-import Filehub.Types (Session(..), SessionId(..), Env(..), Target (..), TargetSessionData (..), FileTarget(..), CopyState (..), Selected (..), SortFileBy(..))
+import Filehub.Types (Session(..), SessionId(..), Env(..), Target (..), TargetSessionData (..), CopyState (..), Selected (..), SortFileBy(..))
 import Filehub.Env.Internal qualified as Env
 import Filehub.UserAgent qualified as UserAgent
+import Data.Typeable (cast)
+import Filehub.Target.S3 (S3, Backend(..))
+import Filehub.Target.File (FileSys, Backend(..))
+import Data.Maybe (fromMaybe)
+import Options.Applicative (asum)
+import Data.Functor ((<&>))
 
 
 createSessionId :: (IOE :> es) => Eff es SessionId
@@ -42,18 +48,21 @@ createSession = do
 
 
 targetToSessionData :: Target -> TargetSessionData
-targetToSessionData (S3Target _) =
-  TargetSessionData
-    { currentDir = ""
-    , sortedFileBy = ByNameUp
-    , selected = NoSelection
-    }
-targetToSessionData (FileTarget target) =
-  TargetSessionData
-    { currentDir = target.root
-    , sortedFileBy = ByNameUp
-    , selected = NoSelection
-    }
+targetToSessionData (Target target) =
+  fromMaybe (error "TODO need default" ). asum $
+    [ cast target <&> \(fs :: Backend FileSys) ->
+        TargetSessionData
+          { currentDir = fs.root
+          , sortedFileBy = ByNameUp
+          , selected = NoSelection
+          }
+    , cast target <&> \(_ :: Backend S3) ->
+        TargetSessionData
+          { currentDir = ""
+          , sortedFileBy = ByNameUp
+          , selected = NoSelection
+          }
+    ]
 
 
 extendSession :: NominalDiffTime -> Session -> Session

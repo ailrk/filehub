@@ -24,17 +24,24 @@ import Filehub.Types
 import Filehub.Error (FilehubError (..))
 import Filehub.SessionPool (getSession, updateSession)
 import Filehub.Env.Internal (getSessionPool, getDataDir, getTheme, getReadOnly, getSessionDuration, getTargets)
-import Filehub.Target (getTargetId, currentTarget, changeCurrentTarget, TargetView (..))
+import Filehub.Target (currentTarget, changeCurrentTarget, TargetView (..))
 import Filehub.Target qualified as Target
 import Filehub.Display qualified as Display
+import Filehub.Target.File (Backend(..), FileSys)
+import Filehub.Target.S3 (S3)
+import Control.Applicative (asum)
+import Data.Typeable (cast)
+import Data.Maybe (fromMaybe)
 
 
 getRoot :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es FilePath
 getRoot sessionId = do
-  TargetView target _ _ <- currentTarget sessionId
-  case target of
-    FileTarget _ -> pure $ target ^. #_FileTarget . #root
-    S3Target  _ -> pure ""
+  TargetView (Target t) _ _ <- currentTarget sessionId
+  pure $
+    fromMaybe "" . asum $
+      [ cast t <&> \(x :: Backend FileSys) -> x.root
+      , cast t <&> \(_ :: Backend S3) -> ""
+      ]
 
 
 getCurrentDir :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es FilePath

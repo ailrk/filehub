@@ -23,11 +23,11 @@ import Effectful (Eff, Eff, MonadIO (..), IOE, (:>))
 import Effectful.Error.Dynamic (throwError)
 import Filehub.ClientPath (fromClientPath)
 import Filehub.Env qualified as Env
-import Filehub.Target (TargetView(..))
+import Filehub.Target (TargetView(..), handleTarget)
 import Filehub.Error (FilehubError (..))
 import Filehub.Storage.Context qualified as Storage
 import Filehub.Storage.Types (Storage(..))
-import Filehub.Types (File(..), FileContent(..), ClientPath, SessionId, S3Target(..))
+import Filehub.Types (File(..), FileContent(..), ClientPath, SessionId)
 import Lens.Micro
 import Network.Mime (defaultMimeLookup)
 import Prelude hiding (read, readFile, writeFile)
@@ -45,9 +45,11 @@ import Log.Class (logInfo_)
 import System.Environment qualified as Environment
 import Network.URI qualified as URI
 import Network.URI (URI(..), URIAuth(..))
-import Effectful.Log (Log)
+import Effectful.Log (Log, logAttention)
 import Conduit (ConduitT, ResourceT, MonadTrans (..), sourceLazy)
 import Data.ByteString (ByteString)
+import Filehub.Target.S3 (Backend(..), S3)
+import Filehub.Target.Types (targetHandler)
 
 
 get :: Storage.Context es => SessionId -> FilePath -> Eff es File
@@ -146,7 +148,9 @@ ls sessionId path = do
        let files = maybe [] (fmap toFile) $ resp ^. Amazonka.listObjectsV2Response_contents
        let dirs = maybe [] (fmap toDir) $ resp ^. Amazonka.listObjectsV2Response_commonPrefixes
        pure $ files <> dirs
-     else throwError InvalidDir
+     else do
+       logAttention "[ls] invalid dir: " path
+       throwError InvalidDir
   where
     toDir (commonPrefix :: CommonPrefix) =
       let dirPath = fromMaybe mempty $ commonPrefix ^. Amazonka.commonPrefix_prefix
@@ -176,7 +180,9 @@ cd sessionId path = do
   isDir <- isDirectory sessionId normalizedPath
   if isDir
      then Env.setCurrentDir sessionId normalizedPath
-     else throwError InvalidDir
+     else do
+       logAttention "[cd] Invalid dir: " path
+       throwError InvalidDir
   where
     normalizedPath = normalizeDirPath path
 
@@ -228,14 +234,14 @@ storage sessionId =
 
 -- | The default `discover` method only discover `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`,
 --   and `AWS_SESSION_TOKEN`. To set custom endpoint url, we also need to hand `AWS_ENDPOINT_URL`.
-initialize :: (IOE :> es, Log :> es) => S3TargetOption -> Eff es S3Target
+initialize :: (IOE :> es, Log :> es) => S3TargetOption -> Eff es (Backend S3)
 initialize opt = do
   targetId <- liftIO $ TargetId <$> UUID.nextRandom
   let bucket = Text.pack opt.bucket
   service <- liftIO makeS3Service
   env <- liftIO $ Amazonka.configureService service <$> Amazonka.newEnv Amazonka.discover
   logInfo_ [i|Initialized: #{targetId} - S3 #{bucket}|]
-  pure $ S3Target_ targetId bucket env
+  pure $ S3Backend targetId bucket env
   where
     makeS3Service :: IO Amazonka.Service
     makeS3Service = do
@@ -264,10 +270,12 @@ initialize opt = do
 --
 
 
-getS3 :: Storage.Context es => SessionId -> Eff es S3Target
+getS3 :: Storage.Context es => SessionId -> Eff es (Backend S3)
 getS3 sessionId = do
   TargetView target _ _ <- Env.currentTarget sessionId
-  maybe (throwError TargetError) pure $ target ^? #_S3Target
+  maybe (throwError TargetError) pure $ handleTarget target
+    [ targetHandler @S3 $ \x -> x
+    ]
 
 
 -- | Convert a file path to a dir path that ends with /

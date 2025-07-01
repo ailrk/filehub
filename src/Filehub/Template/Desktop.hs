@@ -35,8 +35,6 @@ import Filehub.Types
       SortFileBy(..),
       ClientPath(..),
       Target(..),
-      S3Target(..),
-      FileTarget(..),
       Selected,
       ControlPanelState(..) )
 import Filehub.Routes (Api(..))
@@ -46,7 +44,7 @@ import Filehub.Size (toReadableSize)
 import Filehub.Selected qualified as Selected
 import Filehub.ClientPath qualified as ClientPath
 import Filehub.Viewer qualified as Viewer
-import Filehub.Target (TargetView(..))
+import Filehub.Target (TargetView(..), handleTarget)
 import Filehub.Target qualified as Target
 import Filehub.Template.Internal (bold, toClientPath, viewId, tableId, sideBarId, searchBar)
 import Filehub.Template.Internal qualified as Template
@@ -57,6 +55,9 @@ import Lucid
 import Network.URI.Encode qualified as URI.Encode
 import System.FilePath (takeFileName)
 import Text.Fuzzy (simpleFilter)
+import Filehub.Target.S3 (S3, Backend (..))
+import Filehub.Target.File (FileSys, Backend (..))
+import Filehub.Target.Types (targetHandler)
 
 ------------------------------------
 -- components
@@ -101,21 +102,21 @@ sideBar targets (TargetView currentTarget _ _) = do
            , term "hx-target" "#index"
            , term "hx-swap" "outerHTML"
            ] do
-        case target of
-          S3Target _ -> do
-            i_ [ class_ "bx bxs-cube" ] mempty
-          FileTarget _ -> do
-            i_ [ class_ "bx bx-folder" ] mempty
+        fromMaybe "unknown" $ handleTarget target
+          [ targetHandler @S3 . const $ i_ [ class_ "bx bxs-cube" ] mempty
+          , targetHandler @FileSys . const $ i_ [ class_ "bx bx-folder" ] mempty
+          ]
       `with` targetAttr target
       `with` tooltipInfo
       where
         targetAttr t = [class_ " current-target" | Target.getTargetId currentTarget == Target.getTargetId t]
         tooltipInfo =
-          case target of
-            S3Target (S3Target_ { bucket }) ->
-              [ term "data-target-info" [iii| [S3] #{bucket} |] ]
-            FileTarget (FileTarget_ { root }) ->
-              [ term "data-target-info" [iii| [FileSystem] #{takeFileName root} |] ]
+          fromMaybe [] $ handleTarget target
+            [ targetHandler @S3 $ \(S3Backend { bucket }) ->
+                [ term "data-target-info" [iii| [S3] #{bucket} |] ]
+            , targetHandler @FileSys $ \(FileBackend { root }) ->
+                [ term "data-target-info" [iii| [FileSystem] #{takeFileName root} |] ]
+            ]
 
 
 controlPanel :: Bool -> ControlPanelState -> Html ()
@@ -554,9 +555,10 @@ table target root files selected order = do
             Content -> i_ [ class_ "bx bxs-file-blank "] mempty
 
         displayName =
-          case target of
-            S3Target _ -> file.path
-            FileTarget _ -> takeFileName file.path
+          fromMaybe "-" $ handleTarget target
+            [ targetHandler @S3 $ \_ -> file.path
+            , targetHandler @FileSys $ \_ -> takeFileName file.path
+            ]
 
 
     openBlank file =

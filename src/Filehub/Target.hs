@@ -2,17 +2,15 @@
 module Filehub.Target
   ( TargetView(..)
   , getTargetId
+  , handleTarget
   , currentTarget
   , changeCurrentTarget
   , withTarget
-  , getS3Target
   ) where
 
 import Filehub.Types
     ( Target(..),
       TargetSessionData(..),
-      FileTarget(..),
-      S3Target(..),
       TargetId(..),
       Env(..),
       SessionId,
@@ -31,6 +29,9 @@ import GHC.Generics (Generic)
 import Filehub.Error (FilehubError (..))
 import Filehub.SessionPool qualified as SessionPool
 import Filehub.Env.Internal qualified as Env
+import Filehub.Target.Class (IsTarget(..))
+import Control.Applicative (asum)
+import Filehub.Target.Types (TargetHandler, runTargetHandler)
 
 
 data TargetView = TargetView
@@ -42,8 +43,11 @@ data TargetView = TargetView
 
 
 getTargetId :: Target -> TargetId
-getTargetId (S3Target t) = t.targetId
-getTargetId (FileTarget t) = t.targetId
+getTargetId (Target t) = getTargetIdFromBackend t
+
+
+handleTarget :: Target -> [TargetHandler r] -> Maybe r
+handleTarget target handlers = asum (map (runTargetHandler target) handlers)
 
 
 currentTarget :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es TargetView
@@ -60,9 +64,9 @@ currentTarget sessionId = do
 changeCurrentTarget :: (Reader Env :> es, IOE :> es, Error FilehubError :> es, Log :> es) => SessionId -> TargetId -> Eff es ()
 changeCurrentTarget sessionId targetId = do
   logTrace_ [i|Changing target to #{targetId}|]
-  TargetView t _ _ <- currentTarget sessionId
+  TargetView target _ _ <- currentTarget sessionId
   targets <- Env.getTargets
-  if getTargetId t == targetId
+  if getTargetId target == targetId
      then pure ()
      else do
        case find (\(_, x) -> getTargetId x == targetId) ([0..] `zip` targets) of
@@ -80,11 +84,3 @@ withTarget sessionId targetId action = do
   result <- action
   changeCurrentTarget sessionId (getTargetId saved)
   pure result
-
-
-getS3Target :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es S3Target
-getS3Target sessionId = do
-  TargetView target _ _ <- currentTarget sessionId
-  case target of
-    S3Target t -> pure t
-    _ -> throwError TargetError

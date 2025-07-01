@@ -31,6 +31,8 @@ common extensions
       StrictData
       TypeApplications
       TypeOperators
+      TypeFamilies
+      FlexibleInstances
 
 
 common options

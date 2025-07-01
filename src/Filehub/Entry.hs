@@ -3,7 +3,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
 
-module Filehub.Entry (main, application) where
+module Filehub.Entry (main, mainDev, application) where
 
 import Effectful (runEff)
 import Data.Time (secondsToNominalDiffTime)
@@ -32,8 +32,9 @@ import Filehub.Storage.S3 qualified as S3
 import Lens.Micro
 import Paths_filehub qualified
 import Effectful.Log (runLog)
-import Filehub.Types (Target(..))
 import Effectful.FileSystem (runFileSystem)
+import Filehub.Types (Target(..))
+import System.Environment (withArgs)
 
 
 application :: Env -> Application
@@ -89,5 +90,12 @@ main = Log.withColoredStdoutLogger \logger -> do
 
     fromTargetOptions opts = traverse transform opts
       where
-        transform (FSTargetOption opt) = FileTarget <$> FS.initialize opt
-        transform (S3TargetOption opt) = S3Target <$> S3.initialize opt
+        transform (FSTargetOption opt) = Target <$> FS.initialize opt
+        transform (S3TargetOption opt) = Target <$> S3.initialize opt
+
+
+-- | For developement with ghciwatch
+--   Run `ghciwatch --test-ghci "Filehub.Entry.mainDev <your args for testing>"`
+--   ghciwatch will watch file changes and rerun the server automatically.
+mainDev :: [String] -> IO ()
+mainDev args = withArgs args main

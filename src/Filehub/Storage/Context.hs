@@ -7,7 +7,7 @@ import Effectful ((:>), IOE)
 import Lens.Micro.Platform ()
 import Data.Generics.Labels ()
 import Prelude hiding (readFile, writeFile)
-import Filehub.Types ( Env )
+import Filehub.Env.Types ( Env )
 import Effectful.FileSystem
 import Effectful.Reader.Dynamic (Reader)
 import Effectful.Error.Dynamic (Error)

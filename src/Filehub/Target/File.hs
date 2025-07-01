@@ -1,14 +1,18 @@
-{-# LANGUAGE DeriveGeneric #-}
-
 module Filehub.Target.File where
+
 import Filehub.Target.Types.TargetId (TargetId)
+import Filehub.Target.Class (IsTarget (..))
 import Data.Text (Text)
-import GHC.Generics (Generic)
 
 
-data FileTarget = FileTarget_
-  { targetId :: TargetId
-  , targetName :: Maybe Text
-  , root :: FilePath
-  }
-  deriving (Show, Eq, Generic)
+data FileSys
+
+
+instance IsTarget FileSys where
+  data Backend FileSys =
+    FileBackend
+      { targetId :: TargetId
+      , targetName :: Maybe Text
+      , root :: FilePath
+      }
+  getTargetIdFromBackend f = f.targetId

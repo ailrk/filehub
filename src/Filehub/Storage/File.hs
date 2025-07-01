@@ -24,9 +24,7 @@ import Filehub.Storage.Context qualified as Storage
 import Filehub.Types ( SessionId, File(..), FileContent(..), ClientPath )
 import Filehub.Storage.Types (Storage(..))
 import Filehub.Options ( FSTargetOption(..) )
-import Filehub.Types
-    ( FileTarget(..),
-      TargetId(..) )
+import Filehub.Types ( TargetId(..) )
 import Network.Mime (defaultMimeLookup)
 import Prelude hiding (read, readFile, writeFile)
 import Servant.Multipart (MultipartData(..), Mem, FileData (..))
@@ -38,6 +36,7 @@ import Data.String.Interpolate (i)
 import UnliftIO (MonadIO (..))
 import Lens.Micro.Platform ()
 import Data.ByteString (ByteString)
+import Filehub.Target.File (FileSys, Backend (..))
 
 
 get :: Storage.Context es => SessionId -> FilePath -> Eff es File
@@ -95,6 +94,7 @@ newFolder sessionId name = do
   filePath <- toFilePath sessionId name
   exists <- doesFileExist filePath
   when exists do
+    logAttention "[newFolder] path doesn't exists:" filePath
     throwError FileExists
   createDirectoryIfMissing True filePath
 
@@ -104,6 +104,7 @@ new sessionId name = do
   filePath <- toFilePath sessionId name
   exists <- doesFileExist filePath
   when exists do
+    logAttention "[new] path doesn't exists:" filePath
     throwError FileExists
   withFile filePath ReadWriteMode (\_ -> pure ())
 
@@ -141,6 +142,7 @@ cd :: Storage.Context es => SessionId -> FilePath -> Eff es ()
 cd sessionId path = do
   exists <- doesDirectoryExist path
   unless exists do
+    logAttention "[cd] dir doesn't exists:" path
     throwError InvalidDir
   Env.setCurrentDir sessionId path
 
@@ -150,6 +152,7 @@ lsCwd sessionId = do
   path <- Env.getCurrentDir sessionId
   exists <- doesDirectoryExist path
   unless exists do
+    logAttention "[lsCwd] dir doesn't exists:" path
     throwError InvalidDir
   ls sessionId path
 
@@ -193,12 +196,12 @@ storage sessionId =
     }
 
 
-initialize :: (IOE :> es, Log :> es, FileSystem :> es) => FSTargetOption -> Eff es FileTarget
+initialize :: (IOE :> es, Log :> es, FileSystem :> es) => FSTargetOption -> Eff es (Backend FileSys)
 initialize opt = do
   targetId <- liftIO $ TargetId <$> UUID.nextRandom
   root <- makeAbsolute opt.root
   logInfo_ [i|Initialized: #{targetId} - FS #{root}|]
-  pure $ FileTarget_ targetId Nothing root
+  pure $ FileBackend targetId Nothing root
 
 
 --

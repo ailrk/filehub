@@ -11,13 +11,19 @@ module Filehub.Storage
 
 import Data.Generics.Labels ()
 import Effectful ( Eff, Eff )
+import Effectful.Error.Dynamic (throwError)
+import Effectful.Log (logAttention_)
+import Filehub.Target.File (FileSys)
+import Filehub.Target.S3 (S3)
+import Filehub.Target.Types (targetHandler)
+import Filehub.Error (FilehubError(..))
 import Filehub.Env qualified as Env
-import Filehub.Target (TargetView(..))
+import Filehub.Target (TargetView(..), handleTarget)
 import Filehub.Storage.Context qualified as Storage
 import Filehub.Storage.File qualified as File
 import Filehub.Storage.S3 qualified as S3
 import Filehub.Storage.Types (Storage(..))
-import Filehub.Types (SessionId, Target(..))
+import Filehub.Types (SessionId)
 import Lens.Micro.Platform ()
 import Prelude hiding (read, readFile, writeFile)
 
@@ -25,6 +31,11 @@ import Prelude hiding (read, readFile, writeFile)
 getStorage :: Storage.Context es => SessionId -> Eff es (Storage (Eff es))
 getStorage sessionId = do
   TargetView target _ _ <- Env.currentTarget sessionId
-  case target of
-    S3Target _ -> pure $ S3.storage sessionId
-    FileTarget _ -> pure $ File.storage sessionId
+  maybe onError pure $ handleTarget target
+    [ targetHandler @FileSys $ \_ -> File.storage sessionId
+    , targetHandler @S3 $ \_ -> S3.storage sessionId
+    ]
+  where
+    onError = do
+      logAttention_ "[getStorage] target error"
+      throwError TargetError
