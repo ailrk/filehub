@@ -5,36 +5,36 @@
 
 module Filehub.Entry (main, mainDev, application) where
 
-import Effectful (runEff)
 import Data.Time (secondsToNominalDiffTime)
-import Text.Printf (printf)
-import UnliftIO (SomeException, hFlush, stdout, catch)
-import Network.Wai.Middleware.RequestLogger (logStdout)
+import Effectful (runEff)
+import Effectful.FileSystem (runFileSystem)
+import Effectful.Log (runLog)
+import Filehub.Env
+import Filehub.Log qualified as Log
+import Filehub.Monad
+import Filehub.Options (Options(..), parseOptions, TargetOption (..))
+import Filehub.Routes qualified as Routes
+import Filehub.Server qualified as Server
+import Filehub.Server.Context.ReadOnly qualified as Server.Context.ReadOnly
+import Filehub.Server.Context.Resolution qualified as Server.Context.Resolution
+import Filehub.Server.Context.Session qualified as Server.Context.Session
+import Filehub.Server.Middleware qualified as Server.Middleware
+import Filehub.Server.Middleware.Display qualified as Server.Middleware.Display
+import Filehub.Server.Middleware.Session qualified as Server.Middleware.Session
+import Filehub.SessionPool qualified as SessionPool
+import Filehub.Target.Storage.File qualified as FS
+import Filehub.Target.Storage.S3 qualified as S3
+import Filehub.Types (Target(..))
+import Lens.Micro
 import Network.Wai.Handler.Warp (setPort, defaultSettings, runSettings)
+import Network.Wai.Middleware.RequestLogger (logStdout)
+import Paths_filehub qualified
 import Servant (serveWithContextT, Context (..), Application, serveDirectoryWebApp, (:<|>) (..))
 import Servant.Conduit ()
 import System.Directory (makeAbsolute)
-import Filehub.Server.Middleware qualified as Server.Middleware
-import Filehub.Server.Middleware.Session qualified as Server.Middleware.Session
-import Filehub.Server.Middleware.Display qualified as Server.Middleware.Display
-import Filehub.Server.Context.Session qualified as Server.Context.Session
-import Filehub.Server.Context.ReadOnly qualified as Server.Context.ReadOnly
-import Filehub.Server.Context.Resolution qualified as Server.Context.Resolution
-import Filehub.Server qualified as Server
-import Filehub.Monad
-import Filehub.Options (Options(..), parseOptions, TargetOption (..))
-import Filehub.Env
-import Filehub.SessionPool qualified as SessionPool
-import Filehub.Routes qualified as Routes
-import Filehub.Log qualified as Log
-import Filehub.Storage.File qualified as FS
-import Filehub.Storage.S3 qualified as S3
-import Lens.Micro
-import Paths_filehub qualified
-import Effectful.Log (runLog)
-import Effectful.FileSystem (runFileSystem)
-import Filehub.Types (Target(..))
 import System.Environment (withArgs)
+import Text.Printf (printf)
+import UnliftIO (SomeException, hFlush, stdout, catch)
 
 
 application :: Env -> Application

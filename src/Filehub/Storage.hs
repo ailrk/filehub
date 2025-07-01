@@ -19,10 +19,10 @@ import Filehub.Target.Types (targetHandler)
 import Filehub.Error (FilehubError(..))
 import Filehub.Env qualified as Env
 import Filehub.Target (TargetView(..), handleTarget)
-import Filehub.Storage.Context qualified as Storage
-import Filehub.Storage.File qualified as File
-import Filehub.Storage.S3 qualified as S3
-import Filehub.Storage.Types (Storage(..))
+import Filehub.Target.Storage.Context qualified as Storage
+import Filehub.Target.Storage.File qualified as File
+import Filehub.Target.Storage.S3 qualified as S3
+import Filehub.Target.Types (Storage(..))
 import Filehub.Types (SessionId)
 import Lens.Micro.Platform ()
 import Prelude hiding (read, readFile, writeFile)

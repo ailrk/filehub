@@ -1,6 +1,6 @@
 {-# LANGUAGE ConstraintKinds #-}
 
-module Filehub.Storage.S3 (storage, initialize) where
+module Filehub.Target.Storage.S3 (storage, initialize) where
 
 import Codec.Archive.Zip (ZipOption(..))
 import Codec.Archive.Zip qualified as Zip
@@ -25,8 +25,8 @@ import Filehub.ClientPath (fromClientPath)
 import Filehub.Env qualified as Env
 import Filehub.Target (TargetView(..), handleTarget)
 import Filehub.Error (FilehubError (..))
-import Filehub.Storage.Context qualified as Storage
-import Filehub.Storage.Types (Storage(..))
+import Filehub.Target.Storage.Context qualified as Storage
+import Filehub.Target.Types (Storage(..))
 import Filehub.Types (File(..), FileContent(..), ClientPath, SessionId)
 import Lens.Micro
 import Network.Mime (defaultMimeLookup)

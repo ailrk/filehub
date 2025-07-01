@@ -1,20 +1,20 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module Filehub.Session.Types where
+module Filehub.Session.Types
+  ( SessionId(..),
+    Session(..),
+    TargetSessionData(..)
+  )
+  where
 
-import Data.UUID (UUID)
-import Data.Hashable (Hashable)
 import Filehub.Display (Resolution)
 import Filehub.UserAgent (DeviceType)
 import Data.Time (UTCTime)
 import GHC.Generics (Generic)
+import Filehub.Session.Types.SessionId (SessionId(..))
 import Filehub.Sort (SortFileBy)
 import Filehub.Copy.Types (CopyState)
 import Filehub.Selected.Types (Selected)
-
-
-newtype SessionId = SessionId UUID
-  deriving (Show, Eq, Ord, Hashable)
 
 
 data Session = Session

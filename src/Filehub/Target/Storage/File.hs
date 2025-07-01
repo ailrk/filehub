@@ -1,7 +1,7 @@
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE ConstraintKinds #-}
 
-module Filehub.Storage.File (storage, initialize) where
+module Filehub.Target.Storage.File (storage, initialize) where
 
 import Codec.Archive.Zip (ZipOption(..))
 import Codec.Archive.Zip qualified as Zip
@@ -20,9 +20,9 @@ import Effectful.Log
 import Filehub.ClientPath (fromClientPath)
 import Filehub.Env qualified as Env
 import Filehub.Error (FilehubError(..))
-import Filehub.Storage.Context qualified as Storage
+import Filehub.Target.Storage.Context qualified as Storage
 import Filehub.Types ( SessionId, File(..), FileContent(..), ClientPath )
-import Filehub.Storage.Types (Storage(..))
+import Filehub.Target.Types (Storage(..))
 import Filehub.Options ( FSTargetOption(..) )
 import Filehub.Types ( TargetId(..) )
 import Network.Mime (defaultMimeLookup)
