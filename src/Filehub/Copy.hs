@@ -18,8 +18,8 @@ import Effectful.Reader.Dynamic (Reader)
 import Effectful.FileSystem (FileSystem)
 import Effectful.Log (Log, logAttention_)
 import Filehub.Types (Env, CopyState(..), SessionId, File(..), Selected (..))
+import Filehub.Target (TargetView(..))
 import Filehub.Error (FilehubError (..))
-import Filehub.Env (TargetView(..))
 import Filehub.Env qualified as Env
 import Filehub.Storage (getStorage, Storage(..))
 import Filehub.Target qualified as Target

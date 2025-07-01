@@ -24,11 +24,12 @@ import Filehub.Types
 import Filehub.Error (FilehubError (..))
 import Filehub.SessionPool (getSession, updateSession)
 import Filehub.Env.Internal (getSessionPool, getDataDir, getTheme, getReadOnly, getSessionDuration, getTargets)
-import Filehub.Target (currentTarget, changeCurrentTarget, TargetView (..))
+import Filehub.Target (currentTarget, changeCurrentTarget)
 import Filehub.Target qualified as Target
 import Filehub.Display qualified as Display
 import Filehub.Target.File (Backend(..), FileSys)
 import Filehub.Target.S3 (S3)
+import Filehub.Target.Types.TargetView (TargetView(..))
 import Control.Applicative (asum)
 import Data.Typeable (cast)
 import Data.Maybe (fromMaybe)

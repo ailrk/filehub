@@ -3,9 +3,9 @@
 module Filehub.Server.Desktop where
 
 import Filehub.ClientPath qualified as ClientPath
-import Filehub.Env (TargetView (..))
 import Filehub.Env qualified as Env
 import Filehub.Target qualified as Target
+import Filehub.Target.Types.TargetView (TargetView(..))
 import Filehub.Error ( withServerError )
 import Filehub.Monad ( Filehub )
 import Filehub.Selected qualified as Selected

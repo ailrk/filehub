@@ -154,9 +154,11 @@ library
       Filehub.Target.Class
       Filehub.Target.Types
       Filehub.Target.Types.TargetId
+      Filehub.Target.Types.TargetView
       Filehub.Target.Storage.Context
       Filehub.Target.Storage.File
       Filehub.Target.Storage.S3
+      Filehub.Target.Storage.Types
       Filehub.Target.File
       Filehub.Target.S3
       Filehub.Template

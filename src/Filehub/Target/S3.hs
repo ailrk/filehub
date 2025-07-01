@@ -1,9 +1,9 @@
 module Filehub.Target.S3 where
 
 import Filehub.Target.Types.TargetId (TargetId)
+import Filehub.Target.Class (IsTarget (..))
 import Data.Text (Text)
 import Amazonka.Env qualified as Amazonka
-import Filehub.Target.Class (IsTarget (..))
 
 
 data S3

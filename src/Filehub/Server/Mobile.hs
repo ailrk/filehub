@@ -11,9 +11,9 @@ import Lucid
 import Prelude hiding (readFile)
 import Filehub.Template.Mobile qualified as Template.Mobile
 import Filehub.Template.Internal qualified as Template
-import Filehub.Env (TargetView (..))
 import Filehub.Env qualified as Env
 import Filehub.Target qualified as Target
+import Filehub.Target.Types.TargetView (TargetView(..))
 import Filehub.Error ( withServerError, withServerError )
 import Filehub.Selected qualified as Selected
 import Filehub.Sort (sortFiles)

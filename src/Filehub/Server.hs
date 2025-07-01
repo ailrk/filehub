@@ -24,9 +24,9 @@ import Control.Monad (when)
 import System.FilePath ((</>), takeFileName)
 import Text.Printf (printf)
 import Filehub.Target qualified as Target
+import Filehub.Target.Types.TargetView (TargetView(..))
 import Filehub.Types
     ( FilehubEvent (..))
-import Filehub.Env (TargetView (..))
 import Filehub.Env qualified as Env
 import Filehub.Error ( withServerError, FilehubError(..), FilehubError(..), withServerError )
 import Filehub.Monad ( Filehub )

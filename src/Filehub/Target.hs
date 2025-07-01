@@ -10,12 +10,10 @@ module Filehub.Target
 
 import Filehub.Types
     ( Target(..),
-      TargetSessionData(..),
       TargetId(..),
       Env(..),
       SessionId,
-      Target,
-      TargetSessionData )
+      Target)
 import Data.List (find)
 import Data.Generics.Labels ()
 import Data.String.Interpolate (i)
@@ -25,21 +23,13 @@ import Effectful.Error.Dynamic (Error, throwError)
 import Effectful.Log (Log, logAttention, logTrace_)
 import Lens.Micro hiding (to)
 import Lens.Micro.Platform ()
-import GHC.Generics (Generic)
 import Filehub.Error (FilehubError (..))
 import Filehub.SessionPool qualified as SessionPool
 import Filehub.Env.Internal qualified as Env
 import Filehub.Target.Class (IsTarget(..))
 import Control.Applicative (asum)
+import Filehub.Target.Types.TargetView (TargetView(..))
 import Filehub.Target.Types (TargetHandler, runTargetHandler)
-
-
-data TargetView = TargetView
-  { target :: Target
-  , sessionData :: TargetSessionData
-  , index :: Int
-  }
-  deriving (Generic)
 
 
 getTargetId :: Target -> TargetId
