@@ -49,20 +49,17 @@ createSession = do
 
 targetToSessionData :: Target -> TargetSessionData
 targetToSessionData (Target target) =
-  fromMaybe (error "TODO need default" ). asum $
-    [ cast target <&> \(fs :: Backend FileSys) ->
-        TargetSessionData
-          { currentDir = fs.root
-          , sortedFileBy = ByNameUp
-          , selected = NoSelection
-          }
-    , cast target <&> \(_ :: Backend S3) ->
-        TargetSessionData
-          { currentDir = ""
-          , sortedFileBy = ByNameUp
-          , selected = NoSelection
-          }
+  fromMaybe defaultTargetSessionData . asum $
+    [ cast target <&> \(x :: Backend FileSys) -> defaultTargetSessionData { currentDir = x.root }
+    , cast target <&> \(_ :: Backend S3) -> defaultTargetSessionData
     ]
+  where
+    defaultTargetSessionData =
+      TargetSessionData
+        { currentDir = ""
+        , sortedFileBy = ByNameUp
+        , selected = NoSelection
+        }
 
 
 extendSession :: NominalDiffTime -> Session -> Session
