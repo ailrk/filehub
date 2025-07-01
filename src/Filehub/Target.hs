@@ -51,7 +51,6 @@ currentTarget sessionId = do
       pure $ TargetView target targetSessionData index
 
 
-
 changeCurrentTarget :: (Reader Env :> es, IOE :> es, Error FilehubError :> es, Log :> es) => SessionId -> TargetId -> Eff es ()
 changeCurrentTarget sessionId targetId = do
   logTrace_ [i|Changing target to #{targetId}|]

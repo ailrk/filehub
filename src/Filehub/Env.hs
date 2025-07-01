@@ -29,6 +29,7 @@ import Filehub.Target qualified as Target
 import Filehub.Display qualified as Display
 import Filehub.Target.File (Backend(..), FileSys)
 import Filehub.Target.S3 (S3)
+import Filehub.UserAgent qualified as UserAgent
 import Filehub.Target.Types.TargetView (TargetView(..))
 import Control.Applicative (asum)
 import Data.Typeable (cast)
@@ -67,5 +68,8 @@ getDisplay :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es)
 getDisplay sessionId = do
   session <- getSession sessionId
   case session ^. #resolution of
-    Just resolution -> pure $ Display.classify resolution
+    Just resolution ->
+      case session ^. #deviceType of
+        UserAgent.Desktop -> pure Desktop
+        _ -> pure $ Display.classify resolution
     Nothing -> pure NoDisplay
