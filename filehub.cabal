@@ -150,15 +150,15 @@ library
       Filehub.Size
       Filehub.Sort
       Filehub.Storage
+      Filehub.Storage.Context
+      Filehub.Storage.File
+      Filehub.Storage.S3
+      Filehub.Storage.Types
       Filehub.Target
       Filehub.Target.Class
       Filehub.Target.Types
       Filehub.Target.Types.TargetId
       Filehub.Target.Types.TargetView
-      Filehub.Target.Storage.Context
-      Filehub.Target.Storage.File
-      Filehub.Target.Storage.S3
-      Filehub.Target.Storage.Types
       Filehub.Target.File
       Filehub.Target.S3
       Filehub.Template

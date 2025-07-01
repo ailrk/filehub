@@ -1,4 +1,4 @@
-module Filehub.Target.Storage.Types where
+module Filehub.Storage.Types where
 
 
 import Filehub.File (File)

@@ -1,7 +1,7 @@
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE ConstraintKinds #-}
 
-module Filehub.Target.Storage.File (storage, initialize) where
+module Filehub.Storage.File (storage) where
 
 import Codec.Archive.Zip (ZipOption(..))
 import Codec.Archive.Zip qualified as Zip
@@ -11,7 +11,7 @@ import Data.ByteString.Lazy qualified as LBS
 import Data.Generics.Labels ()
 import Data.Text qualified as Text
 import Data.Time.Clock.POSIX qualified as Time
-import Effectful ( Eff, Eff, (:>), IOE )
+import Effectful ( Eff, Eff )
 import Effectful.Error.Dynamic (throwError)
 import Effectful.FileSystem
 import Effectful.FileSystem.IO (withFile, IOMode (..))
@@ -21,19 +21,14 @@ import Filehub.ClientPath (fromClientPath)
 import Filehub.Env qualified as Env
 import Filehub.Error (FilehubError(..))
 import Filehub.Types ( SessionId, File(..), FileContent(..), ClientPath )
-import Filehub.Options ( FSTargetOption(..) )
 import Filehub.Target.Types (Storage(..))
-import Filehub.Target.Storage.Context qualified as Storage
-import Filehub.Target.File (FileSys, Backend (..))
-import Filehub.Target.Types.TargetId (TargetId(..))
+import Filehub.Storage.Context qualified as Storage
 import Network.Mime (defaultMimeLookup)
 import Prelude hiding (read, readFile, writeFile)
 import Servant.Multipart (MultipartData(..), Mem, FileData (..))
 import System.FilePath ( (</>) )
 import System.Posix qualified as Posix
-import Data.UUID.V4 qualified as UUID
 import Data.Generics.Labels ()
-import Data.String.Interpolate (i)
 import UnliftIO (MonadIO (..))
 import Lens.Micro.Platform ()
 import Data.ByteString (ByteString)
@@ -194,14 +189,6 @@ storage sessionId =
     , download = download sessionId
     , isDirectory = isDirectory sessionId
     }
-
-
-initialize :: (IOE :> es, Log :> es, FileSystem :> es) => FSTargetOption -> Eff es (Backend FileSys)
-initialize opt = do
-  targetId <- liftIO $ TargetId <$> UUID.nextRandom
-  root <- makeAbsolute opt.root
-  logInfo_ [i|Initialized: #{targetId} - FS #{root}|]
-  pure $ FileBackend targetId Nothing root
 
 
 --

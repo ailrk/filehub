@@ -11,7 +11,7 @@ module Filehub.Target.Types
   where
 
 import Filehub.Target.Class (IsTarget(..))
-import Filehub.Target.Storage.Types (Storage(..))
+import Filehub.Storage.Types (Storage(..))
 import Data.Typeable (Typeable, cast)
 import Lens.Micro.Platform ()
 import Data.Generics.Labels ()

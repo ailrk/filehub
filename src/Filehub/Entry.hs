@@ -22,9 +22,9 @@ import Filehub.Server.Middleware qualified as Server.Middleware
 import Filehub.Server.Middleware.Display qualified as Server.Middleware.Display
 import Filehub.Server.Middleware.Session qualified as Server.Middleware.Session
 import Filehub.SessionPool qualified as SessionPool
-import Filehub.Target.Storage.File qualified as FS
-import Filehub.Target.Storage.S3 qualified as S3
 import Filehub.Types (Target(..))
+import Filehub.Target.File qualified as FS
+import Filehub.Target.S3 qualified as S3
 import Lens.Micro
 import Network.Wai.Handler.Warp (setPort, defaultSettings, runSettings)
 import Network.Wai.Middleware.RequestLogger (logStdout)

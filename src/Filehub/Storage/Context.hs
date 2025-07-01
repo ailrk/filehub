@@ -1,6 +1,6 @@
 {-# LANGUAGE ConstraintKinds #-}
 
-module Filehub.Target.Storage.Context (Context) where
+module Filehub.Storage.Context (Context) where
 
 import Filehub.Error (FilehubError(..))
 import Effectful ((:>), IOE)
