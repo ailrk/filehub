@@ -6,6 +6,7 @@ maintainer:         jimmy@ailrk.com
 build-type:         Simple
 extra-doc-files:    CHANGELOG.md
 data-files:         data/**/*.css
+                    data/*.css
                     data/**/*.js
                     data/**/*.png
                     data/**/*.ico

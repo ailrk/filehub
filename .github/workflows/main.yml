@@ -27,7 +27,7 @@ jobs:
       - name: "Upload binary"
         uses: actions/upload-artifact@v4
         with:
-          name: filehub-macos
+          name: filehub-linux-x86-64
           path: ./result/bin/filehub
 
   build-macos:
@@ -50,5 +50,5 @@ jobs:
       - name: "Upload binary"
         uses: actions/upload-artifact@v4
         with:
-          name: filehub-macos
+          name: filehub-macos-x86-64
           path: ./result/bin/filehub
