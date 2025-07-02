@@ -25,7 +25,7 @@ jobs:
           nix build
 
       - name: "Upload binary"
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: filehub-macos
           path: ./result/bin/filehub
@@ -48,7 +48,7 @@ jobs:
           nix build
 
       - name: "Upload binary"
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: filehub-macos
           path: ./result/bin/filehub
