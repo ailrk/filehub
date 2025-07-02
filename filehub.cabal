@@ -7,6 +7,8 @@ build-type:         Simple
 extra-doc-files:    CHANGELOG.md
 data-files:         data/**/*.css
                     data/**/*.js
+                    data/**/*.png
+                    data/**/*.ico
 
 
 common extensions
