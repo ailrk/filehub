@@ -89,8 +89,6 @@ import Filehub.Storage (getStorage, Storage(..))
 import Conduit (ConduitT, ResourceT)
 import Network.Wai.Handler.Warp (setPort, defaultSettings, runSettings)
 import Network.Wai.Middleware.RequestLogger (logStdout)
-import Paths_filehub qualified
-import System.Directory (makeAbsolute)
 import System.Environment (withArgs)
 import UnliftIO (hFlush, stdout)
 import Debug.Trace (traceM)
