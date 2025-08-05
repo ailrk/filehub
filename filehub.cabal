@@ -121,7 +121,6 @@ library
       Filehub.Copy
       Filehub.Copy.Types
       Filehub.Display
-      Filehub.Entry
       Filehub.Env
       Filehub.Env.Internal
       Filehub.Env.Types

@@ -1,26 +1,37 @@
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE NamedFieldPuns #-}
-module Filehub.Server (server) where
+module Filehub.Server (main, mainDev) where
 
 import Data.String.Interpolate (i)
 import Data.Maybe (fromMaybe, isJust)
 import Data.Foldable (forM_)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
+import Data.ByteString (ByteString)
+import Data.ByteString.Char8 qualified as ByteString
+import Data.Aeson (object, KeyValue (..), (.:), withObject)
+import Data.Aeson.Types (parseMaybe)
+import Data.ByteString.Lazy qualified as LBS
+import Data.Time (secondsToNominalDiffTime)
 import Effectful.Log (logAttention_)
 import Effectful ( withRunInIO, MonadIO (liftIO) )
 import Effectful.Error.Dynamic (throwError)
 import Effectful.FileSystem.IO.ByteString.Lazy (readFile)
+import Effectful (runEff)
+import Effectful.FileSystem (runFileSystem)
+import Effectful.Log (runLog)
 import Lens.Micro
 import Lens.Micro.Platform ()
 import Lucid
 import Prelude hiding (readFile)
-import Servant (errBody, Headers, Header, NoContent (..))
 import Servant.Server.Generic (AsServerT)
+import Servant (errBody, Headers, Header, NoContent (..))
+import Servant (addHeader, err500)
+import Servant (serveWithContextT, Context (..), Application, serveDirectoryWebApp, (:<|>) (..))
+import Servant.Conduit ()
 import Control.Exception (SomeException)
-import Servant ( addHeader, err500 )
-import UnliftIO (catch)
 import Control.Monad (when)
+import UnliftIO (catch)
 import System.FilePath ((</>), takeFileName)
 import Text.Printf (printf)
 import Filehub.Target qualified as Target
@@ -29,19 +40,33 @@ import Filehub.Types
     ( FilehubEvent (..))
 import Filehub.Env qualified as Env
 import Filehub.Error ( withServerError, FilehubError(..), FilehubError(..), withServerError )
-import Filehub.Monad ( Filehub )
 import Filehub.Routes (Api (..))
 import Filehub.Types
     ( SessionId(..), Display (..))
-import Filehub.Server.Desktop qualified as Server.Desktop
-import Filehub.Server.Mobile qualified as Server.Mobile
 import Filehub.Template.Internal qualified as Template
 import Filehub.Template qualified as Template
 import Filehub.Template.Desktop qualified as Template.Desktop
 import Filehub.Template.Mobile qualified as Template.Mobile
 import Filehub.ClientPath qualified as ClientPath
 import Filehub.Selected qualified as Selected
+import Filehub.Env
+import Filehub.Log qualified as Log
+import Filehub.Monad
+import Filehub.Options (Options(..), parseOptions, TargetOption (..))
+import Filehub.Routes qualified as Routes
+import Filehub.Server.Context.ReadOnly qualified as Server.Context.ReadOnly
+import Filehub.Server.Context.Resolution qualified as Server.Context.Resolution
+import Filehub.Server.Context.Session qualified as Server.Context.Session
+import Filehub.Server.Middleware qualified as Server.Middleware
+import Filehub.Server.Middleware.Display qualified as Server.Middleware.Display
+import Filehub.Server.Middleware.Session qualified as Server.Middleware.Session
+import Filehub.Server.Desktop qualified as Server.Desktop
+import Filehub.Server.Mobile qualified as Server.Mobile
 import Filehub.Server.Internal (withQueryParam, clear, copy, paste)
+import Filehub.SessionPool qualified as SessionPool
+import Filehub.Types (Target(..))
+import Filehub.Target.File qualified as FS
+import Filehub.Target.S3 qualified as S3
 import Filehub.Theme qualified as Theme
 import Filehub.Types
     ( File(..),
@@ -56,14 +81,15 @@ import Filehub.Types
       Selected (..))
 import Filehub.Viewer qualified as Viewer
 import Filehub.ControlPanel qualified as ControlPanel
-import Data.ByteString.Char8 qualified as ByteString
 import Filehub.Storage (getStorage, Storage(..))
-import Data.ByteString (ByteString)
 import Conduit (ConduitT, ResourceT)
-import Data.Aeson (object, KeyValue (..), (.:), withObject)
-import Data.ByteString.Lazy qualified as LBS
-import Data.Aeson.Types (parseMaybe)
-import Debug.Trace
+import Network.Wai.Handler.Warp (setPort, defaultSettings, runSettings)
+import Network.Wai.Middleware.RequestLogger (logStdout)
+import Paths_filehub qualified
+import System.Directory (makeAbsolute)
+import System.Environment (withArgs)
+import UnliftIO (hFlush, stdout)
+
 
 
 -- | Server definition
@@ -243,7 +269,6 @@ server = Api
   , initViewer = \sessionId mClientPath -> do
       withServerError do
         clientPath <- withQueryParam mClientPath
-        traceM (show clientPath)
         root <- Env.getCurrentDir sessionId
         payload <- Viewer.initViewer sessionId root clientPath
         pure $ addHeader payload NoContent
@@ -374,3 +399,65 @@ serve sessionId mFile = do
       $ addHeader (ByteString.unpack file.mimetype)
       $ addHeader (printf "inline; filename=%s" (takeFileName path))
       $ conduit
+
+
+application :: Env -> Application
+application env
+  = Server.Middleware.exposeHeaders
+  . Server.Middleware.Session.sessionMiddleware env
+  . Server.Middleware.dedupHeadersKeepLast
+  . Server.Middleware.Display.displayMiddleware env
+  . serveWithContextT Routes.api ctx (toServantHandler env)
+  $ server :<|> serveDirectoryWebApp env.dataDir
+  where
+
+    ctx = Server.Context.Session.sessionHandler env
+        :. Server.Context.ReadOnly.readOnlyHandler env
+        :. Server.Context.Resolution.desktopOnlyHandler env
+        :. Server.Context.Resolution.mobileOnlyHandler env
+        :. EmptyContext
+
+------------------------------------
+-- main
+------------------------------------
+
+
+main :: IO ()
+main = Log.withColoredStdoutLogger \logger -> do
+  options <- parseOptions
+  dataDir <- Paths_filehub.getDataDir >>= makeAbsolute <&> (++ "/data")
+  sessionPool <- runEff SessionPool.new
+  targets <- runEff . runLog "Targets" logger options.verbosity . runFileSystem $ fromTargetOptions options.targets
+  printf "PORT: %d\n" options.port
+  printf "V: %s\n" (show options.verbosity)
+  let env =
+        Env
+          { port = options.port
+          , dataDir = dataDir
+          , theme = options.theme
+          , sessionPool = sessionPool
+          , sessionDuration = secondsToNominalDiffTime (60 * 60)
+          , targets = targets
+          , readOnly = options.readOnly
+          , logger = logger
+          , logLevel = options.verbosity
+          }
+  go env `catch` handler
+  where
+    go env = do
+      putStr "[Filehub server is up and running]\n" >> hFlush stdout
+      let settings = setPort env.port defaultSettings
+      runSettings settings . logStdout $ application env
+    handler (e :: SomeException) = putStrLn ("server is down " <> show e) >> hFlush stdout
+
+    fromTargetOptions opts = traverse transform opts
+      where
+        transform (FSTargetOption opt) = Target <$> FS.initialize opt
+        transform (S3TargetOption opt) = Target <$> S3.initialize opt
+
+
+-- | For developement with ghciwatch
+--   Run `ghciwatch --test-ghci "Filehub.Entry.mainDev <your args for testing>"`
+--   ghciwatch will watch file changes and rerun the server automatically.
+mainDev :: [String] -> IO ()
+mainDev args = withArgs args main
