@@ -30,8 +30,9 @@ jobs:
           name: filehub-linux-x86-64
           path: ./result/bin/filehub
 
-  build-macos:
-    name: Build (macOS)
+
+  build-macos-m1:
+    name: Build (macOS m1)
     runs-on: macos-latest
     steps:
       - name: "Checkout"
@@ -50,5 +51,36 @@ jobs:
       - name: "Upload binary"
         uses: actions/upload-artifact@v4
         with:
-          name: filehub-macos-x86-64
+          name: filehub-macos-m1
           path: ./result/bin/filehub
+
+
+  build-windows:
+    name: Build (windows)
+    runs-on: windows-latest
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v4
+
+      - uses: haskell/actions/setup@v2
+        with:
+          ghc-version: '9.6.6'
+          cabal-version: '3.10.1.0'
+
+      - name: Update cabal index
+        run: cabal update
+
+      - name: Build
+        run: cabal build all
+
+      - name: Copy executable
+        run: |
+          mkdir -Force dist
+          cp $(Get-ChildItem -Recurse -Filter '*.exe' | Select-Object -First 1).FullName dist\filehub.exe
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-binary
+          path: dist/filehub.exe
