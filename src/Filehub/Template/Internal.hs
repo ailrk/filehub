@@ -24,12 +24,12 @@ withDefault display background html = do
 
   script_ [ src_ "https://unpkg.com/hyperscript.org@0.9.13" ] ("" :: Text)
   script_ [ src_ "https://unpkg.com/htmx.org@2.0.3" ] ("" :: Text)
-  script_ [ src_ "/static/filehub/viewer.js", type_ "module" ] ("" :: Text)
-  script_ [ src_ "/static/filehub/ui.js", type_ "module" ] ("" :: Text)
+  script_ [ src_ "/static/viewer.js", type_ "module" ] ("" :: Text)
+  script_ [ src_ "/static/ui.js", type_ "module" ] ("" :: Text)
 
   meta_ [ name_ "viewport", content_ "width=device-width, initial-scale=1.0, viewport-fit=cover" ]
   link_ [ rel_ "stylesheet", href_ "https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" ]
-  link_ [ rel_ "stylesheet", href_ "/static/filehub/viewer.css" ]
+  link_ [ rel_ "stylesheet", href_ "/static/viewer.css" ]
   link_ [ rel_ "manifest", href_ "/manifest.json" ]
   link_ [rel_ "icon", type_ "image/png", href_ "/favicon-96x96.png", sizes_ "96x96"]
   link_ [rel_ "icon", type_ "image/svg+xml", href_ "/favicon.svg"]
@@ -43,9 +43,9 @@ withDefault display background html = do
   meta_ [ name_ "theme-color", content_ background ]
 
   case display of
-    Desktop -> link_ [ rel_ "stylesheet", href_ "/static/filehub/desktop.css" ]
-    Mobile -> link_ [ rel_ "stylesheet", href_ "/static/filehub/mobile.css" ]
-    NoDisplay -> link_ [ rel_ "stylesheet", href_ "/static/filehub/mobile.css" ]
+    Desktop -> link_ [ rel_ "stylesheet", href_ "/static/desktop.css" ]
+    Mobile -> link_ [ rel_ "stylesheet", href_ "/static/mobile.css" ]
+    NoDisplay -> link_ [ rel_ "stylesheet", href_ "/static/mobile.css" ]
   html
 
 

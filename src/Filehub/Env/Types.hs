@@ -10,7 +10,6 @@ import Log (Logger, LogLevel)
 data Env = Env
   { port :: !Int
   , theme :: Theme
-  , dataDir :: !FilePath
   , sessionPool :: SessionPool
   , sessionDuration :: NominalDiffTime
   , targets :: [Target]

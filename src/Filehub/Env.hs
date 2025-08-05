@@ -23,7 +23,7 @@ import Filehub.Types
     ( Env(..), Session(..), SessionId, Target(..), SortFileBy, Display (..))
 import Filehub.Error (FilehubError (..))
 import Filehub.SessionPool (getSession, updateSession)
-import Filehub.Env.Internal (getSessionPool, getDataDir, getTheme, getReadOnly, getSessionDuration, getTargets)
+import Filehub.Env.Internal (getSessionPool, getTheme, getReadOnly, getSessionDuration, getTargets)
 import Filehub.Target (currentTarget, changeCurrentTarget)
 import Filehub.Target qualified as Target
 import Filehub.Display qualified as Display

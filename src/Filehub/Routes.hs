@@ -16,9 +16,6 @@ import Servant
       Get,
       PlainText,
       NamedRoutes,
-      (:-),
-      Raw,
-      (:<|>)(..),
       Get,
       (:-),
       QueryParam,
@@ -33,6 +30,7 @@ import Servant
       StreamGet,
       NoFraming,
       NoContent,
+      CaptureAll,
     )
 import Lucid
 import Lens.Micro.Platform ()
@@ -248,6 +246,11 @@ data Api mode = Api
   , favicon         :: mode :- "favicon.ico" :> Get '[OctetStream] LBS.ByteString
 
 
+  -- /static serves static files, it faces the same problem /serve has.
+  , static          :: mode :- "static" :> CaptureAll "file" FilePath :> Get '[OctetStream]  (Headers '[ Header "Content-Type" String
+                                                                                                       ] LBS.ByteString)
+
+
   , offline         :: mode :- "offline" :> Get '[HTML] (Html ())
 
 
@@ -257,7 +260,6 @@ data Api mode = Api
 
 
 type API = NamedRoutes Api
-      :<|> "static" :> Raw -- static files for the app
 
 
 api :: Proxy API

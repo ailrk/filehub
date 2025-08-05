@@ -76,6 +76,7 @@ library
       , directory
       , effectful
       , filepath
+      , file-embed
       , fuzzy
       , generic-lens
       , hashable

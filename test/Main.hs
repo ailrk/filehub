@@ -7,7 +7,7 @@ import Network.Wai.Test
 import Filehub.ClientPath qualified as ClientPath
 import Filehub.SessionPool qualified as SessionPool
 import Filehub.Env (Env(..))
-import Filehub.Entry qualified as Filehub
+import Filehub.Server qualified as Filehub
 import Data.Char (isPrint)
 import System.FilePath.Posix ((</>), normalise)
 import Network.URI.Encode qualified as URI
@@ -198,7 +198,6 @@ serverSpec = before setup  $ after_ teardown do
             Env
               { port = 0
               , theme = Dark
-              , dataDir = root
               , sessionPool = sessionPool
               , sessionDuration = secondsToNominalDiffTime (60 * 60)
               , targets =

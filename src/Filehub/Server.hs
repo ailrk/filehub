@@ -1,10 +1,12 @@
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE NamedFieldPuns #-}
-module Filehub.Server (main, mainDev) where
+{-# LANGUAGE TemplateHaskell #-}
+module Filehub.Server (application, main, mainDev) where
 
 import Data.String.Interpolate (i)
 import Data.Maybe (fromMaybe, isJust)
 import Data.Foldable (forM_)
+import Data.List qualified as List
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.ByteString (ByteString)
@@ -12,11 +14,13 @@ import Data.ByteString.Char8 qualified as ByteString
 import Data.Aeson (object, KeyValue (..), (.:), withObject)
 import Data.Aeson.Types (parseMaybe)
 import Data.ByteString.Lazy qualified as LBS
+import Data.FileEmbed qualified as FileEmbed
 import Data.Time (secondsToNominalDiffTime)
+import Data.Map.Strict qualified as Map
+import Data.Map.Strict (Map)
 import Effectful.Log (logAttention_)
-import Effectful ( withRunInIO, MonadIO (liftIO) )
+import Effectful ( withRunInIO )
 import Effectful.Error.Dynamic (throwError)
-import Effectful.FileSystem.IO.ByteString.Lazy (readFile)
 import Effectful (runEff)
 import Effectful.FileSystem (runFileSystem)
 import Effectful.Log (runLog)
@@ -25,14 +29,14 @@ import Lens.Micro.Platform ()
 import Lucid
 import Prelude hiding (readFile)
 import Servant.Server.Generic (AsServerT)
-import Servant (errBody, Headers, Header, NoContent (..))
+import Servant (errBody, Headers, Header, NoContent (..), err404)
 import Servant (addHeader, err500)
-import Servant (serveWithContextT, Context (..), Application, serveDirectoryWebApp, (:<|>) (..))
+import Servant (serveWithContextT, Context (..), Application)
 import Servant.Conduit ()
 import Control.Exception (SomeException)
 import Control.Monad (when)
 import UnliftIO (catch)
-import System.FilePath ((</>), takeFileName)
+import System.FilePath (takeFileName)
 import Text.Printf (printf)
 import Filehub.Target qualified as Target
 import Filehub.Target.Types.TargetView (TargetView(..))
@@ -89,6 +93,8 @@ import Paths_filehub qualified
 import System.Directory (makeAbsolute)
 import System.Environment (withArgs)
 import UnliftIO (hFlush, stdout)
+import Debug.Trace (traceM)
+import Network.Mime qualified as Mime
 
 
 
@@ -293,11 +299,11 @@ server = Api
 
   , themeCss = do
       theme <- Env.getTheme
-      dir <- Env.getDataDir
-      readFile $
+      traceM (show (Map.keys staticFiles))
+      pure . LBS.fromStrict $
         case theme of
-          Dark -> dir </> "dark.css"
-          Light -> dir </> "light.css"
+          Dark -> fromMaybe "no-theme" $ Map.lookup "theme-dark.css" staticFiles
+          Light -> fromMaybe "no-theme" $ Map.lookup "theme-light.css" staticFiles
 
 
   , serve = serve
@@ -317,13 +323,13 @@ server = Api
           , "background_color" .= t background1
           , "icons" .=
               [ object
-                    [ "src"     .= t "/static/filehub/web-app-manifest-192x192.png"
+                    [ "src"     .= t "/static/web-app-manifest-192x192.png"
                     , "sizes"   .= t "192x192"
                     , "type"    .= t "image/png"
                     , "purpose" .= t "any"
                     ]
               , object
-                    [ "src"     .= t "/static/filehub/web-app-manifest-512x512.png"
+                    [ "src"     .= t "/static/web-app-manifest-512x512.png"
                     , "sizes"   .= t "512x512"
                     , "type"    .= t "image/png"
                     , "purpose" .= t "maskable"
@@ -332,9 +338,19 @@ server = Api
           ]
 
 
-  , favicon = do
-      dir <- Env.getDataDir
-      liftIO $ LBS.readFile $ dir </> "filehub/favicon.ico"
+  , favicon = pure $ LBS.fromStrict $(FileEmbed.embedFile "data/filehub/favicon.ico")
+
+
+  , static = \paths -> do
+      let path = List.intercalate "/" paths
+      case Map.lookup path staticFiles of
+        Just content -> do
+          let mimetype = Mime.defaultMimeLookup (Text.pack path)
+          pure
+            $ addHeader (ByteString.unpack mimetype)
+            $ LBS.fromStrict
+            $ content
+        Nothing -> throwError (err404 { errBody = [i|File doesn't exist|]})
 
 
   , offline = pure Template.offline
@@ -342,6 +358,13 @@ server = Api
 
   , healthz = pure "ok"
   }
+
+
+-- | Static files are embeded into the final excutable. The key is the path of the file.
+--   e.g ui.js -> (data/filehub/ui.js)
+staticFiles :: Map FilePath ByteString
+staticFiles = Map.fromList
+  $(FileEmbed.embedDir "data/filehub")
 
 
 -- | index that reset the state
@@ -401,6 +424,7 @@ serve sessionId mFile = do
       $ conduit
 
 
+
 application :: Env -> Application
 application env
   = Server.Middleware.exposeHeaders
@@ -408,7 +432,7 @@ application env
   . Server.Middleware.dedupHeadersKeepLast
   . Server.Middleware.Display.displayMiddleware env
   . serveWithContextT Routes.api ctx (toServantHandler env)
-  $ server :<|> serveDirectoryWebApp env.dataDir
+  $ server
   where
 
     ctx = Server.Context.Session.sessionHandler env
@@ -425,7 +449,6 @@ application env
 main :: IO ()
 main = Log.withColoredStdoutLogger \logger -> do
   options <- parseOptions
-  dataDir <- Paths_filehub.getDataDir >>= makeAbsolute <&> (++ "/data")
   sessionPool <- runEff SessionPool.new
   targets <- runEff . runLog "Targets" logger options.verbosity . runFileSystem $ fromTargetOptions options.targets
   printf "PORT: %d\n" options.port
@@ -433,7 +456,6 @@ main = Log.withColoredStdoutLogger \logger -> do
   let env =
         Env
           { port = options.port
-          , dataDir = dataDir
           , theme = options.theme
           , sessionPool = sessionPool
           , sessionDuration = secondsToNominalDiffTime (60 * 60)

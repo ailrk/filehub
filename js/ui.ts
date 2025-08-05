@@ -36,7 +36,7 @@ ViewerHandlers.register();
 /* Register service worker, required for PWA support. */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register( '/static/filehub/serviceWorker.js', { type: "module" })
+    navigator.serviceWorker.register( '/static/serviceWorker.js', { type: "module" })
       .then(reg => console.log('Service worker registered:', reg))
       .catch(err => console.error('Service worker registration failed:', err));
   });

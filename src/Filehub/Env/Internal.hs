@@ -1,7 +1,6 @@
 module Filehub.Env.Internal
   ( getPort
   , getSessionPool
-  , getDataDir
   , getTheme
   , getReadOnly
   , getSessionDuration
@@ -26,10 +25,6 @@ getPort = asks @Env (.port)
 
 getSessionPool :: (Reader Env :> es) => Eff es SessionPool
 getSessionPool = asks @Env (.sessionPool)
-
-
-getDataDir :: (Reader Env :> es) => Eff es FilePath
-getDataDir = asks @Env (.dataDir)
 
 
 getTheme :: (Reader Env :> es) => Eff es Theme
