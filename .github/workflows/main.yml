@@ -5,6 +5,16 @@ on:
     branches: [ "master" ]
   pull_request:
     branches: [ "master" ]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Target to build"
+        required: true
+        type: choice
+        options:
+          - linux
+          - macos
+          - windows
 
 jobs:
   build-linux:
@@ -34,6 +44,7 @@ jobs:
   build-macos-m1:
     name: Build (macOS m1)
     runs-on: macos-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'macos'
     steps:
       - name: "Checkout"
         uses: actions/checkout@v4
@@ -58,7 +69,7 @@ jobs:
   build-windows:
     name: Build (windows)
     runs-on: windows-latest
-
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'windows'
     steps:
       - name: "Checkout"
         uses: actions/checkout@v4
