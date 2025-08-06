@@ -126,6 +126,9 @@ class Viewer {
 
     this.canvas.innerHTML = '';
     this.canvas.appendChild(content);
+    const filename = (new URL(url, 'https://base.com')).searchParams.get('file')!;
+    this.title.innerHTML = filename;
+
     this.currentContent = content;
   }
 
