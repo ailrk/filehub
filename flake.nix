@@ -15,17 +15,28 @@
               filehub = (hfinal.callPackage ./default.nix {});
             };
         };
+
         filehub =
           with final.haskell.lib.compose;
           overrideCabal (drv: {
             disallowGhcReference = false;
             enableSeparateDataOutput = false;
-          }) (justStaticExecutables final.haskellPackages.filehub);
-      };
+            configureFlags = drv.configureFlags or [] ++ [
+              "--ghc-options=-O2"
+              "--ghc-options=-optl=-s"  # Strip via linker
+              "--ghc-options=-split-sections"
+              "--ghc-options=-fomit-interface-pragmas"
+            ];
+          }) (final.haskellPackages.filehub);
+        };
 
       perSystem = system:
         let
-          pkgs = import inputs.nixpkgs { inherit system; overlays = [ overlay ]; };
+          pkgs = import inputs.nixpkgs {
+            inherit system;
+            overlays = [ overlay ];
+            config.stripDebugInfo = true; # strip all debug infos
+          };
           hspkgs = pkgs.haskellPackages;
         in
         {
