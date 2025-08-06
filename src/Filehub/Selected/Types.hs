@@ -16,6 +16,3 @@ instance FromForm Selected where
     case selected of
       [] -> pure NoSelection
       x:xs->  pure $ Selected x xs
-
-
-

@@ -1,6 +1,7 @@
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE CPP #-}
 module Filehub.Server (application, main, mainDev) where
 
 import Data.String.Interpolate (i)
@@ -33,10 +34,10 @@ import Servant (errBody, Headers, Header, NoContent (..), err404)
 import Servant (addHeader, err500)
 import Servant (serveWithContextT, Context (..), Application)
 import Servant.Conduit ()
+import System.FilePath (takeFileName)
 import Control.Exception (SomeException)
 import Control.Monad (when)
 import UnliftIO (catch)
-import System.FilePath (takeFileName)
 import Text.Printf (printf)
 import Filehub.Target qualified as Target
 import Filehub.Target.Types.TargetView (TargetView(..))
@@ -91,10 +92,16 @@ import Network.Wai.Handler.Warp (setPort, defaultSettings, runSettings)
 import Network.Wai.Middleware.RequestLogger (logStdout)
 import System.Environment (withArgs)
 import UnliftIO (hFlush, stdout)
-import Debug.Trace (traceM)
 import Network.Mime qualified as Mime
 
 
+#ifdef DEBUG
+import Effectful ( MonadIO (liftIO) )
+import Effectful.FileSystem.IO.ByteString.Lazy (readFile)
+import System.FilePath ((</>))
+import Paths_filehub qualified
+import System.Directory (makeAbsolute)
+#endif
 
 -- | Server definition
 server :: Api (AsServerT Filehub)
@@ -296,12 +303,20 @@ server = Api
 
 
   , themeCss = do
+#ifdef DEBUG
       theme <- Env.getTheme
-      traceM (show (Map.keys staticFiles))
+      dir <- liftIO $ Paths_filehub.getDataDir >>= makeAbsolute <&> (++ "/data/filehub")
+      readFile $
+        case theme of
+          Dark -> dir </> "theme-dark.css"
+          Light -> dir </> "theme-light.css"
+#else
+      theme <- Env.getTheme
       pure . LBS.fromStrict $
         case theme of
           Dark -> fromMaybe "no-theme" $ Map.lookup "theme-dark.css" staticFiles
           Light -> fromMaybe "no-theme" $ Map.lookup "theme-light.css" staticFiles
+#endif
 
 
   , serve = serve
@@ -340,6 +355,15 @@ server = Api
 
 
   , static = \paths -> do
+#ifdef DEBUG
+      dir <- liftIO $ Paths_filehub.getDataDir >>= makeAbsolute <&> (++ "/data/filehub")
+      let path = dir </> List.intercalate "/" paths
+      let mimetype = Mime.defaultMimeLookup (Text.pack path)
+      content <- readFile path
+      pure
+        $ addHeader (ByteString.unpack mimetype)
+        $ content
+#else
       let path = List.intercalate "/" paths
       case Map.lookup path staticFiles of
         Just content -> do
@@ -349,6 +373,7 @@ server = Api
             $ LBS.fromStrict
             $ content
         Nothing -> throwError (err404 { errBody = [i|File doesn't exist|]})
+#endif
 
 
   , offline = pure Template.offline
@@ -451,6 +476,11 @@ main = Log.withColoredStdoutLogger \logger -> do
   targets <- runEff . runLog "Targets" logger options.verbosity . runFileSystem $ fromTargetOptions options.targets
   printf "PORT: %d\n" options.port
   printf "V: %s\n" (show options.verbosity)
+
+#ifdef DEBUG
+  printf "DEBUG build\n"
+#endif
+
   let env =
         Env
           { port = options.port
