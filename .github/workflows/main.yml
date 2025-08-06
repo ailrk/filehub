@@ -55,34 +55,33 @@ jobs:
           path: ./result/bin/filehub
 
 
-# Support in the future
-#   build-windows:
-#     name: Build (windows)
-#     runs-on: windows-latest
+  build-windows:
+    name: Build (windows)
+    runs-on: windows-latest
 
-#     steps:
-#       - name: "Checkout"
-#         uses: actions/checkout@v4
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v4
 
-#       # make sure this follows the current toolchain version
-#       - uses: haskell-actions/setup@v2
-#         with:
-#           ghc-version: '9.6.6'
-#           cabal-version: '3.12.1.0'
+      # make sure this follows the current toolchain version
+      - uses: haskell-actions/setup@v2
+        with:
+          ghc-version: '9.6.6'
+          cabal-version: '3.12.1.0'
 
-#       - name: Update cabal index
-#         run: cabal update
+      - name: Update cabal index
+        run: cabal update
 
-#       - name: Build
-#         run: cabal build all
+      - name: Build
+        run: cabal build all
 
-#       - name: Copy executable
-#         run: |
-#           mkdir -Force dist
-#           cp $(Get-ChildItem -Recurse -Filter '*.exe' | Select-Object -First 1).FullName dist\filehub.exe
+      - name: Copy executable
+        run: |
+          mkdir -Force dist
+          cp $(Get-ChildItem -Recurse -Filter '*.exe' | Select-Object -First 1).FullName dist\filehub.exe
 
-#       - name: Upload binary
-#         uses: actions/upload-artifact@v4
-#         with:
-#           name: windows-binary
-#           path: dist/filehub.exe
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: filehub-windows
+          path: dist/filehub.exe
