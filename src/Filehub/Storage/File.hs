@@ -10,7 +10,6 @@ import Conduit (ConduitT, ResourceT, sourceFile, sourceLazy)
 import Data.ByteString.Lazy qualified as LBS
 import Data.Generics.Labels ()
 import Data.Text qualified as Text
-import Data.Time.Clock.POSIX qualified as Time
 import Effectful ( Eff, Eff )
 import Effectful.Error.Dynamic (throwError)
 import Effectful.FileSystem
@@ -27,7 +26,6 @@ import Network.Mime (defaultMimeLookup)
 import Prelude hiding (read, readFile, writeFile)
 import Servant.Multipart (MultipartData(..), Mem, FileData (..))
 import System.FilePath ( (</>) )
-import System.Posix qualified as Posix
 import Data.Generics.Labels ()
 import UnliftIO (MonadIO (..))
 import Lens.Micro.Platform ()
@@ -36,35 +34,31 @@ import Data.ByteString (ByteString)
 
 get :: Storage.Context es => SessionId -> FilePath -> Eff es File
 get sessionId  path = do
-  isBrokenLink <- isPathBrokenSymLink path
-  if isBrokenLink then do -- handle broken links.
-    lstatus <- liftIO $ Posix.getSymbolicLinkStatus path
-    pure File
-      { path = path
-      , size = Just 0
-      , atime = Just $ epochToUTCTime (Posix.accessTime lstatus)
-      , mtime = Just $ epochToUTCTime (Posix.statusChangeTime lstatus)
-      , mimetype = "application/octet-stream"
-      , content = Content
-      }
-  else do
-    exists <- doesPathExist path
-    unless exists do
-      logAttention "[getFile] path doesn't exists:" path
-      throwError InvalidPath
-    size <- getFileSize path
-    mtime <- getModificationTime path
-    atime <- getAccessTime path
-    isDir <- isDirectory sessionId path
-    let mimetype = defaultMimeLookup (Text.pack path)
-    pure File
-      { path = path
-      , size = Just size
-      , mtime = Just mtime
-      , atime = Just atime
-      , mimetype = mimetype
-      , content = if isDir then Dir Nothing else Content
-      }
+  exists <- doesPathExist path
+  if exists
+     then do
+       size <- getFileSize path
+       mtime <- getModificationTime path
+       atime <- getAccessTime path
+       isDir <- isDirectory sessionId path
+       let mimetype = defaultMimeLookup (Text.pack path)
+       pure File
+         { path = path
+         , size = Just size
+         , mtime = Just mtime
+         , atime = Just atime
+         , mimetype = mimetype
+         , content = if isDir then Dir Nothing else Content
+         }
+      else do
+        pure File
+          { path = path
+          , size = Just 0
+          , atime = Nothing
+          , mtime = Nothing
+          , mimetype = "application/octet-stream"
+          , content = Content
+          }
 
 
 isDirectory :: Storage.Context es => SessionId -> FilePath -> Eff es Bool
@@ -194,21 +188,6 @@ storage sessionId =
 --
 -- | Helpers
 --
-
-
-epochToUTCTime :: Posix.EpochTime -> UTCTime
-epochToUTCTime epoch = Time.posixSecondsToUTCTime (realToFrac epoch)
-
-
-isPathBrokenSymLink :: Storage.Context es => FilePath -> Eff es Bool
-isPathBrokenSymLink path = do
-  isSym <- pathIsSymbolicLink path
-  if isSym
-     then do
-       realPath <- getSymbolicLinkTarget path
-       not <$> doesPathExist realPath
-     else
-      pure False
 
 
 toFilePath :: Storage.Context es => SessionId -> FilePath -> Eff es FilePath

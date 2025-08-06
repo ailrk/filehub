@@ -20,8 +20,7 @@ module Filehub.ClientPath
   where
 
 
-import System.FilePath ((</>))
-import System.FilePath.Posix (normalise)
+import System.FilePath ((</>), normalise)
 import Network.URI.Encode qualified as URI.Encode
 import Data.List (stripPrefix)
 import Servant (FromHttpApiData (..), ToHttpApiData (..))

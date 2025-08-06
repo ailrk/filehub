@@ -9,7 +9,7 @@ import Filehub.SessionPool qualified as SessionPool
 import Filehub.Env (Env(..))
 import Filehub.Server qualified as Filehub
 import Data.Char (isPrint)
-import System.FilePath.Posix ((</>), normalise)
+import System.FilePath ((</>), normalise)
 import Network.URI.Encode qualified as URI
 import Effectful (runEff)
 import Data.Time (secondsToNominalDiffTime)
