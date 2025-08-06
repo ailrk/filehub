@@ -12,7 +12,15 @@
         haskell = prev.haskell // {
           packageOverrides = hfinal: hprev:
             prev.haskell.packageOverrides hfinal hprev // {
-              filehub = (hfinal.callPackage ./default.nix {});
+              filehub = (hfinal.callPackage ./default.nix {}).overrideAttrs (old: {
+                nativeBuildInputs = (old.nativeBuildInputs or []) ++ [ final.upx ];
+
+                # Run upx after install
+                postInstall = ''
+                  echo "Running UPX on: $out/bin/filehub"
+                  upx --best --lzma $out/bin/filehub || true
+                '';
+              });
             };
         };
 
@@ -27,7 +35,7 @@
               "--ghc-options=-split-sections"
               "--ghc-options=-fomit-interface-pragmas"
             ];
-          }) (final.haskellPackages.filehub);
+          }) (justStaticExecutables final.haskellPackages.filehub);
         };
 
       perSystem = system:

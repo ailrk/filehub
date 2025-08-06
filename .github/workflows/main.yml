@@ -80,6 +80,13 @@ jobs:
           mkdir -Force dist
           cp $(Get-ChildItem -Recurse -Filter '*.exe' | Select-Object -First 1).FullName dist\filehub.exe
 
+      - name: Install UPX
+        run: choco install upx -y
+
+      - name: Compress with UPX
+        run: |
+          upx --best --lzma dist\filehub.exe
+
       - name: Upload binary
         uses: actions/upload-artifact@v4
         with:

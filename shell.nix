@@ -10,5 +10,6 @@ hspkgs.shellFor {
     hspkgs.ghcprofview
     pkgs.ghciwatch
     pkgs.bashInteractive
+    pkgs.upx
   ];
 }
