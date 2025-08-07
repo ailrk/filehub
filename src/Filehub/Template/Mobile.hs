@@ -244,8 +244,7 @@ table target root files selected = do
                , title_ (Text.pack displayTime)
                ]
       where
-        displayTime = maybe mempty (formatTime defaultTimeLocale "%d %b %y") file.mtime
-
+        displayTime = maybe mempty (formatTime defaultTimeLocale "%Y/%m/%d") file.mtime
 
     fileNameElement :: File -> Html ()
     fileNameElement file = do
