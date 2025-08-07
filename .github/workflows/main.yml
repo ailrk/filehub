@@ -12,9 +12,7 @@ on:
         required: true
         type: choice
         options:
-          - linux
-          - macos
-          - windows
+          - all
 
 jobs:
   build-linux:
@@ -44,7 +42,7 @@ jobs:
   build-macos-m1:
     name: Build (macOS m1)
     runs-on: macos-latest
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'macos'
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'all'
     steps:
       - name: "Checkout"
         uses: actions/checkout@v4
@@ -69,7 +67,7 @@ jobs:
   build-windows:
     name: Build (windows)
     runs-on: windows-latest
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'windows'
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'all'
     steps:
       - name: "Checkout"
         uses: actions/checkout@v4
