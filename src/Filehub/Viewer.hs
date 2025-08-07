@@ -25,7 +25,6 @@ import Lens.Micro.Platform ()
 import Network.Mime (MimeType)
 import System.FilePath (takeDirectory)
 import Data.String.Interpolate (i)
-import Debug.Trace (traceM)
 
 
 isResource :: MimeType -> Bool
@@ -53,7 +52,6 @@ initViewer sessionId root clientPath = do
   let dir = takeDirectory filePath
   order <- Env.getSortFileBy sessionId
   files <- takeResourceFiles . sortFiles order <$> (storage.ls dir)
-  traceM (show filePath)
   let idx = fromMaybe 0 $ List.elemIndex filePath (fmap (.path) files)
   let resources = fmap (toResource root) files
   pure $ ViewerInited resources idx

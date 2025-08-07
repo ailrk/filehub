@@ -280,7 +280,7 @@ server = Api
   , initViewer = \sessionId mClientPath -> do
       withServerError do
         clientPath <- withQueryParam mClientPath
-        root <- Env.getCurrentDir sessionId
+        root <- Env.getRoot sessionId
         payload <- Viewer.initViewer sessionId root clientPath
         pure $ addHeader payload NoContent
 
@@ -436,7 +436,7 @@ serve :: SessionId -> Maybe ClientPath -> Filehub (Headers '[ Header "Content-Ty
 serve sessionId mFile = do
   withServerError do
     storage <- getStorage sessionId
-    root <- Env.getCurrentDir sessionId
+    root <- Env.getRoot sessionId
     clientPath <- withQueryParam mFile
     let path = ClientPath.fromClientPath root clientPath
     file <- storage.get path
