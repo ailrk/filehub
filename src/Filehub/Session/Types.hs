@@ -15,6 +15,7 @@ import Filehub.Session.Types.SessionId (SessionId(..))
 import Filehub.Sort (SortFileBy)
 import Filehub.Copy.Types (CopyState)
 import Filehub.Selected.Types (Selected)
+import Filehub.Layout (Layout)
 
 
 data Session = Session
@@ -37,5 +38,6 @@ data TargetSessionData = TargetSessionData
   { currentDir :: FilePath
   , sortedFileBy :: SortFileBy
   , selected :: Selected
+  , layout :: Layout
   }
   deriving (Generic)

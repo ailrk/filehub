@@ -106,6 +106,7 @@ data FilehubEvent
   | TargetChanged
   | TableSorted
   | DirChanged
+  | LayoutChanged
   | Canceled -- Action canceled
   deriving (Show)
 
@@ -121,6 +122,7 @@ instance ToJSON FilehubEvent where
   toJSON TargetChanged = Aeson.object [ "TargetChanged" .= Aeson.object [] ]
   toJSON TableSorted = Aeson.object [ "TableSorted" .= Aeson.object [] ]
   toJSON DirChanged = Aeson.object [ "DirChanged" .= Aeson.object [] ]
+  toJSON LayoutChanged = Aeson.object [ "LayoutChanged" .= Aeson.object [] ]
   toJSON Canceled = Aeson.object [ "Canceled" .= Aeson.object [] ]
 
 

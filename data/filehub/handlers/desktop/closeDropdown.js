@@ -6,11 +6,17 @@ export function closeDropdowns() {
         ele.dispatchEvent(new Event('Close'));
     }
 }
-// when clicking outside of any area outside a dropdown or dropdown-content, close all dropdowns.
+/* Cleanup the dropdown effects to make sure the app goes back to the normal state. */
+function cleanup() {
+    const table = document.getElementById('table');
+    table.style.pointerEvents = "auto";
+}
+/* when clicking outside of any area outside a dropdown or dropdown-content, close all dropdowns. */
 function handler(e) {
     const target = e.target;
     if (!target.matches('.dropdown *') && !target.matches('.dropdown-content *')) {
         closeDropdowns();
+        cleanup();
     }
 }
 export function register() {

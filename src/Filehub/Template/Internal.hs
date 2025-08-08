@@ -5,7 +5,7 @@ import Data.Aeson.Types (Pair)
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Lazy.Encoding qualified as LText
-import Filehub.Types ( ClientPath(..), Display(..), ControlPanelState (..))
+import Filehub.Types ( ClientPath(..), Display(..), ControlPanelState (..), File(..), FileContent (..))
 import Filehub.ClientPath qualified as ClientPath
 import Filehub.Links ( apiLinks, linkToText )
 import Filehub.Routes (Api(..))
@@ -17,6 +17,7 @@ import Data.Sequence qualified as Seq
 import Data.Foldable (Foldable(..))
 import System.FilePath (splitPath)
 import Data.Bifunctor (Bifunctor(..))
+import Filehub.Mime (isMime)
 
 
 withDefault :: Display -> Text -> Html () -> Html ()
@@ -106,7 +107,7 @@ searchBar = do
 
 
 controlPanel
-  :: Html () -> Html () -> Html () -> Html () -> Html () -> Html () -> Html () -> Maybe (Html ())
+  :: Html () -> Html () -> Html () -> Html () -> Html () -> Html () -> Html () -> Maybe (Html()) -> Maybe (Html ())
   -> Bool -> ControlPanelState -> Html ()
 controlPanel
   newFolderBtn
@@ -116,6 +117,7 @@ controlPanel
   pasteBtn
   deleteBtn
   cancelBtn
+  mLayoutBtn
   mScroll2TopBtn
   readOnly state = do
   case readOnly of
@@ -124,17 +126,20 @@ controlPanel
         span_ [ class_ "btn-like field " ] do
           i_ [ class_ "bx bx-lock-alt" ] mempty
           span_ "Read-only"
+        maybe mempty id mLayoutBtn
         maybe mempty id mScroll2TopBtn
     False ->
       case state of
         ControlPanelDefault ->
           div_ [ id_ controlPanelId ] do
+            maybe mempty id mLayoutBtn
             newFolderBtn
             newFileBtn
             uploadBtn
             maybe mempty id mScroll2TopBtn
         ControlPanelSelecting ->
           div_ [ id_ controlPanelId ] do
+            maybe mempty id mLayoutBtn
             newFolderBtn
             newFileBtn
             uploadBtn
@@ -144,12 +149,26 @@ controlPanel
             maybe mempty id mScroll2TopBtn
         ControlPanelCopied ->
           div_ [ id_ controlPanelId ] do
+            maybe mempty id mLayoutBtn
             newFolderBtn
             newFileBtn
             uploadBtn
             pasteBtn
             cancelBtn
             maybe mempty id mScroll2TopBtn
+
+
+icon :: File -> Html ()
+icon file =
+  case file.content of
+    Dir _ -> i_ [ class_ "bx bxs-folder "] mempty
+    Content
+      | file.mimetype `isMime` "application/pdf" -> i_ [ class_ "bx bxs-file-pdf"] mempty
+      | file.mimetype `isMime` "video" || file.mimetype `isMime` "mp4" -> i_ [ class_ "bx bxs-videos"] mempty
+      | file.mimetype `isMime` "audio" || file.mimetype `isMime` "mp3" -> i_ [ class_ "bx bxs-music"] mempty
+      | file.mimetype `isMime` "image" -> i_ [ class_ "bx bx-image"] mempty
+      | file.mimetype `isMime` "text" -> i_ [ class_ "bx bxs-file"] mempty
+      | otherwise -> i_ [ class_ "bx bxs-file-blank "] mempty
 
 
 bold :: Html () -> Html ()

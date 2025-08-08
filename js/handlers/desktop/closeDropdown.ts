@@ -8,11 +8,19 @@ export function closeDropdowns() {
 }
 
 
-// when clicking outside of any area outside a dropdown or dropdown-content, close all dropdowns.
+/* Cleanup the dropdown effects to make sure the app goes back to the normal state. */
+function cleanup() {
+  const table = document.getElementById('table') as HTMLElement
+  table.style.pointerEvents = "auto";
+}
+
+
+/* when clicking outside of any area outside a dropdown or dropdown-content, close all dropdowns. */
 function handler(e: any) {
   const target = e.target as Element;
   if (!target.matches('.dropdown *') && !target.matches('.dropdown-content *')) {
     closeDropdowns()
+    cleanup()
   }
 }
 

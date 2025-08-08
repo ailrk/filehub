@@ -68,6 +68,7 @@ index sessionId =
   <$> Env.getReadOnly
   <*> sideBar sessionId
   <*> view sessionId
+  <*> (Env.getLayout sessionId & withServerError)
   <*> (ControlPanel.getControlPanelState sessionId & withServerError)
 
 
@@ -85,10 +86,11 @@ view sessionId = do
     storage <- getStorage sessionId
     root <- Env.getRoot sessionId
     order <- Env.getSortFileBy sessionId
+    layout <- Env.getLayout sessionId & withServerError
     files <- sortFiles order <$> storage.lsCwd
     TargetView target _ _ <- Env.currentTarget sessionId
     selected <- Selected.getSelected sessionId
-    pure $ Template.Desktop.table target root files selected order
+    pure $ Template.Desktop.table target root files selected order layout
   Template.Desktop.view table <$> pathBreadcrumb sessionId
 
 

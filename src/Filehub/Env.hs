@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wno-missing-signatures #-}
+{-# OPTIONS_GHC -Wno-missing-exported-signatures #-}
 module Filehub.Env
   ( Env(..)
   , getRoot
@@ -5,6 +7,8 @@ module Filehub.Env
   , setCurrentDir
   , getSortFileBy
   , setSortFileBy
+  , getLayout
+  , setLayout
   , getDisplay
   , module Filehub.SessionPool
   , module Filehub.Env.Internal
@@ -15,13 +19,8 @@ module Filehub.Env
 import Lens.Micro
 import Lens.Micro.Platform ()
 import Data.Generics.Labels ()
-import Effectful.Error.Dynamic (Error)
-import Effectful.Reader.Dynamic (Reader)
-import Effectful ((:>), Eff, IOE)
-import Effectful.Log (Log)
 import Filehub.Types
-    ( Env(..), Session(..), SessionId, Target(..), SortFileBy, Display (..))
-import Filehub.Error (FilehubError (..))
+    ( Env(..), Session(..), Target(..), Display (..))
 import Filehub.SessionPool (getSession, updateSession)
 import Filehub.Env.Internal (getSessionPool, getTheme, getReadOnly, getSessionDuration, getTargets)
 import Filehub.Target (currentTarget, changeCurrentTarget)
@@ -36,7 +35,6 @@ import Data.Typeable (cast)
 import Data.Maybe (fromMaybe)
 
 
-getRoot :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es FilePath
 getRoot sessionId = do
   TargetView (Target t) _ _ <- currentTarget sessionId
   pure $
@@ -46,25 +44,28 @@ getRoot sessionId = do
       ]
 
 
-getCurrentDir :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es FilePath
 getCurrentDir sessionId = (^. #sessionData . #currentDir) <$> Target.currentTarget sessionId
 
 
-setCurrentDir :: (Reader Env :> es, IOE :> es) => SessionId -> FilePath -> Eff es ()
 setCurrentDir sessionId path = do
   updateSession sessionId $ \s -> s & #targets . ix s.index . #currentDir .~ path
 
 
-getSortFileBy :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es SortFileBy
 getSortFileBy sessionId = (^. #sessionData . #sortedFileBy) <$> Target.currentTarget sessionId
 
 
-setSortFileBy :: (Reader Env :> es, IOE :> es) => SessionId -> SortFileBy -> Eff es ()
 setSortFileBy sessionId order = do
   updateSession sessionId (\s -> s & #targets . ix s.index . #sortedFileBy .~ order)
 
 
-getDisplay :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es Display
+getLayout sessionId = (^. #sessionData . #layout) <$> Target.currentTarget sessionId
+
+
+setLayout sessionId layout = do
+  updateSession sessionId (\s -> s & #targets . ix s.index . #layout .~ layout)
+
+
+
 getDisplay sessionId = do
   session <- getSession sessionId
   case session ^. #resolution of

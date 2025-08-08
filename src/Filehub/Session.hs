@@ -18,6 +18,7 @@ import Filehub.Target.File (FileSys, Backend(..))
 import Data.Maybe (fromMaybe)
 import Options.Applicative (asum)
 import Data.Functor ((<&>))
+import Filehub.Layout (Layout(..))
 
 
 createSessionId :: (IOE :> es) => Eff es SessionId
@@ -59,6 +60,7 @@ targetToSessionData (Target target) =
         { currentDir = ""
         , sortedFileBy = ByNameUp
         , selected = NoSelection
+        , layout = ThumbnailLayout
         }
 
 

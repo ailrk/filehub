@@ -43,7 +43,6 @@ import Text.Fuzzy (simpleFilter)
 import Filehub.Target.File (Backend (..), FileSys)
 import Filehub.Target.S3 (Backend (..), S3)
 import Filehub.Target.Types (targetHandler)
-import Debug.Trace
 
 
 index :: Bool
@@ -205,7 +204,7 @@ sortTool order = do
 
 table :: Target -> FilePath -> [File] -> Selected -> Html ()
 table target root files selected = do
-  table_ [ id_ tableId ] do
+  table_ [ id_ tableId, class_ "list-view " ] do
     tbody_ $ traverse_ record ([0..] `zip` files)
   where
     record :: (Int, File) -> Html ()
@@ -223,7 +222,7 @@ table target root files selected = do
         attrs = mconcat
           [ [ term "data-path" (Text.pack path) ]
           , [class_ "selected " | clientPath `Selected.elem` selected]
-          , [id_ [i|tr-#{idx}|] ]
+          , [id_ [i|tr-#{idx}|], class_ "table-item " ]
           ]
         clientPath@(ClientPath path) = ClientPath.toClientPath root file.path
 
@@ -248,17 +247,12 @@ table target root files selected = do
 
     fileNameElement :: File -> Html ()
     fileNameElement file = do
-      span_ (icon >> name)
+      span_ (Template.icon file >> name)
         `with` [ class_ "field"
                , title_ (Text.pack displayName)
                ]
       where
         name = span_ (toHtml displayName)
-
-        icon =
-          case file.content of
-            Dir _ -> i_ [ class_ "bx bxs-folder "] mempty
-            Content -> i_ [ class_ "bx bxs-file-blank "] mempty
 
         displayName =
           fromMaybe "-" $ handleTarget target
@@ -317,6 +311,7 @@ controlPanel =
     pasteBtn
     deleteBtn
     cancelBtn
+    Nothing
     (Just scroll2TopBtn)
   where
     newFolderBtn :: Html ()

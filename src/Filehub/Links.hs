@@ -20,14 +20,11 @@ import Data.Function ((&))
 import Data.Maybe (fromJust)
 import Data.Text (Text)
 import Data.Text qualified as Text
+import Filehub.Layout (Layout(..))
 
 
 dummyClientPath :: Maybe ClientPath
 dummyClientPath = Just (ClientPath "dummy.txt")
-
-
-dummySort :: Maybe SortFileBy
-dummySort = Just BySizeDown
 
 
 dummyTargetId :: Maybe TargetId
@@ -51,7 +48,8 @@ sitemapLinks =
   , apiLinks.fileDetailModal dummyClientPath
   , apiLinks.editorModal dummyClientPath
   , apiLinks.search
-  , apiLinks.sortTable dummySort
+  , apiLinks.sortTable (Just BySizeDown)
+  , apiLinks.selectLayout (Just ThumbnailLayout)
   , apiLinks.selectRows
   , apiLinks.upload
   , apiLinks.download dummyClientPath

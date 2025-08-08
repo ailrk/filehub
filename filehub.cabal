@@ -134,6 +134,7 @@ library
     Filehub.Env.Types
     Filehub.Error
     Filehub.File
+    Filehub.Layout
     Filehub.Links
     Filehub.Log
     Filehub.Mime

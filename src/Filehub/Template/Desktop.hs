@@ -36,7 +36,7 @@ import Filehub.Types
       ClientPath(..),
       Target(..),
       Selected,
-      ControlPanelState(..) )
+      ControlPanelState(..))
 import Filehub.Routes (Api(..))
 import Filehub.Sort (sortFiles)
 import Filehub.Mime (isMime)
@@ -58,6 +58,7 @@ import Text.Fuzzy (simpleFilter)
 import Filehub.Target.S3 (S3, Backend (..))
 import Filehub.Target.File (FileSys, Backend (..))
 import Filehub.Target.Types (targetHandler)
+import Filehub.Layout (Layout (..))
 
 ------------------------------------
 -- components
@@ -67,12 +68,13 @@ import Filehub.Target.Types (targetHandler)
 index :: Bool
       -> Html ()
       -> Html ()
+      -> Layout
       -> ControlPanelState
       -> Html ()
-index readOnly sideBar' view' controlPanelState = do
+index readOnly sideBar' view' layout controlPanelState = do
   div_ [ id_ "index" ] do
     sideBar'
-    controlPanel readOnly controlPanelState
+    controlPanel layout readOnly controlPanelState
     view'
 
 
@@ -119,8 +121,8 @@ sideBar targets (TargetView currentTarget _ _) = do
             ]
 
 
-controlPanel :: Bool -> ControlPanelState -> Html ()
-controlPanel =
+controlPanel :: Layout -> Bool -> ControlPanelState -> Html ()
+controlPanel layout =
   Template.controlPanel
     newFolderBtn
     newFileBtn
@@ -129,6 +131,7 @@ controlPanel =
     pasteBtn
     deleteBtn
     cancelBtn
+    (Just layoutBtn)
     Nothing
   where
     newFolderBtn :: Html ()
@@ -218,6 +221,7 @@ controlPanel =
           i_ [ class_ "bx bxs-trash" ] mempty
           span_ "Delete"
 
+
     cancelBtn :: Html ()
     cancelBtn = do
       button_ [ class_ "btn btn-control"
@@ -231,17 +235,38 @@ controlPanel =
           span_ "Cancel"
 
 
+    layoutBtn :: Html ()
+    layoutBtn = do
+      case layout of
+        ListLayout -> do
+          button_ [ class_ "btn btn-control"
+                  , type_ "submit"
+                  , term "hx-get" $ linkToText (apiLinks.selectLayout (Just ThumbnailLayout))
+                  , term "hx-target" "#index"
+                  , term "hx-swap" "outerHTML"
+                  ] do
+            i_ [ class_ "bx bxs-grid-alt" ] mempty
+        ThumbnailLayout -> do
+          button_ [ class_ "btn btn-control"
+                  , type_ "submit"
+                  , term "hx-get" $ linkToText (apiLinks.selectLayout (Just ListLayout))
+                  , term "hx-target" "#index"
+                  , term "hx-swap" "outerHTML"
+                  ] do
+            i_ [ class_ "bx bx-menu" ] mempty
+
+
 ------------------------------------
 -- search
 ------------------------------------
 
 
-search :: SearchWord -> Target -> FilePath -> [File] -> Selected -> SortFileBy -> Html ()
-search (SearchWord searchWord) target root files selected order = do
+search :: SearchWord -> Target -> FilePath -> [File] -> Selected -> SortFileBy -> Layout -> Html ()
+search (SearchWord searchWord) target root files selected order layout = do
   let matched = files <&> Text.pack . (.path) & simpleFilter searchWord
   let isMatched file = Text.pack file.path `elem` matched
   let filteredFiles = files ^.. each . filtered isMatched
-  table target root (sortFiles order filteredFiles) selected order
+  table target root (sortFiles order filteredFiles) selected order layout
 
 
 ------------------------------------
@@ -415,91 +440,142 @@ modal attrs body = do
 ------------------------------------
 
 
-table :: Target -> FilePath -> [File] -> Selected -> SortFileBy -> Html ()
-table target root files selected order = do
-  table_ [ id_ tableId ] do
-    thead_ do
-      tr_ do
-        th_ do
-          span_ [ class_ "field " ] do
-            "Name "
-            sortIconName
-          `with` sortControlName
-        th_ do
-          span_ [ class_ "field " ] do
-            "Modified"
-            sortIconMTime
-            `with` sortControlMTime
-        th_ do
-          span_ [ class_ "field " ] do
-            "Size"
-            sortIconSize
-            `with` sortControlSize
-    tbody_ $ traverse_ record ([0..] `zip` files)
+table :: Target -> FilePath -> [File] -> Selected -> SortFileBy -> Layout -> Html ()
+table target root files selected order layout =
+  case layout of
+    ListLayout -> listLayout
+    ThumbnailLayout -> thumbnailLayout
   where
-    record :: (Int, File) -> Html ()
-    record (idx, file) =
-      tr_ attrs do
-        td_ $ fileNameElement file
-        td_ $ modifiedDateElement file
-        td_ $ sizeElement file
+    listLayout = do
+      table_ [ id_ tableId, class_ "list-view " ] do
+        thead_ do
+          tr_ do
+            th_ do
+              span_ [ class_ "field " ] do
+                "Name "
+                sortIconName
+              `with` sortControlName
+            th_ do
+              span_ [ class_ "field " ] do
+                "Modified"
+                sortIconMTime
+                `with` sortControlMTime
+            th_ do
+              span_ [ class_ "field " ] do
+                "Size"
+                sortIconSize
+                `with` sortControlSize
+        tbody_ $ traverse_ record ([0..] `zip` files)
       where
-        attrs :: [Attribute]
-        attrs = mconcat
-          [ [ term "data-path" (Text.pack path) ]
-          , [class_ "selected " | clientPath `Selected.elem` selected]
-          , [id_ [i|tr-#{idx}|] ]
+        record :: (Int, File) -> Html ()
+        record (idx, file) =
+          tr_ attrs do
+            td_ $ fileNameElement file True
+                    `with` click file
+                    `with`  [ class_ "field "]
+            td_ $ modifiedDateElement file
+            td_ $ sizeElement file
+          where
+            attrs :: [Attribute]
+            attrs = mconcat
+              [ [ term "data-path" (Text.pack path) ]
+              , [ class_ "selected " | clientPath `Selected.elem` selected]
+              , [ id_ [i|tr-#{idx}|], class_ "table-item " ]
+              ]
+            clientPath@(ClientPath path) = ClientPath.toClientPath root file.path
+
+        sortIconName =
+          case order of
+            ByNameUp -> i_ [ class_ "bx bxs-up-arrow"] mempty
+            ByNameDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
+            _ -> i_ [ class_ "bx bx-sort"] mempty
+
+
+        sortIconMTime =
+          case order of
+            ByModifiedUp -> i_ [ class_ "bx bxs-up-arrow"] mempty
+            ByModifiedDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
+            _ -> i_ [ class_ "bx bx-sort"] mempty
+
+
+        sortIconSize =
+          case order of
+            BySizeUp -> i_ [ class_ "bx bxs-up-arrow"] mempty
+            BySizeDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
+            _ -> i_ [ class_ "bx bx-sort"] mempty
+
+
+        sortControlName =
+          case order of
+            ByNameUp -> sortControl ByNameDown
+            ByNameDown -> sortControl ByNameUp
+            _ -> sortControl ByNameUp
+
+
+        sortControlMTime =
+          case order of
+            ByModifiedUp -> sortControl ByModifiedDown
+            ByModifiedDown -> sortControl ByModifiedUp
+            _ -> sortControl ByModifiedUp
+
+
+        sortControlSize =
+          case order of
+            BySizeUp -> sortControl BySizeDown
+            BySizeDown -> sortControl BySizeUp
+            _ -> sortControl BySizeUp
+
+
+        sortControl o =
+          [ term "hx-get" $ linkToText (apiLinks.sortTable (Just o))
+          , term "hx-swap" "outerHTML"
+          , term "hx-target" "#view"
           ]
-        clientPath@(ClientPath path) = ClientPath.toClientPath root file.path
 
 
-    sortIconName =
-      case order of
-        ByNameUp -> i_ [ class_ "bx bxs-up-arrow"] mempty
-        ByNameDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
-        _ -> i_ [ class_ "bx bx-sort"] mempty
+    thumbnailLayout = do
+      div_ [ id_ tableId, class_ "thumbnail-view " ] do
+        tbody_ $ traverse_ thumbnail ([0..] `zip` files)
+      where
+        thumbnail :: (Int, File) -> Html ()
+        thumbnail (idx, file) =
+          div_ do
+            previewElement file
+            fileNameElement file False `with` [ class_ "thumbnail-name" ]
+            `with` attrs
+            `with` click file
+
+          where
+            attrs :: [Attribute]
+            attrs = mconcat
+              [ [ term "data-path" (Text.pack path) ]
+              , [ class_ "selected " | clientPath `Selected.elem` selected ]
+              , [ class_ "thumbnail " ]
+              , [ id_ [i|tr-#{idx}|], class_ "table-item " ]
+              ]
+
+            clientPath@(ClientPath path) = ClientPath.toClientPath root file.path
 
 
-    sortIconMTime =
-      case order of
-        ByModifiedUp -> i_ [ class_ "bx bxs-up-arrow"] mempty
-        ByModifiedDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
-        _ -> i_ [ class_ "bx bx-sort"] mempty
+    previewElement :: File -> Html ()
+    previewElement file =
+      div_ [ class_ "thumbnail-preview " ] do
+        Template.icon file
 
 
-    sortIconSize =
-      case order of
-        BySizeUp -> i_ [ class_ "bx bxs-up-arrow"] mempty
-        BySizeDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
-        _ -> i_ [ class_ "bx bx-sort"] mempty
+    fileNameElement :: File -> Bool -> Html ()
+    fileNameElement file withIcon = do
+      span_ ((if withIcon then Template.icon file else mempty) >> name)
+        `with` [ title_ (Text.pack displayName)
+               ]
+      where
+        name = span_ (toHtml displayName)
 
-
-    sortControlName =
-      case order of
-        ByNameUp -> sortControl ByNameDown
-        ByNameDown -> sortControl ByNameUp
-        _ -> sortControl ByNameUp
-
-
-    sortControlMTime =
-      case order of
-        ByModifiedUp -> sortControl ByModifiedDown
-        ByModifiedDown -> sortControl ByModifiedUp
-        _ -> sortControl ByModifiedUp
-
-
-    sortControlSize =
-      case order of
-        BySizeUp -> sortControl BySizeDown
-        BySizeDown -> sortControl BySizeUp
-        _ -> sortControl BySizeUp
-
-
-    sortControl o =
-      [ term "hx-get" $ linkToText (apiLinks.sortTable (Just o))
-      , term "hx-swap" "outerHTML"
-      , term "hx-target" "#view"
-      ]
+        displayName =
+          fromMaybe "-" $ handleTarget target
+            [ targetHandler @S3 $ \_ -> file.path
+            , targetHandler @FileSys $ \_ -> takeFileName file.path
+            ]
 
 
     sizeElement :: File -> Html ()
@@ -522,45 +598,6 @@ table target root files selected order = do
         displayTime = maybe mempty (formatTime defaultTimeLocale "%Y/%m/%d") file.mtime
 
 
-    fileNameElement :: File -> Html ()
-    fileNameElement file = do
-      span_ (icon >> name)
-        `with` [ class_ "field"
-               , title_ (Text.pack displayName)
-               ]
-      where
-        name =
-          span_ (toHtml displayName) `with`
-            mconcat
-              [ case file.content of
-                  Dir _ ->
-                    [ term "hx-get" $ linkToText (apiLinks.cd (Just (ClientPath.toClientPath root file.path)))
-                    , term "hx-target" ("#" <> viewId)
-                    , term "hx-swap" "outerHTML"
-                    ]
-                  Content
-                    | file.mimetype `isMime` "application/pdf" -> openBlank file
-                    | file.mimetype `isMime` "video" || file.mimetype `isMime` "mp4" -> open file
-                    | file.mimetype `isMime` "audio" || file.mimetype `isMime` "mp3" -> open file
-                    | file.mimetype `isMime` "image" -> open file
-                    | otherwise -> editor file
-              , case file.content of
-                  Dir _ -> [ class_ "dir " ]
-                  _ -> mempty
-              ]
-
-        icon =
-          case file.content of
-            Dir _ -> i_ [ class_ "bx bxs-folder "] mempty
-            Content -> i_ [ class_ "bx bxs-file-blank "] mempty
-
-        displayName =
-          fromMaybe "-" $ handleTarget target
-            [ targetHandler @S3 $ \_ -> file.path
-            , targetHandler @FileSys $ \_ -> takeFileName file.path
-            ]
-
-
     openBlank file =
       -- Client path are percent encoded, but we need to use unencoded raw path here.
       let ClientPath path = ClientPath.toClientPath root file.path
@@ -578,6 +615,27 @@ table target root files selected order = do
       , term "hx-target" "#index"
       , term "hx-swap" "beforeend"
       ]
+
+
+    click file =
+      mconcat
+        [ case file.content of
+              Dir _ ->
+                [ term "hx-get" $ linkToText (apiLinks.cd (Just (ClientPath.toClientPath root file.path)))
+                , term "hx-target" ("#" <> viewId)
+                , term "hx-swap" "outerHTML"
+                ]
+              Content
+                | file.mimetype `isMime` "application/pdf" -> openBlank file
+                | file.mimetype `isMime` "video" || file.mimetype `isMime` "mp4" -> open file
+                | file.mimetype `isMime` "audio" || file.mimetype `isMime` "mp3" -> open file
+                | file.mimetype `isMime` "image" -> open file
+                | otherwise -> editor file
+          , case file.content of
+              Dir _ -> [ class_ "dir " ]
+              _ -> mempty
+          ]
+
 
     resourceIdxMap :: Map File Int
     resourceIdxMap = Map.fromList $ Viewer.takeResourceFiles files `zip` [0..]

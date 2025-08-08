@@ -93,6 +93,7 @@ import Network.Wai.Middleware.RequestLogger (logStdout)
 import System.Environment (withArgs)
 import UnliftIO (hFlush, stdout)
 import Network.Mime qualified as Mime
+import Filehub.Layout (Layout(..))
 
 
 #ifdef DEBUG
@@ -218,16 +219,22 @@ server = Api
       root <- Env.getRoot sessionId
       files <- storage.lsCwd
       order <- Env.getSortFileBy sessionId
+      layout <- Env.getLayout sessionId
       selected <- Selected.getSelected sessionId
       case display of
         Mobile -> pure $ Template.Mobile.search searchWord target root files selected order
-        Desktop -> pure $ Template.Desktop.search searchWord target root files selected order
+        Desktop -> pure $ Template.Desktop.search searchWord target root files selected order layout
         NoDisplay -> undefined
 
 
   , sortTable = \sessionId order -> do
       Env.setSortFileBy sessionId (fromMaybe ByNameUp order)
       addHeader TableSorted <$> view sessionId
+
+
+  , selectLayout = \sessionId layout -> do
+      Env.setLayout sessionId (fromMaybe ThumbnailLayout layout)
+      addHeader LayoutChanged <$> index sessionId
 
 
   , selectRows = \sessionId selected -> do
@@ -415,7 +422,8 @@ controlPanel sessionId = do
   case display of
     Desktop ->
       Template.Desktop.controlPanel
-        <$> Env.getReadOnly
+        <$> Env.getLayout sessionId
+        <*> Env.getReadOnly
         <*> ControlPanel.getControlPanelState sessionId
           & withServerError
     Mobile ->

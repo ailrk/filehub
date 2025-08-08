@@ -121,7 +121,7 @@ textarea {
 #view {
   grid-area: view;
   overflow-y: scroll;
-  overflow-x: auto;
+  overflow-x: hidden;
   scrollbar-color: var(--background1) var(--background3); /* thumb color, track color */
 
   & #tool-bar {
@@ -142,11 +142,15 @@ textarea {
     padding-left: 1rem;
   }
 
-  & #tool-bar #search-bar {
-    padding: 0 2rem;
+  & #tool-bar #tool-bar-right {
+    display: flex;
   }
 
-  & #table {
+  & #tool-bar #search-bar {
+    padding-right: 2rem;
+  }
+
+  & #table.list-view {
     padding: 1rem 1rem;
     border-collapse: separate;
     border-spacing: 0 5px;
@@ -174,6 +178,54 @@ textarea {
       text-align: left;
     }
   }
+
+  & #table.thumbnail-view {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 16px;
+    padding: 16px;
+    box-sizing: border-box;
+  }
+}
+
+
+.thumbnail {
+  background-color: var(background1);
+  border-radius: 6px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+}
+
+
+.thumbnail:hover {
+  background: var(--background3);
+}
+
+
+.thumbnail-preview {
+  width: 140px;
+  height: 140px;
+  margin: auto;
+  display: flex;
+  justify-content: space-around;
+
+  & i {
+    font-size: 8em;
+  }
+}
+
+
+.thumbnail-name {
+  line-height: 1.2em;                 /* Control line height */
+  min-height: calc(1.2em * 3);        /* Reserve height for 3 lines */
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
 }
 
 
@@ -245,8 +297,11 @@ textarea {
   &:hover {
     background: var(--background3);
   }
-}
 
+  & i {
+    font-size: 1.2em;
+  }
+}
 
 
 .btn-control {
@@ -258,6 +313,12 @@ textarea {
 
 .btn-search::after {
   padding-right: 10px;
+}
+
+
+.btn-layout {
+  background: var(--background1);
+  font-size: 1.5em;
 }
 
 

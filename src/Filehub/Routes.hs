@@ -56,6 +56,7 @@ import Filehub.Types
 import GHC.Generics (Generic)
 import Filehub.Server.Context.Resolution (ConfirmMobilOnly, ConfirmDesktopOnly)
 import Filehub.Server.Context.ReadOnly (ConfirmReadOnly)
+import Filehub.Layout (Layout)
 import Data.ByteString (ByteString)
 import Conduit (ConduitT, ResourceT)
 import Amazonka.Data (Value)
@@ -178,6 +179,10 @@ data Api mode = Api
                     :> QueryParam "by" SortFileBy
                     :> Get '[HTML] (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
 
+  , selectLayout    :: mode :- "layout"
+                    :> AuthProtect "session"
+                    :> QueryParam "as" Layout
+                    :> Get '[HTML] (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
 
   , selectRows      :: mode :- "table"
                     :> "select"
