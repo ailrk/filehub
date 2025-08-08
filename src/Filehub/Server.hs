@@ -2,8 +2,12 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE MultiWayIf #-}
+{-# OPTIONS_GHC -Wno-partial-type-signatures #-}
 module Filehub.Server (application, main, mainDev) where
 
+import Codec.Picture.STBIR qualified as Picture.STBIR
+import Codec.Picture qualified as Picture
 import Data.String.Interpolate (i)
 import Data.Maybe (fromMaybe, isJust)
 import Data.Foldable (forM_)
@@ -39,6 +43,8 @@ import Control.Exception (SomeException)
 import Control.Monad (when)
 import UnliftIO (catch)
 import Text.Printf (printf)
+import Filehub.Layout (Layout(..))
+import Filehub.Mime (isMime)
 import Filehub.Target qualified as Target
 import Filehub.Target.Types.TargetView (TargetView(..))
 import Filehub.Types
@@ -93,7 +99,6 @@ import Network.Wai.Middleware.RequestLogger (logStdout)
 import System.Environment (withArgs)
 import UnliftIO (hFlush, stdout)
 import Network.Mime qualified as Mime
-import Filehub.Layout (Layout(..))
 
 
 #ifdef DEBUG
@@ -329,6 +334,9 @@ server = Api
   , serve = serve
 
 
+  , thumbnail = thumbnail
+
+
   , manifest = do
       theme <- LBS.toStrict <$> server.themeCss
       let background1 = fromMaybe "" $ Theme.parse "--background2" theme
@@ -454,6 +462,84 @@ serve sessionId mFile = do
       $ addHeader (printf "inline; filename=%s" (takeFileName path))
       $ conduit
 
+
+-- | Create thumbnailed version of image, pdf, and video.
+--   If the image is big we will create a thumbnail by resizing the image, then serve the thumbnail instead.
+thumbnail :: SessionId -> Maybe ClientPath -> Filehub (Headers '[ Header "Content-Type" String
+                                                                , Header "Content-Disposition" String
+                                                                ] LBS.ByteString)
+thumbnail sessionId mFile = do
+  withServerError do
+    storage <- getStorage sessionId
+    root <- Env.getRoot sessionId
+    clientPath <- withQueryParam mFile
+    let path = ClientPath.fromClientPath root clientPath
+    file <- storage.get path
+    content <-
+      case file.size of
+        Just size
+          | size > 1024 * 1024 -> createThumbnail storage file
+        _ -> serveOriginal storage file
+    pure
+      $ addHeader (ByteString.unpack file.mimetype)
+      $ addHeader (printf "inline; filename=%s" (takeFileName path))
+      $ content
+  where
+    serveOriginal storage file =
+      if
+        | file.mimetype `isMime` "image" ->
+          storage.read file
+        | otherwise -> throwError InvalidMimeTypeForThumbnail & withServerError
+
+    createThumbnail storage file =
+      if
+        | file.mimetype `isMime` "image" -> do
+           bytes <- storage.read file
+           case Picture.decodeImage (LBS.toStrict bytes) of
+             Left _ -> pure bytes
+             Right image ->
+               case resizeToFit 200 200 image of
+                 Just resizedImage ->
+                     if
+                        | file.mimetype `isMime` "image/png" ->
+                          either (\_ -> throwError FailedToDecodeImage) pure $ Picture.encodeDynamicPng resizedImage
+                        | file.mimetype `isMime` "image/jpeg" ->
+                            case resizedImage of
+                              Picture.ImageYCbCr8 img -> pure $ Picture.encodeJpeg img
+                              _ -> throwError FailedToDecodeImage
+                        | file.mimetype `isMime` "image/bmp" ->
+                          either (\_ -> throwError FailedToDecodeImage) pure $ Picture.encodeDynamicBitmap resizedImage
+                        | file.mimetype `isMime` "image/gif" -> pure bytes
+                        | otherwise -> throwError FailedToDecodeImage
+                 Nothing -> throwError FailedToDecodeImage
+        | otherwise -> throwError InvalidMimeTypeForThumbnail & withServerError
+
+
+    resizeToFit :: Int -> Int -> Picture.DynamicImage -> Maybe Picture.DynamicImage
+    resizeToFit maxHeight maxWidth image = do
+      let getResolution img = (Picture.imageWidth img, Picture.imageHeight img)
+      let scale :: _ => (Int, Int) -> Picture.Image a -> Picture.Image a
+          scale (w, h) x = do
+            let s :: Double = min (fromIntegral maxWidth / fromIntegral w) (fromIntegral maxHeight / fromIntegral h)
+            let targetW = max 1 (floor $ s * fromIntegral w)
+            let targetH = max 1 (floor $ s * fromIntegral h)
+            if w <= maxWidth && h <= maxHeight
+               then x
+               else Picture.STBIR.resize Picture.STBIR.defaultOptions targetW targetH x
+      case image of
+        Picture.ImageY8 x     -> Just $ Picture.ImageY8 $ scale (getResolution x) x
+        Picture.ImageY16 x    -> Just $ Picture.ImageY16 $ scale (getResolution x) x
+        Picture.ImageY32 x    -> Just $ Picture.ImageY32 $ scale (getResolution x) x
+        Picture.ImageYA8 x    -> Just $ Picture.ImageYA8 $ scale (getResolution x) x
+        Picture.ImageYA16 x   -> Just $ Picture.ImageYA16 $ scale (getResolution x) x
+        Picture.ImageRGB8 x   -> Just $ Picture.ImageRGB8 $ scale (getResolution x) x
+        Picture.ImageRGB16 x  -> Just $ Picture.ImageRGB16 $ scale (getResolution x) x
+        Picture.ImageRGBA8 x  -> Just $ Picture.ImageRGBA8 $ scale (getResolution x) x
+        Picture.ImageRGBA16 x -> Just $ Picture.ImageRGBA16 $ scale (getResolution x) x
+        Picture.ImageYCbCr8 x -> Just $ Picture.ImageYCbCr8 $ scale (getResolution x) x
+        Picture.ImageCMYK8 x  -> Just $ Picture.ImageCMYK8 $ scale (getResolution x) x
+        Picture.ImageCMYK16 x -> Just $ Picture.ImageCMYK16 $ scale (getResolution x) x
+        _ -> Nothing
 
 
 application :: Env -> Application

@@ -212,8 +212,16 @@ textarea {
   display: flex;
   justify-content: space-around;
 
-  & i {
+
+  & .image-wrapper i {
     font-size: 8em;
+  }
+
+  & .image-wrapper img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
   }
 }
 
@@ -224,8 +232,10 @@ textarea {
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   text-overflow: ellipsis;
-  word-break: keep-all;
-  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: manual;
+  overflow: hidden;
+  text-align: center;
 }
 
 

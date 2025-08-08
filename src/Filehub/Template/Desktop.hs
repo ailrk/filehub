@@ -1,4 +1,5 @@
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE MultiWayIf #-}
 
 module Filehub.Template.Desktop
   ( index
@@ -554,13 +555,16 @@ table target root files selected order layout =
               , [ id_ [i|tr-#{idx}|], class_ "table-item " ]
               ]
 
-            clientPath@(ClientPath path) = ClientPath.toClientPath root file.path
+            clientPath@(ClientPath path) = clientPathOf file
 
 
     previewElement :: File -> Html ()
-    previewElement file =
+    previewElement file = do
       div_ [ class_ "thumbnail-preview " ] do
-        Template.icon file
+        div_ [  class_ "image-wrapper " ] do
+          if
+             | file.mimetype `isMime` "image" -> img_ [ loading_ "lazy", src_ (linkToText $ apiLinks.thumbnail (Just $ clientPathOf file)) ]
+             | otherwise -> Template.icon file
 
 
     fileNameElement :: File -> Bool -> Html ()
@@ -600,18 +604,18 @@ table target root files selected order layout =
 
     openBlank file =
       -- Client path are percent encoded, but we need to use unencoded raw path here.
-      let ClientPath path = ClientPath.toClientPath root file.path
+      let ClientPath path = clientPathOf file
        in [ term "_" [iii| on click js window.open('/serve?file=#{path}', '_blank'); end |] ]
 
 
     open file =
-      let ClientPath path = ClientPath.toClientPath root file.path
+      let ClientPath path = clientPathOf file
           imgIdx = Maybe.fromJust $ Map.lookup file resourceIdxMap -- image index always exists
        in [ term "_" [iii| on click send Open(path: '#{path}', index: #{imgIdx}) to body |] ]
 
 
     editor file =
-      [ term "hx-get" $ linkToText (apiLinks.editorModal (Just (ClientPath.toClientPath root file.path)))
+      [ term "hx-get" $ linkToText (apiLinks.editorModal (Just (clientPathOf file)))
       , term "hx-target" "#index"
       , term "hx-swap" "beforeend"
       ]
@@ -621,7 +625,7 @@ table target root files selected order layout =
       mconcat
         [ case file.content of
               Dir _ ->
-                [ term "hx-get" $ linkToText (apiLinks.cd (Just (ClientPath.toClientPath root file.path)))
+                [ term "hx-get" $ linkToText (apiLinks.cd (Just (clientPathOf file)))
                 , term "hx-target" ("#" <> viewId)
                 , term "hx-swap" "outerHTML"
                 ]
@@ -636,6 +640,8 @@ table target root files selected order layout =
               _ -> mempty
           ]
 
+    clientPathOf :: File -> ClientPath
+    clientPathOf file = ClientPath.toClientPath root file.path
 
     resourceIdxMap :: Map File Int
     resourceIdxMap = Map.fromList $ Viewer.takeResourceFiles files `zip` [0..]

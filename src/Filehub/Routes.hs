@@ -242,6 +242,16 @@ data Api mode = Api
                                                                  ] (ConduitT () ByteString (ResourceT IO) ()))
 
 
+  -- Similar to serve but only serve image and pdf. Creates thumbnail version for requested image. This is useful for lazy loading image
+  -- preview.
+  , thumbnail       :: mode :- "thumbnail"
+                    :> AuthProtect "session"
+                    :> QueryParam "file" ClientPath
+                    :> Get '[OctetStream] (Headers '[ Header "Content-Type" String
+                                                    , Header "Content-Disposition" String
+                                                    ] LBS.ByteString)
+
+
   , themeCss        :: mode :- "theme.css" :> Get '[OctetStream] LBS.ByteString
 
 

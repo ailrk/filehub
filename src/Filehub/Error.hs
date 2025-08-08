@@ -22,8 +22,11 @@ data FilehubError
   | InvalidDir
   | InvalidSession
   | InvalidSelection
+  | InvalidMimeTypeForThumbnail
   | InternalError
   | TargetError
+  | FailedToDecodeImage
+  | FailedToEncodeImage
   | MimeTypeMissing
   | S3Error
   | SelectError
@@ -38,8 +41,11 @@ instance ToHttpApiData FilehubError where
   toUrlPiece InvalidDir = Text.pack $ show InvalidDir
   toUrlPiece InvalidSession = Text.pack $ show InvalidSession
   toUrlPiece InvalidSelection = Text.pack $ show InvalidSelection
+  toUrlPiece InvalidMimeTypeForThumbnail = Text.pack $ show InvalidMimeTypeForThumbnail
   toUrlPiece InternalError = Text.pack $ show InternalError
   toUrlPiece TargetError = Text.pack $ show TargetError
+  toUrlPiece FailedToDecodeImage = Text.pack $ show FailedToDecodeImage
+  toUrlPiece FailedToEncodeImage = Text.pack $ show FailedToEncodeImage
   toUrlPiece MimeTypeMissing = Text.pack $ show MimeTypeMissing
   toUrlPiece S3Error = Text.pack $ show S3Error
   toUrlPiece SelectError = Text.pack $ show SelectError
@@ -59,8 +65,11 @@ toServerError err =
     InvalidDir -> err400 { errBody = fromString $ show err }
     InvalidSession -> err400 { errBody = fromString $ show err }
     InvalidSelection -> err400 { errBody = fromString $ show err }
+    InvalidMimeTypeForThumbnail -> err400 { errBody = fromString $ show err }
     InternalError -> err500 { errBody = fromString $ show err }
     TargetError -> err500 { errBody = fromString $ show err }
+    FailedToDecodeImage -> err500 { errBody = fromString $ show err }
+    FailedToEncodeImage -> err500 { errBody = fromString $ show err }
     MimeTypeMissing -> err400 { errBody = fromString $ show err }
     S3Error -> err500 { errBody = fromString $ show err }
     SelectError -> err500 { errBody = fromString $ show err }
