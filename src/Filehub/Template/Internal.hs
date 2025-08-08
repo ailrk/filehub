@@ -167,6 +167,18 @@ icon file =
       | file.mimetype `isMime` "video" || file.mimetype `isMime` "mp4" -> i_ [ class_ "bx bxs-videos"] mempty
       | file.mimetype `isMime` "audio" || file.mimetype `isMime` "mp3" -> i_ [ class_ "bx bxs-music"] mempty
       | file.mimetype `isMime` "image" -> i_ [ class_ "bx bx-image"] mempty
+      | file.mimetype `isMime` "application/x-tar"
+        || file.mimetype `isMime` "application/x-bzip-compressed-tar"
+        || file.mimetype `isMime` "application/x-tgz"
+        || file.mimetype `isMime` "application/x-bzip2"
+        || file.mimetype `isMime` "application/x-zstd"
+        || file.mimetype `isMime` "application/x-7z-compressed"
+        || file.mimetype `isMime` "application/x-lzma"
+        || file.mimetype `isMime` "application/x-lz"
+        || file.mimetype `isMime` "application/zip"
+        || file.mimetype `isMime` "application/gzip"
+        || file.mimetype `isMime` "application/zstd"
+        || file.mimetype `isMime` "application/vnd.rar" -> i_ [ class_ "bx bxs-file-archive"] mempty
       | file.mimetype `isMime` "text" -> i_ [ class_ "bx bxs-file"] mempty
       | otherwise -> i_ [ class_ "bx bxs-file-blank "] mempty
 

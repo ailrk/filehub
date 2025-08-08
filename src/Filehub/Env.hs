@@ -58,11 +58,11 @@ setSortFileBy sessionId order = do
   updateSession sessionId (\s -> s & #targets . ix s.index . #sortedFileBy .~ order)
 
 
-getLayout sessionId = (^. #sessionData . #layout) <$> Target.currentTarget sessionId
+getLayout sessionId = (^. #layout) <$> getSession sessionId
 
 
 setLayout sessionId layout = do
-  updateSession sessionId (\s -> s & #targets . ix s.index . #layout .~ layout)
+  updateSession sessionId (\s -> s & #layout .~ layout)
 
 
 

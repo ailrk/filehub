@@ -26,6 +26,7 @@ data Session = Session
   , targets :: [TargetSessionData]
   , copyState :: CopyState
   , index :: Int
+  , layout :: Layout
   }
   deriving (Generic)
 
@@ -38,6 +39,5 @@ data TargetSessionData = TargetSessionData
   { currentDir :: FilePath
   , sortedFileBy :: SortFileBy
   , selected :: Selected
-  , layout :: Layout
   }
   deriving (Generic)

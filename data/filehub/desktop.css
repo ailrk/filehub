@@ -223,9 +223,9 @@ textarea {
   min-height: calc(1.2em * 3);        /* Reserve height for 3 lines */
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
-  overflow: hidden;
   text-overflow: ellipsis;
-  text-align: center;
+  word-break: keep-all;
+  overflow-wrap: normal;
 }
 
 

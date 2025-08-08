@@ -45,6 +45,7 @@ createSession = do
     , targets = targetToSessionData <$> targets
     , copyState = NoCopyPaste
     , index = 0
+    , layout = ThumbnailLayout
     }
 
 
@@ -60,7 +61,6 @@ targetToSessionData (Target target) =
         { currentDir = ""
         , sortedFileBy = ByNameUp
         , selected = NoSelection
-        , layout = ThumbnailLayout
         }
 
 
