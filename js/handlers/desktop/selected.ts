@@ -35,28 +35,28 @@ function unregisterAll() {
 
 
 function handleRecord(e: Event) {
-  let tr = (e.target as Element).closest('tr');
-  if (tr) {
-    handle(tr, e)
+  let item = (e.target as Element).closest('.table-item') as HTMLElement;
+  if (item) {
+    handle(item, e)
   }
 }
 
 
 // Collect selected rows to the set `selectedIds`
 function collectFromHtml() {
-  let rows: NodeListOf<HTMLElement> = document.querySelectorAll('#table tr')
-  rows.forEach(row => {
-    const id = row.dataset.path!
-    if (row.classList.contains('selected')) {
+  let items: NodeListOf<HTMLElement> = document.querySelectorAll('#table .table-item')
+  items.forEach(item => {
+    const id = item.dataset.path!
+    if (item.classList.contains('selected')) {
       selectedIds.add(id)
     }
   })
 }
 
 /* Select handler */
-export function handle(row: HTMLElement, evt: Event) {
+export function handle(item: HTMLElement, evt: Event) {
   let e = evt as MouseEvent;
-  const id = row.dataset.path!
+  const id = item.dataset.path!
   // disable the default behavior when ctrl is pressed.
   if (e.ctrlKey || e.metaKey) {
     e.preventDefault()
@@ -94,13 +94,13 @@ export function handle(row: HTMLElement, evt: Event) {
     if (selectedIds.has(id)) {
       select({
         prepare: () => { selectedIds.delete(id) },
-        confirm: () => { row.classList.remove('selected') },
+        confirm: () => { item.classList.remove('selected') },
         recover: () => { selectedIds.add(id) }
       })
     } else {
       select({
         prepare: () => { selectedIds.add(id) },
-        confirm: () => { row.classList.add('selected') },
+        confirm: () => { item.classList.add('selected') },
         recover: () => { selectedIds.delete(id) }
       })
     }
