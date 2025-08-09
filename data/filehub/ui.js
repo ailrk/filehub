@@ -1,13 +1,13 @@
 'use strict';
-/* Desktop */
 import * as Desktop from './handlers/desktop.js';
-/* Mobile */
 import * as Mobile from './handlers/mobile.js';
-import * as ErrorsHandlers from './handlers/errors.js';
-import * as ViewerHandlers from './handlers/viewer.js';
 import * as Cookie from './cookie.js';
+import { showBalloon, ballonWaitTime } from './ballon.js';
+import { closeDropdowns } from './handlers/desktop/closeDropdown.js';
+import Viewer from './viewer.js';
 // import * as Debug from './debug.js';
 // Debug.init()
+let viewer = null;
 let display = Cookie.getCookie('display');
 /* Install handlers */
 switch (display) {
@@ -21,9 +21,15 @@ switch (display) {
         console.error('implementation error, no valid display type');
         break;
 }
-ErrorsHandlers.register();
-ViewerHandlers.register();
-document.addEventListener('ThemeChanged', _ => {
+document.addEventListener('ViewerInited', (e) => initViewer(e.detail));
+document.addEventListener('Open', (e) => open(e.detail.path));
+/* Error handling */
+document.body.addEventListener('htmx:responseError', handleError);
+document.addEventListener('ThemeChanged', reloadTheme);
+/* Preserve scroll positions */
+document.addEventListener('htmx:afterOnLoad', restoreViewScrollTop);
+document.addEventListener('htmx:beforeRequest', saveViewScrollTop);
+function reloadTheme() {
     const oldLink = document.querySelector('link[rel="stylesheet"][href*="/theme.css"]');
     console.log(oldLink);
     if (!oldLink)
@@ -32,10 +38,36 @@ document.addEventListener('ThemeChanged', _ => {
     newLink.href = '/theme.css?v=' + Date.now(); // cache-busting
     newLink.onload = () => oldLink.remove(); // remove old stylesheet after new one loads
     oldLink.parentNode.insertBefore(newLink, oldLink.nextSibling);
-});
-/* Preserve scroll positions */
-document.addEventListener('htmx:afterOnLoad', restoreViewScrollTop);
-document.addEventListener('htmx:beforeRequest', saveViewScrollTop);
+}
+function handleError(e) {
+    const xhr = e.detail.xhr;
+    const status = xhr.status;
+    let message = xhr.responseText;
+    if (message === undefined || message === "") {
+        if (status === 400) {
+            message = "Bad Request";
+        }
+        else if (status === 401) {
+            message = "Unauthorized";
+        }
+        else if (status === 402) {
+            message = "Payment required";
+        }
+        else if (status === 403) {
+            message = "Forbidden resource";
+        }
+        else if (status === 404) {
+            message = "Resource not found";
+        }
+        else if (status === 500) {
+            message = "Server internal error";
+        }
+        else {
+            message = "Something went wrong";
+        }
+    }
+    showBalloon(`${message} ${status}`, ballonWaitTime);
+}
 function saveViewScrollTop() {
     const scrollTop = document.querySelector('#view').scrollTop;
     console.log("save, ", scrollTop);
@@ -48,6 +80,30 @@ function restoreViewScrollTop() {
     if (saved !== null) {
         document.querySelector('#view').scrollTop = parseInt(saved, 10);
     }
+}
+function initViewer(o) {
+    closeDropdowns();
+    viewer = new Viewer(o.resources, { index: o.index });
+    console.log(viewer.currentContent);
+    viewer.show();
+    // Make sure the viewer content has context menu enabled.
+    viewer.currentContent.addEventListener("contextmenu", event => {
+        event.stopImmediatePropagation();
+    }, { capture: true });
+}
+/* Open a image. If the viewer is already initialized, show the image directly.
+ * Otherwise request the backend for the image list to construct a new viewer.
+ *
+ * The path is already percent encoded, we don't need to encode it here.
+ *
+ * NOTE:
+ * The target is set to 'head'. htmx ajax must specify a target, but this ajax
+ * call don't need a target at all. We pick head to avoid interference on
+ * other event handlers.
+ * */
+function open(path) {
+    let query = new URLSearchParams({ file: path });
+    htmx.ajax('GET', `/viewer?${query.toString()}`, { target: 'head', swap: 'none' });
 }
 /* Register service worker, required for PWA support. */
 if ('serviceWorker' in navigator) {

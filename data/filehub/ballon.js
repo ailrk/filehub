@@ -1,3 +1,4 @@
+export const ballonWaitTime = 2000;
 export function showBalloon(message, duration = 3000) {
     const body = document.getElementsByTagName('body')[0];
     const balloon = document.createElement('div');
