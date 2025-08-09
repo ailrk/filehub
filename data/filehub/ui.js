@@ -2,11 +2,11 @@
 import * as Desktop from './handlers/desktop.js';
 import * as Mobile from './handlers/mobile.js';
 import * as Cookie from './cookie.js';
-import { showBalloon, ballonWaitTime } from './ballon.js';
 import { closeDropdowns } from './handlers/desktop/closeDropdown.js';
 import Viewer from './viewer.js';
 // import * as Debug from './debug.js';
 // Debug.init()
+const ballonWaitTime = 2000;
 let viewer = null;
 let display = Cookie.getCookie('display');
 /* Install handlers */
@@ -104,6 +104,18 @@ function initViewer(o) {
 function open(path) {
     let query = new URLSearchParams({ file: path });
     htmx.ajax('GET', `/viewer?${query.toString()}`, { target: 'head', swap: 'none' });
+}
+function showBalloon(message, duration = 3000) {
+    const body = document.getElementsByTagName('body')[0];
+    const balloon = document.createElement('div');
+    balloon.className = 'balloon';
+    balloon.textContent = message;
+    body.appendChild(balloon);
+    setTimeout(() => {
+        balloon.style.opacity = '0';
+        balloon.style.transition = 'opacity 0.5s';
+        setTimeout(() => balloon.remove(), 500);
+    }, duration);
 }
 /* Register service worker, required for PWA support. */
 if ('serviceWorker' in navigator) {
