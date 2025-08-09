@@ -48,6 +48,28 @@ document.addEventListener('ThemeChanged', _ => {
 });
 
 
+/* Preserve scroll positions */
+document.addEventListener('htmx:afterOnLoad', restoreViewScrollTop);
+document.addEventListener('htmx:beforeRequest', saveViewScrollTop);
+
+
+function saveViewScrollTop() {
+  const scrollTop = document.querySelector('#view')!.scrollTop;
+  console.log("save, ", scrollTop)
+  localStorage.setItem("#view-scrollTop", `${scrollTop}`);
+}
+
+
+function restoreViewScrollTop() {
+  const saved = localStorage.getItem("#view-scrollTop");
+  console.log("restore, ", saved)
+  localStorage.removeItem("#view-scrollTop");
+  if (saved !== null) {
+    document.querySelector('#view')!.scrollTop = parseInt(saved, 10);
+  }
+}
+
+
 /* Register service worker, required for PWA support. */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
