@@ -17,7 +17,6 @@ interface SetCookieOptions {
   expires?: Date,
   secure?: boolean,
   sameSite?: string
-
 }
 
 function setCookie(name: string, value: string, options: SetCookieOptions) {

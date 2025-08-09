@@ -86,16 +86,38 @@ function handleError(e: any) {
 }
 
 
-function saveViewScrollTop() {
-  const scrollTop = document.querySelector('#view')!.scrollTop;
-  console.log("save, ", scrollTop)
-  localStorage.setItem("#view-scrollTop", `${scrollTop}`);
+function pathStartsWith(e: any, paths: string[]) {
+  let result = false;
+  for (let i = 0; i < paths.length; ++i) {
+    let path = paths[i];
+    let b = e.detail.pathInfo.finalRequestPath.startsWith(path) as boolean;
+    result = result && b;
+  }
+  return result;
 }
 
 
-function restoreViewScrollTop() {
+function saveViewScrollTop(e: any) {
+  // We only save the scroll on mutations.
+  let verb: string = e.detail.requestConfig.verb;
+  if (verb == 'post' || verb == 'delete' || verb == 'put') {
+    const scrollTop = document.querySelector('#view')!.scrollTop;
+    localStorage.setItem("#view-scrollTop", `${scrollTop}`);
+  }
+}
+
+
+function restoreViewScrollTop(e: any) {
+  // Changing target or directory should not also preserve the scroll from the previous directory.
+  const paths =
+    [ '/target/change',
+      '/cd'
+    ];
+  if (pathStartsWith(e, paths)) {
+    localStorage.removeItem("#view-scrollTop");
+    return;
+  }
   const saved = localStorage.getItem("#view-scrollTop");
-  console.log("restore, ", saved)
   localStorage.removeItem("#view-scrollTop");
   if (saved !== null) {
     document.querySelector('#view')!.scrollTop = parseInt(saved, 10);
@@ -107,7 +129,6 @@ function initViewer(o: ViewerInited) {
   closeDropdowns();
   viewer = new Viewer(o.resources, { index: o.index });
 
-  console.log(viewer.currentContent)
   viewer.show();
 
   // Make sure the viewer content has context menu enabled.
@@ -159,7 +180,6 @@ if ('serviceWorker' in navigator) {
       .catch(err => console.error('Service worker registration failed:', err));
   });
 }
-
 
 
 /* Reinitialize the resolution again before refresh the page
