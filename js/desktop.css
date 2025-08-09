@@ -224,6 +224,7 @@ textarea {
 
 
 .thumbnail-name {
+  display: -webkit-box;
   line-height: 1.2em;                 /* Control line height */
   min-height: calc(1.2em * 3);        /* Reserve height for 3 lines */
   -webkit-line-clamp: 3;
