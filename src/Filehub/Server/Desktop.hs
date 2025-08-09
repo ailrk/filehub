@@ -63,13 +63,14 @@ contextMenu sessionId _ mClientPath = withServerError do
 
 
 index :: SessionId -> Filehub (Html ())
-index sessionId =
-  Template.Desktop.index
-  <$> Env.getReadOnly
-  <*> sideBar sessionId
-  <*> view sessionId
-  <*> (Env.getLayout sessionId & withServerError)
-  <*> (ControlPanel.getControlPanelState sessionId & withServerError)
+index sessionId = do
+  readOnly <- Env.getReadOnly
+  sideBar' <- sideBar sessionId
+  view' <- view sessionId
+  layout <- Env.getLayout sessionId & withServerError
+  theme <- Env.getSessionTheme sessionId & withServerError
+  state <- ControlPanel.getControlPanelState sessionId & withServerError
+  pure $ Template.Desktop.index readOnly sideBar' view' layout theme state
 
 
 sideBar :: SessionId -> Filehub (Html ())

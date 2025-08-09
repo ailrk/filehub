@@ -314,21 +314,29 @@ server = Api
       pure $ addHeader TargetChanged html
 
 
-  , themeCss = do
+  , themeCss = \sessionId -> do
 #ifdef DEBUG
-      theme <- Env.getTheme
+      theme <- Env.getSessionTheme sessionId & withServerError
       dir <- liftIO $ Paths_filehub.getDataDir >>= makeAbsolute <&> (++ "/data/filehub")
       readFile $
         case theme of
           Dark -> dir </> "theme-dark.css"
           Light -> dir </> "theme-light.css"
 #else
-      theme <- Env.getTheme
+      theme <- Env.getSessionTheme sessionId & withServerError
       pure . LBS.fromStrict $
         case theme of
           Dark -> fromMaybe "no-theme" $ Map.lookup "theme-dark.css" staticFiles
           Light -> fromMaybe "no-theme" $ Map.lookup "theme-light.css" staticFiles
 #endif
+
+
+  , toggleTheme = \sessionId -> do
+      theme <- Env.getSessionTheme sessionId & withServerError
+      case theme of
+        Theme.Light -> Env.setSessionTheme sessionId Theme.Dark
+        Theme.Dark -> Env.setSessionTheme sessionId Theme.Light
+      addHeader ThemeChanged <$> index sessionId
 
 
   , serve = serve
@@ -338,8 +346,6 @@ server = Api
 
 
   , manifest = do
-      theme <- LBS.toStrict <$> server.themeCss
-      let background1 = fromMaybe "" $ Theme.parse "--background2" theme
       let t = Text.pack
       pure $
         object
@@ -347,8 +353,6 @@ server = Api
           , "short_name" .= t "FileHub"
           , "start_url"  .= t "/"
           , "display"    .= t "standalone"
-          , "theme_color" .= t background1
-          , "background_color" .= t background1
           , "icons" .=
               [ object
                     [ "src"     .= t "/static/web-app-manifest-192x192.png"
@@ -425,25 +429,17 @@ view sessionId = do
 
 
 controlPanel :: SessionId -> Filehub (Html ())
-controlPanel sessionId = do
-  display <- Env.getDisplay sessionId & withServerError
-  case display of
-    Desktop ->
-      Template.Desktop.controlPanel
-        <$> Env.getLayout sessionId
-        <*> Env.getReadOnly
-        <*> ControlPanel.getControlPanelState sessionId
-          & withServerError
-    Mobile ->
-      Template.Mobile.controlPanel
-        <$> Env.getReadOnly
-        <*> ControlPanel.getControlPanelState sessionId
-          & withServerError
-    NoDisplay ->
-      Template.Mobile.controlPanel
-        <$> Env.getReadOnly
-        <*> ControlPanel.getControlPanelState sessionId
-          & withServerError
+controlPanel sessionId = withServerError do
+  display <- Env.getDisplay sessionId
+  theme <- Env.getSessionTheme sessionId
+  layout <- Env.getLayout sessionId
+  readOnly <- Env.getReadOnly
+  state <- ControlPanel.getControlPanelState sessionId
+  pure $
+    case display of
+      Desktop -> Template.Desktop.controlPanel layout theme readOnly state
+      Mobile -> Template.Mobile.controlPanel theme readOnly state
+      NoDisplay -> Template.Mobile.controlPanel theme readOnly state
 
 
 serve :: SessionId -> Maybe ClientPath -> Filehub (Headers '[ Header "Content-Type" String

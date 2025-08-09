@@ -60,6 +60,7 @@ import Filehub.Target.S3 (S3, Backend (..))
 import Filehub.Target.File (FileSys, Backend (..))
 import Filehub.Target.Types (targetHandler)
 import Filehub.Layout (Layout (..))
+import Filehub.Theme (Theme (..))
 
 ------------------------------------
 -- components
@@ -70,12 +71,13 @@ index :: Bool
       -> Html ()
       -> Html ()
       -> Layout
+      -> Theme
       -> ControlPanelState
       -> Html ()
-index readOnly sideBar' view' layout controlPanelState = do
+index readOnly sideBar' view' layout theme controlPanelState = do
   div_ [ id_ "index" ] do
     sideBar'
-    controlPanel layout readOnly controlPanelState
+    controlPanel layout theme readOnly controlPanelState
     view'
 
 
@@ -122,8 +124,8 @@ sideBar targets (TargetView currentTarget _ _) = do
             ]
 
 
-controlPanel :: Layout -> Bool -> ControlPanelState -> Html ()
-controlPanel layout =
+controlPanel :: Layout -> Theme -> Bool -> ControlPanelState -> Html ()
+controlPanel layout theme =
   Template.controlPanel
     newFolderBtn
     newFileBtn
@@ -132,6 +134,7 @@ controlPanel layout =
     pasteBtn
     deleteBtn
     cancelBtn
+    themeBtn
     (Just layoutBtn)
     Nothing
   where
@@ -234,6 +237,27 @@ controlPanel layout =
         span_ [ class_ "field " ] do
           i_ [ class_ "bx bxs-message-alt-x" ] mempty
           span_ "Cancel"
+
+
+    themeBtn :: Html ()
+    themeBtn = do
+      case theme of
+        Light -> do
+          button_ [ class_ "btn btn-control"
+                  , type_ "submit"
+                  , term "hx-get" $ linkToText apiLinks.toggleTheme
+                  , term "hx-target" "#index"
+                  , term "hx-swap" "outerHTML"
+                  ] do
+            i_ [ class_ "bx bxs-moon" ] mempty
+        Dark -> do
+          button_ [ class_ "btn btn-control"
+                  , type_ "submit"
+                  , term "hx-get" $ linkToText apiLinks.toggleTheme
+                  , term "hx-target" "#index"
+                  , term "hx-swap" "outerHTML"
+                  ] do
+            i_ [ class_ "bx bxs-sun" ] mempty
 
 
     layoutBtn :: Html ()

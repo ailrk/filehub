@@ -23,6 +23,16 @@ switch (display) {
 }
 ErrorsHandlers.register();
 ViewerHandlers.register();
+document.addEventListener('ThemeChanged', _ => {
+    const oldLink = document.querySelector('link[rel="stylesheet"][href*="/theme.css"]');
+    console.log(oldLink);
+    if (!oldLink)
+        return;
+    const newLink = oldLink.cloneNode();
+    newLink.href = '/theme.css?v=' + Date.now(); // cache-busting
+    newLink.onload = () => oldLink.remove(); // remove old stylesheet after new one loads
+    oldLink.parentNode.insertBefore(newLink, oldLink.nextSibling);
+});
 /* Register service worker, required for PWA support. */
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {

@@ -35,6 +35,7 @@ createExpireDate = do
 createSession :: (Reader Env :> es, IOE :> es) => Eff es Session
 createSession = do
   targets <- Env.getTargets
+  theme <- Env.getTheme
   sessionId <- createSessionId
   expireDate <- createExpireDate
   pure Session
@@ -46,6 +47,7 @@ createSession = do
     , copyState = NoCopyPaste
     , index = 0
     , layout = ThumbnailLayout
+    , theme = theme
     }
 
 

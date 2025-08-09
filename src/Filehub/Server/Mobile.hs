@@ -29,12 +29,13 @@ import Filehub.ClientPath qualified as ClientPath
 
 index :: SessionId -> Filehub (Html ())
 index sessionId = do
-  Template.Mobile.index
-    <$> Env.getReadOnly
-    <*> sideBar sessionId
-    <*> view sessionId
-    <*> (ControlPanel.getControlPanelState sessionId & withServerError)
-    <*> (Selected.countSelected sessionId & withServerError)
+  readOnly <- Env.getReadOnly
+  sideBar' <- sideBar sessionId
+  view' <- view sessionId
+  theme <- Env.getSessionTheme sessionId & withServerError
+  state <- ControlPanel.getControlPanelState sessionId & withServerError
+  selectedCount <- Selected.countSelected sessionId & withServerError
+  pure $ Template.Mobile.index readOnly sideBar' view' theme state selectedCount
 
 
 sideBar :: SessionId -> Filehub (Html ())

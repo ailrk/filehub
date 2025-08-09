@@ -9,6 +9,8 @@ module Filehub.Env
   , setSortFileBy
   , getLayout
   , setLayout
+  , getSessionTheme
+  , setSessionTheme
   , getDisplay
   , module Filehub.SessionPool
   , module Filehub.Env.Internal
@@ -63,6 +65,13 @@ getLayout sessionId = (^. #layout) <$> getSession sessionId
 
 setLayout sessionId layout = do
   updateSession sessionId (\s -> s & #layout .~ layout)
+
+
+getSessionTheme sessionId = (^. #theme) <$> getSession sessionId
+
+
+setSessionTheme sessionId theme = do
+  updateSession sessionId (\s -> s & #theme .~ theme)
 
 
 

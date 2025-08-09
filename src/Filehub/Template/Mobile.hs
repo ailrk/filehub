@@ -43,22 +43,24 @@ import Text.Fuzzy (simpleFilter)
 import Filehub.Target.File (Backend (..), FileSys)
 import Filehub.Target.S3 (Backend (..), S3)
 import Filehub.Target.Types (targetHandler)
+import Filehub.Theme (Theme(..))
 
 
 index :: Bool
       -> Html ()
       -> Html ()
+      -> Theme
       -> ControlPanelState
       -> Int
       -> Html ()
-index readOnly sideBar' view' controlPanelState selectedCount = do
+index readOnly sideBar' view' theme controlPanelState selectedCount = do
   safeAreaShim
   div_ [ id_ "index" ] do
     overlay
     selectedCounter selectedCount
     sideBar'
     view'
-    controlPanel readOnly controlPanelState
+    controlPanel theme readOnly controlPanelState
     controlPanelBtn
 
 
@@ -301,8 +303,8 @@ table target root files selected = do
     resourceIdxMap = Map.fromList $ Viewer.takeResourceFiles files `zip` [0..]
 
 
-controlPanel :: Bool -> ControlPanelState -> Html ()
-controlPanel =
+controlPanel :: Theme -> Bool -> ControlPanelState -> Html ()
+controlPanel theme =
   Template.controlPanel
     newFolderBtn
     newFileBtn
@@ -311,6 +313,7 @@ controlPanel =
     pasteBtn
     deleteBtn
     cancelBtn
+    themeBtn
     Nothing
     (Just scroll2TopBtn)
   where
@@ -427,6 +430,29 @@ controlPanel =
         span_ [ class_ "field " ] do
           i_ [ class_ "bx bxs-message-alt-x" ] mempty
           span_ "Cancel"
+
+
+    themeBtn :: Html ()
+    themeBtn = do
+      case theme of
+        Light -> do
+          button_ [ class_ "action-btn"
+                  , type_ "submit"
+                  , term "hx-get" $ linkToText apiLinks.toggleTheme
+                  , term "hx-target" "#index"
+                  , term "hx-swap" "outerHTML"
+                  ] do
+            i_ [ class_ "bx bxs-moon" ] mempty
+            span_ "Switch to dark mode"
+        Dark -> do
+          button_ [ class_ "action-btn"
+                  , type_ "submit"
+                  , term "hx-get" $ linkToText apiLinks.toggleTheme
+                  , term "hx-target" "#index"
+                  , term "hx-swap" "outerHTML"
+                  ] do
+            i_ [ class_ "bx bxs-sun" ] mempty
+            span_ "Switch to light mode"
 
 
     scroll2TopBtn :: Html ()

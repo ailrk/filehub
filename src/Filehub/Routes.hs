@@ -252,7 +252,16 @@ data Api mode = Api
                                                     ] LBS.ByteString)
 
 
-  , themeCss        :: mode :- "theme.css" :> Get '[OctetStream] LBS.ByteString
+  , themeCss        :: mode :- "theme.css"
+                    :> AuthProtect "session"
+                    :> Get '[OctetStream] LBS.ByteString
+
+
+
+  , toggleTheme     :: mode :- "theme"
+                    :> "toggle"
+                    :> AuthProtect "session"
+                    :> Get '[HTML] (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
 
 
   , manifest        :: mode :- "manifest.json" :> Get '[Manifest] Value

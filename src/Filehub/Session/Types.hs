@@ -16,6 +16,7 @@ import Filehub.Sort (SortFileBy)
 import Filehub.Copy.Types (CopyState)
 import Filehub.Selected.Types (Selected)
 import Filehub.Layout (Layout)
+import Filehub.Theme (Theme)
 
 
 data Session = Session
@@ -27,6 +28,7 @@ data Session = Session
   , copyState :: CopyState
   , index :: Int
   , layout :: Layout
+  , theme :: Theme
   }
   deriving (Generic)
 

@@ -1,5 +1,7 @@
 'use strict';
 
+declare var htmx: any;
+
 /* Desktop */
 import * as Desktop from './handlers/desktop.js';
 
@@ -31,6 +33,19 @@ switch (display) {
 
 ErrorsHandlers.register();
 ViewerHandlers.register();
+
+
+document.addEventListener('ThemeChanged', _ => {
+  const oldLink = document.querySelector('link[rel="stylesheet"][href*="/theme.css"]') as HTMLLinkElement;
+  console.log(oldLink)
+  if (!oldLink) return;
+
+  const newLink = oldLink.cloneNode() as HTMLLinkElement;
+  newLink.href = '/theme.css?v=' + Date.now(); // cache-busting
+  newLink.onload = () => oldLink.remove(); // remove old stylesheet after new one loads
+
+  oldLink.parentNode!.insertBefore(newLink, oldLink.nextSibling);
+});
 
 
 /* Register service worker, required for PWA support. */

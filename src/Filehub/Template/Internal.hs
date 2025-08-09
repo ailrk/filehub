@@ -32,10 +32,11 @@ withDefault display background html = do
   link_ [ rel_ "stylesheet", href_ "https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" ]
   link_ [ rel_ "stylesheet", href_ "/static/viewer.css" ]
   link_ [ rel_ "manifest", href_ "/manifest.json" ]
-  link_ [rel_ "icon", type_ "image/png", href_ "/favicon-96x96.png", sizes_ "96x96"]
-  link_ [rel_ "icon", type_ "image/svg+xml", href_ "/favicon.svg"]
-  link_ [rel_ "shortcut icon", href_ "/favicon.ico"]
+  link_ [ rel_ "icon", type_ "image/png", href_ "/favicon-96x96.png", sizes_ "96x96"]
+  link_ [ rel_ "icon", type_ "image/svg+xml", href_ "/favicon.svg"]
+  link_ [ rel_ "shortcut icon", href_ "/favicon.ico"]
   link_ [rel_ "apple-touch-icon", sizes_ "180x180", href_ "/apple-touch-icon.png"]
+  link_ [ rel_ "stylesheet", href_ "/theme.css" ]
 
   meta_ [ name_ "mobile-web-app-capable", content_ "yes" ]
   meta_ [ name_ "apple-mobile-web-app-title", content_ "FileHub"]
@@ -107,7 +108,7 @@ searchBar = do
 
 
 controlPanel
-  :: Html () -> Html () -> Html () -> Html () -> Html () -> Html () -> Html () -> Maybe (Html()) -> Maybe (Html ())
+  :: Html () -> Html () -> Html () -> Html () -> Html () -> Html () -> Html () -> Html () -> Maybe (Html()) -> Maybe (Html ())
   -> Bool -> ControlPanelState -> Html ()
 controlPanel
   newFolderBtn
@@ -117,6 +118,7 @@ controlPanel
   pasteBtn
   deleteBtn
   cancelBtn
+  themeBtn
   mLayoutBtn
   mScroll2TopBtn
   readOnly state = do
@@ -133,6 +135,7 @@ controlPanel
         ControlPanelDefault ->
           div_ [ id_ controlPanelId ] do
             maybe mempty id mLayoutBtn
+            themeBtn
             newFolderBtn
             newFileBtn
             uploadBtn
@@ -140,6 +143,7 @@ controlPanel
         ControlPanelSelecting ->
           div_ [ id_ controlPanelId ] do
             maybe mempty id mLayoutBtn
+            themeBtn
             newFolderBtn
             newFileBtn
             uploadBtn
@@ -150,6 +154,7 @@ controlPanel
         ControlPanelCopied ->
           div_ [ id_ controlPanelId ] do
             maybe mempty id mLayoutBtn
+            themeBtn
             newFolderBtn
             newFileBtn
             uploadBtn
