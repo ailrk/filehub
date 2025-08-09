@@ -30,6 +30,7 @@
             disallowGhcReference = false;
             enableSeparateDataOutput = false;
             configureFlags = drv.configureFlags or [] ++ [
+              "--ghc-options=-optc-O2"
               "--ghc-options=-O2"
               "--ghc-options=-optl=-s"  # Strip via linker
               "--ghc-options=-split-sections"

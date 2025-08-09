@@ -498,7 +498,7 @@ thumbnail sessionId mFile = do
            case Picture.decodeImage (LBS.toStrict bytes) of
              Left _ -> pure bytes
              Right image ->
-               case resizeToFit 200 200 image of
+               case resizeToFit 140 140 image of
                  Just resizedImage ->
                      if
                         | file.mimetype `isMime` "image/png" ->
