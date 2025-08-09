@@ -23,9 +23,8 @@ import Lens.Micro.Platform ()
 import Lucid
 import Prelude hiding (readFile)
 import System.FilePath (takeFileName)
-import Filehub.Server.Context.Resolution (ConfirmDesktopOnly)
+import Filehub.Server.Handler (ConfirmDesktopOnly)
 import Filehub.Storage (getStorage)
-
 
 
 fileDetailModal :: SessionId -> ConfirmDesktopOnly -> Maybe ClientPath -> Filehub (Html ())

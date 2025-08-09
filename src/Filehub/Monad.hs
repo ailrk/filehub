@@ -1,6 +1,5 @@
 module Filehub.Monad
-  ( toServantHandler
-  , runFilehub
+  ( runFilehub
   , toIO
   , Filehub
   )
@@ -14,7 +13,7 @@ import Effectful.Error.Dynamic (Error, runErrorNoCallStack)
 import Effectful.FileSystem (FileSystem, runFileSystem)
 import Effectful.Concurrent
 import Filehub.Env (Env(..))
-import Servant (Handler (..), ServerError)
+import Servant (ServerError)
 import Control.Monad.Trans.Except (ExceptT(ExceptT), runExceptT)
 import Control.Monad ((>=>))
 
@@ -30,14 +29,6 @@ runFilehub env eff =
   . runErrorNoCallStack
   . runLog "filehub" env.logger env.logLevel
   . runReader env
-  $ eff
-
-
-toServantHandler :: Env -> Filehub a -> Handler a
-toServantHandler env eff
-  = Handler
-  . ExceptT
-  . runFilehub env
   $ eff
 
 

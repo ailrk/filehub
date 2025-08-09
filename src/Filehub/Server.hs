@@ -65,12 +65,8 @@ import Filehub.Log qualified as Log
 import Filehub.Monad
 import Filehub.Options (Options(..), parseOptions, TargetOption (..))
 import Filehub.Routes qualified as Routes
-import Filehub.Server.Context.ReadOnly qualified as Server.Context.ReadOnly
-import Filehub.Server.Context.Resolution qualified as Server.Context.Resolution
-import Filehub.Server.Context.Session qualified as Server.Context.Session
+import Filehub.Server.Handler qualified as Server.Handler
 import Filehub.Server.Middleware qualified as Server.Middleware
-import Filehub.Server.Middleware.Display qualified as Server.Middleware.Display
-import Filehub.Server.Middleware.Session qualified as Server.Middleware.Session
 import Filehub.Server.Desktop qualified as Server.Desktop
 import Filehub.Server.Mobile qualified as Server.Mobile
 import Filehub.Server.Internal (withQueryParam, clear, copy, paste)
@@ -541,17 +537,17 @@ thumbnail sessionId mFile = do
 application :: Env -> Application
 application env
   = Server.Middleware.exposeHeaders
-  . Server.Middleware.Session.sessionMiddleware env
+  . Server.Middleware.sessionMiddleware env
   . Server.Middleware.dedupHeadersKeepLast
-  . Server.Middleware.Display.displayMiddleware env
-  . serveWithContextT Routes.api ctx (toServantHandler env)
+  . Server.Middleware.displayMiddleware env
+  . serveWithContextT Routes.api ctx (Server.Handler.toServantHandler env)
   $ server
   where
 
-    ctx = Server.Context.Session.sessionHandler env
-        :. Server.Context.ReadOnly.readOnlyHandler env
-        :. Server.Context.Resolution.desktopOnlyHandler env
-        :. Server.Context.Resolution.mobileOnlyHandler env
+    ctx = Server.Handler.sessionHandler env
+        :. Server.Handler.readOnlyHandler env
+        :. Server.Handler.desktopOnlyHandler env
+        :. Server.Handler.mobileOnlyHandler env
         :. EmptyContext
 
 ------------------------------------

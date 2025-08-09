@@ -54,8 +54,7 @@ import Filehub.Types
       Resolution(..), Manifest
     )
 import GHC.Generics (Generic)
-import Filehub.Server.Context.Resolution (ConfirmMobilOnly, ConfirmDesktopOnly)
-import Filehub.Server.Context.ReadOnly (ConfirmReadOnly)
+import Filehub.Server.Handler (ConfirmReadOnly, ConfirmMobilOnly, ConfirmDesktopOnly)
 import Filehub.Layout (Layout)
 import Data.ByteString (ByteString)
 import Conduit (ConduitT, ResourceT)

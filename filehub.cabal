@@ -146,14 +146,10 @@ library
     Filehub.Selected
     Filehub.Selected.Types
     Filehub.Server
-    Filehub.Server.Context.ReadOnly
-    Filehub.Server.Context.Resolution
-    Filehub.Server.Context.Session
+    Filehub.Server.Handler
     Filehub.Server.Desktop
     Filehub.Server.Internal
     Filehub.Server.Middleware
-    Filehub.Server.Middleware.Display
-    Filehub.Server.Middleware.Session
     Filehub.Server.Mobile
     Filehub.Session
     Filehub.Session.Types
