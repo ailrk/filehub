@@ -4,6 +4,7 @@ module Filehub.Server.Middleware
   , dedupHeadersKeepLast
   , displayMiddleware
   , sessionMiddleware
+  , loginMiddleware
   ) where
 
 import Control.Monad (when)
@@ -131,3 +132,9 @@ sessionMiddleware env app req respond = toIO onErr env do
         let res' = mapResponseHeaders (setCookieHeader :) res
          in respond res'
     onErr _ = respond $ responseLBS status500 [] "server error" -- impossible
+
+
+
+-- | Handle login
+loginMiddleware :: Env -> Middleware
+loginMiddleware env app req respond = app req $ \res -> respond res

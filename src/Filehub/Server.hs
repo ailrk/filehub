@@ -47,8 +47,7 @@ import Filehub.Layout (Layout(..))
 import Filehub.Mime (isMime)
 import Filehub.Target qualified as Target
 import Filehub.Target.Types.TargetView (TargetView(..))
-import Filehub.Types
-    ( FilehubEvent (..))
+import Filehub.Types ( FilehubEvent (..), LoginForm(..))
 import Filehub.Env qualified as Env
 import Filehub.Error ( withServerError, FilehubError(..), FilehubError(..), withServerError )
 import Filehub.Routes (Api (..))
@@ -95,6 +94,7 @@ import Network.Wai.Middleware.RequestLogger (logStdout)
 import System.Environment (withArgs)
 import UnliftIO (hFlush, stdout)
 import Network.Mime qualified as Mime
+import Filehub.Server.Handler (ConfirmLogin)
 
 
 #ifdef DEBUG
@@ -125,7 +125,7 @@ server = Api
   --
   -- The frontend js deletes the `display` cookie on `pageunload`, so the backend can
   -- start a full reload from the bootstrap stage.
-  , index = \sessionId -> do
+  , index = \sessionId _ -> do
       display <- Env.getDisplay sessionId & withServerError
       manifest <- server.manifest
       let background
@@ -140,8 +140,12 @@ server = Api
         Desktop -> fmap (Template.withDefault display background) $ Server.Desktop.index sessionId
         Mobile -> fmap (Template.withDefault display background) $ Server.Mobile.index sessionId
 
+  , login = login
 
-  , cd = \sessionId mClientPath -> do
+  , loginPost = loginPost
+
+
+  , cd = \sessionId _ mClientPath -> do
       clientPath <- withQueryParam mClientPath
       withServerError do
         root <- Env.getRoot sessionId
@@ -150,14 +154,14 @@ server = Api
       view sessionId <&> addHeader DirChanged
 
 
-  , newFile = \sessionId _ (NewFile path) -> do
+  , newFile = \sessionId _ _ (NewFile path) -> do
       withServerError do
         storage <- getStorage sessionId
         storage.new (Text.unpack path)
       view sessionId
 
 
-  , updateFile = \sessionId _ (UpdatedFile clientPath content) -> do
+  , updateFile = \sessionId _ _ (UpdatedFile clientPath content) -> do
       let path = clientPath.unClientPath
       withServerError do
         storage <- getStorage sessionId
@@ -165,7 +169,7 @@ server = Api
       view sessionId
 
 
-  , deleteFile = \sessionId _ mClientPath deleteSelected -> do
+  , deleteFile = \sessionId _ _ mClientPath deleteSelected -> do
       withServerError do
         root <- Env.getRoot sessionId
         storage <- getStorage sessionId
@@ -189,23 +193,23 @@ server = Api
       addHeader count <$> index sessionId
 
 
-  , newFolder = \sessionId _ (NewFolder path) -> do
+  , newFolder = \sessionId _ _ (NewFolder path) -> do
       withServerError do
         storage <- getStorage sessionId
         storage.newFolder (Text.unpack path)
       view sessionId
 
 
-  , newFileModal = \_ _ _ -> pure Template.Desktop.newFileModal
+  , newFileModal = \_ _ _ _ -> pure Template.Desktop.newFileModal
 
 
-  , newFolderModal = \_ _ _ -> pure Template.Desktop.newFolderModal
+  , newFolderModal = \_ _ _ _ -> pure Template.Desktop.newFolderModal
 
 
-  , fileDetailModal = Server.Desktop.fileDetailModal
+  , fileDetailModal = \sessionId _ -> Server.Desktop.fileDetailModal sessionId
 
 
-  , editorModal = \sessionId mClientPath -> do
+  , editorModal = \sessionId _ mClientPath -> do
       display <- Env.getDisplay sessionId & withServerError
       case display of
         Mobile -> Server.Mobile.editorModal sessionId mClientPath
@@ -213,7 +217,7 @@ server = Api
         NoDisplay -> undefined
 
 
-  , search = \sessionId searchWord -> withServerError do
+  , search = \sessionId _ searchWord -> withServerError do
       display <- Env.getDisplay sessionId
       storage <- getStorage sessionId
       TargetView target _ _ <- Env.currentTarget sessionId
@@ -228,17 +232,17 @@ server = Api
         NoDisplay -> undefined
 
 
-  , sortTable = \sessionId order -> do
+  , sortTable = \sessionId _ order -> do
       Env.setSortFileBy sessionId (fromMaybe ByNameUp order)
       addHeader TableSorted <$> view sessionId
 
 
-  , selectLayout = \sessionId layout -> do
+  , selectLayout = \sessionId _ layout -> do
       Env.setLayout sessionId (fromMaybe ThumbnailLayout layout)
       addHeader LayoutChanged <$> index sessionId
 
 
-  , selectRows = \sessionId selected -> do
+  , selectRows = \sessionId _ selected -> do
       case selected of
         NoSelection -> do
           logAttention_ [i|No selection: #{sessionId}|]
@@ -249,14 +253,14 @@ server = Api
           addHeader count <$> controlPanel sessionId
 
 
-  , upload = \sessionId _ multipart -> do
+  , upload = \sessionId _ _ multipart -> do
       withServerError do
         storage <- getStorage sessionId
         storage.upload multipart
       index sessionId
 
 
-  , download = \sessionId mClientPath -> do
+  , download = \sessionId _ mClientPath -> do
       clientPath@(ClientPath path) <- withQueryParam mClientPath
       bs <- withServerError do
         storage <- getStorage sessionId
@@ -264,28 +268,28 @@ server = Api
       pure $ addHeader (printf "attachement; filename=%s" (takeFileName path)) bs
 
 
-  , copy = \sessionId _ -> do
+  , copy = \sessionId _ _ -> do
       copy sessionId
       controlPanel sessionId
 
 
-  , paste = \sessionId _ -> do
+  , paste = \sessionId _ _ -> do
       paste sessionId
       clear sessionId
       count <- Selected.countSelected sessionId & withServerError
       addHeader count <$> index sessionId
 
 
-  , cancel = \sessionId -> do
+  , cancel = \sessionId _ -> do
       clear sessionId
       count <- Selected.countSelected sessionId & withServerError
       addHeader count <$> index sessionId
 
 
-  , contextMenu = Server.Desktop.contextMenu
+  , contextMenu = \sessionId _ -> Server.Desktop.contextMenu sessionId
 
 
-  , initViewer = \sessionId mClientPath -> do
+  , initViewer = \sessionId _ mClientPath -> do
       withServerError do
         clientPath <- withQueryParam mClientPath
         root <- Env.getRoot sessionId
@@ -293,7 +297,7 @@ server = Api
         pure $ addHeader payload NoContent
 
 
-  , changeTarget = \sessionId mTargetId -> do
+  , changeTarget = \sessionId _ mTargetId -> do
       savedTargetId <- withServerError do
         TargetView saved _ _ <- Target.currentTarget sessionId
         pure $ Target.getTargetId saved
@@ -310,7 +314,7 @@ server = Api
       pure $ addHeader TargetChanged html
 
 
-  , themeCss = \sessionId -> do
+  , themeCss = \sessionId _ -> do
 #ifdef DEBUG
       theme <- Env.getSessionTheme sessionId & withServerError
       dir <- liftIO $ Paths_filehub.getDataDir >>= makeAbsolute <&> (++ "/data/filehub")
@@ -327,7 +331,7 @@ server = Api
 #endif
 
 
-  , toggleTheme = \sessionId -> do
+  , toggleTheme = \sessionId _ -> do
       theme <- Env.getSessionTheme sessionId & withServerError
       case theme of
         Theme.Light -> Env.setSessionTheme sessionId Theme.Dark
@@ -415,6 +419,17 @@ index sessionId = do
     Mobile -> Server.Mobile.index sessionId
 
 
+login :: SessionId -> Filehub (Html ())
+login sessionId = do
+  display <- Env.getDisplay sessionId & withServerError
+  pure mempty
+
+
+loginPost :: SessionId -> LoginForm -> Filehub (Html ())
+loginPost sessionId loginForm = do
+  index sessionId
+
+
 view :: SessionId -> Filehub (Html ())
 view sessionId = do
   display <- Env.getDisplay sessionId & withServerError
@@ -438,10 +453,11 @@ controlPanel sessionId = withServerError do
       NoDisplay -> Template.Mobile.controlPanel theme readOnly state
 
 
-serve :: SessionId -> Maybe ClientPath -> Filehub (Headers '[ Header "Content-Type" String
-                                                            , Header "Content-Disposition" String
-                                                            ] (ConduitT () ByteString (ResourceT IO) ()))
-serve sessionId mFile = do
+serve :: SessionId -> ConfirmLogin -> Maybe ClientPath
+      -> Filehub (Headers '[ Header "Content-Type" String
+                           , Header "Content-Disposition" String
+                           ] (ConduitT () ByteString (ResourceT IO) ()))
+serve sessionId _ mFile = do
   withServerError do
     storage <- getStorage sessionId
     root <- Env.getRoot sessionId
@@ -457,10 +473,11 @@ serve sessionId mFile = do
 
 -- | Create thumbnailed version of image, pdf, and video.
 --   If the image is big we will create a thumbnail by resizing the image, then serve the thumbnail instead.
-thumbnail :: SessionId -> Maybe ClientPath -> Filehub (Headers '[ Header "Content-Type" String
-                                                                , Header "Content-Disposition" String
-                                                                ] LBS.ByteString)
-thumbnail sessionId mFile = do
+thumbnail :: SessionId -> ConfirmLogin -> Maybe ClientPath
+          -> Filehub (Headers '[ Header "Content-Type" String
+                               , Header "Content-Disposition" String
+                               ] LBS.ByteString)
+thumbnail sessionId _ mFile = do
   withServerError do
     storage <- getStorage sessionId
     root <- Env.getRoot sessionId
@@ -538,6 +555,7 @@ application :: Env -> Application
 application env
   = Server.Middleware.exposeHeaders
   . Server.Middleware.sessionMiddleware env
+  . Server.Middleware.loginMiddleware env
   . Server.Middleware.dedupHeadersKeepLast
   . Server.Middleware.displayMiddleware env
   . serveWithContextT Routes.api ctx (Server.Handler.toServantHandler env)
@@ -548,6 +566,7 @@ application env
         :. Server.Handler.readOnlyHandler env
         :. Server.Handler.desktopOnlyHandler env
         :. Server.Handler.mobileOnlyHandler env
+        :. Server.Handler.loginHandler env
         :. EmptyContext
 
 ------------------------------------

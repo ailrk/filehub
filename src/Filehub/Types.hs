@@ -4,7 +4,8 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module Filehub.Types
-  ( Session(..)
+  ( LoginForm(..)
+  , Session(..)
   , TargetSessionData(..)
   , Selected(..)
   , CopyState(..)
@@ -58,6 +59,18 @@ import Filehub.Copy.Types (CopyState(..))
 import Filehub.Session.Types (SessionId(..), Session(..), TargetSessionData(..))
 import Filehub.SessionPool.Types (SessionPool(..))
 import Filehub.Env.Types (Env(..))
+
+
+data LoginForm = LoginForm
+  { username :: Text
+  , password :: Text
+  } deriving (Show)
+
+
+instance FromForm LoginForm where
+  fromForm f = LoginForm
+    <$> parseUnique "username" f
+    <*> parseUnique "password" f
 
 
 data ControlPanelState

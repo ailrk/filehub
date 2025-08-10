@@ -51,10 +51,10 @@ import Filehub.Types
       Selected(..),
       FilehubEvent(..),
       SessionId,
-      Resolution(..), Manifest
+      Resolution(..), Manifest, LoginForm
     )
 import GHC.Generics (Generic)
-import Filehub.Server.Handler (ConfirmReadOnly, ConfirmMobilOnly, ConfirmDesktopOnly)
+import Filehub.Server.Handler (ConfirmReadOnly, ConfirmMobilOnly, ConfirmDesktopOnly, ConfirmLogin)
 import Filehub.Layout (Layout)
 import Data.ByteString (ByteString)
 import Conduit (ConduitT, ResourceT)
@@ -65,6 +65,7 @@ type instance AuthServerData (AuthProtect "session") = SessionId
 type instance AuthServerData (AuthProtect "readonly") = ConfirmReadOnly
 type instance AuthServerData (AuthProtect "desktop-only") = ConfirmDesktopOnly
 type instance AuthServerData (AuthProtect "mobile-only") = ConfirmMobilOnly
+type instance AuthServerData (AuthProtect "login") = ConfirmLogin
 
 -- | Filehub custom headers are in format `X-Filehub-*`. They are usually used to report the server state
 --   change to the frontend. E.g when /cancel is called, the server will clear the selection and copy state.
@@ -72,158 +73,203 @@ type instance AuthServerData (AuthProtect "mobile-only") = ConfirmMobilOnly
 
 
 data Api mode = Api
-  { init            :: mode :- "init"
+  { init            :: mode
+                    :- "init"
                     :> AuthProtect "session"
                     :> ReqBody '[FormUrlEncoded] Resolution
                     :> Post '[HTML] (Html ())
 
 
-  , index           :: mode :- AuthProtect "session" :> Get '[HTML] (Html ())
+  , index           :: mode
+                    :- AuthProtect "session"
+                    :> AuthProtect "login"
+                    :> Get '[HTML] (Html ())
 
 
-  , cd              :: mode :- "cd"
+  , login           :: mode
+                    :- "login"
                     :> AuthProtect "session"
+                    :> Get '[HTML] (Html ())
+
+
+  , loginPost       :: mode
+                    :- "login"
+                    :> AuthProtect "session"
+                    :> ReqBody '[FormUrlEncoded] LoginForm
+                    :> Post '[HTML] (Html ())
+
+
+  , cd              :: mode
+                    :- "cd"
+                    :> AuthProtect "session"
+                    :> AuthProtect "login"
                     :> QueryParam "dir" ClientPath
                     :> Get '[HTML] (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
 
 
-  , newFile         :: mode :- "files"
-                    :> "new"
+  , newFile         :: mode
+                    :- "files" :> "new"
                     :> AuthProtect "session"
+                    :> AuthProtect "login"
                     :> AuthProtect "readonly"
                     :> ReqBody '[FormUrlEncoded] NewFile
                     :> Post '[HTML] (Html ())
 
 
-  , updateFile      :: mode :- "files"
-                    :> "update"
+  , updateFile      :: mode
+                    :- "files" :> "update"
                     :> AuthProtect "session"
+                    :> AuthProtect "login"
                     :> AuthProtect "readonly"
                     :> ReqBody '[FormUrlEncoded] UpdatedFile
                     :> Post '[HTML] (Html ())
 
 
-  , deleteFile      :: mode :- "files"
-                    :> "delete"
+  , deleteFile      :: mode
+                    :- "files" :> "delete"
                     :> AuthProtect "session"
+                    :> AuthProtect "login"
                     :> AuthProtect "readonly"
                     :> QueryParam "file" ClientPath
                     :> QueryFlag "selected"
                     :> Delete '[HTML] (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))
 
 
-  , copy            :: mode :- "files"
-                    :> "copy"
+  , copy            :: mode
+                    :- "files" :> "copy"
                     :> AuthProtect "session"
+                    :> AuthProtect "login"
                     :> AuthProtect "readonly"
                     :> Get '[HTML] (Html ())
 
 
-  , paste           :: mode :- "files"
-                    :> "paste"
+  , paste           :: mode
+                    :- "files" :> "paste"
                     :> AuthProtect "session"
+                    :> AuthProtect "login"
                     :> AuthProtect "readonly"
                     :> Post '[HTML] (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))
 
 
-  , newFolder       :: mode :- "folders"
-                    :> "new"
+  , newFolder       :: mode
+                    :- "folders" :> "new"
                     :> AuthProtect "session"
+                    :> AuthProtect "login"
                     :> AuthProtect "readonly"
                     :> ReqBody '[FormUrlEncoded] NewFolder
                     :> Post '[HTML] (Html ())
 
 
-  , newFileModal    :: mode :- "modal"
-                    :> "new-file"
+  , newFileModal    :: mode
+                    :- "modal" :> "new-file"
                     :> AuthProtect "session"
+                    :> AuthProtect "login"
                     :> AuthProtect "desktop-only"
                     :> AuthProtect "readonly"
                     :> Get '[HTML] (Html ())
 
 
-  , newFolderModal  :: mode :- "modal"
-                    :> "new-folder"
+  , newFolderModal  :: mode
+                    :- "modal" :> "new-folder"
                     :> AuthProtect "session"
+                    :> AuthProtect "login"
                     :> AuthProtect "desktop-only"
                     :> AuthProtect "readonly"
                     :> Get '[HTML] (Html ())
 
 
-  , fileDetailModal :: mode :- "modal"
-                    :> "file"
-                    :> "detail"
+  , fileDetailModal :: mode
+                    :- "modal" :> "file" :> "detail"
                     :> AuthProtect "session"
+                    :> AuthProtect "login"
                     :> AuthProtect "desktop-only"
                     :> QueryParam "file" ClientPath
                     :> Get '[HTML] (Html ())
 
 
-  , editorModal     :: mode :- "modal"
-                    :> "editor"
+  , editorModal     :: mode
+                    :- "modal" :> "editor"
                     :> AuthProtect "session"
+                    :> AuthProtect "login"
                     :> QueryParam "file" ClientPath
                     :> Get '[HTML] (Html ())
 
 
-  , search          :: mode :- "search"
+  , search          :: mode
+                    :- "search"
                     :> AuthProtect "session"
+                    :> AuthProtect "login"
                     :> ReqBody '[FormUrlEncoded] SearchWord
                     :> Post '[HTML] (Html ())
 
 
-  , sortTable       :: mode :- "table"
-                    :> "sort"
+  , sortTable       :: mode
+                    :- "table" :> "sort"
                     :> AuthProtect "session"
+                    :> AuthProtect "login"
                     :> QueryParam "by" SortFileBy
                     :> Get '[HTML] (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
 
-  , selectLayout    :: mode :- "layout"
+  , selectLayout    :: mode
+                    :- "layout"
                     :> AuthProtect "session"
+                    :> AuthProtect "login"
                     :> QueryParam "as" Layout
                     :> Get '[HTML] (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
 
-  , selectRows      :: mode :- "table"
-                    :> "select"
+  , selectRows      :: mode
+                    :- "table" :> "select"
                     :> AuthProtect "session"
+                    :> AuthProtect "login"
                     :> ReqBody '[FormUrlEncoded] Selected
                     :> Post '[HTML] (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))
 
 
-  , upload          :: mode :- "upload"
+  , upload          :: mode
+                    :- "upload"
                     :> AuthProtect "session"
+                    :> AuthProtect "login"
                     :> AuthProtect "readonly"
                     :> MultipartForm Mem (MultipartData Mem)
                     :> Post '[HTML] (Html ())
 
 
-  , download        :: mode :- "download"
+  , download        :: mode
+                    :- "download"
                     :> AuthProtect "session"
+                    :> AuthProtect "login"
                     :> QueryParam "file" ClientPath
                     :> StreamGet NoFraming OctetStream (Headers '[ Header "Content-Disposition" String ] (ConduitT () ByteString (ResourceT IO) ()))
 
 
-  , cancel          :: mode :- "cancel"
+  , cancel          :: mode
+                    :- "cancel"
                     :> AuthProtect "session"
+                    :> AuthProtect "login"
                     :> Post '[HTML] (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))
 
 
-  , contextMenu     :: mode :- "contextmenu"
+  , contextMenu     :: mode
+                    :- "contextmenu"
                     :> AuthProtect "session"
+                    :> AuthProtect "login"
                     :> AuthProtect "desktop-only"
                     :> QueryParam "file" ClientPath
                     :> Get '[HTML] (Html ())
 
 
-  , initViewer      :: mode :- "viewer"
+  , initViewer      :: mode
+                    :- "viewer"
                     :> AuthProtect "session"
+                    :> AuthProtect "login"
                     :> QueryParam "file" ClientPath
                     :> Get '[HTML] (Headers '[ Header "HX-Trigger" FilehubEvent] NoContent)
 
 
-  , changeTarget    :: mode :- "target"
-                    :> "change"
+  , changeTarget    :: mode
+                    :- "target" :> "change"
                     :> AuthProtect "session"
+                    :> AuthProtect "login"
                     :> QueryParam "target" TargetId
                     :> Get '[HTML] (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
 
@@ -233,8 +279,10 @@ data Api mode = Api
   -- The type level fix is too hacky, I decided to simply strip the unwanted header in a wai middleware.
   -- Check the dedupHeadersKeepLast middleware, if there are duplicated headers, it will keep the last one. In this case we will
   -- discard the octet-stream and keep the content-type we set in the handler.
-  , serve           :: mode :- "serve"
+  , serve           :: mode
+                    :- "serve"
                     :> AuthProtect "session"
+                    :> AuthProtect "login"
                     :> QueryParam "file" ClientPath
                     :> StreamGet NoFraming OctetStream (Headers '[ Header "Content-Type" String
                                                                  , Header "Content-Disposition" String
@@ -243,23 +291,28 @@ data Api mode = Api
 
   -- Similar to serve but only serve image and pdf. Creates thumbnail version for requested image. This is useful for lazy loading image
   -- preview.
-  , thumbnail       :: mode :- "thumbnail"
+  , thumbnail       :: mode
+                    :- "thumbnail"
                     :> AuthProtect "session"
+                    :> AuthProtect "login"
                     :> QueryParam "file" ClientPath
                     :> Get '[OctetStream] (Headers '[ Header "Content-Type" String
                                                     , Header "Content-Disposition" String
                                                     ] LBS.ByteString)
 
 
-  , themeCss        :: mode :- "theme.css"
+  , themeCss        :: mode
+                    :- "theme.css"
                     :> AuthProtect "session"
+                    :> AuthProtect "login"
                     :> Get '[OctetStream] LBS.ByteString
 
 
 
-  , toggleTheme     :: mode :- "theme"
-                    :> "toggle"
+  , toggleTheme     :: mode
+                    :- "theme" :> "toggle"
                     :> AuthProtect "session"
+                    :> AuthProtect "login"
                     :> Get '[HTML] (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
 
 

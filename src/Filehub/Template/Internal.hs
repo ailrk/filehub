@@ -29,7 +29,7 @@ withDefault display background html = do
   script_ [ src_ "/static/ui.js", type_ "module" ] ("" :: Text)
 
   meta_ [ name_ "viewport", content_ "width=device-width, initial-scale=1.0, viewport-fit=cover" ]
-  link_ [ rel_ "stylesheet", href_ "https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" ]
+  link_ [ rel_ "stylesheet", href_ "/static/boxicons2.1.4.css" ]
   link_ [ rel_ "stylesheet", href_ "/static/viewer.css" ]
   link_ [ rel_ "manifest", href_ "/manifest.json" ]
   link_ [ rel_ "icon", type_ "image/png", href_ "/favicon-96x96.png", sizes_ "96x96"]

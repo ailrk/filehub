@@ -5,9 +5,11 @@ module Filehub.Server.Handler
   , desktopOnlyHandler
   , mobileOnlyHandler
   , displayOnlyHandler
+  , loginHandler
   , ConfirmDesktopOnly(..)
   , ConfirmMobilOnly(..)
   , ConfirmReadOnly(..)
+  , ConfirmLogin(..)
   )
   where
 
@@ -111,3 +113,11 @@ displayOnlyHandler witness predicate msg env =
     case display of
       Right d | predicate d -> pure witness
       _ -> throwError err400 { errBody = msg }
+
+
+data ConfirmLogin = ConfirmLogin
+
+
+loginHandler :: Env -> AuthHandler Request ConfirmLogin
+loginHandler env = mkAuthHandler $ \req -> do
+  pure ConfirmLogin
