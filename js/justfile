@@ -6,6 +6,7 @@ build:
     cp ./icons/*.ico ./dist
     cp ./icons/*.svg ./dist
     cp ./fonts/* ./dist
+    cp ./external/* ./dist
 
 dot:
     dot -Tpng imgviewer.dot -o imgviewer.png

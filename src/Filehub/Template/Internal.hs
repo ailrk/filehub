@@ -23,8 +23,8 @@ import Filehub.Mime (isMime)
 withDefault :: Display -> Text -> Html () -> Html ()
 withDefault display background html = do
 
-  script_ [ src_ "https://unpkg.com/hyperscript.org@0.9.13" ] ("" :: Text)
-  script_ [ src_ "https://unpkg.com/htmx.org@2.0.3" ] ("" :: Text)
+  script_ [ src_ "/static/_hyperscript0.9.13.js" ] ("" :: Text)
+  script_ [ src_ "/static/htmx2.0.3.js" ] ("" :: Text)
   script_ [ src_ "/static/viewer.js", type_ "module" ] ("" :: Text)
   script_ [ src_ "/static/ui.js", type_ "module" ] ("" :: Text)
 
