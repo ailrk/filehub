@@ -6,4 +6,20 @@ export interface ViewerInited {
 }
 
 
+export interface Opened {
+  path: string,
+  target: OpenedTarget
+}
+
+
+export type OpenedTarget
+  = "OpenDOMSelf"
+  | "OpenDOMBlank"
+  | "OpenDOMParent"
+  | "OpenDOMTop"
+  | "OpenDOMUnfencedTop"
+  | "OpenViewer"
+
+
+
 export type Display = 'Desktop' | 'Mobile' | 'NoDisplay'

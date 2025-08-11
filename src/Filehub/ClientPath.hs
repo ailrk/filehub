@@ -24,6 +24,7 @@ import System.FilePath ((</>), normalise)
 import Network.URI.Encode qualified as URI.Encode
 import Data.List (stripPrefix)
 import Servant (FromHttpApiData (..), ToHttpApiData (..))
+import Data.Aeson (ToJSON(..))
 
 -- | Filepath without the root part. The path is percent encoded safe to show in the frontend.
 newtype ClientPath = ClientPath { unClientPath :: FilePath }
@@ -41,6 +42,10 @@ instance ToHttpApiData ClientPath where
 
 instance FromHttpApiData ClientPath where
   parseUrlPiece p = ClientPath <$> parseUrlPiece p
+
+
+instance ToJSON ClientPath where
+  toJSON = toJSON . toUrlPiece
 
 
 -- | Convert a file path into a ClientPath.

@@ -37,7 +37,7 @@ import Filehub.Types
       ClientPath(..),
       Target(..),
       Selected,
-      ControlPanelState(..))
+      ControlPanelState(..), OpenTarget (..))
 import Filehub.Routes (Api(..))
 import Filehub.Sort (sortFiles)
 import Filehub.Mime (isMime)
@@ -53,7 +53,6 @@ import Filehub.Links ( apiLinks, linkToText )
 import Lens.Micro
 import Lens.Micro.Platform ()
 import Lucid
-import Network.URI.Encode qualified as URI.Encode
 import System.FilePath (takeFileName)
 import Text.Fuzzy (simpleFilter)
 import Filehub.Target.S3 (S3, Backend (..))
@@ -496,7 +495,7 @@ table target root files selected order layout =
         record (idx, file) =
           tr_ attrs do
             td_ $ fileNameElement file True
-                    `with` click file
+                    `with` click root file resourceIdxMap
                     `with`  [ class_ "field "]
             td_ $ modifiedDateElement file
             td_ $ sizeElement file
@@ -568,7 +567,7 @@ table target root files selected order layout =
             previewElement file
             fileNameElement file False `with` [ class_ "thumbnail-name" ]
             `with` attrs
-            `with` click file
+            `with` click root file resourceIdxMap
 
           where
             attrs :: [Attribute]
@@ -626,49 +625,52 @@ table target root files selected order layout =
         displayTime = maybe mempty (formatTime defaultTimeLocale "%Y/%m/%d") file.mtime
 
 
-    openBlank file =
-      -- Client path are percent encoded, but we need to use unencoded raw path here.
-      let ClientPath path = clientPathOf file
-       in [ term "_" [iii| on click js window.open('/serve?file=#{path}', '_blank'); end |] ]
-
-
-    open file =
-      let ClientPath path = clientPathOf file
-          imgIdx = Maybe.fromJust $ Map.lookup file resourceIdxMap -- image index always exists
-       in [ term "_" [iii| on click send Open(path: '#{path}', index: #{imgIdx}) to body |] ]
-
-
-    editor file =
-      [ term "hx-get" $ linkToText (apiLinks.editorModal (Just (clientPathOf file)))
-      , term "hx-target" "#index"
-      , term "hx-swap" "beforeend"
-      ]
-
-
-    click file =
-      mconcat
-        [ case file.content of
-              Dir _ ->
-                [ term "hx-get" $ linkToText (apiLinks.cd (Just (clientPathOf file)))
-                , term "hx-target" ("#" <> viewId)
-                , term "hx-swap" "outerHTML"
-                ]
-              Content
-                | file.mimetype `isMime` "application/pdf" -> openBlank file
-                | file.mimetype `isMime` "video" || file.mimetype `isMime` "mp4" -> open file
-                | file.mimetype `isMime` "audio" || file.mimetype `isMime` "mp3" -> open file
-                | file.mimetype `isMime` "image" -> open file
-                | otherwise -> editor file
-          , case file.content of
-              Dir _ -> [ class_ "dir " ]
-              _ -> mempty
-          ]
-
     clientPathOf :: File -> ClientPath
     clientPathOf file = ClientPath.toClientPath root file.path
 
     resourceIdxMap :: Map File Int
     resourceIdxMap = Map.fromList $ Viewer.takeResourceFiles files `zip` [0..]
+
+
+click :: FilePath -> File -> Map File Int -> [Attribute]
+click root file resourceIdxMap =
+  mconcat
+    [ case file.content of
+          Dir _ ->
+            [ term "hx-get" $ linkToText (apiLinks.cd (Just clientPath))
+            , term "hx-target" ("#" <> viewId)
+            , term "hx-swap" "outerHTML"
+            ]
+          Content
+            | file.mimetype `isMime` "application/pdf" -> openBlank clientPath
+            | file.mimetype `isMime` "video" || file.mimetype `isMime` "mp4" -> open
+            | file.mimetype `isMime` "audio" || file.mimetype `isMime` "mp3" -> open
+            | file.mimetype `isMime` "image" -> open
+            | otherwise -> editor
+      , case file.content of
+          Dir _ -> [ class_ "dir " ]
+          _ -> mempty
+      ]
+  where
+    clientPath = ClientPath.toClientPath root file.path
+
+    open :: [Attribute]
+    open =
+      let ClientPath path = ClientPath.toClientPath root file.path
+          imgIdx = Maybe.fromJust $ Map.lookup file resourceIdxMap -- image index always exists
+       in [ term "_" [iii| on click send Open(path: '#{path}', index: #{imgIdx}) to body |] ]
+
+    editor :: [Attribute]
+    editor =
+      [ term "hx-get" $ linkToText (apiLinks.editorModal (Just clientPath))
+      , term "hx-target" "#index"
+      , term "hx-swap" "beforeend"
+      ]
+
+    -- Client path are percent encoded, but we need to use unencoded raw path here.
+    openBlank :: ClientPath -> [Attribute]
+    openBlank (ClientPath path) = [ term "_" [iii| on click js window.open('/serve?file=#{path}', '_blank'); end |] ]
+
 
 
 contextMenu :: Bool -> FilePath -> File -> Html ()
@@ -691,7 +693,10 @@ contextMenu readOnly root file = do
           span_ "Open"
       Content
         | file.mimetype `isMime` "application/pdf" -> do
-          a_ [ class_ "dropdown-item", href_ (URI.Encode.decodeText textClientPath) , target_ "blank" ] do
+          div_ [ class_ "dropdown-item"
+               , term "hx-get" $ linkToText (apiLinks.open (Just OpenDOMBlank) (Just clientPath))
+               , term "hx-swap" "none"
+               ] do
             i_ [ class_ "bx bx-show" ] mempty
             span_ "View"
         | file.mimetype `isMime` "audio" -> do
@@ -704,7 +709,7 @@ contextMenu readOnly root file = do
             span_ "Play"
         | file.mimetype `isMime` "video" -> do
           div_ [ class_ "dropdown-item"
-               , term "hx-get" $ linkToText (apiLinks.initViewer (Just clientPath))
+               , term "hx-get" $ linkToText (apiLinks.open (Just OpenViewer) (Just clientPath))
                , term "hx-target" "this"
                , term "hx-swap" "none"
                ] do
@@ -728,6 +733,7 @@ contextMenu readOnly root file = do
             span_ "Edit"
         | otherwise ->
             mempty
+
     a_ [ class_ "dropdown-item" ,  href_ (linkToText $ apiLinks.download (Just clientPath)) ] do
       i_ [ class_ "bx bx-download" ] mempty
       span_ "Download"

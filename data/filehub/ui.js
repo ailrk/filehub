@@ -21,8 +21,35 @@ switch (display) {
         console.error('implementation error, no valid display type');
         break;
 }
-document.addEventListener('ViewerInited', (e) => initViewer(e.detail));
 document.addEventListener('Open', (e) => open(e.detail.path));
+document.addEventListener('ViewerInited', (e) => initViewer(e.detail));
+document.addEventListener('Opened', (e) => {
+    let payload = e.detail;
+    console.log(payload);
+    let target = null;
+    switch (payload.target) {
+        case "OpenDOMSelf":
+            target = "_self";
+            break;
+        case "OpenDOMBlank":
+            target = "_blank";
+            break;
+        case "OpenDOMParent":
+            target = "_parent";
+            break;
+        case "OpenDOMTop":
+            target = "_top";
+            break;
+        case "OpenDOMUnfencedTop":
+            target = "_unfencedTop";
+            break;
+        case "OpenViewer":
+            let query = new URLSearchParams({ file: payload.path });
+            htmx.ajax('GET', `/viewer?${query.toString()}`, { target: 'head', swap: 'none' });
+            return;
+    }
+    window.open(`/serve?file=${payload.path}`, target);
+});
 /* Error handling */
 document.body.addEventListener('htmx:responseError', handleError);
 document.addEventListener('ThemeChanged', reloadTheme);

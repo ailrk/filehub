@@ -48,14 +48,13 @@
     outline: 0;
   }
 
-  & img {
+  & img, video {
     display: block;
     height: auto;
-    max-height: none !important;
-    max-width: none !important;
+    max-height: 80% !important;
+    max-width: 80% !important;
     min-height: 0 !important;
     min-width: 0 !important;
-    width: 100%;
   }
 }
 

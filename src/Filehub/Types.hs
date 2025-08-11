@@ -28,6 +28,7 @@ module Filehub.Types
   , UpdatedFile(..)
   , Theme(..)
   , FilehubEvent(..)
+  , OpenTarget (..)
   , Resource(..)
   , Manifest
   )
@@ -43,6 +44,7 @@ import Lens.Micro
 import Lens.Micro.Platform ()
 import Servant
     ( ToHttpApiData(..),
+      FromHttpApiData(..),
       Accept (..),
       MimeRender )
 import Web.FormUrlEncoded (FromForm (..), parseUnique, ToForm (..))
@@ -131,6 +133,7 @@ data FilehubEvent
   | LayoutChanged
   | ThemeChanged
   | Canceled -- Action canceled
+  | Opened OpenTarget ClientPath -- load a resource into tab/window/iframe. Hook  for window.open
   deriving (Show)
 
 
@@ -148,10 +151,45 @@ instance ToJSON FilehubEvent where
   toJSON LayoutChanged = Aeson.object [ "LayoutChanged" .= Aeson.object [] ]
   toJSON ThemeChanged = Aeson.object [ "ThemeChanged" .= Aeson.object [] ]
   toJSON Canceled = Aeson.object [ "Canceled" .= Aeson.object [] ]
+  toJSON (Opened target path) =
+    Aeson.object
+      [ "Opened" .= Aeson.object
+          [ "path" .= toJSON path
+          , "target" .= toJSON target
+          ]
+      ]
 
 
 instance ToHttpApiData FilehubEvent where
   toUrlPiece v = (v & Aeson.encode & LText.decodeUtf8) ^. strict
+
+
+data OpenTarget
+  = OpenDOMSelf
+  | OpenDOMBlank
+  | OpenDOMParent
+  | OpenDOMTop
+  | OpenDOMUnfencedTop
+  | OpenViewer
+  deriving Show
+
+
+instance ToHttpApiData OpenTarget where
+  toUrlPiece = toUrlPiece . show
+
+
+instance FromHttpApiData OpenTarget where
+  parseUrlPiece "OpenDOMSelf" = pure OpenDOMSelf
+  parseUrlPiece "OpenDOMBlank" = pure OpenDOMBlank
+  parseUrlPiece "OpenDOMParent" = pure OpenDOMParent
+  parseUrlPiece "OpenDOMTop" = pure OpenDOMTop
+  parseUrlPiece "OpenDOMUnfencedTop" = pure OpenDOMUnfencedTop
+  parseUrlPiece "OpenViewer" = pure OpenViewer
+  parseUrlPiece _ = Left "unknown target for open()"
+
+
+instance ToJSON OpenTarget where
+  toJSON t = toJSON (show t)
 
 
 data Manifest

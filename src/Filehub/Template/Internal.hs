@@ -125,11 +125,12 @@ controlPanel
   case readOnly of
     True ->
       div_ [ id_ controlPanelId ] do
+        maybe mempty id mLayoutBtn
+        themeBtn
+        maybe mempty id mScroll2TopBtn
         span_ [ class_ "btn-like field " ] do
           i_ [ class_ "bx bx-lock-alt" ] mempty
           span_ "Read-only"
-        maybe mempty id mLayoutBtn
-        maybe mempty id mScroll2TopBtn
     False ->
       case state of
         ControlPanelDefault ->

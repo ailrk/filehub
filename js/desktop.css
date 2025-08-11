@@ -3,7 +3,8 @@ html, body {
   height: 100%;
   margin: 0;
   padding: 0;
-  /* scrollbar-width: none; */
+  overflow: hidden;
+  scrollbar-width: none;
   user-select: none;
 }
 
@@ -187,7 +188,7 @@ textarea {
 
 
 .thumbnail {
-  background-color: var(background1);
+  background-color: var(--background1);
   border-radius: 6px;
   overflow: hidden;
   display: flex;
@@ -369,6 +370,10 @@ textarea.form-control {
 
 
 #table {
+  animation-name: fadeIn;
+  animation-duration: 400ms;
+  animation-timing-function: ease-out;
+
   & tr {
     cursor: pointer;
   }
@@ -427,7 +432,7 @@ textarea.form-control {
 
   /* Animate when opening */
   animation-name: fadeIn;
-  animation-duration: 60ms;
+  animation-duration: 100ms;
   animation-timing-function: ease;
 
   & > .modal-content {
@@ -445,14 +450,14 @@ textarea.form-control {
 
     /* Animate when opening */
     animation-name: zoomIn;
-    animation-duration: 60ms;
+    animation-duration: 100ms;
     animation-timing-function: ease;
   }
 
   &.closing {
     /* Animate when closing */
     animation-name: fadeOut;
-    animation-duration: 60ms;
+    animation-duration: 100ms;
     animation-timing-function: ease;
   }
 
@@ -460,7 +465,7 @@ textarea.form-control {
   &.closing > .modal-content {
     /* Animate when closing */
     animation-name: zoomOut;
-    animation-duration: 60ms;
+    animation-duration: 100ms;
     animation-timing-function: ease;
   }
 
@@ -560,12 +565,12 @@ textarea.form-control {
   z-index: 1;
 
   animation-name: fadeIn;
-  animation-duration: 60ms;
+  animation-duration: 150ms;
   animation-timing-function: ease;
 
   &.closing {
     animation-name: fadeOut;
-    animation-duration: 60ms;
+    animation-duration: 150ms;
     animation-timing-function: ease;
   }
 }
@@ -591,9 +596,9 @@ textarea.form-control {
   }
 }
 
-a {
+a.dropdown-item {
   color: var(--frontground);
-  display: inline-block;
+  display: block;
   text-decoration: none;
 }
 

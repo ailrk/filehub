@@ -11,7 +11,7 @@ module Filehub.Links
   where
 
 import Filehub.Routes (Api(..))
-import Filehub.Types (ClientPath (..), SortFileBy (..), TargetId (..))
+import Filehub.Types (ClientPath (..), SortFileBy (..), TargetId (..), OpenTarget (..))
 import Servant.Links ( AsLink, allFieldLinks, linkURI )
 import Servant (Link)
 import Network.URI qualified as URI
@@ -55,6 +55,7 @@ sitemapLinks =
   , apiLinks.download dummyClientPath
   , apiLinks.contextMenu dummyClientPath
   , apiLinks.initViewer dummyClientPath
+  , apiLinks.open (Just OpenDOMBlank) dummyClientPath
   , apiLinks.changeTarget dummyTargetId
   , apiLinks.themeCss
   , apiLinks.healthz

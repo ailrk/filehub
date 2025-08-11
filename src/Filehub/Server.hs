@@ -6,8 +6,6 @@
 {-# OPTIONS_GHC -Wno-partial-type-signatures #-}
 module Filehub.Server (application, main, mainDev) where
 
-import Codec.Picture.STBIR qualified as Picture.STBIR
-import Codec.Picture qualified as Picture
 import Data.String.Interpolate (i)
 import Data.Maybe (fromMaybe, isJust)
 import Data.Foldable (forM_)
@@ -18,7 +16,6 @@ import Data.ByteString (ByteString)
 import Data.ByteString.Char8 qualified as ByteString
 import Data.Aeson (object, KeyValue (..), (.:), withObject)
 import Data.Aeson.Types (parseMaybe)
-import Data.ByteString.Lazy qualified as LBS
 import Data.FileEmbed qualified as FileEmbed
 import Data.Time (secondsToNominalDiffTime)
 import Data.Map.Strict qualified as Map
@@ -305,6 +302,13 @@ server = Api
         root <- Env.getRoot sessionId
         payload <- Viewer.initViewer sessionId root clientPath
         pure $ addHeader payload NoContent
+
+
+  , open = \_ _ mTarget mClientPath -> do
+       withServerError do
+        clientPath <- withQueryParam mClientPath
+        target <- withQueryParam mTarget
+        pure $ addHeader (Opened target clientPath) NoContent
 
 
   , changeTarget = \sessionId _ mTargetId -> do

@@ -50,7 +50,7 @@ import Filehub.Types
       Selected(..),
       FilehubEvent(..),
       SessionId,
-      Resolution(..), Manifest, LoginForm
+      Resolution(..), Manifest, LoginForm, OpenTarget
     )
 import GHC.Generics (Generic)
 import Filehub.Server.Handler (ConfirmReadOnly, ConfirmMobilOnly, ConfirmDesktopOnly, ConfirmLogin)
@@ -267,6 +267,16 @@ data Api mode = Api
                     :- "viewer"
                     :> AuthProtect "session"
                     :> AuthProtect "login"
+                    :> QueryParam "file" ClientPath
+                    :> Get '[HTML] (Headers '[ Header "HX-Trigger" FilehubEvent] NoContent)
+
+
+  , open            :: mode
+                    :- "file"
+                    :> "open"
+                    :> AuthProtect "session"
+                    :> AuthProtect "login"
+                    :> QueryParam "target" OpenTarget
                     :> QueryParam "file" ClientPath
                     :> Get '[HTML] (Headers '[ Header "HX-Trigger" FilehubEvent] NoContent)
 
