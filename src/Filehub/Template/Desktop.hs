@@ -145,10 +145,10 @@ controlPanel layout theme =
               , term "hx-get" $ linkToText apiLinks.newFolderModal
               , term "hx-target" "#index"
               , term "hx-swap" "beforeend"
+              , term "data-btn-title" "New folder"
               ] do
         span_ [ class_ "field " ] do
           i_ [ class_ "bx bx-folder-plus" ] mempty
-          span_ "New Folder"
 
 
     newFileBtn :: Html ()
@@ -158,10 +158,10 @@ controlPanel layout theme =
               , term "hx-get" $ linkToText apiLinks.newFileModal
               , term "hx-target" "#index"
               , term "hx-swap" "beforeend"
+              , term "data-btn-title" "New file"
               ] do
         span_ [ class_ "field " ] do
           i_ [ class_ "bx bxs-file-plus" ] mempty
-          span_ "New File"
 
 
     uploadBtn :: Html ()
@@ -180,11 +180,10 @@ controlPanel layout theme =
 
       button_ [ class_ "btn btn-control"
               , onclick_ [iii|document.querySelector('\##{fileInputId}').click()|]
+              , term "data-btn-title" "Upload"
               ] do
         span_ [ class_ "field " ] do
           i_ [ class_ "bx bx-upload" ] mempty
-          span_ "Upload"
-
 
     copyBtn :: Html ()
     copyBtn = do
@@ -193,10 +192,10 @@ controlPanel layout theme =
               , term "hx-get" $ linkToText apiLinks.copy
               , term "hx-target" "#control-panel"
               , term "hx-swap" "outerHTML"
+              , term "data-btn-title" "Copy"
               ] do
         span_ [ class_ "field " ] do
           i_ [ class_ "bx bxs-copy-alt" ] mempty
-          span_ "Copy"
 
 
     pasteBtn :: Html ()
@@ -206,10 +205,10 @@ controlPanel layout theme =
               , term "hx-post" $ linkToText apiLinks.paste
               , term "hx-target" "#index"
               , term "hx-swap" "outerHTML"
+              , term "data-btn-title" "Paste"
               ] do
         span_ [ class_ "field " ] do
           i_ [ class_ "bx bxs-paste" ] mempty
-          span_ "Paste"
 
 
     deleteBtn :: Html ()
@@ -220,10 +219,10 @@ controlPanel layout theme =
               , term "hx-target" "#index"
               , term "hx-swap" "outerHTML"
               , term "hx-confirm" ("Are you sure about deleting selected files?")
+              , term "data-btn-title" "Delete"
               ] do
         span_ [ class_ "field " ] do
           i_ [ class_ "bx bxs-trash" ] mempty
-          span_ "Delete"
 
 
     cancelBtn :: Html ()
@@ -233,10 +232,10 @@ controlPanel layout theme =
               , term "hx-post" $ linkToText apiLinks.cancel
               , term "hx-target" "#index"
               , term "hx-swap" "outerHTML"
+              , term "data-btn-title" "Cancel"
               ] do
         span_ [ class_ "field " ] do
           i_ [ class_ "bx bxs-message-alt-x" ] mempty
-          span_ "Cancel"
 
 
     themeBtn :: Html ()
@@ -248,6 +247,7 @@ controlPanel layout theme =
                   , term "hx-get" $ linkToText apiLinks.toggleTheme
                   , term "hx-target" "#index"
                   , term "hx-swap" "outerHTML"
+                  , term "data-btn-title" "Dark"
                   ] do
             i_ [ class_ "bx bxs-moon" ] mempty
         Dark -> do
@@ -256,6 +256,7 @@ controlPanel layout theme =
                   , term "hx-get" $ linkToText apiLinks.toggleTheme
                   , term "hx-target" "#index"
                   , term "hx-swap" "outerHTML"
+                  , term "data-btn-title" "Light"
                   ] do
             i_ [ class_ "bx bxs-sun" ] mempty
 
@@ -269,6 +270,7 @@ controlPanel layout theme =
                   , term "hx-get" $ linkToText (apiLinks.selectLayout (Just ThumbnailLayout))
                   , term "hx-target" "#index"
                   , term "hx-swap" "outerHTML"
+                  , term "data-btn-title" "Grid"
                   ] do
             i_ [ class_ "bx bxs-grid-alt" ] mempty
         ThumbnailLayout -> do
@@ -277,6 +279,7 @@ controlPanel layout theme =
                   , term "hx-get" $ linkToText (apiLinks.selectLayout (Just ListLayout))
                   , term "hx-target" "#index"
                   , term "hx-swap" "outerHTML"
+                  , term "data-btn-title" "List"
                   ] do
             i_ [ class_ "bx bx-menu" ] mempty
 

@@ -301,13 +301,34 @@ textarea {
     transform: translateY(2px);
   }
 
+  & i {
+    font-size: 1.2em;
+  }
 
   &:hover {
     background: var(--background3);
+    cursor: pointer;
   }
 
-  & i {
-    font-size: 1.2em;
+  &:hover::after {
+    cursor: pointer;
+    opacity: 1;
+  }
+
+  &::after {
+    position: absolute;
+    translate: -5px 28px;
+    content: attr(data-btn-title);
+    background-color: var(--frontground);
+    color: var(--background3);
+    white-space: nowrap;
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-size: 10px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 11;
   }
 }
 
