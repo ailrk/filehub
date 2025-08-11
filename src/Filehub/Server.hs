@@ -103,6 +103,7 @@ import Web.Cookie (SetCookie)
 import Network.HTTP.Types.Header (hLocation)
 import Effectful.Reader.Dynamic (asks)
 import Data.Text (Text)
+import Debug.Trace
 
 
 #ifdef DEBUG
@@ -459,8 +460,8 @@ loginPost sessionId (LoginForm username password) =  do
       Just setCookie -> do
         logInfo_ [i|User #{username} logged in|]
         addHeader setCookie . addHeader "/" <$> pure mempty
-      Nothing -> noHeader . noHeader <$> pure Template.loginFailed
-  else noHeader . noHeader <$> pure Template.loginFailed
+      Nothing -> do noHeader . noHeader <$> pure Template.loginFailed
+  else do noHeader . noHeader <$> pure Template.loginFailed
 
 
 view :: SessionId -> Filehub (Html ())

@@ -207,14 +207,17 @@ test-suite filehub_test
   build-depends:
       base >=4.16.1.0
     , QuickCheck
+    , bcrypt
     , bytestring
     , containers
+    , cookie
     , directory
     , effectful
     , filehub
     , filepath
     , hspec
     , hspec-wai
+    , http-api-data
     , http-types
     , log-base
     , log-effectful

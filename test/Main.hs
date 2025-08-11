@@ -1,9 +1,10 @@
+{-# LANGUAGE BangPatterns #-}
 module Main where
 
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.QuickCheck
-import Network.Wai.Test
+import Network.Wai.Test hiding (request)
 import Filehub.ClientPath qualified as ClientPath
 import Filehub.SessionPool qualified as SessionPool
 import Filehub.Env (Env(..))
@@ -28,9 +29,22 @@ import System.Directory (createDirectoryIfMissing, removePathForcibly, doesFileE
 import Control.Monad (forM_)
 import System.FilePath (takeDirectory)
 import Network.HTTP.Types.Header
-import Network.HTTP.Types (status200)
 import Data.ByteString.Char8 qualified as ByteString
 import Filehub.Target.File (Backend(..))
+import Data.Map.Strict qualified as Map
+import Filehub.User (Username(..))
+import Filehub.User (PasswordHash(..))
+import Filehub.Types (LoginForm(..))
+import Web.FormUrlEncoded (ToForm(..))
+import Web.FormUrlEncoded qualified as UrlFormEncoded
+import Web.Cookie qualified as Cookie
+import Network.HTTP.Types.Status
+import Network.HTTP.Types (methodPost)
+import Debug.Trace
+import Crypto.BCrypt qualified as BCrypt
+import Filehub.User (createUserDB)
+import Filehub.Options (LoginInfo(..))
+import Effectful.FileSystem (runFileSystem)
 
 
 main :: IO ()
@@ -83,10 +97,12 @@ serverSpec = before setup  $ after_ teardown do
             Just raw -> ByteString.unpack raw `shouldContain` "sessionId="
             Nothing -> liftIO $ expectationFailure "No Set-Cookie header"
 
+
   describe "Paste when not copied" $ do
     env <- runIO $ mkEnv
     with (pure $ Filehub.application env) do
       it "should fail" $ post "/files/paste" "" `shouldRespondWith` 500
+
 
   describe "Paste when nothing is selected" $ do
     env <- runIO $ mkEnv
@@ -98,6 +114,7 @@ serverSpec = before setup  $ after_ teardown do
           pure res `shouldRespondWith` 200
           liftIO $ lookup "X-Filehub-Selected-Count" (simpleHeaders res) `shouldBe` Just "0"
 
+
   describe "Paste file into the same dir" $ do
     env <- runIO $ mkEnv
     with (pure $ Filehub.application env) do
@@ -105,6 +122,7 @@ serverSpec = before setup  $ after_ teardown do
         postHtmlForm "/table/select" [("selected", "a")] `shouldRespondWith` 200
         get "/files/copy" `shouldRespondWith` 200
         post "/files/paste" "" `shouldRespondWith` 500
+
 
   describe "Paste to a new dir" $ do
     env <- runIO $ mkEnv
@@ -114,9 +132,10 @@ serverSpec = before setup  $ after_ teardown do
         get "/files/copy" `shouldRespondWith` 200
         get "/cd?dir=dir1" `shouldRespondWith` 200
         post "/files/paste" "" `shouldRespondWith` 200
-        do
-          exists <- liftIO $ doesFileExist (root </> "dir1/a")
-          liftIO $ exists `shouldBe` True
+        liftIO do
+          exists <- doesFileExist (root </> "dir1/a")
+          exists `shouldBe` True
+
 
   describe "Paste multiple" $ do
     env <- runIO $ mkEnv
@@ -130,9 +149,10 @@ serverSpec = before setup  $ after_ teardown do
         get "/files/copy" `shouldRespondWith` 200
         get "/cd?dir=dir2" `shouldRespondWith` 200
         post "/files/paste" "" `shouldRespondWith` 200
-        do
-          exists <- liftIO $ allPathsExist root ["dir2/a", "dir2/b", "dir2/x"]
-          liftIO $ exists `shouldBe` True
+        liftIO do
+          exists <- allPathsExist root ["dir2/a", "dir2/b", "dir2/x"]
+          exists `shouldBe` True
+
 
   describe "Paste a dir" $ do
     env <- runIO $ mkEnv
@@ -143,45 +163,49 @@ serverSpec = before setup  $ after_ teardown do
         get "/cd?dir=dir2" `shouldRespondWith` 200
         post "/files/paste" "" `shouldRespondWith` 500
 
+
   describe "Delete a single file" $ do
     env <- runIO $ mkEnv
     with (pure $ Filehub.application env) do
       it "file a should be deleted" do
         delete "/files/delete?file=a" `shouldRespondWith` 200
-        do
-          exists <- liftIO $ doesFileExist (root </> "a")
-          liftIO $ exists `shouldBe` False
-        do
-          exists <- liftIO $ allPathsExist root ["b", "dir1/x", "dir2/subdir/y"]
-          liftIO $ exists `shouldBe` True
+        liftIO do
+          exists <- doesFileExist (root </> "a")
+          exists `shouldBe` False
+        liftIO do
+          exists <- allPathsExist root ["b", "dir1/x", "dir2/subdir/y"]
+          exists `shouldBe` True
+
 
   describe "Delete a folder" $ do
     env <- runIO $ mkEnv
     with (pure $ Filehub.application env) do
       it "directory dir2 sould be deleted" do
         delete "/files/delete?file=dir2" `shouldRespondWith` 200
-        do
-          exists <- liftIO $ doesDirectoryExist (root </> "dir2")
-          liftIO $ exists `shouldBe` False
-        do
-          exists <- liftIO $ allPathsExist root ["a", "b", "dir1/x"]
-          liftIO $ exists `shouldBe` True
+        liftIO do
+          exists <- doesDirectoryExist (root </> "dir2")
+          exists `shouldBe` False
+        liftIO do
+          exists <- allPathsExist root ["a", "b", "dir1/x"]
+          exists `shouldBe` True
+
 
   describe "/files/new" $ do
     env <- runIO $ mkEnv
     with (pure $ Filehub.application env) do
       it "should create a file `new` in root directory" do
         postHtmlForm "/files/new" [("new-file", "new")] `shouldRespondWith` 200
-        do
-          exists <- liftIO $ doesFileExist (root </> "new")
-          liftIO $ exists `shouldBe` True
+        liftIO do
+          exists <- doesFileExist (root </> "new")
+          exists `shouldBe` True
 
       it "should create a file `new` in dir2/" do
         get "/cd?dir=dir2" `shouldRespondWith` 200
         postHtmlForm "/files/new" [("new-file", "new")] `shouldRespondWith` 200
-        do
-          exists <- liftIO $ doesFileExist (root </> "dir2/new")
-          liftIO $ exists `shouldBe` True
+        liftIO do
+          exists <- doesFileExist (root </> "dir2/new")
+          exists `shouldBe` True
+
 
   describe "/files/update" $ do
     env <- runIO $ mkEnv
@@ -191,54 +215,120 @@ serverSpec = before setup  $ after_ teardown do
         liftIO do
           content <- readFile (root </> "a")
           content `shouldBe` "123"
-  where
-    mkEnv = do
-      sessionPool <- runEff SessionPool.new
-      logger <- nullLogger
-      let env =
-            Env
-              { port = 0
-              , theme = Dark
-              , sessionPool = sessionPool
-              , sessionDuration = secondsToNominalDiffTime (60 * 60)
-              , targets =
-                [ Target $ FileBackend
-                  { targetId = tid
-                  , targetName = Nothing
-                  , root = root
-                  }
-                ]
-              , readOnly = False
-              , logger = logger
-              , logLevel = LogTrace
-              , userDB = UserDB mempty
-              , noLogin = True
+
+
+  describe "Prevent access without logging-in" $ do
+    env <- runIO $ mkEnv
+    with (pure $ Filehub.application (env { noLogin = False })) do
+      it "should redirect to /login" do
+        get "/" >>= \res -> liftIO do
+          simpleStatus res `shouldBe` status307
+          lookup hLocation (simpleHeaders res) `shouldBe` Just "/login"
+
+        get "/cd?dir=x" >>= \res -> liftIO do
+          simpleStatus res `shouldBe` status307
+          lookup hLocation (simpleHeaders res) `shouldBe` Just "/login"
+
+        post "/files/update?file=x" "" >>= \res -> liftIO do
+          simpleStatus res `shouldBe` status307
+          lookup hLocation (simpleHeaders res) `shouldBe` Just "/login"
+
+
+  describe "Login" $ do
+    !env <- runIO $ mkEnv >>= \e -> do
+      userDB <- runEff . runFileSystem $ createUserDB (LoginInfo1 [("paul", "123"), ("peter", "345")])
+      pure $ e
+        { noLogin = False
+        , userDB = userDB
+        }
+    let f =  UrlFormEncoded.urlEncodeAsForm . toForm
+    with (pure $ Filehub.application $ env) do
+      it "Login succeed, should redirect to /" do
+        request methodPost "/login" [ (hContentType, "application/x-www-form-urlencoded") ] (f $ LoginForm "peter" "345") >>= \res -> liftIO do
+            simpleStatus res `shouldBe` status200
+            simpleBody res `shouldBe` ""
+            lookup "Hx-Redirect" (simpleHeaders res) `shouldBe` Just "/"
+
+        request methodPost "/login" [(hContentType, "application/x-www-form-urlencoded") ] (f $ LoginForm "paul" "123") >>= \res -> liftIO do
+            simpleStatus res `shouldBe` status200
+            simpleBody res `shouldBe` ""
+            lookup "Hx-Redirect" (simpleHeaders res) `shouldBe` Just "/"
+
+      it "Login failed, return the login form again" do
+        request methodPost "/login" [ (hContentType, "application/x-www-form-urlencoded") ] (f $ LoginForm "paul" "xxx") `shouldRespondWith` 200
+        request methodPost "/login" [ (hContentType, "application/x-www-form-urlencoded") ] (f $ LoginForm "peter" "xxx") `shouldRespondWith` 200
+
+
+mkEnv :: IO Env
+mkEnv = do
+  sessionPool <- runEff SessionPool.new
+  logger <- nullLogger
+  let env =
+        Env
+          { port = 0
+          , theme = Dark
+          , sessionPool = sessionPool
+          , sessionDuration = secondsToNominalDiffTime (60 * 60)
+          , targets =
+            [ Target $ FileBackend
+              { targetId = tid
+              , targetName = Nothing
+              , root = root
               }
-      pure env
-    setup = do
-      createDirectoryIfMissing True root
-      forM_ fullPaths $ \file -> do
-        createDirectoryIfMissing True (takeDirectory file)
-        writeFile file "test content"
-    teardown = do
-      removePathForcibly root
-    root = "/tmp/filehub-test/"
-    tid = TargetId $ fromJust . UUID.fromString $ "11111111-35ad-49bb-b118-8e8fc24abf80"
-    fullPaths = map (root </>) testFiles
-    testFiles =
-      [ "a"
-      , "b"
-      , "dir1/x"
-      , "dir2/subdir/y"
-      ]
-    allPathsExist :: FilePath -> [FilePath] -> IO Bool
-    allPathsExist root' paths = and <$> mapM (pathExists root') paths
-    pathExists :: FilePath -> FilePath -> IO Bool
-    pathExists root' p = do
-      let path = root' </> p
-      file <- doesFileExist path
-      dir  <- doesDirectoryExist path
-      pure (file || dir)
+            ]
+          , readOnly = False
+          , logger = logger
+          , logLevel = LogTrace
+          , userDB = UserDB mempty
+          , noLogin = True
+          }
+  pure env
+
+
+setup :: IO ()
+setup = do
+  createDirectoryIfMissing True root
+  forM_ fullPaths $ \file -> do
+    createDirectoryIfMissing True (takeDirectory file)
+    writeFile file "test content"
+
+
+teardown :: IO ()
+teardown = do
+  removePathForcibly root
+
+
+root :: FilePath
+root = "/tmp/filehub-test/"
+
+
+tid :: TargetId
+tid = TargetId $ fromJust . UUID.fromString $ "11111111-35ad-49bb-b118-8e8fc24abf80"
+
+
+fullPaths :: [FilePath]
+fullPaths = map (root </>) testFiles
+
+
+testFiles :: [FilePath]
+testFiles =
+  [ "a"
+  , "b"
+  , "dir1/x"
+  , "dir2/subdir/y"
+  ]
+
+
+allPathsExist :: FilePath -> [FilePath] -> IO Bool
+allPathsExist root' paths = and <$> mapM (pathExists root') paths
+
+
+pathExists :: FilePath -> FilePath -> IO Bool
+pathExists root' p = do
+  let path = root' </> p
+  file <- doesFileExist path
+  dir  <- doesDirectoryExist path
+  pure (file || dir)
 
 
 nullLogger :: IO Logger

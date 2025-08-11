@@ -45,7 +45,7 @@ import Servant
     ( ToHttpApiData(..),
       Accept (..),
       MimeRender )
-import Web.FormUrlEncoded (FromForm (..), parseUnique)
+import Web.FormUrlEncoded (FromForm (..), parseUnique, ToForm (..))
 import Servant.API (MimeRender(..))
 import Filehub.Target.Types (Target (..))
 import Filehub.Target.Types.TargetId (TargetId(..))
@@ -59,6 +59,7 @@ import Filehub.Copy.Types (CopyState(..))
 import Filehub.Session.Types (SessionId(..), Session(..), TargetSessionData(..))
 import Filehub.SessionPool.Types (SessionPool(..))
 import Filehub.Env.Types (Env(..))
+import GHC.IsList (fromList)
 
 
 data LoginForm = LoginForm
@@ -71,6 +72,14 @@ instance FromForm LoginForm where
   fromForm f = LoginForm
     <$> parseUnique "username" f
     <*> parseUnique "password" f
+
+
+instance ToForm LoginForm where
+  toForm (LoginForm username password) =
+      fromList
+        [ ("username", toQueryParam username)
+        , ("password", toQueryParam password)
+        ]
 
 
 data ControlPanelState

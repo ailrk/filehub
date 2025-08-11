@@ -125,15 +125,17 @@ data ConfirmLogin = ConfirmLogin
 -- | If we noLogin is True we simply by pass this auth check
 --   otherwise we check the validity of the current auth Id from cookie.
 loginHandler :: Env -> AuthHandler Request ConfirmLogin
-loginHandler env = mkAuthHandler $ \req -> do
-    result <- runMaybeT do
-      cookie <- MaybeT . pure $ lookup "Cookie" (requestHeaders req)
-      sessionId <- MaybeT . pure $ parseHeader' cookie >>= Cookies.getSessionId
-      let authId = parseHeader' cookie >>= Cookies.getAuthId
-      eSession  <- liftIO . runFilehub env . withServerError $ Env.getSession sessionId
-      session   <- MaybeT . pure $ either (const Nothing) Just eSession
-      guard (env.noLogin || session.authId == authId)
-      pure ConfirmLogin
-    maybe redirect pure result
+loginHandler env
+  | env.noLogin = mkAuthHandler $ \_ -> pure ConfirmLogin
+  | otherwise = mkAuthHandler $ \req -> do
+      result <- runMaybeT do
+        cookie <- MaybeT . pure $ lookup "Cookie" (requestHeaders req)
+        sessionId <- MaybeT . pure $ parseHeader' cookie >>= Cookies.getSessionId
+        authId <- MaybeT . pure $ parseHeader' cookie >>= Cookies.getAuthId
+        eSession  <- liftIO . runFilehub env . withServerError $ Env.getSession sessionId
+        session   <- MaybeT . pure $ either (const Nothing) Just eSession
+        guard (session.authId == Just authId)
+        pure ConfirmLogin
+      maybe redirect pure result
   where
     redirect = throwError (err307 { errHeaders = [(hLocation, "/login")] })

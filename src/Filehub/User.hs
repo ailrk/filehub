@@ -35,7 +35,7 @@ import Data.List.Split (splitOn)
 newtype AuthId = AuthId UUID deriving (Show, Eq, Ord, Hashable)
 newtype Username = Username Text deriving (Show, Eq, Ord, Hashable)
 newtype PasswordHash = PasswordHash ByteString deriving (Show, Eq, Ord)
-newtype UserDB = UserDB (Map Username PasswordHash)
+newtype UserDB = UserDB (Map Username PasswordHash) deriving (Show, Eq)
 
 
 createAuthId :: (IOE :> es) => Eff es AuthId
