@@ -1,0 +1,81 @@
+/* Make the whole page take full height */
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: sans-serif;
+  background: var(--background1);
+}
+
+/* Center the login form in the middle of the page */
+#login {
+  display: flex;
+  justify-content: center; /* horizontal center */
+  align-items: center;     /* vertical center */
+  height: 100%;
+}
+
+#login img {
+  width: 100px;
+  align-items: center;     /* vertical center */
+}
+
+/* Style the form container */
+#login form {
+  user-select: none;
+  background: var(--background2);
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  width: 90%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Inputs full width */
+#login input {
+  user-select: none;
+  background: var(--background3);
+  color: var(--frontground);
+  padding: 0.5rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  width: 100%;
+  margin-bottom: 1rem;
+  box-sizing: border-box;
+}
+
+#login input:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+/* Buttons full width */
+#login button {
+  user-select: none;
+  padding: 0.5rem;
+  background: var(--secondary);
+  color: var(--frontground);
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  width: 100%;
+}
+
+#login button:hover {
+  background: color-mix(in srgb, var(--secondary) 85%, black);
+}
+
+
+#login-error.show {
+  color: var(--secondary);
+  padding-bottom: 20px;
+}
+
+
+.fade-in { animation: fadeIn 0.3s ease-in; }
+@keyframes fadeIn {
+  from { opacity: 0; } to { opacity: 1; }
+}

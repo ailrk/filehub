@@ -318,7 +318,6 @@ newFileModal = do
               , type_ "submit"
               , term "_" "on click trigger Close"
               ] "CREATE"
-
       button_ [ class_ "btn btn-modal-close "
               , type_ "button" -- prevent submission
               , term "_" "on click trigger Close"
@@ -355,7 +354,6 @@ fileDetailModal file = do
   modal [ id_ fileDetailModalId ] do
     bold "Detail"
     br_ mempty >> br_ mempty
-
     table_ do
       tbody_ do
         tr_ do
@@ -377,7 +375,6 @@ fileDetailModal file = do
 
 editorModal :: Bool -> FilePath -> LBS.ByteString -> Html ()
 editorModal readOnly filename content = do
-
   modal [ id_ editorModalId ] do
     case readOnly of
       True -> bold "Read-only"
@@ -742,6 +739,7 @@ contextMenu readOnly root file = do
          , term "hx-swap" "beforeend"
          ] $
       span_ "Details"
+
 
 ------------------------------------
 -- component ids

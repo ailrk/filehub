@@ -7,6 +7,7 @@ import Network.Wai.Test
 import Filehub.ClientPath qualified as ClientPath
 import Filehub.SessionPool qualified as SessionPool
 import Filehub.Env (Env(..))
+import Filehub.User (UserDB(..))
 import Filehub.Server qualified as Filehub
 import Data.Char (isPrint)
 import System.FilePath ((</>), normalise)
@@ -210,6 +211,8 @@ serverSpec = before setup  $ after_ teardown do
               , readOnly = False
               , logger = logger
               , logLevel = LogTrace
+              , userDB = UserDB mempty
+              , noLogin = True
               }
       pure env
     setup = do

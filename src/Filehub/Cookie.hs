@@ -4,6 +4,8 @@ module Filehub.Cookie
   , parseCookies
   , getSessionId
   , setSessionId
+  , getAuthId
+  , setAuthId
   , getDisplay
   , setDisplay
   , renderSetCookie
@@ -18,6 +20,7 @@ import Filehub.Types (Session(..), SessionId (..), Display)
 import Lens.Micro ((<&>))
 import Data.ByteString (ByteString)
 import Data.ByteString.Char8 qualified as ByteString
+import Filehub.User (AuthId(..))
 
 
 newtype Cookies' = Cookies' Cookies
@@ -57,6 +60,28 @@ setSessionId session =
     bytes =
       let SessionId sid = session.sessionId
        in UUID.toASCIIBytes sid
+
+
+getAuthId :: Cookies' -> Maybe AuthId
+getAuthId (Cookies' cookies) = go
+  where
+    go = lookup "authId" cookies >>= UUID.fromASCIIBytes <&> AuthId
+
+
+
+setAuthId :: Session -> Maybe SetCookie
+setAuthId session = fmap mk session.authId
+  where
+    mk (AuthId aid) = do
+      let bytes = UUID.toASCIIBytes aid
+      defaultSetCookie
+        { setCookieName = "authId"
+        , setCookieValue = bytes
+        , setCookieExpires = Just session.expireDate
+        , setCookieHttpOnly = True
+        , setCookiePath = Just "/"
+        , setCookieSecure = True
+        }
 
 
 getDisplay :: Cookies' -> Maybe Display

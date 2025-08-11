@@ -3,12 +3,14 @@ module Filehub.Options
   , TargetOption(..)
   , FSTargetOption(..)
   , S3TargetOption(..)
+  , LoginInfo(..)
   , parseOptions
   )
   where
 
+import Data.List.Split (splitOn)
 import Options.Applicative
-import Filehub.Types (Theme(..))
+import Filehub.Theme (Theme(..))
 import Log (LogLevel(..))
 
 
@@ -18,7 +20,15 @@ data Options = Options
   , verbosity :: LogLevel
   , readOnly :: Bool
   , targets :: [TargetOption]
+  , loginInfo :: LoginInfo
   }
+  deriving (Show)
+
+
+data LoginInfo
+  = LoginInfo1 [(String, String)]
+  | LoginInfo2 FilePath
+  | NoLogin
   deriving (Show)
 
 
@@ -62,6 +72,46 @@ targetOption = (S3TargetOption <$> s3TargetOption) <|> (FSTargetOption <$> fsTar
                 ])
 
 
+loginInfoOption :: Parser LoginInfo
+loginInfoOption =
+  (noLogin *> pure NoLogin)
+  <|> (LoginInfo1 <$> some loginUserOption)
+  <|> (LoginInfo2 <$> loginInfoFileOption)
+
+
+loginUserOption :: Parser (String, String)
+loginUserOption =
+  option parseLoginUser
+  $ mconcat
+  $ [ long "login"
+    , metavar "USERNAME PASSWORD"
+    ]
+
+
+parseLoginUser :: ReadM (String, String)
+parseLoginUser = eitherReader $ \s ->
+  case splitOn "," s of
+    [u, p] -> Right (u, p)
+    _      -> Left "Expected USERNAME and PASSWORD separated by space"
+
+
+loginInfoFileOption :: Parser FilePath
+loginInfoFileOption =
+  option str
+  $ mconcat
+  $ [ long "login-config"
+    , metavar "CONFIG-FILE"
+    ]
+
+
+noLogin :: Parser Bool
+noLogin = switch
+         $ mconcat
+         $ [ long "no-login"
+           , help "Disable login"
+           ]
+
+
 port :: Parser Int
 port = option auto
      $ mconcat
@@ -100,7 +150,14 @@ readonly = switch
 
 
 options :: Parser Options
-options = Options <$> port <*> theme <*> verbosity <*> readonly <*> some targetOption
+options =
+  Options
+  <$> port
+  <*> theme
+  <*> verbosity
+  <*> readonly
+  <*> some targetOption
+  <*> loginInfoOption
 
 
 parseOptions :: IO Options

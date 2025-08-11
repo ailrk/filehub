@@ -78,6 +78,7 @@ library
     , amazonka-s3
     , async
     , bytestring
+    , bcrypt
     , case-insensitive
     , conduit
     , containers
@@ -106,6 +107,7 @@ library
     , servant-lucid
     , servant-multipart
     , servant-server
+    , split
     , string-interpolate
     , suspend
     , text
@@ -176,6 +178,7 @@ library
     Filehub.Template.Mobile
     Filehub.Theme
     Filehub.Types
+    Filehub.User
     Filehub.UserAgent
     Filehub.Viewer
     Paths_filehub

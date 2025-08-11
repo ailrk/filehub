@@ -1,14 +1,15 @@
 { mkDerivation, aeson, aeson-pretty, amazonka, amazonka-s3, async
-, base, bytestring, case-insensitive, conduit, containers, cookie
-, cryptohash-sha256, directory, effectful, file-embed, filepath
-, fuzzy, generic-lens, hashable, hashtables, hspec, hspec-wai
-, http-api-data, http-types, JuicyPixels, JuicyPixels-stbir, lib
-, log-base, log-effectful, lucid, microlens, microlens-platform
-, mime-types, network-uri, optparse-applicative, QuickCheck
-, servant, servant-conduit, servant-lucid, servant-multipart
-, servant-server, string-interpolate, suspend, text, time, timers
-, transformers, unliftio, unordered-containers, uri-encode, uuid
-, vault, wai, wai-app-static, wai-extra, warp, zip-archive
+, base, bcrypt, bytestring, case-insensitive, conduit, containers
+, cookie, cryptohash-sha256, directory, effectful, file-embed
+, filepath, fuzzy, generic-lens, hashable, hashtables, hspec
+, hspec-wai, http-api-data, http-types, JuicyPixels
+, JuicyPixels-stbir, lib, log-base, log-effectful, lucid, microlens
+, microlens-platform, mime-types, network-uri, optparse-applicative
+, QuickCheck, servant, servant-conduit, servant-lucid
+, servant-multipart, servant-server, split, string-interpolate
+, suspend, text, time, timers, transformers, unliftio
+, unordered-containers, uri-encode, uuid, vault, wai
+, wai-app-static, wai-extra, warp, zip-archive
 }:
 mkDerivation {
   pname = "filehub";
@@ -18,14 +19,15 @@ mkDerivation {
   isExecutable = true;
   enableSeparateDataOutput = true;
   libraryHaskellDepends = [
-    aeson aeson-pretty amazonka amazonka-s3 async base bytestring
-    case-insensitive conduit containers cookie cryptohash-sha256
-    directory effectful file-embed filepath fuzzy generic-lens hashable
-    hashtables http-api-data http-types JuicyPixels JuicyPixels-stbir
-    log-base log-effectful lucid microlens microlens-platform
-    mime-types network-uri optparse-applicative servant servant-conduit
-    servant-lucid servant-multipart servant-server string-interpolate
-    suspend text time timers transformers unliftio unordered-containers
+    aeson aeson-pretty amazonka amazonka-s3 async base bcrypt
+    bytestring case-insensitive conduit containers cookie
+    cryptohash-sha256 directory effectful file-embed filepath fuzzy
+    generic-lens hashable hashtables http-api-data http-types
+    JuicyPixels JuicyPixels-stbir log-base log-effectful lucid
+    microlens microlens-platform mime-types network-uri
+    optparse-applicative servant servant-conduit servant-lucid
+    servant-multipart servant-server split string-interpolate suspend
+    text time timers transformers unliftio unordered-containers
     uri-encode uuid vault wai wai-app-static wai-extra warp zip-archive
   ];
   executableHaskellDepends = [ base ];

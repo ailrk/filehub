@@ -40,6 +40,7 @@ createSession = do
   expireDate <- createExpireDate
   pure Session
     { sessionId = sessionId
+    , authId = Nothing
     , resolution = Nothing
     , deviceType = UserAgent.Unknown
     , expireDate = expireDate

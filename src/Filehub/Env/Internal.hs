@@ -5,6 +5,7 @@ module Filehub.Env.Internal
   , getReadOnly
   , getSessionDuration
   , getTargets
+  , getUserDB
   )
   where
 
@@ -17,6 +18,7 @@ import Filehub.Env.Types (Env(..))
 import Filehub.SessionPool.Types (SessionPool)
 import Filehub.Theme (Theme)
 import Filehub.Types (Target)
+import Filehub.User (UserDB)
 
 
 getPort :: (Reader Env :> es) => Eff es Int
@@ -41,3 +43,7 @@ getSessionDuration = asks @Env (.sessionDuration)
 
 getTargets :: (Reader Env :> es) => Eff es [Target]
 getTargets = asks @Env (.targets)
+
+
+getUserDB :: (Reader Env :> es) => Eff es UserDB
+getUserDB = asks @Env (.userDB)

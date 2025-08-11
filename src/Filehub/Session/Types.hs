@@ -17,10 +17,12 @@ import Filehub.Copy.Types (CopyState)
 import Filehub.Selected.Types (Selected)
 import Filehub.Layout (Layout)
 import Filehub.Theme (Theme)
+import Filehub.User (AuthId)
 
 
 data Session = Session
   { sessionId :: SessionId
+  , authId :: Maybe AuthId
   , resolution :: Maybe Resolution
   , deviceType :: DeviceType
   , expireDate :: UTCTime

@@ -32,6 +32,7 @@ data FilehubError
   | SelectError
   | CopyError
   | PasteError
+  | LoginFailed
   deriving Show
 
 
@@ -51,6 +52,7 @@ instance ToHttpApiData FilehubError where
   toUrlPiece SelectError = Text.pack $ show SelectError
   toUrlPiece CopyError = Text.pack $ show CopyError
   toUrlPiece PasteError = Text.pack $ show PasteError
+  toUrlPiece LoginFailed = Text.pack $ show LoginFailed
 
 
 withServerError :: (Error ServerError :> es) => Eff (Error FilehubError : es) b -> Eff es b
@@ -75,3 +77,4 @@ toServerError err =
     SelectError -> err500 { errBody = fromString $ show err }
     CopyError -> err500 { errBody = fromString $ show err }
     PasteError -> err500 { errBody = fromString $ show err }
+    LoginFailed -> err500 { errBody = fromString $ show err }

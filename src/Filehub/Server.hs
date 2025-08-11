@@ -23,7 +23,7 @@ import Data.FileEmbed qualified as FileEmbed
 import Data.Time (secondsToNominalDiffTime)
 import Data.Map.Strict qualified as Map
 import Data.Map.Strict (Map)
-import Effectful.Log (logAttention_)
+import Effectful.Log (logAttention_, logInfo_)
 import Effectful ( withRunInIO )
 import Effectful.Error.Dynamic (throwError)
 import Effectful (runEff)
@@ -34,7 +34,7 @@ import Lens.Micro.Platform ()
 import Lucid
 import Prelude hiding (readFile)
 import Servant.Server.Generic (AsServerT)
-import Servant (errBody, Headers, Header, NoContent (..), err404)
+import Servant (errBody, Headers, Header, NoContent (..), err404, errHeaders, err301, noHeader)
 import Servant (addHeader, err500)
 import Servant (serveWithContextT, Context (..), Application)
 import Servant.Conduit ()
@@ -62,13 +62,13 @@ import Filehub.Selected qualified as Selected
 import Filehub.Env
 import Filehub.Log qualified as Log
 import Filehub.Monad
-import Filehub.Options (Options(..), parseOptions, TargetOption (..))
+import Filehub.Options (Options(..), parseOptions, TargetOption (..), LoginInfo (..))
 import Filehub.Routes qualified as Routes
 import Filehub.Server.Handler qualified as Server.Handler
 import Filehub.Server.Middleware qualified as Server.Middleware
 import Filehub.Server.Desktop qualified as Server.Desktop
 import Filehub.Server.Mobile qualified as Server.Mobile
-import Filehub.Server.Internal (withQueryParam, clear, copy, paste)
+import Filehub.Server.Internal (withQueryParam, clear, copy, paste, parseHeader')
 import Filehub.SessionPool qualified as SessionPool
 import Filehub.Types (Target(..))
 import Filehub.Target.File qualified as FS
@@ -88,6 +88,7 @@ import Filehub.Types
 import Filehub.Viewer qualified as Viewer
 import Filehub.ControlPanel qualified as ControlPanel
 import Filehub.Storage (getStorage, Storage(..))
+import Filehub.Cookie qualified as Cookie
 import Conduit (ConduitT, ResourceT)
 import Network.Wai.Handler.Warp (setPort, defaultSettings, runSettings)
 import Network.Wai.Middleware.RequestLogger (logStdout)
@@ -95,6 +96,13 @@ import System.Environment (withArgs)
 import UnliftIO (hFlush, stdout)
 import Network.Mime qualified as Mime
 import Filehub.Server.Handler (ConfirmLogin)
+import Filehub.User qualified as User
+import Filehub.User (Username(..))
+import Filehub.Cookie qualified as Cookies
+import Web.Cookie (SetCookie)
+import Network.HTTP.Types.Header (hLocation)
+import Effectful.Reader.Dynamic (asks)
+import Data.Text (Text)
 
 
 #ifdef DEBUG
@@ -140,7 +148,9 @@ server = Api
         Desktop -> fmap (Template.withDefault display background) $ Server.Desktop.index sessionId
         Mobile -> fmap (Template.withDefault display background) $ Server.Mobile.index sessionId
 
+
   , login = login
+
 
   , loginPost = loginPost
 
@@ -314,7 +324,7 @@ server = Api
       pure $ addHeader TargetChanged html
 
 
-  , themeCss = \sessionId _ -> do
+  , themeCss = \sessionId -> do
 #ifdef DEBUG
       theme <- Env.getSessionTheme sessionId & withServerError
       dir <- liftIO $ Paths_filehub.getDataDir >>= makeAbsolute <&> (++ "/data/filehub")
@@ -419,15 +429,38 @@ index sessionId = do
     Mobile -> Server.Mobile.index sessionId
 
 
-login :: SessionId -> Filehub (Html ())
-login sessionId = do
-  display <- Env.getDisplay sessionId & withServerError
-  pure mempty
+login :: SessionId -> Maybe Text -> Filehub (Html ())
+login sessionId cookie = do
+  noLogin <- asks @Env (.noLogin)
+  if noLogin
+     then go
+     else do
+       case fmap Text.encodeUtf8 cookie >>= parseHeader' >>= Cookies.getAuthId of
+         Just authId' -> do
+           authId <- Env.getAuthId sessionId & withServerError
+           if authId == Just authId'
+              then go
+              else pure Template.login
+         Nothing -> pure Template.login
+  where
+    go = throwError (err301 { errHeaders = [(hLocation, "/")] })
 
 
-loginPost :: SessionId -> LoginForm -> Filehub (Html ())
-loginPost sessionId loginForm = do
-  index sessionId
+loginPost :: SessionId -> LoginForm
+          -> Filehub (Headers '[ Header "Set-Cookie" SetCookie
+                               , Header "Hx-Redirect" Text
+                               ] (Html ()))
+loginPost sessionId (LoginForm username password) =  do
+  db <- Env.getUserDB
+  if User.validate (Username username) (Text.encodeUtf8 password) db then do
+    User.createAuthId >>= Env.setAuthId sessionId . Just
+    session <- Env.getSession sessionId & withServerError
+    case Cookie.setAuthId session of
+      Just setCookie -> do
+        logInfo_ [i|User #{username} logged in|]
+        addHeader setCookie . addHeader "/" <$> pure mempty
+      Nothing -> noHeader . noHeader <$> pure Template.loginFailed
+  else noHeader . noHeader <$> pure Template.loginFailed
 
 
 view :: SessionId -> Filehub (Html ())
@@ -555,7 +588,6 @@ application :: Env -> Application
 application env
   = Server.Middleware.exposeHeaders
   . Server.Middleware.sessionMiddleware env
-  . Server.Middleware.loginMiddleware env
   . Server.Middleware.dedupHeadersKeepLast
   . Server.Middleware.displayMiddleware env
   . serveWithContextT Routes.api ctx (Server.Handler.toServantHandler env)
@@ -579,9 +611,10 @@ main = Log.withColoredStdoutLogger \logger -> do
   options <- parseOptions
   sessionPool <- runEff SessionPool.new
   targets <- runEff . runLog "Targets" logger options.verbosity . runFileSystem $ fromTargetOptions options.targets
+  userDB <- runEff . runFileSystem $ User.createUserDB options.loginInfo
+
   printf "PORT: %d\n" options.port
   printf "V: %s\n" (show options.verbosity)
-
 #ifdef DEBUG
   printf "DEBUG build\n"
 #endif
@@ -596,6 +629,10 @@ main = Log.withColoredStdoutLogger \logger -> do
           , readOnly = options.readOnly
           , logger = logger
           , logLevel = options.verbosity
+          , userDB = userDB
+          , noLogin = case options.loginInfo of
+                        NoLogin -> True
+                        _ -> False
           }
   go env `catch` handler
   where

@@ -59,6 +59,7 @@ import Filehub.Layout (Layout)
 import Data.ByteString (ByteString)
 import Conduit (ConduitT, ResourceT)
 import Amazonka.Data (Value)
+import Web.Cookie (SetCookie)
 
 
 type instance AuthServerData (AuthProtect "session") = SessionId
@@ -89,6 +90,7 @@ data Api mode = Api
   , login           :: mode
                     :- "login"
                     :> AuthProtect "session"
+                    :> Header "Cookie" Text
                     :> Get '[HTML] (Html ())
 
 
@@ -96,7 +98,9 @@ data Api mode = Api
                     :- "login"
                     :> AuthProtect "session"
                     :> ReqBody '[FormUrlEncoded] LoginForm
-                    :> Post '[HTML] (Html ())
+                    :> Post '[HTML] (Headers '[ Header "Set-Cookie" SetCookie
+                                              , Header "Hx-Redirect" Text
+                                              ] (Html ()))
 
 
   , cd              :: mode
@@ -210,12 +214,14 @@ data Api mode = Api
                     :> QueryParam "by" SortFileBy
                     :> Get '[HTML] (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
 
+
   , selectLayout    :: mode
                     :- "layout"
                     :> AuthProtect "session"
                     :> AuthProtect "login"
                     :> QueryParam "as" Layout
                     :> Get '[HTML] (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
+
 
   , selectRows      :: mode
                     :- "table" :> "select"
@@ -304,7 +310,6 @@ data Api mode = Api
   , themeCss        :: mode
                     :- "theme.css"
                     :> AuthProtect "session"
-                    :> AuthProtect "login"
                     :> Get '[OctetStream] LBS.ByteString
 
 

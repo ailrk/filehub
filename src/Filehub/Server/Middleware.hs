@@ -4,7 +4,6 @@ module Filehub.Server.Middleware
   , dedupHeadersKeepLast
   , displayMiddleware
   , sessionMiddleware
-  , loginMiddleware
   ) where
 
 import Control.Monad (when)
@@ -37,7 +36,6 @@ import Network.HTTP.Types (hUserAgent, status500)
 import Network.Wai
 import Network.Wai.Middleware.AddHeaders
 import Prelude hiding (readFile)
-import Prelude hiding (readFile)
 
 
 exposeHeaders :: Middleware
@@ -67,7 +65,6 @@ dedupHeadersKeepLast app req respond =
         go seen ((k,v):xs)
           | CI.foldedCase k `Set.member` seen = go seen xs
           | otherwise = (k,v) : go (Set.insert (CI.foldedCase k) seen) xs
-
 
 
 displayMiddleware :: Env -> Middleware
@@ -101,7 +98,6 @@ displayMiddleware  env app req respond = toIO onErr env do
     onErr _ = respond $ responseLBS (status500) [] "invalid display information"
 
 
-
 -- | If session is not present, create a new session
 sessionMiddleware :: Env -> Middleware
 sessionMiddleware env app req respond = toIO onErr env do
@@ -132,9 +128,3 @@ sessionMiddleware env app req respond = toIO onErr env do
         let res' = mapResponseHeaders (setCookieHeader :) res
          in respond res'
     onErr _ = respond $ responseLBS status500 [] "server error" -- impossible
-
-
-
--- | Handle login
-loginMiddleware :: Env -> Middleware
-loginMiddleware env app req respond = app req $ \res -> respond res

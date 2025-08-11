@@ -7,6 +7,8 @@ module Filehub.Env
   , setCurrentDir
   , getSortFileBy
   , setSortFileBy
+  , getAuthId
+  , setAuthId
   , getLayout
   , setLayout
   , getSessionTheme
@@ -24,7 +26,7 @@ import Data.Generics.Labels ()
 import Filehub.Types
     ( Env(..), Session(..), Target(..), Display (..))
 import Filehub.SessionPool (getSession, updateSession)
-import Filehub.Env.Internal (getSessionPool, getTheme, getReadOnly, getSessionDuration, getTargets)
+import Filehub.Env.Internal
 import Filehub.Target (currentTarget, changeCurrentTarget)
 import Filehub.Target qualified as Target
 import Filehub.Display qualified as Display
@@ -58,6 +60,13 @@ getSortFileBy sessionId = (^. #sessionData . #sortedFileBy) <$> Target.currentTa
 
 setSortFileBy sessionId order = do
   updateSession sessionId (\s -> s & #targets . ix s.index . #sortedFileBy .~ order)
+
+
+getAuthId sessionId = (^. #authId) <$> getSession sessionId
+
+
+setAuthId sessionId mAuthId = do
+  updateSession sessionId (\s -> s & #authId .~ mAuthId)
 
 
 getLayout sessionId = (^. #layout) <$> getSession sessionId
