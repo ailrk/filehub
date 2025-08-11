@@ -31,16 +31,11 @@ import System.FilePath (takeDirectory)
 import Network.HTTP.Types.Header
 import Data.ByteString.Char8 qualified as ByteString
 import Filehub.Target.File (Backend(..))
-import Data.Map.Strict qualified as Map
-import Filehub.User (Username(..))
-import Filehub.User (PasswordHash(..))
 import Filehub.Types (LoginForm(..))
 import Web.FormUrlEncoded (ToForm(..))
 import Web.FormUrlEncoded qualified as UrlFormEncoded
-import Web.Cookie qualified as Cookie
 import Network.HTTP.Types.Status
 import Network.HTTP.Types (methodPost)
-import Crypto.BCrypt qualified as BCrypt
 import Filehub.User (createUserDB)
 import Filehub.Options (LoginInfo(..))
 import Effectful.FileSystem (runFileSystem)
@@ -117,10 +112,10 @@ serverSpec = before setup  $ after_ teardown do
   describe "Paste file into the same dir" $ do
     env <- runIO $ mkEnv
     with (pure $ Filehub.application env) do
-      it "should fail because file already exists" do
+      it "should should overwrite the file with the same content." do
         postHtmlForm "/table/select" [("selected", "a")] `shouldRespondWith` 200
         get "/files/copy" `shouldRespondWith` 200
-        post "/files/paste" "" `shouldRespondWith` 500
+        post "/files/paste" "" `shouldRespondWith` 200
 
 
   describe "Paste to a new dir" $ do

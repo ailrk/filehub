@@ -503,12 +503,10 @@ serve sessionId _ mFile = do
       $ conduit
 
 
--- | Create thumbnailed version of image, pdf, and video.
---   If the image is big we will create a thumbnail by resizing the image, then serve the thumbnail instead.
 thumbnail :: SessionId -> ConfirmLogin -> Maybe ClientPath
           -> Filehub (Headers '[ Header "Content-Type" String
                                , Header "Content-Disposition" String
-                               ] ByteString)
+                               ] (ConduitT () ByteString (ResourceT IO) ()))
 thumbnail sessionId _ mFile = do
   withServerError do
     storage <- getStorage sessionId
@@ -516,71 +514,17 @@ thumbnail sessionId _ mFile = do
     clientPath <- withQueryParam mFile
     let path = ClientPath.fromClientPath root clientPath
     file <- storage.get path
-    content <-
-      case file.size of
-        Just size
-          | size > 1024 * 1024 -> createThumbnail storage file
-        _ -> serveOriginal storage file
+    conduit <- serveOriginal storage file
     pure
       $ addHeader (ByteString.unpack file.mimetype)
       $ addHeader (printf "inline; filename=%s" (takeFileName path))
-      $ content
+      $ conduit
   where
     serveOriginal storage file =
       if
         | file.mimetype `isMime` "image" ->
-          storage.read file
+          storage.readStream file
         | otherwise -> throwError InvalidMimeTypeForThumbnail & withServerError
-
-    createThumbnail storage file =
-      if
-        | file.mimetype `isMime` "image" -> do
-           bytes <- storage.read file
-           case Picture.decodeImage bytes of
-             Left _ -> pure bytes
-             Right image ->
-               case resizeToFit 140 140 image of
-                 Just resizedImage ->
-                     if
-                        | file.mimetype `isMime` "image/png" ->
-                          either (\_ -> throwError FailedToDecodeImage) (pure . LBS.toStrict) $ Picture.encodeDynamicPng resizedImage
-                        | file.mimetype `isMime` "image/jpeg" ->
-                            case resizedImage of
-                              Picture.ImageYCbCr8 img -> (pure . LBS.toStrict) $ Picture.encodeJpeg img
-                              _ -> throwError FailedToDecodeImage
-                        | file.mimetype `isMime` "image/bmp" ->
-                          either (\_ -> throwError FailedToDecodeImage) (pure . LBS.toStrict) $ Picture.encodeDynamicBitmap resizedImage
-                        | file.mimetype `isMime` "image/gif" -> pure bytes
-                        | otherwise -> throwError FailedToDecodeImage
-                 Nothing -> throwError FailedToDecodeImage
-        | otherwise -> throwError InvalidMimeTypeForThumbnail & withServerError
-
-
-    resizeToFit :: Int -> Int -> Picture.DynamicImage -> Maybe Picture.DynamicImage
-    resizeToFit maxHeight maxWidth image = do
-      let getResolution img = (Picture.imageWidth img, Picture.imageHeight img)
-      let scale :: _ => (Int, Int) -> Picture.Image a -> Picture.Image a
-          scale (w, h) x = do
-            let s :: Double = min (fromIntegral maxWidth / fromIntegral w) (fromIntegral maxHeight / fromIntegral h)
-            let targetW = max 1 (floor $ s * fromIntegral w)
-            let targetH = max 1 (floor $ s * fromIntegral h)
-            if w <= maxWidth && h <= maxHeight
-               then x
-               else Picture.STBIR.resize Picture.STBIR.defaultOptions targetW targetH x
-      case image of
-        Picture.ImageY8 x     -> Just $ Picture.ImageY8 $ scale (getResolution x) x
-        Picture.ImageY16 x    -> Just $ Picture.ImageY16 $ scale (getResolution x) x
-        Picture.ImageY32 x    -> Just $ Picture.ImageY32 $ scale (getResolution x) x
-        Picture.ImageYA8 x    -> Just $ Picture.ImageYA8 $ scale (getResolution x) x
-        Picture.ImageYA16 x   -> Just $ Picture.ImageYA16 $ scale (getResolution x) x
-        Picture.ImageRGB8 x   -> Just $ Picture.ImageRGB8 $ scale (getResolution x) x
-        Picture.ImageRGB16 x  -> Just $ Picture.ImageRGB16 $ scale (getResolution x) x
-        Picture.ImageRGBA8 x  -> Just $ Picture.ImageRGBA8 $ scale (getResolution x) x
-        Picture.ImageRGBA16 x -> Just $ Picture.ImageRGBA16 $ scale (getResolution x) x
-        Picture.ImageYCbCr8 x -> Just $ Picture.ImageYCbCr8 $ scale (getResolution x) x
-        Picture.ImageCMYK8 x  -> Just $ Picture.ImageCMYK8 $ scale (getResolution x) x
-        Picture.ImageCMYK16 x -> Just $ Picture.ImageCMYK16 $ scale (getResolution x) x
-        _ -> Nothing
 
 
 application :: Env -> Application

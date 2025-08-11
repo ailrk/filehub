@@ -32,9 +32,10 @@ mkDerivation {
   ];
   executableHaskellDepends = [ base ];
   testHaskellDepends = [
-    base bytestring containers directory effectful filepath hspec
-    hspec-wai http-types log-base log-effectful QuickCheck
-    servant-server time uri-encode uuid wai wai-extra
+    base bcrypt bytestring containers cookie directory effectful
+    filepath hspec hspec-wai http-api-data http-types log-base
+    log-effectful QuickCheck servant-server time uri-encode uuid wai
+    wai-extra
   ];
   license = "unknown";
   mainProgram = "filehub";

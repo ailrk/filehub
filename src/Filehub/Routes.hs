@@ -301,9 +301,9 @@ data Api mode = Api
                     :> AuthProtect "session"
                     :> AuthProtect "login"
                     :> QueryParam "file" ClientPath
-                    :> Get '[OctetStream] (Headers '[ Header "Content-Type" String
-                                                    , Header "Content-Disposition" String
-                                                    ] ByteString)
+                    :> StreamGet NoFraming OctetStream (Headers '[ Header "Content-Type" String
+                                                                 , Header "Content-Disposition" String
+                                                                 ] (ConduitT () ByteString (ResourceT IO) ()))
 
 
   , themeCss        :: mode
