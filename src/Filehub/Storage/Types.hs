@@ -4,7 +4,6 @@ module Filehub.Storage.Types where
 import Filehub.File (File)
 import Filehub.ClientPath (ClientPath)
 import Lens.Micro.Platform ()
-import Data.ByteString.Lazy qualified as LBS
 import Data.Generics.Labels ()
 import Servant.Multipart
     ( MultipartData(..), Mem, MultipartData(..), Mem )
@@ -16,9 +15,9 @@ import Data.ByteString (ByteString)
 
 data Storage m = Storage
   { get :: FilePath -> m File
-  , read :: File -> m LBS.ByteString
+  , read :: File -> m ByteString
   , readStream :: File -> m (ConduitT () ByteString (ResourceT IO) ())
-  , write :: FilePath -> LBS.ByteString -> m ()
+  , write :: FilePath -> ByteString -> m ()
   , delete :: FilePath -> m ()
   , new :: FilePath -> m ()
   , newFolder :: FilePath -> m ()

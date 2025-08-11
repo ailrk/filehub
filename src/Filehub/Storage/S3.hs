@@ -72,11 +72,11 @@ isDirectory sessionId filePath = do
   pure $ maybe False (> 0) (resp ^. Amazonka.listObjectsV2Response_keyCount)
 
 
-read :: Storage.Context es => SessionId -> File -> Eff es LBS.ByteString
+read :: Storage.Context es => SessionId -> File -> Eff es ByteString
 read sessionId file = do
   stream <- readStream sessionId file
   chunks <- liftIO $ runResourceT . Conduit.runConduit $ stream Conduit..| Conduit.sinkList
-  pure $ LBS.fromChunks chunks
+  pure $ LBS.toStrict $ LBS.fromChunks chunks
 
 
 readStream :: Storage.Context es => SessionId -> File -> Eff es (ConduitT () ByteString (ResourceT IO) ())
@@ -104,7 +104,7 @@ new :: Storage.Context es => SessionId -> FilePath -> Eff es ()
 new sessionId filePath = write sessionId filePath mempty
 
 
-write :: Storage.Context es => SessionId -> FilePath -> LBS.ByteString -> Eff es ()
+write :: Storage.Context es => SessionId -> FilePath -> ByteString -> Eff es ()
 write sessionId filePath bytes = do
   s3 <- getS3 sessionId
   let bucket = Amazonka.BucketName s3.bucket
@@ -167,7 +167,7 @@ upload :: Storage.Context es => SessionId -> MultipartData Mem -> Eff es ()
 upload sessionId multipart = do
   forM_ multipart.files $ \file -> do
     let name = Text.unpack file.fdFileName
-    let content = file.fdPayload
+    let content = LBS.toStrict $ file.fdPayload
     write sessionId name content
 
 

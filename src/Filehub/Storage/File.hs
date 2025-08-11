@@ -7,6 +7,8 @@ import Codec.Archive.Zip (ZipOption(..))
 import Codec.Archive.Zip qualified as Zip
 import Control.Monad (unless, when, forM_)
 import Conduit (ConduitT, ResourceT, sourceFile, sourceLazy)
+import Data.ByteString (ByteString)
+import Data.ByteString (readFile)
 import Data.ByteString.Lazy qualified as LBS
 import Data.Generics.Labels ()
 import Data.Text qualified as Text
@@ -14,7 +16,7 @@ import Effectful ( Eff, Eff )
 import Effectful.Error.Dynamic (throwError)
 import Effectful.FileSystem
 import Effectful.FileSystem.IO (withFile, IOMode (..))
-import Effectful.FileSystem.IO.ByteString.Lazy (hPut, readFile)
+import Effectful.FileSystem.IO.ByteString (hPut)
 import Effectful.Log
 import Filehub.ClientPath (fromClientPath)
 import Filehub.Env qualified as Env
@@ -29,7 +31,6 @@ import System.FilePath ( (</>) )
 import Data.Generics.Labels ()
 import UnliftIO (MonadIO (..))
 import Lens.Micro.Platform ()
-import Data.ByteString (ByteString)
 
 
 get :: Storage.Context es => SessionId -> FilePath -> Eff es File
@@ -70,8 +71,8 @@ isDirectory _ filePath = do
      else pure dirExists
 
 
-read :: Storage.Context es => SessionId -> File -> Eff es LBS.ByteString
-read _ file = readFile file.path
+read :: Storage.Context es => SessionId -> File -> Eff es ByteString
+read _ file = liftIO $ readFile file.path
 
 
 readStream :: SessionId -> File -> Eff es (ConduitT () ByteString (ResourceT IO) ())
@@ -98,7 +99,7 @@ new sessionId name = do
   withFile filePath ReadWriteMode (\_ -> pure ())
 
 
-write :: Storage.Context es => SessionId -> String -> LBS.ByteString -> Eff es ()
+write :: Storage.Context es => SessionId -> String -> ByteString -> Eff es ()
 write sessionId name content = do
   filePath <- toFilePath sessionId name
   withFile filePath WriteMode (\h -> hPut h content)
@@ -150,7 +151,7 @@ upload :: Storage.Context es => SessionId -> MultipartData Mem -> Eff es ()
 upload sessionId multipart = do
   forM_ multipart.files $ \file -> do
     let name = Text.unpack file.fdFileName
-    let content = file.fdPayload
+    let content = LBS.toStrict file.fdPayload
     write sessionId name content
 
 

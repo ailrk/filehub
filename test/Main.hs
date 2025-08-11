@@ -40,7 +40,6 @@ import Web.FormUrlEncoded qualified as UrlFormEncoded
 import Web.Cookie qualified as Cookie
 import Network.HTTP.Types.Status
 import Network.HTTP.Types (methodPost)
-import Debug.Trace
 import Crypto.BCrypt qualified as BCrypt
 import Filehub.User (createUserDB)
 import Filehub.Options (LoginInfo(..))

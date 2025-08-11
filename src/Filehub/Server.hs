@@ -103,15 +103,14 @@ import Web.Cookie (SetCookie)
 import Network.HTTP.Types.Header (hLocation)
 import Effectful.Reader.Dynamic (asks)
 import Data.Text (Text)
-import Debug.Trace
 
 
 #ifdef DEBUG
 import Effectful ( MonadIO (liftIO) )
-import Effectful.FileSystem.IO.ByteString.Lazy (readFile)
 import System.FilePath ((</>))
 import Paths_filehub qualified
 import System.Directory (makeAbsolute)
+import Data.ByteString (readFile)
 #endif
 
 -- | Server definition
@@ -176,7 +175,7 @@ server = Api
       let path = clientPath.unClientPath
       withServerError do
         storage <- getStorage sessionId
-        storage.write path (Text.encodeUtf8 content ^. lazy)
+        storage.write path (Text.encodeUtf8 content)
       view sessionId
 
 
@@ -329,13 +328,13 @@ server = Api
 #ifdef DEBUG
       theme <- Env.getSessionTheme sessionId & withServerError
       dir <- liftIO $ Paths_filehub.getDataDir >>= makeAbsolute <&> (++ "/data/filehub")
-      readFile $
+      liftIO . readFile $
         case theme of
           Dark -> dir </> "theme-dark.css"
           Light -> dir </> "theme-light.css"
 #else
       theme <- Env.getSessionTheme sessionId & withServerError
-      pure . LBS.fromStrict $
+      pure
         case theme of
           Dark -> fromMaybe "no-theme" $ Map.lookup "theme-dark.css" staticFiles
           Light -> fromMaybe "no-theme" $ Map.lookup "theme-light.css" staticFiles
@@ -381,7 +380,7 @@ server = Api
           ]
 
 
-  , favicon = pure $ LBS.fromStrict $(FileEmbed.embedFile "data/filehub/favicon.ico")
+  , favicon = pure $(FileEmbed.embedFile "data/filehub/favicon.ico")
 
 
   , static = \paths -> do
@@ -389,7 +388,7 @@ server = Api
       dir <- liftIO $ Paths_filehub.getDataDir >>= makeAbsolute <&> (++ "/data/filehub")
       let path = dir </> List.intercalate "/" paths
       let mimetype = Mime.defaultMimeLookup (Text.pack path)
-      content <- readFile path
+      content <- liftIO . readFile $ path
       pure
         $ addHeader (ByteString.unpack mimetype)
         $ content
@@ -400,7 +399,6 @@ server = Api
           let mimetype = Mime.defaultMimeLookup (Text.pack path)
           pure
             $ addHeader (ByteString.unpack mimetype)
-            $ LBS.fromStrict
             $ content
         Nothing -> throwError (err404 { errBody = [i|File doesn't exist|]})
 #endif
@@ -510,7 +508,7 @@ serve sessionId _ mFile = do
 thumbnail :: SessionId -> ConfirmLogin -> Maybe ClientPath
           -> Filehub (Headers '[ Header "Content-Type" String
                                , Header "Content-Disposition" String
-                               ] LBS.ByteString)
+                               ] ByteString)
 thumbnail sessionId _ mFile = do
   withServerError do
     storage <- getStorage sessionId
@@ -538,20 +536,20 @@ thumbnail sessionId _ mFile = do
       if
         | file.mimetype `isMime` "image" -> do
            bytes <- storage.read file
-           case Picture.decodeImage (LBS.toStrict bytes) of
+           case Picture.decodeImage bytes of
              Left _ -> pure bytes
              Right image ->
                case resizeToFit 140 140 image of
                  Just resizedImage ->
                      if
                         | file.mimetype `isMime` "image/png" ->
-                          either (\_ -> throwError FailedToDecodeImage) pure $ Picture.encodeDynamicPng resizedImage
+                          either (\_ -> throwError FailedToDecodeImage) (pure . LBS.toStrict) $ Picture.encodeDynamicPng resizedImage
                         | file.mimetype `isMime` "image/jpeg" ->
                             case resizedImage of
-                              Picture.ImageYCbCr8 img -> pure $ Picture.encodeJpeg img
+                              Picture.ImageYCbCr8 img -> (pure . LBS.toStrict) $ Picture.encodeJpeg img
                               _ -> throwError FailedToDecodeImage
                         | file.mimetype `isMime` "image/bmp" ->
-                          either (\_ -> throwError FailedToDecodeImage) pure $ Picture.encodeDynamicBitmap resizedImage
+                          either (\_ -> throwError FailedToDecodeImage) (pure . LBS.toStrict) $ Picture.encodeDynamicBitmap resizedImage
                         | file.mimetype `isMime` "image/gif" -> pure bytes
                         | otherwise -> throwError FailedToDecodeImage
                  Nothing -> throwError FailedToDecodeImage

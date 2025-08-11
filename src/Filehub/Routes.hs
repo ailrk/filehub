@@ -34,7 +34,6 @@ import Servant
     )
 import Lucid
 import Lens.Micro.Platform ()
-import Data.ByteString.Lazy qualified as LBS
 import Servant.Multipart (Mem, MultipartForm, MultipartData(..))
 import Servant.HTML.Lucid (HTML)
 import Servant.API.Experimental.Auth (AuthProtect)
@@ -304,13 +303,13 @@ data Api mode = Api
                     :> QueryParam "file" ClientPath
                     :> Get '[OctetStream] (Headers '[ Header "Content-Type" String
                                                     , Header "Content-Disposition" String
-                                                    ] LBS.ByteString)
+                                                    ] ByteString)
 
 
   , themeCss        :: mode
                     :- "theme.css"
                     :> AuthProtect "session"
-                    :> Get '[OctetStream] LBS.ByteString
+                    :> Get '[OctetStream] ByteString
 
 
 
@@ -324,12 +323,12 @@ data Api mode = Api
   , manifest        :: mode :- "manifest.json" :> Get '[Manifest] Value
 
 
-  , favicon         :: mode :- "favicon.ico" :> Get '[OctetStream] LBS.ByteString
+  , favicon         :: mode :- "favicon.ico" :> Get '[OctetStream] ByteString
 
 
   -- /static serves static files, it faces the same problem /serve has.
   , static          :: mode :- "static" :> CaptureAll "file" FilePath :> Get '[OctetStream]  (Headers '[ Header "Content-Type" String
-                                                                                                       ] LBS.ByteString)
+                                                                                                       ] ByteString)
 
 
   , offline         :: mode :- "offline" :> Get '[HTML] (Html ())

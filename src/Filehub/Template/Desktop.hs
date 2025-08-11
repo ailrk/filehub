@@ -18,7 +18,7 @@ module Filehub.Template.Desktop
   where
 
 
-import Data.ByteString.Lazy qualified as LBS
+import Data.ByteString (ByteString)
 import Data.Foldable (traverse_)
 import Data.Map (Map)
 import Data.Map qualified as Map
@@ -27,7 +27,7 @@ import Data.Maybe qualified as Maybe
 import Data.String.Interpolate (iii, i)
 import Data.Text (Text)
 import Data.Text qualified as Text
-import Data.Text.Lazy.Encoding qualified as LText
+import Data.Text.Encoding qualified as Text
 import Data.Time.Format (formatTime, defaultTimeLocale)
 import Filehub.Types
     ( File(..),
@@ -373,7 +373,7 @@ fileDetailModal file = do
           td_ (toHtml file.mimetype)
 
 
-editorModal :: Bool -> FilePath -> LBS.ByteString -> Html ()
+editorModal :: Bool -> FilePath -> ByteString -> Html ()
 editorModal readOnly filename content = do
   modal [ id_ editorModalId ] do
     case readOnly of
@@ -405,7 +405,7 @@ editorModal readOnly filename content = do
           , if readOnly then [ readonly_ "readonly" ] else mempty
           ]
         )
-        (toHtml $ LText.decodeUtf8 content)
+        (toHtml $ Text.decodeUtf8 content)
 
 
       br_ mempty >> br_ mempty

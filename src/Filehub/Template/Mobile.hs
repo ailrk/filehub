@@ -3,6 +3,7 @@
 module Filehub.Template.Mobile where
 
 
+import Data.ByteString (ByteString)
 import Data.Foldable (traverse_)
 import Data.Map (Map)
 import Data.Map qualified as Map
@@ -11,8 +12,7 @@ import Data.Maybe qualified as Maybe
 import Data.String.Interpolate (iii, i)
 import Data.Text (Text)
 import Data.Text qualified as Text
-import Data.Text.Lazy.Encoding qualified as LText
-import Data.ByteString.Lazy qualified as LBS
+import Data.Text.Encoding qualified as Text
 import Data.Time.Format (formatTime, defaultTimeLocale)
 import Filehub.Types
     ( File(..),
@@ -478,7 +478,7 @@ selectedCounter n = do
     i_ [ class_ "bx bx-x" ] mempty
 
 
-editorModal :: Bool -> FilePath -> LBS.ByteString -> Html ()
+editorModal :: Bool -> FilePath -> ByteString -> Html ()
 editorModal readOnly filename content = do
   div_ [ id_ editorModalId, closeEditorScript ] do
 
@@ -523,7 +523,7 @@ editorModal readOnly filename content = do
           , if readOnly then [ readonly_ "readonly" ] else mempty
           ]
         )
-        (toHtml $ LText.decodeUtf8 content)
+        (toHtml $ Text.decodeUtf8 content)
 
   where
     closeEditorScript = term "_" [i| on Close remove me end |]
