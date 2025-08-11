@@ -328,7 +328,7 @@ textarea {
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.2s ease, transform 0.2s ease;
-    z-index: 11;
+    z-index: 10;
   }
 }
 
@@ -337,6 +337,8 @@ textarea {
   background: var(--background);
   color: var(--frontground);
   text-transform: uppercase;
+  font-size: 1.2em;
+  padding: 13px;
 }
 
 
@@ -561,10 +563,6 @@ textarea.form-control {
   animation-duration: 60ms;
   animation-timing-function: ease;
 
-  & a {
-    width: 100%;
-  }
-
   &.closing {
     animation-name: fadeOut;
     animation-duration: 60ms;
@@ -575,24 +573,28 @@ textarea.form-control {
 
 .dropdown-item {
   cursor: pointer;
-  padding: 0.3rem 0;
+  padding: 0.7em;
 
   &:active {
     transform: translateY(2px);
   }
 
-  & span,
-  & a {
+  & span {
     color: var(--frontground);
     display: inline-block;
     text-decoration: none;
     padding: 0 2rem 0 1rem;
   }
 
-
   &:hover {
     background: var(--background3);
   }
+}
+
+a {
+  color: var(--frontground);
+  display: inline-block;
+  text-decoration: none;
 }
 
 

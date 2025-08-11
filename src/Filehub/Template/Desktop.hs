@@ -686,44 +686,51 @@ contextMenu readOnly root file = do
              , term "hx-get" $ linkToText (apiLinks.cd (Just clientPath))
              , term "hx-target" ("#" <> viewId)
              , term "hx-swap" "outerHTML"
-             ] $
+             ] do
+          i_ [ class_ "bx bxs-folder-open" ] mempty
           span_ "Open"
       Content
         | file.mimetype `isMime` "application/pdf" -> do
-          div_ [ class_ "dropdown-item" ] $
-            a_ [ href_ (URI.Encode.decodeText textClientPath) , target_ "blank" ] "View"
+          a_ [ class_ "dropdown-item", href_ (URI.Encode.decodeText textClientPath) , target_ "blank" ] do
+            i_ [ class_ "bx bx-show" ] mempty
+            span_ "View"
         | file.mimetype `isMime` "audio" -> do
           div_ [ class_ "dropdown-item"
                , term "hx-get" $ linkToText (apiLinks.initViewer (Just clientPath))
                , term "hx-target" "this"
                , term "hx-swap" "none"
-               ] $
+               ] do
+            i_ [ class_ "bx bx-play" ] mempty
             span_ "Play"
         | file.mimetype `isMime` "video" -> do
           div_ [ class_ "dropdown-item"
                , term "hx-get" $ linkToText (apiLinks.initViewer (Just clientPath))
                , term "hx-target" "this"
                , term "hx-swap" "none"
-               ] $
+               ] do
+            i_ [ class_ "bx bx-play" ] mempty
             span_ "Play"
         | file.mimetype `isMime` "image" -> do
           div_ [ class_ "dropdown-item"
                , term "hx-get" $ linkToText (apiLinks.initViewer (Just clientPath))
                , term "hx-target" "this"
                , term "hx-swap" "none"
-               ] $
+               ] do
+            i_ [ class_ "bx bx-show" ] mempty
             span_ "View"
         | file.mimetype `isMime` "text" -> do
           div_ [ class_ "dropdown-item"
                , term "hx-get" $ linkToText (apiLinks.editorModal (Just clientPath))
                , term "hx-target" "#index"
                , term "hx-swap" "beforeend"
-               ] $
+               ] do
+            i_ [ class_ "bx bxs-edit" ] mempty
             span_ "Edit"
         | otherwise ->
             mempty
-    div_ [ class_ "dropdown-item" ] $
-      a_ [ href_ (linkToText $ apiLinks.download (Just clientPath)) ] "Download"
+    a_ [ class_ "dropdown-item" ,  href_ (linkToText $ apiLinks.download (Just clientPath)) ] do
+      i_ [ class_ "bx bx-download" ] mempty
+      span_ "Download"
 
     case readOnly of
       True -> mempty
@@ -733,14 +740,16 @@ contextMenu readOnly root file = do
              , term "hx-target" "#index"
              , term "hx-swap" "outerHTML"
              , term "hx-confirm" ("Are you sure about deleting " <> textClientPath <> "?")
-             ] $
+             ] do
+          i_ [ class_ "bx bxs-trash" ] mempty
           span_ "Delete"
 
     div_ [ class_ "dropdown-item"
          , term "hx-get" $ linkToText (apiLinks.fileDetailModal (Just clientPath))
          , term "hx-target" "#index"
          , term "hx-swap" "beforeend"
-         ] $
+         ] do
+      i_ [ class_ "bx bx-detail" ] mempty
       span_ "Details"
 
 
