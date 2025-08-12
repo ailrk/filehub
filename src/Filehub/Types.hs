@@ -134,6 +134,7 @@ data FilehubEvent
   | ThemeChanged
   | Canceled -- Action canceled
   | Opened OpenTarget ClientPath -- load a resource into tab/window/iframe. Hook  for window.open
+  | Dummy Text -- dummy event for testing
   deriving (Show)
 
 
@@ -155,10 +156,10 @@ instance ToJSON FilehubEvent where
     Aeson.object
       [ "Opened" .= Aeson.object
           [ "path" .= toJSON path
-          , "target" .= toJSON target
+          , "tgt" .= toJSON target
           ]
       ]
-
+  toJSON (Dummy t) = Aeson.object [ "Dummy" .= Aeson.object [ "msg" .= t ] ]
 
 instance ToHttpApiData FilehubEvent where
   toUrlPiece v = (v & Aeson.encode & LText.decodeUtf8) ^. strict

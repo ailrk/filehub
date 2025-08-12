@@ -1,5 +1,6 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE CPP #-}
 
 module Filehub.Template.Desktop
   ( index
@@ -562,7 +563,7 @@ table target root files selected order layout =
         tbody_ $ traverse_ thumbnail ([0..] `zip` files)
       where
         thumbnail :: (Int, File) -> Html ()
-        thumbnail (idx, file) =
+        thumbnail (idx, file) = do
           div_ do
             previewElement file
             fileNameElement file False `with` [ class_ "thumbnail-name" ]
@@ -695,13 +696,14 @@ contextMenu readOnly root file = do
         | file.mimetype `isMime` "application/pdf" -> do
           div_ [ class_ "dropdown-item"
                , term "hx-get" $ linkToText (apiLinks.open (Just OpenDOMBlank) (Just clientPath))
+               , term "hx-target" "this"
                , term "hx-swap" "none"
                ] do
             i_ [ class_ "bx bx-show" ] mempty
             span_ "View"
         | file.mimetype `isMime` "audio" -> do
           div_ [ class_ "dropdown-item"
-               , term "hx-get" $ linkToText (apiLinks.initViewer (Just clientPath))
+               , term "hx-get" $ linkToText (apiLinks.open (Just OpenViewer) (Just clientPath))
                , term "hx-target" "this"
                , term "hx-swap" "none"
                ] do
@@ -717,7 +719,7 @@ contextMenu readOnly root file = do
             span_ "Play"
         | file.mimetype `isMime` "image" -> do
           div_ [ class_ "dropdown-item"
-               , term "hx-get" $ linkToText (apiLinks.initViewer (Just clientPath))
+               , term "hx-get" $ linkToText (apiLinks.open (Just OpenViewer) (Just clientPath))
                , term "hx-target" "this"
                , term "hx-swap" "none"
                ] do

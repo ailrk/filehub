@@ -241,12 +241,12 @@ serverSpec = before setup  $ after_ teardown do
         request methodPost "/login" [ (hContentType, "application/x-www-form-urlencoded") ] (f $ LoginForm "peter" "345") >>= \res -> liftIO do
             simpleStatus res `shouldBe` status200
             simpleBody res `shouldBe` ""
-            lookup "Hx-Redirect" (simpleHeaders res) `shouldBe` Just "/"
+            lookup "HX-Redirect" (simpleHeaders res) `shouldBe` Just "/"
 
         request methodPost "/login" [(hContentType, "application/x-www-form-urlencoded") ] (f $ LoginForm "paul" "123") >>= \res -> liftIO do
             simpleStatus res `shouldBe` status200
             simpleBody res `shouldBe` ""
-            lookup "Hx-Redirect" (simpleHeaders res) `shouldBe` Just "/"
+            lookup "HX-Redirect" (simpleHeaders res) `shouldBe` Just "/"
 
       it "Login failed, return the login form again" do
         request methodPost "/login" [ (hContentType, "application/x-www-form-urlencoded") ] (f $ LoginForm "paul" "xxx") `shouldRespondWith` 200

@@ -44,7 +44,7 @@ import Filehub.Layout (Layout(..))
 import Filehub.Mime (isMime)
 import Filehub.Target qualified as Target
 import Filehub.Target.Types.TargetView (TargetView(..))
-import Filehub.Types ( FilehubEvent (..), LoginForm(..))
+import Filehub.Types ( FilehubEvent (..), LoginForm(..), OpenTarget(..))
 import Filehub.Env qualified as Env
 import Filehub.Error ( withServerError, FilehubError(..), FilehubError(..), withServerError )
 import Filehub.Routes (Api (..))
@@ -305,10 +305,9 @@ server = Api
 
 
   , open = \_ _ mTarget mClientPath -> do
-       withServerError do
-        clientPath <- withQueryParam mClientPath
-        target <- withQueryParam mTarget
-        pure $ addHeader (Opened target clientPath) NoContent
+      clientPath <- withQueryParam mClientPath
+      target <- withQueryParam mTarget
+      pure $ addHeader (Opened target clientPath) NoContent
 
 
   , changeTarget = \sessionId _ mTargetId -> do
@@ -412,6 +411,11 @@ server = Api
 
 
   , healthz = pure "ok"
+
+
+#ifdef DEBUG
+  , debug1 = \_ -> pure $ addHeader (Dummy "Hello") NoContent
+#endif
   }
 
 
@@ -451,7 +455,7 @@ login sessionId cookie = do
 
 loginPost :: SessionId -> LoginForm
           -> Filehub (Headers '[ Header "Set-Cookie" SetCookie
-                               , Header "Hx-Redirect" Text
+                               , Header "HX-Redirect" Text
                                ] (Html ()))
 loginPost sessionId (LoginForm username password) =  do
   db <- Env.getUserDB

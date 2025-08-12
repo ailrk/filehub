@@ -8,7 +8,7 @@ export interface ViewerInited {
 
 export interface Opened {
   path: string,
-  target: OpenedTarget
+  tgt: OpenedTarget
 }
 
 

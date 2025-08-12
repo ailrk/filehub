@@ -371,8 +371,8 @@ textarea.form-control {
 
 #table {
   animation-name: fadeIn;
-  animation-duration: 400ms;
-  animation-timing-function: ease-out;
+  animation-duration: 100ms;
+  animation-timing-function: ease-in;
 
   & tr {
     cursor: pointer;

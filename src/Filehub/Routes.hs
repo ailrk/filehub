@@ -1,6 +1,7 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE CPP #-}
 
 module Filehub.Routes
   ( Api(..)
@@ -98,7 +99,7 @@ data Api mode = Api
                     :> AuthProtect "session"
                     :> ReqBody '[FormUrlEncoded] LoginForm
                     :> Post '[HTML] (Headers '[ Header "Set-Cookie" SetCookie
-                                              , Header "Hx-Redirect" Text
+                                              , Header "HX-Redirect" Text
                                               ] (Html ()))
 
 
@@ -272,7 +273,7 @@ data Api mode = Api
 
 
   , open            :: mode
-                    :- "file"
+                    :- "files"
                     :> "open"
                     :> AuthProtect "session"
                     :> AuthProtect "login"
@@ -345,6 +346,14 @@ data Api mode = Api
 
 
   , healthz         :: mode :- "healthz" :> Get '[PlainText] Text
+
+
+#ifdef DEBUG
+  , debug1          :: mode
+                    :- "debug1"
+                    :> AuthProtect "session"
+                    :> Get '[HTML] (Headers '[ Header "HX-Trigger" FilehubEvent] NoContent)
+#endif
   }
   deriving Generic
 

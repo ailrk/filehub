@@ -32,13 +32,14 @@ switch (display) {
     break;
 }
 
+document.addEventListener('Dummy', (e: any) => { console.log("testing dummy event", e.detail); });
 document.addEventListener('Open', (e: any) => open(e.detail.path));
 document.addEventListener('ViewerInited', (e: any) => initViewer(e.detail));
 document.addEventListener('Opened', (e: any) => {
   let payload = e.detail as Opened;
   console.log(payload)
   let target = null;
-  switch (payload.target)
+  switch (payload.tgt)
   {
     case "OpenDOMSelf":
       target = "_self";
@@ -78,7 +79,6 @@ document.addEventListener('htmx:beforeRequest', saveViewScrollTop);
 
 function reloadTheme() {
   const oldLink = document.querySelector('link[rel="stylesheet"][href*="/theme.css"]') as HTMLLinkElement;
-  console.log(oldLink)
   if (!oldLink) return;
 
   const newLink = oldLink.cloneNode() as HTMLLinkElement;

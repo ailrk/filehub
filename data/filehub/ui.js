@@ -21,13 +21,14 @@ switch (display) {
         console.error('implementation error, no valid display type');
         break;
 }
+document.addEventListener('Dummy', (e) => { console.log("testing dummy event", e.detail); });
 document.addEventListener('Open', (e) => open(e.detail.path));
 document.addEventListener('ViewerInited', (e) => initViewer(e.detail));
 document.addEventListener('Opened', (e) => {
     let payload = e.detail;
     console.log(payload);
     let target = null;
-    switch (payload.target) {
+    switch (payload.tgt) {
         case "OpenDOMSelf":
             target = "_self";
             break;
@@ -58,7 +59,6 @@ document.addEventListener('htmx:afterOnLoad', restoreViewScrollTop);
 document.addEventListener('htmx:beforeRequest', saveViewScrollTop);
 function reloadTheme() {
     const oldLink = document.querySelector('link[rel="stylesheet"][href*="/theme.css"]');
-    console.log(oldLink);
     if (!oldLink)
         return;
     const newLink = oldLink.cloneNode();
