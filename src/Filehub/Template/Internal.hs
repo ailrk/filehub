@@ -5,7 +5,7 @@ import Data.Aeson.Types (Pair)
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Lazy.Encoding qualified as LText
-import Filehub.Types ( ClientPath(..), Display(..), ControlPanelState (..), File(..), FileContent (..))
+import Filehub.Types ( ClientPath(..), Display(..), ControlPanelState (..), File(..), FileContent (..), OpenTarget (..))
 import Filehub.ClientPath qualified as ClientPath
 import Filehub.Links ( apiLinks, linkToText )
 import Filehub.Routes (Api(..))
@@ -232,6 +232,48 @@ icon file =
         || file.mimetype `isMime` "application/vnd.rar" -> i_ [ class_ "bx bxs-file-archive"] mempty
       | file.mimetype `isMime` "text" -> i_ [ class_ "bx bxs-file"] mempty
       | otherwise -> i_ [ class_ "bx bxs-file-blank "] mempty
+
+
+open :: FilePath -> File -> [Attribute]
+open root file = do
+  let clientPath = ClientPath.toClientPath root file.path
+  case file.content of
+    Dir _ ->
+        [ term "hx-get" $ linkToText (apiLinks.cd (Just clientPath))
+        , term "hx-target" ("#" <> viewId)
+        , term "hx-swap" "outerHTML"
+        ]
+    Content
+      | file.mimetype `isMime` "application/pdf" ->
+          [ term "hx-get" $ linkToText (apiLinks.open (Just OpenDOMBlank) (Just clientPath))
+          , term "hx-target" "this"
+          , term "hx-swap" "none"
+          ]
+      | file.mimetype `isMime` "audio" ->
+          [ term "hx-get" $ linkToText (apiLinks.open (Just OpenViewer) (Just clientPath))
+          , term "hx-target" "this"
+          , term "hx-swap" "none"
+          ]
+      | file.mimetype `isMime` "video" ->
+          [ term "hx-get" $ linkToText (apiLinks.open (Just OpenViewer) (Just clientPath))
+          , term "hx-target" "this"
+          , term "hx-swap" "none"
+          ]
+      | file.mimetype `isMime` "image" ->
+          [ term "hx-get" $ linkToText (apiLinks.open (Just OpenViewer) (Just clientPath))
+          , term "hx-target" "this"
+          , term "hx-swap" "none"
+          ]
+      | file.mimetype `isMime` "text" ->
+          [ term "hx-get" $ linkToText (apiLinks.editorModal (Just clientPath))
+          , term "hx-target" "#index"
+          , term "hx-swap" "beforeend"
+          ]
+      | otherwise ->
+          [ term "hx-get" $ linkToText (apiLinks.editorModal (Just clientPath))
+          , term "hx-target" "#index"
+          , term "hx-swap" "beforeend"
+          ]
 
 
 bold :: Html () -> Html ()

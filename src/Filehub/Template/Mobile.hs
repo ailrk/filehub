@@ -5,10 +5,7 @@ module Filehub.Template.Mobile where
 
 import Data.ByteString (ByteString)
 import Data.Foldable (traverse_)
-import Data.Map (Map)
-import Data.Map qualified as Map
 import Data.Maybe (fromMaybe)
-import Data.Maybe qualified as Maybe
 import Data.String.Interpolate (iii, i)
 import Data.Text (Text)
 import Data.Text qualified as Text
@@ -16,7 +13,6 @@ import Data.Text.Encoding qualified as Text
 import Data.Time.Format (formatTime, defaultTimeLocale)
 import Filehub.Types
     ( File(..),
-      FileContent(..),
       SearchWord(..),
       SortFileBy(..),
       ClientPath(..),
@@ -24,11 +20,9 @@ import Filehub.Types
       Selected,
       ControlPanelState(..) )
 import Filehub.Sort (sortFiles)
-import Filehub.Mime (isMime)
 import Filehub.Size (toReadableSize)
 import Filehub.Selected qualified as Selected
 import Filehub.ClientPath qualified as ClientPath
-import Filehub.Viewer qualified as Viewer
 import Filehub.Routes (Api(..))
 import Filehub.Target (TargetView(..), handleTarget)
 import Filehub.Target qualified as Target
@@ -74,8 +68,7 @@ overlay = div_ [ id_ overlayId ] mempty
 
 sideBar :: [Target] -> TargetView -> Html ()
 sideBar targets (TargetView currentTarget _ _) = do
-  div_ [ id_ sideBarId ] do
-    traverse_ targetIcon targets
+  div_ [ id_ sideBarId ] do traverse_ targetIcon targets
 
   where
     targetIcon :: Target -> Html ()
@@ -218,7 +211,7 @@ table target root files selected = do
             modifiedDateElement file
             i_ [ class_ "bx bx-wifi-0"] mempty
             sizeElement file
-          `with` click file
+          `with` Template.open root file
       where
         attrs :: [Attribute]
         attrs = mconcat
@@ -261,46 +254,6 @@ table target root files selected = do
             [ targetHandler @S3 $ \_ -> file.path
             , targetHandler @FileSys $ \_ -> takeFileName file.path
             ]
-
-    click file =
-      mconcat
-      [ case file.content of
-          Dir _ ->
-            [ term "hx-get" $ linkToText (apiLinks.cd (Just clientPath))
-            , term "hx-target" ("#" <> viewId)
-            , term "hx-swap" "outerHTML"
-            ]
-          Content
-            | file.mimetype `isMime` "application/pdf" -> openBlank
-            | file.mimetype `isMime` "video" || file.mimetype `isMime` "mp4" -> open
-            | file.mimetype `isMime` "audio" || file.mimetype `isMime` "mp3" -> open
-            | file.mimetype `isMime` "image" -> open
-            | otherwise -> edit
-      , case file.content of
-          Dir _ -> [ class_ "dir " ]
-          _ -> mempty
-      ]
-      where
-        clientPath@(ClientPath path) = ClientPath.toClientPath root file.path
-
-        openBlank =
-          -- Client path are percent encoded, but we need to use unencoded raw path here.
-           [ term "_" [iii| on click js window.open('/serve?file=#{path}', '_blank'); end |] ]
-
-
-        open =
-          let imgIdx = Maybe.fromJust $ Map.lookup file resourceIdxMap -- image index always exists
-           in [ term "_" [iii| on click send Open(path: '#{path}', index: #{imgIdx}) to body |] ]
-
-
-        edit =
-          [ term "hx-get" $ linkToText (apiLinks.editorModal (Just clientPath))
-          , term "hx-target" "#index"
-          , term "hx-swap" "beforeend"
-          ]
-
-    resourceIdxMap :: Map File Int
-    resourceIdxMap = Map.fromList $ Viewer.takeResourceFiles files `zip` [0..]
 
 
 controlPanel :: Theme -> Bool -> ControlPanelState -> Html ()

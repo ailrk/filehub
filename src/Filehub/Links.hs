@@ -23,14 +23,6 @@ import Data.Text qualified as Text
 import Filehub.Layout (Layout(..))
 
 
-dummyClientPath :: Maybe ClientPath
-dummyClientPath = Just (ClientPath "dummy.txt")
-
-
-dummyTargetId :: Maybe TargetId
-dummyTargetId = Just (TargetId $ fromJust $ UUID.fromString "8d8ac610-566d-4ef0-9c22-186b2a5ed793")
-
-
 apiLinks :: Api (AsLink Link)
 apiLinks = allFieldLinks @Api
 
@@ -38,25 +30,25 @@ apiLinks = allFieldLinks @Api
 sitemapLinks :: [Link]
 sitemapLinks =
   [ apiLinks.index
-  , apiLinks.cd dummyClientPath
+  , apiLinks.cd $ Just (ClientPath "dummy.txt")
   , apiLinks.newFile
   , apiLinks.updateFile
-  , apiLinks.deleteFile dummyClientPath True
+  , apiLinks.deleteFile (Just (ClientPath "dummy.txt")) True
   , apiLinks.newFolder
   , apiLinks.newFileModal
   , apiLinks.newFolderModal
-  , apiLinks.fileDetailModal dummyClientPath
-  , apiLinks.editorModal dummyClientPath
+  , apiLinks.fileDetailModal $ Just (ClientPath "dummy.txt")
+  , apiLinks.editorModal $ Just (ClientPath "dummy.txt")
   , apiLinks.search
   , apiLinks.sortTable (Just BySizeDown)
   , apiLinks.selectLayout (Just ThumbnailLayout)
   , apiLinks.selectRows
   , apiLinks.upload
-  , apiLinks.download dummyClientPath
-  , apiLinks.contextMenu dummyClientPath
-  , apiLinks.initViewer dummyClientPath
-  , apiLinks.open (Just OpenDOMBlank) dummyClientPath
-  , apiLinks.changeTarget dummyTargetId
+  , apiLinks.download $ Just (ClientPath "dummy.txt")
+  , apiLinks.contextMenu $ Just (ClientPath "dummy.txt")
+  , apiLinks.initViewer $ Just (ClientPath "dummy.txt")
+  , apiLinks.open (Just OpenDOMBlank) $ Just (ClientPath "dummy.txt")
+  , apiLinks.changeTarget $ Just (TargetId $ fromJust $ UUID.fromString "8d8ac610-566d-4ef0-9c22-186b2a5ed793")
   , apiLinks.themeCss
   , apiLinks.healthz
   ]

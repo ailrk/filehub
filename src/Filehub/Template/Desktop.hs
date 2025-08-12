@@ -21,10 +21,7 @@ module Filehub.Template.Desktop
 
 import Data.ByteString (ByteString)
 import Data.Foldable (traverse_)
-import Data.Map (Map)
-import Data.Map qualified as Map
 import Data.Maybe (fromMaybe)
-import Data.Maybe qualified as Maybe
 import Data.String.Interpolate (iii, i)
 import Data.Text (Text)
 import Data.Text qualified as Text
@@ -38,14 +35,13 @@ import Filehub.Types
       ClientPath(..),
       Target(..),
       Selected,
-      ControlPanelState(..), OpenTarget (..))
+      ControlPanelState(..))
 import Filehub.Routes (Api(..))
 import Filehub.Sort (sortFiles)
 import Filehub.Mime (isMime)
 import Filehub.Size (toReadableSize)
 import Filehub.Selected qualified as Selected
 import Filehub.ClientPath qualified as ClientPath
-import Filehub.Viewer qualified as Viewer
 import Filehub.Target (TargetView(..), handleTarget)
 import Filehub.Target qualified as Target
 import Filehub.Template.Internal (bold, toClientPath, viewId, tableId, sideBarId, searchBar)
@@ -499,21 +495,25 @@ table target root files selected order layout =
         tbody_ $ traverse_ record ([0..] `zip` files)
       where
         record :: (Int, File) -> Html ()
-        record (idx, file) =
-          tr_ attrs do
+        record (idx, file) = do
+          let clientPath@(ClientPath path) = ClientPath.toClientPath root file.path
+          tr_ do
             td_ $ fileNameElement file True
-                    `with` click root file resourceIdxMap
+                    `with` Template.open root file
                     `with`  [ class_ "field "]
             td_ $ modifiedDateElement file
             td_ $ sizeElement file
-          where
-            attrs :: [Attribute]
-            attrs = mconcat
-              [ [ term "data-path" (Text.pack path) ]
-              , [ class_ "selected " | clientPath `Selected.elem` selected]
-              , [ id_ [i|tr-#{idx}|], class_ "table-item " ]
-              ]
-            clientPath@(ClientPath path) = ClientPath.toClientPath root file.path
+            `with`
+              mconcat
+                [ [ term "data-path" (Text.pack path) ]
+                , [ class_ "selected " | clientPath `Selected.elem` selected]
+                , [ id_ [i|tr-#{idx}|]
+                  , class_ "table-item "
+                  , draggable_ "true"
+                  ]
+                , case file.content of Dir _ -> [ class_ "dir "]; _ -> mempty
+                ]
+
 
         sortIconName =
           case order of
@@ -569,21 +569,21 @@ table target root files selected order layout =
         tbody_ $ traverse_ thumbnail ([0..] `zip` files)
       where
         thumbnail :: (Int, File) -> Html ()
-        thumbnail (idx, file) = do
-          div_ do
-            previewElement file
-            fileNameElement file False `with` [ class_ "thumbnail-name" ]
-            `with` attrs
-            `with` click root file resourceIdxMap
-
+        thumbnail (idx, file) = card `with` Template.open root file
           where
-            attrs :: [Attribute]
-            attrs = mconcat
-              [ [ term "data-path" (Text.pack path) ]
-              , [ class_ "selected " | clientPath `Selected.elem` selected ]
-              , [ class_ "thumbnail " ]
-              , [ id_ [i|tr-#{idx}|], class_ "table-item " ]
-              ]
+            card = div_ do
+              previewElement file
+              fileNameElement file False `with` [ class_ "thumbnail-name" ]
+              `with`
+                mconcat
+                  [ [ term "data-path" (Text.pack path) ]
+                  , [ class_ "selected " | clientPath `Selected.elem` selected ]
+                  , [ id_ [i|tr-#{idx}|]
+                    , class_ "thumbnail table-item"
+                    , draggable_ "true"
+                    ]
+                  , case file.content of Dir _ -> [ class_ "dir "]; _ -> mempty
+                  ]
 
             clientPath@(ClientPath path) = clientPathOf file
 
@@ -600,8 +600,7 @@ table target root files selected order layout =
     fileNameElement :: File -> Bool -> Html ()
     fileNameElement file withIcon = do
       span_ ((if withIcon then Template.icon file else mempty) >> name)
-        `with` [ title_ (Text.pack displayName)
-               ]
+        `with` [ title_ (Text.pack displayName) ]
       where
         name = span_ (toHtml displayName)
 
@@ -635,112 +634,23 @@ table target root files selected order layout =
     clientPathOf :: File -> ClientPath
     clientPathOf file = ClientPath.toClientPath root file.path
 
-    resourceIdxMap :: Map File Int
-    resourceIdxMap = Map.fromList $ Viewer.takeResourceFiles files `zip` [0..]
-
-
-click :: FilePath -> File -> Map File Int -> [Attribute]
-click root file resourceIdxMap =
-  mconcat
-    [ case file.content of
-          Dir _ ->
-            [ term "hx-get" $ linkToText (apiLinks.cd (Just clientPath))
-            , term "hx-target" ("#" <> viewId)
-            , term "hx-swap" "outerHTML"
-            ]
-          Content
-            | file.mimetype `isMime` "application/pdf" -> openBlank clientPath
-            | file.mimetype `isMime` "video" || file.mimetype `isMime` "mp4" -> open
-            | file.mimetype `isMime` "audio" || file.mimetype `isMime` "mp3" -> open
-            | file.mimetype `isMime` "image" -> open
-            | otherwise -> editor
-      , case file.content of
-          Dir _ -> [ class_ "dir " ]
-          _ -> mempty
-      ]
-  where
-    clientPath = ClientPath.toClientPath root file.path
-
-    open :: [Attribute]
-    open =
-      let ClientPath path = ClientPath.toClientPath root file.path
-          imgIdx = Maybe.fromJust $ Map.lookup file resourceIdxMap -- image index always exists
-       in [ term "_" [iii| on click send Open(path: '#{path}', index: #{imgIdx}) to body |] ]
-
-    editor :: [Attribute]
-    editor =
-      [ term "hx-get" $ linkToText (apiLinks.editorModal (Just clientPath))
-      , term "hx-target" "#index"
-      , term "hx-swap" "beforeend"
-      ]
-
-    -- Client path are percent encoded, but we need to use unencoded raw path here.
-    openBlank :: ClientPath -> [Attribute]
-    openBlank (ClientPath path) = [ term "_" [iii| on click js window.open('/serve?file=#{path}', '_blank'); end |] ]
-
-
 
 contextMenu :: Bool -> FilePath -> File -> Html ()
 contextMenu readOnly root file = do
   let textClientPath = toClientPath root file.path
   let clientPath = ClientPath.toClientPath root file.path
 
-  div_ [ class_ "dropdown-content "
-       , id_ contextMenuId
-      ] do
-
+  div_ [ class_ "dropdown-content " , id_ contextMenuId ] do
     case file.content of
-      Dir _ -> do
-        div_ [ class_ "dropdown-item"
-             , term "hx-get" $ linkToText (apiLinks.cd (Just clientPath))
-             , term "hx-target" ("#" <> viewId)
-             , term "hx-swap" "outerHTML"
-             ] do
-          i_ [ class_ "bx bxs-folder-open" ] mempty
-          span_ "Open"
+      Dir _ -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bxs-folder-open" ] mempty >> span_ "Open"
       Content
-        | file.mimetype `isMime` "application/pdf" -> do
-          div_ [ class_ "dropdown-item"
-               , term "hx-get" $ linkToText (apiLinks.open (Just OpenDOMBlank) (Just clientPath))
-               , term "hx-target" "this"
-               , term "hx-swap" "none"
-               ] do
-            i_ [ class_ "bx bx-show" ] mempty
-            span_ "View"
-        | file.mimetype `isMime` "audio" -> do
-          div_ [ class_ "dropdown-item"
-               , term "hx-get" $ linkToText (apiLinks.open (Just OpenViewer) (Just clientPath))
-               , term "hx-target" "this"
-               , term "hx-swap" "none"
-               ] do
-            i_ [ class_ "bx bx-play" ] mempty
-            span_ "Play"
-        | file.mimetype `isMime` "video" -> do
-          div_ [ class_ "dropdown-item"
-               , term "hx-get" $ linkToText (apiLinks.open (Just OpenViewer) (Just clientPath))
-               , term "hx-target" "this"
-               , term "hx-swap" "none"
-               ] do
-            i_ [ class_ "bx bx-play" ] mempty
-            span_ "Play"
-        | file.mimetype `isMime` "image" -> do
-          div_ [ class_ "dropdown-item"
-               , term "hx-get" $ linkToText (apiLinks.open (Just OpenViewer) (Just clientPath))
-               , term "hx-target" "this"
-               , term "hx-swap" "none"
-               ] do
-            i_ [ class_ "bx bx-show" ] mempty
-            span_ "View"
-        | file.mimetype `isMime` "text" -> do
-          div_ [ class_ "dropdown-item"
-               , term "hx-get" $ linkToText (apiLinks.editorModal (Just clientPath))
-               , term "hx-target" "#index"
-               , term "hx-swap" "beforeend"
-               ] do
-            i_ [ class_ "bx bxs-edit" ] mempty
-            span_ "Edit"
-        | otherwise ->
-            mempty
+        | file.mimetype `isMime` "application/pdf" -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bx-show" ] mempty >> span_ "View"
+        | file.mimetype `isMime` "audio" -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bx-play" ] mempty >> span_ "Play"
+        | file.mimetype `isMime` "video" -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bx-play" ] mempty >> span_ "Play"
+        | file.mimetype `isMime` "image" -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bx-show" ] mempty >> span_ "View"
+        | file.mimetype `isMime` "text" -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bxs-edit" ] mempty >> span_ "Edit"
+        | otherwise -> mempty
+      `with` Template.open root file
 
     a_ [ class_ "dropdown-item" ,  href_ (linkToText $ apiLinks.download (Just clientPath)) ] do
       i_ [ class_ "bx bx-download" ] mempty

@@ -1,59 +1,36 @@
 'use strict';
-import * as Desktop from './handlers/desktop.js';
-import * as Mobile from './handlers/mobile.js';
+import * as DesktopContextmenu from './handlers/desktop/contextmenu.js';
+import * as DesktopSelected from './handlers/desktop/selected.js';
+import * as DesktopDrag from './handlers/desktop/drag.js';
+import * as MobileCloseSidebar from './handlers/mobile/closeSidebar.js';
+import * as MobileSelected from './handlers/mobile/selected.js';
 import * as Cookie from './cookie.js';
-import { closeDropdowns } from './handlers/desktop/closeDropdown.js';
 import Viewer from './viewer.js';
 // import * as Debug from './debug.js';
 // Debug.init()
 const ballonWaitTime = 2000;
 let viewer = null;
 let display = Cookie.getCookie('display');
-/* Install handlers */
-switch (display) {
-    case 'Desktop':
-        Desktop.register();
-        break;
-    case 'Mobile':
-        Mobile.register();
-        break;
-    default:
-        console.error('implementation error, no valid display type');
-        break;
+if (display == 'Desktop') {
+    document.addEventListener('click', closeDropdowns);
+    DesktopContextmenu.register();
+    DesktopSelected.register();
+    DesktopDrag.register();
 }
+if (display == 'Mobile') {
+    document.addEventListener('click', closePanel);
+    MobileCloseSidebar.register();
+    MobileSelected.register();
+    const table = document.querySelector('#table'); // change selector to fit your layout
+    table.addEventListener('contextmenu', e => e.preventDefault());
+}
+/* HX-Trigger */
 document.addEventListener('Dummy', (e) => { console.log("testing dummy event", e.detail); });
-document.addEventListener('Open', (e) => open(e.detail.path));
 document.addEventListener('ViewerInited', (e) => initViewer(e.detail));
-document.addEventListener('Opened', (e) => {
-    let payload = e.detail;
-    let target = null;
-    switch (payload.tgt) {
-        case "OpenDOMSelf":
-            target = "_self";
-            break;
-        case "OpenDOMBlank":
-            target = "_blank";
-            break;
-        case "OpenDOMParent":
-            target = "_parent";
-            break;
-        case "OpenDOMTop":
-            target = "_top";
-            break;
-        case "OpenDOMUnfencedTop":
-            target = "_unfencedTop";
-            break;
-        case "OpenViewer":
-            let query = new URLSearchParams({ file: payload.path });
-            htmx.ajax('GET', `/viewer?${query.toString()}`, { target: 'head', swap: 'none' });
-            return;
-    }
-    window.open(`/serve?file=${payload.path}`, target);
-});
-/* Error handling */
-document.body.addEventListener('htmx:responseError', handleError);
+document.addEventListener('Opened', open);
 document.addEventListener('ThemeChanged', reloadTheme);
 /* Preserve scroll positions */
+document.body.addEventListener('htmx:responseError', handleError);
 document.addEventListener('htmx:afterOnLoad', restoreViewScrollTop);
 document.addEventListener('htmx:beforeRequest', saveViewScrollTop);
 function reloadTheme() {
@@ -127,7 +104,6 @@ function restoreViewScrollTop(e) {
     }
 }
 function initViewer(o) {
-    closeDropdowns();
     viewer = new Viewer(o.resources, { index: o.index });
     viewer.show();
     // Make sure the viewer content has context menu enabled.
@@ -135,19 +111,56 @@ function initViewer(o) {
         event.stopImmediatePropagation();
     }, { capture: true });
 }
-/* Open a image. If the viewer is already initialized, show the image directly.
- * Otherwise request the backend for the image list to construct a new viewer.
- *
- * The path is already percent encoded, we don't need to encode it here.
- *
- * NOTE:
- * The target is set to 'head'. htmx ajax must specify a target, but this ajax
- * call don't need a target at all. We pick head to avoid interference on
- * other event handlers.
- * */
-function open(path) {
-    let query = new URLSearchParams({ file: path });
-    htmx.ajax('GET', `/viewer?${query.toString()}`, { target: 'head', swap: 'none' });
+function open(e) {
+    let payload = e.detail;
+    let target = null;
+    switch (payload.tgt) {
+        case "OpenDOMSelf":
+            target = "_self";
+            break;
+        case "OpenDOMBlank":
+            target = "_blank";
+            break;
+        case "OpenDOMParent":
+            target = "_parent";
+            break;
+        case "OpenDOMTop":
+            target = "_top";
+            break;
+        case "OpenDOMUnfencedTop":
+            target = "_unfencedTop";
+            break;
+        case "OpenViewer":
+            let query = new URLSearchParams({ file: payload.path });
+            htmx.ajax('GET', `/viewer?${query.toString()}`, { target: 'head', swap: 'none' });
+            return;
+    }
+    window.open(`/serve?file=${payload.path}`, target);
+}
+function closeDropdowns(e) {
+    const target = e.target;
+    const table = document.getElementById('table');
+    if (!target.matches('.dropdown *') && !target.matches('.dropdown-content *')) {
+        // close dropdown
+        let dropdownContents = document.getElementsByClassName('dropdown-content');
+        for (let i = 0; i < dropdownContents.length; ++i) {
+            let ele = dropdownContents[i];
+            ele.dispatchEvent(new Event('Close'));
+        }
+        // restore click event on table.
+        table.style.pointerEvents = "auto";
+    }
+}
+function closePanel(e) {
+    if (e.target.closest('#control-panel-btn')) {
+        return;
+    }
+    let controlPanel = document.getElementById('control-panel');
+    let overlay = document.getElementById('overlay');
+    if (controlPanel && controlPanel.classList.contains('show')) {
+        controlPanel.classList.remove('show');
+        overlay.classList.remove('show');
+    }
 }
 function showBalloon(message, duration = 3000) {
     const body = document.getElementsByTagName('body')[0];

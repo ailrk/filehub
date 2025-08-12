@@ -51,6 +51,7 @@ colorize level txt = colorCode level <> txt <> reset
   where
     reset = "\x1b[0m"
 
+
 colorCode :: LogLevel -> Text
 colorCode level = case level of
   LogTrace     -> "\x1b[90m"  -- bright black (gray)
