@@ -44,7 +44,7 @@ import Filehub.Layout (Layout(..))
 import Filehub.Mime (isMime)
 import Filehub.Target qualified as Target
 import Filehub.Target.Types.TargetView (TargetView(..))
-import Filehub.Types ( FilehubEvent (..), LoginForm(..), OpenTarget(..))
+import Filehub.Types ( FilehubEvent (..), LoginForm(..))
 import Filehub.Env qualified as Env
 import Filehub.Error ( withServerError, FilehubError(..), FilehubError(..), withServerError )
 import Filehub.Routes (Api (..))
@@ -602,5 +602,5 @@ main = Log.withColoredStdoutLogger \logger -> do
 -- | For developement with ghciwatch
 --   Run `ghciwatch --test-ghci "Filehub.Entry.mainDev <your args for testing>"`
 --   ghciwatch will watch file changes and rerun the server automatically.
-mainDev :: [String] -> IO ()
-mainDev args = withArgs args main
+mainDev :: String -> IO ()
+mainDev args = withArgs (words args) main
