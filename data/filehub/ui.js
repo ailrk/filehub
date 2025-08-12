@@ -26,7 +26,6 @@ document.addEventListener('Open', (e) => open(e.detail.path));
 document.addEventListener('ViewerInited', (e) => initViewer(e.detail));
 document.addEventListener('Opened', (e) => {
     let payload = e.detail;
-    console.log(payload);
     let target = null;
     switch (payload.tgt) {
         case "OpenDOMSelf":

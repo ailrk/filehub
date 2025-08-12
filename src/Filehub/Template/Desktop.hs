@@ -98,19 +98,25 @@ toolBar pathBreadcrumb' = do
 sideBar :: [Target] -> TargetView -> Html ()
 sideBar targets (TargetView currentTarget _ _) = do
   div_ [ id_ sideBarId ] do
-    traverse_ targetIcon targets
+    traverse_ targetTab targets
   where
-    targetIcon :: Target -> Html ()
-    targetIcon target = do
-      div_ [ class_ "target-icon"
+    targetTab :: Target -> Html ()
+    targetTab target = do
+      div_ [ class_ "target-tab"
            , term "hx-get" $ linkToText (apiLinks.changeTarget (Just (Target.getTargetId target)))
            , term "hx-target" "#index"
            , term "hx-swap" "outerHTML"
            ] do
-        fromMaybe "unknown" $ handleTarget target
-          [ targetHandler @S3 . const $ i_ [ class_ "bx bxs-cube" ] mempty
-          , targetHandler @FileSys . const $ i_ [ class_ "bx bx-folder" ] mempty
-          ]
+        span_ [ class_ "field "] do
+          fromMaybe "unknown" $ handleTarget target
+            [ targetHandler @S3 . const $ i_ [ class_ "bx bxs-cube" ] mempty
+            , targetHandler @FileSys . const $ i_ [ class_ "bx bx-folder" ] mempty
+            ]
+
+          fromMaybe "" $ handleTarget target
+            [ targetHandler @S3 $ \(S3Backend { bucket }) -> span_ [iii| #{bucket} |]
+            , targetHandler @FileSys $ \(FileBackend { root }) -> span_ [iii| #{takeFileName root} |]
+            ]
       `with` targetAttr target
       `with` tooltipInfo
       where

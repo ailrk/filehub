@@ -49,7 +49,7 @@ textarea {
   grid-template-areas:
     "side-bar control-panel"
     "side-bar view";
-  grid-template-columns: 60px 1fr;
+  grid-template-columns: 210px 1fr;
   grid-template-rows: auto 95vh;
   overflow: hidden;
 }
@@ -65,25 +65,22 @@ textarea {
   grid-area: side-bar;
   background-color: var(--background2);
 
-  & .target-icon {
-    position: relative;
-    width: 40px;
+  & .target-tab {
+    width: 180px;
     height: 40px;
-    margin-top: 15px;
+    margin-top: 5px;
     margin-left: 8px;
-    border-radius: 20%;
-    background-color: var(--background3);
+    border-radius: 2%;
+    padding: 0 5px;
     display: flex;
-    justify-content: center;  /* Horizontal center */
-    align-items: center;      /* Vertical center */
+    align-items: center;
     transition: transform 0.1s ease-in-out;
-
-    & i {
-      font-size: 2em;
-    }
+    overflow: scroll;
+    scrollbar-width: none;
 
     &:hover {
       cursor: pointer;
+      background-color: var(--background3);
     }
 
     &:hover::after {
@@ -91,14 +88,13 @@ textarea {
       opacity: 1;
     }
 
-
     &::after {
       position: absolute;
-      left: 110%;
       content: attr(data-target-info);
       background-color: var(--frontground);
       color: var(--background3);
       white-space: nowrap;
+      translate: 0px 30px;
       padding: 4px 8px;
       border-radius: 3px;
       font-size: 10px;
@@ -109,7 +105,7 @@ textarea {
     }
   }
 
-  & .target-icon.current-target {
+  & .target-tab.current-target {
       background: var(--secondary);
       color: var(--light);
   }

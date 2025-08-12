@@ -37,7 +37,6 @@ document.addEventListener('Open', (e: any) => open(e.detail.path));
 document.addEventListener('ViewerInited', (e: any) => initViewer(e.detail));
 document.addEventListener('Opened', (e: any) => {
   let payload = e.detail as Opened;
-  console.log(payload)
   let target = null;
   switch (payload.tgt)
   {
