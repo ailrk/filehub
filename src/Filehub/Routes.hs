@@ -51,7 +51,7 @@ import Filehub.Types
       Selected(..),
       FilehubEvent(..),
       SessionId,
-      Resolution(..), Manifest, LoginForm, OpenTarget
+      Resolution(..), Manifest, LoginForm, OpenTarget, MoveFile
     )
 import GHC.Generics (Generic)
 import Filehub.Server.Handler (ConfirmReadOnly, ConfirmMobilOnly, ConfirmDesktopOnly, ConfirmLogin)
@@ -153,6 +153,15 @@ data Api mode = Api
                     :> AuthProtect "login"
                     :> AuthProtect "readonly"
                     :> Post '[HTML] (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))
+
+
+  , move            :: mode
+                    :- "files" :> "move"
+                    :> AuthProtect "session"
+                    :> AuthProtect "login"
+                    :> AuthProtect "readonly"
+                    :> ReqBody '[FormUrlEncoded] MoveFile
+                    :> Post '[HTML] (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
 
 
   , newFolder       :: mode

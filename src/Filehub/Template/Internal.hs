@@ -16,7 +16,6 @@ import Data.Sequence (Seq(..))
 import Data.Sequence qualified as Seq
 import Data.Foldable (Foldable(..))
 import System.FilePath (splitPath)
-import Data.Bifunctor (Bifunctor(..))
 import Filehub.Mime (isMime)
 
 
@@ -53,35 +52,26 @@ withDefault display background html = do
 
 pathBreadcrumb :: FilePath -> FilePath -> Html ()
 pathBreadcrumb currentDir root = do
-  let afterRoot path = length (splitPath path) >= length (splitPath root)
-      breadcrumbItems =
+  let breadcrumbItems =
         currentDir
         & splitPath
         & scanl1 (++)
-        & (\xs -> if null xs then ["/"] else xs)
-        & filter afterRoot
-        & fmap toAttrsTuple
+        & (\path-> if null path then ["/"] else path)
+        & filter (\path -> length (splitPath path) >= length (splitPath root))
+        & fmap (\path ->
+          let clientPath@(ClientPath cp) =  (ClientPath.toClientPath root path)
+           in li_ [ term "hx-get" $ linkToText (apiLinks.cd (Just clientPath))
+                  , term "hx-target" ("#" <> viewId)
+                  , term "hx-swap" "outerHTML"
+                  , term "data-path" (Text.pack cp)
+                  , class_ "dir "
+                  ] . toHtml . pathShow  $ path)
         & Seq.fromList
-        & adjustLast (addAttr " active")
-        & fmap toLi
+        & (\path -> Seq.adjust (`with` [class_ " active"]) (length path - 1) path)
         & sequence_
   div_ [ class_ "breadcrumb", id_ pathBreadcrumbId ] do
     ol_ breadcrumbItems
   where
-    adjustLast f xs = Seq.adjust f (length xs - 1) xs
-
-    toAttrsTuple p = (attrs, p)
-      where
-        attrs =
-          [ term "hx-get" $ linkToText (apiLinks.cd (Just (ClientPath.toClientPath root p)))
-          , term "hx-target" ("#" <> viewId)
-          , term "hx-swap" "outerHTML"
-          ]
-
-    addAttr a = first (class_ a :)
-
-    toLi :: ([Attribute], FilePath) -> Html ()
-    toLi (attrs, p) = li_ attrs . toHtml . pathShow $ p
 
     pathShow p =
       case Seq.fromList (splitPath p) of

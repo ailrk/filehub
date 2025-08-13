@@ -26,6 +26,7 @@ module Filehub.Types
   , NewFile(..)
   , NewFolder(..)
   , UpdatedFile(..)
+  , MoveFile(..)
   , Theme(..)
   , FilehubEvent(..)
   , OpenTarget (..)
@@ -102,6 +103,10 @@ newtype NewFolder = NewFolder Text deriving (Show, Eq, Generic)
 instance FromForm NewFolder where fromForm f = NewFolder <$> parseUnique "new-folder" f
 
 
+data MoveFile = MoveFile ClientPath ClientPath deriving (Show, Eq)
+instance FromForm MoveFile where fromForm f = MoveFile <$> parseUnique "src" f <*> parseUnique "tgt" f
+
+
 data UpdatedFile = UpdatedFile
   { clientPath :: ClientPath
   , content :: Text
@@ -132,6 +137,7 @@ data FilehubEvent
   | DirChanged
   | LayoutChanged
   | ThemeChanged
+  | FileMoved
   | Canceled -- Action canceled
   | Opened OpenTarget ClientPath -- load a resource into tab/window/iframe. Hook  for window.open
   | Dummy Text -- dummy event for testing
@@ -151,6 +157,7 @@ instance ToJSON FilehubEvent where
   toJSON DirChanged = Aeson.object [ "DirChanged" .= Aeson.object [] ]
   toJSON LayoutChanged = Aeson.object [ "LayoutChanged" .= Aeson.object [] ]
   toJSON ThemeChanged = Aeson.object [ "ThemeChanged" .= Aeson.object [] ]
+  toJSON FileMoved = Aeson.object [ "FileMoved" .= Aeson.object [] ]
   toJSON Canceled = Aeson.object [ "Canceled" .= Aeson.object [] ]
   toJSON (Opened target path) =
     Aeson.object

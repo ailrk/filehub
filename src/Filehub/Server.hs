@@ -35,7 +35,7 @@ import Servant (errBody, Headers, Header, NoContent (..), err404, errHeaders, er
 import Servant (addHeader, err500)
 import Servant (serveWithContextT, Context (..), Application)
 import Servant.Conduit ()
-import System.FilePath (takeFileName)
+import System.FilePath (takeFileName, (</>), takeDirectory)
 import Control.Exception (SomeException)
 import Control.Monad (when)
 import UnliftIO (catch)
@@ -44,7 +44,7 @@ import Filehub.Layout (Layout(..))
 import Filehub.Mime (isMime)
 import Filehub.Target qualified as Target
 import Filehub.Target.Types.TargetView (TargetView(..))
-import Filehub.Types ( FilehubEvent (..), LoginForm(..))
+import Filehub.Types ( FilehubEvent (..), LoginForm(..), MoveFile (..))
 import Filehub.Env qualified as Env
 import Filehub.Error ( withServerError, FilehubError(..), FilehubError(..), withServerError )
 import Filehub.Routes (Api (..))
@@ -100,6 +100,7 @@ import Web.Cookie (SetCookie)
 import Network.HTTP.Types.Header (hLocation)
 import Effectful.Reader.Dynamic (asks)
 import Data.Text (Text)
+import Debug.Trace
 
 
 #ifdef DEBUG
@@ -285,6 +286,37 @@ server = Api
       clear sessionId
       count <- Selected.countSelected sessionId & withServerError
       addHeader count <$> index sessionId
+
+
+  , move = \sessionId _ _ (MoveFile src tgt) -> do
+      root <- Env.getRoot sessionId & withServerError
+      storage <- getStorage sessionId & withServerError
+      let srcPath = ClientPath.fromClientPath root src
+      let tgtPath = ClientPath.fromClientPath root tgt
+      let fileName = takeFileName srcPath
+      withServerError do
+        isSrcDir <- storage.isDirectory srcPath
+        isTgtDir <- storage.isDirectory tgtPath
+        -- TODO 2025-08-12 Better errors
+        when (not isTgtDir) do
+          throwError InvalidDir
+
+        when (srcPath == tgtPath)  do
+          throwError InvalidDir
+
+        when (takeDirectory srcPath == tgtPath)  do
+          throwError InvalidDir
+
+        if isSrcDir then do
+          -- TODO 2025-08-12 support move directory as well.
+          -- to do this efficienty we need to have batch storage
+          -- operation
+          throwError InvalidDir
+        else do
+          bytes <- storage.get srcPath >>= storage.read
+          storage.write (tgtPath </> fileName) bytes
+          storage.delete srcPath
+      addHeader FileMoved <$> index sessionId
 
 
   , cancel = \sessionId _ -> do

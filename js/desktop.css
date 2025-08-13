@@ -205,6 +205,7 @@ textarea {
   margin: auto;
   display: flex;
   justify-content: space-around;
+  pointer-events: none;
 
 
   & .image-wrapper i {
@@ -231,6 +232,7 @@ textarea {
   hyphens: manual;
   overflow: hidden;
   text-align: center;
+  pointer-events: none;
 }
 
 

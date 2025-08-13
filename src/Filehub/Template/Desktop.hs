@@ -110,8 +110,8 @@ sideBar targets (TargetView currentTarget _ _) = do
             ]
 
           fromMaybe "" $ handleTarget target
-            [ targetHandler @S3 $ \(S3Backend { bucket }) -> span_ [iii| #{bucket} |]
-            , targetHandler @FileSys $ \(FileBackend { root }) -> span_ [iii| #{takeFileName root} |]
+            [ targetHandler @S3 $ \(S3Backend { bucket }) -> span_ [iii| /#{bucket} |]
+            , targetHandler @FileSys $ \(FileBackend { root }) -> span_ [iii| /#{takeFileName root} |]
             ]
       `with` targetAttr target
       `with` tooltipInfo
@@ -593,7 +593,11 @@ table target root files selected order layout =
       div_ [ class_ "thumbnail-preview " ] do
         div_ [  class_ "image-wrapper " ] do
           if
-             | file.mimetype `isMime` "image" -> img_ [ loading_ "lazy", src_ (linkToText $ apiLinks.thumbnail (Just $ clientPathOf file)) ]
+             | file.mimetype `isMime` "image" ->
+               img_ [ loading_ "lazy"
+                    , src_ (linkToText $ apiLinks.thumbnail (Just $ clientPathOf file))
+                    , draggable_ "false"
+                    ]
              | otherwise -> Template.icon file
 
 

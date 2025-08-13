@@ -1,4 +1,10 @@
 export function register() {
+    document.body.addEventListener('htmx:afterSettle', _ => {
+        console.log('load drag again!');
+        register1();
+    });
+}
+function register1() {
     console.log('load drag');
     let items = document.querySelectorAll('.table-item');
     let dirs = document.querySelectorAll('.dir');
@@ -8,22 +14,42 @@ export function register() {
     }
     for (let i = 0; i < dirs.length; ++i) {
         let dir = dirs[i];
-        dir.addEventListener('dragover', e => {
-            console.log('dragged over');
-            e.preventDefault();
-        });
         dir.addEventListener('drop', e => handleDrop(e));
+        dir.addEventListener('dragover', e => handleDragOver(e));
     }
 }
+function handleDragOver(e) {
+    e.preventDefault();
+}
 function handleDrag(e) {
-    e.dataTransfer.clearData();
-    e.dataTransfer.setData('text', 'hello');
-    e.dataTransfer.dropEffect = 'move';
     console.log("dragged!");
+    if (e.target instanceof HTMLElement) {
+        let path = e.target.dataset.path;
+        if (path === undefined) {
+            return;
+        }
+        e.dataTransfer.clearData();
+        e.dataTransfer.setData('text', path);
+        e.dataTransfer.dropEffect = 'move';
+    }
 }
 function handleDrop(e) {
-    console.log('dropping');
     e.preventDefault();
-    const data = e.dataTransfer.getData('text');
-    console.log('dropped!', data);
+    if (e.target instanceof HTMLElement) {
+        let tgt = e.target.dataset.path;
+        if (tgt === undefined) {
+            return;
+        }
+        const src = e.dataTransfer.getData('text');
+        const values = { src, tgt };
+        htmx.ajax('POST', '/files/move', {
+            values,
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            target: '#index',
+            swap: 'outerHTML'
+        });
+        console.log('dropped! - ', tgt, src);
+    }
 }
