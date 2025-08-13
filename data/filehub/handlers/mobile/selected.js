@@ -77,7 +77,7 @@ function preventDefault(e) {
     e.preventDefault();
 }
 /* mousedown/touchstart */
-function makeStarthandler(table, movevt) {
+function makeStartHandler(table, movevt) {
     return (e) => {
         console.log('start');
         // If mouse moved before holding is triggerd, cancel the current timer and start a new one.
@@ -113,7 +113,7 @@ function makeEndHandler(table, movevt) {
 }
 function registerTableMouse() {
     let table = document.querySelector('#table');
-    mousedownHandler = makeStarthandler(table, 'mousemove');
+    mousedownHandler = makeStartHandler(table, 'mousemove');
     mouseupHandler = makeEndHandler(table, 'mousemove');
     table.addEventListener('mousedown', mousedownHandler, { capture: true });
     table.addEventListener('mouseup', mouseupHandler, { capture: true });
@@ -129,7 +129,7 @@ function unregisterTableMouse() {
 }
 function registerTableTouch() {
     let table = document.querySelector('#table');
-    touchstartHandler = makeStarthandler(table, 'touchmove');
+    touchstartHandler = makeStartHandler(table, 'touchmove');
     touchendHandler = makeEndHandler(table, 'touchmove');
     table.addEventListener('touchstart', touchstartHandler, { capture: true, passive: true });
     table.addEventListener('touchend', touchendHandler, { capture: true });
@@ -156,8 +156,9 @@ function showSelectedCounter(count) {
         selectedCounter.classList.remove('show');
     }
 }
-// Collect selected rows to the set `selectedIds`. This is useful when the backend
-// updated selected rows.
+/* Collect selected rows to the set `selectedIds`. This is useful when the backend
+ * updated selected rows.
+ */
 function collectFromHtml() {
     let rows = document.querySelectorAll('#table tr');
     rows.forEach(row => {
@@ -167,9 +168,7 @@ function collectFromHtml() {
         }
     });
 }
-// touch-action: none;
-/* Abort selection timer if acceleration is higher than a thresdshold
- * */
+/* Abort selection timer if acceleration is higher than a thresdshold */
 function guard(e) {
     console.log('guard');
     let table = document.querySelector('#table'); // prevent scrolling

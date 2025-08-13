@@ -579,7 +579,7 @@ table target root files selected order layout =
                   [ [ term "data-path" (Text.pack path) ]
                   , [ class_ "selected " | clientPath `Selected.elem` selected ]
                   , [ id_ [i|tr-#{idx}|]
-                    , class_ "thumbnail table-item"
+                    , class_ "thumbnail table-item "
                     , draggable_ "true"
                     ]
                   , case file.content of Dir _ -> [ class_ "dir "]; _ -> mempty

@@ -645,3 +645,14 @@ a.dropdown-item {
 .bold {
   font-weight: bold;
 }
+
+
+#selection-screen {
+  position: absolute;
+  opacity: 0.5;
+  display: block;
+  background: var(--background3);
+  z-index: 100;
+  border: var(--background3) solid;
+  pointer-events: none;
+}

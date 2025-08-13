@@ -99,7 +99,7 @@ function preventDefault(e: Event) {
 
 
 /* mousedown/touchstart */
-function makeStarthandler(table: HTMLElement, movevt: 'mousemove' | 'touchmove') {
+function makeStartHandler(table: HTMLElement, movevt: 'mousemove' | 'touchmove') {
   return (e: Event) => {
     console.log('start')
     // If mouse moved before holding is triggerd, cancel the current timer and start a new one.
@@ -138,7 +138,7 @@ function makeEndHandler(table: HTMLElement, movevt: string) {
 
 function registerTableMouse() {
   let table = document.querySelector('#table');
-  mousedownHandler = makeStarthandler(table! as HTMLElement, 'mousemove')
+  mousedownHandler = makeStartHandler(table! as HTMLElement, 'mousemove')
   mouseupHandler = makeEndHandler(table! as HTMLElement, 'mousemove')
   table!.addEventListener('mousedown', mousedownHandler, { capture: true })
   table!.addEventListener('mouseup', mouseupHandler, { capture: true })
@@ -158,7 +158,7 @@ function unregisterTableMouse() {
 
 function registerTableTouch() {
   let table = document.querySelector('#table')!;
-  touchstartHandler = makeStarthandler(table! as HTMLElement, 'touchmove')
+  touchstartHandler = makeStartHandler(table! as HTMLElement, 'touchmove')
   touchendHandler = makeEndHandler(table! as HTMLElement, 'touchmove')
   table.addEventListener('touchstart', touchstartHandler, { capture: true, passive: true })
   table.addEventListener('touchend', touchendHandler, { capture: true })
@@ -190,8 +190,9 @@ function showSelectedCounter(count: number) {
 }
 
 
-// Collect selected rows to the set `selectedIds`. This is useful when the backend
-// updated selected rows.
+/* Collect selected rows to the set `selectedIds`. This is useful when the backend
+ * updated selected rows.
+ */
 function collectFromHtml() {
   let rows: NodeListOf<HTMLElement> = document.querySelectorAll('#table tr')
   rows.forEach(row => {
@@ -203,9 +204,7 @@ function collectFromHtml() {
 }
 
 
-  // touch-action: none;
-/* Abort selection timer if acceleration is higher than a thresdshold
- * */
+/* Abort selection timer if acceleration is higher than a thresdshold */
 function guard(e: Event) {
   console.log('guard')
   let table = document.querySelector('#table')!; // prevent scrolling

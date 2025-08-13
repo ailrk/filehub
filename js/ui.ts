@@ -173,17 +173,19 @@ function closeDropdowns(e: any) {
   const target = e.target as Element;
   const table = document.getElementById('table') as HTMLElement
 
+  // only close when dropdown exists.
+  if (document.querySelectorAll('.dropdown *').length == 0 &&
+      document.querySelectorAll('.dropdown-content *').length == 0)
+    return;
+
   if (!target.matches('.dropdown *') && !target.matches('.dropdown-content *')) {
-    // close dropdown
-    let dropdownContents = document.getElementsByClassName('dropdown-content')
+    let dropdownContents = document.getElementsByClassName('dropdown-content') // close dropdown
     for (let i = 0; i < dropdownContents.length; ++i) {
       let ele = dropdownContents[i];
       ele.dispatchEvent(new Event('Close'));
     }
-
-    // restore click event on table.
-    table.style.pointerEvents = "auto";
   }
+  table.style.pointerEvents = "auto"; // restore click event on table.
 }
 
 
