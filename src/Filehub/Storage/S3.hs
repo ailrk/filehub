@@ -113,6 +113,15 @@ write sessionId filePath bytes = do
   void $ runResourceT $ send s3.env request
 
 
+cp :: Storage.Context es => SessionId -> FilePath -> FilePath -> Eff es ()
+cp sessionId src dest = do
+  s3 <- getS3 sessionId
+  let bucket = Amazonka.BucketName s3.bucket
+  let destKey = Amazonka.ObjectKey $ Text.pack dest
+  let request = Amazonka.newCopyObject bucket (Text.pack src) destKey
+  void $ runResourceT $ send s3.env request
+
+
 delete :: Storage.Context es => SessionId -> FilePath -> Eff es ()
 delete sessionId filePath = do
   s3 <- getS3 sessionId
@@ -190,6 +199,7 @@ storage sessionId =
     , read = read sessionId
     , readStream = readStream sessionId
     , write = write sessionId
+    , cp = cp sessionId
     , delete = delete sessionId
     , new = new sessionId
     , newFolder = newFolder sessionId

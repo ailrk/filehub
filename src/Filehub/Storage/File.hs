@@ -5,7 +5,7 @@ module Filehub.Storage.File (storage) where
 
 import Codec.Archive.Zip (ZipOption(..))
 import Codec.Archive.Zip qualified as Zip
-import Control.Monad (unless, when, forM_)
+import Control.Monad (unless, when, forM_, join)
 import Conduit (ConduitT, ResourceT, sourceFile, sourceLazy)
 import Data.ByteString (ByteString)
 import Data.ByteString (readFile)
@@ -105,6 +105,27 @@ write sessionId name content = do
   withFile filePath WriteMode (\h -> hPut h content)
 
 
+cp :: Storage.Context es => SessionId -> FilePath -> FilePath -> Eff es ()
+cp sessionId src dest = do
+  isDir <- isDirectory sessionId src
+  if isDir then copyDirectoryRecursive src dest
+  else join $ copyFile <$> toFilePath sessionId src <*> toFilePath sessionId dest
+
+
+-- | Copy all files and subdirectories from src to dst.
+copyDirectoryRecursive :: Storage.Context es => FilePath -> FilePath -> Eff es ()
+copyDirectoryRecursive src dst = do
+  createDirectoryIfMissing True dst
+  contents <- listDirectory src
+  forM_ contents $ \name -> do
+      let srcPath = src </> name
+      let dstPath = dst </> name
+      isDir <- doesDirectoryExist srcPath
+      if isDir
+         then copyDirectoryRecursive srcPath dstPath
+         else copyFile srcPath dstPath
+
+
 delete :: Storage.Context es => SessionId -> String -> Eff es ()
 delete sessionId name = do
   filePath <- toFilePath sessionId name
@@ -174,6 +195,7 @@ storage sessionId =
     , read = read sessionId
     , readStream = readStream sessionId
     , write = write sessionId
+    , cp = cp sessionId
     , delete = delete sessionId
     , new = new sessionId
     , newFolder = newFolder sessionId

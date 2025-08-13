@@ -295,7 +295,6 @@ server = Api
       let tgtPath = ClientPath.fromClientPath root tgt
       let fileName = takeFileName srcPath
       withServerError do
-        isSrcDir <- storage.isDirectory srcPath
         isTgtDir <- storage.isDirectory tgtPath
         -- TODO 2025-08-12 Better errors
         when (not isTgtDir) do
@@ -307,15 +306,10 @@ server = Api
         when (takeDirectory srcPath == tgtPath)  do
           throwError InvalidDir
 
-        if isSrcDir then do
-          -- TODO 2025-08-12 support move directory as well.
-          -- to do this efficienty we need to have batch storage
-          -- operation
-          throwError InvalidDir
-        else do
-          bytes <- storage.get srcPath >>= storage.read
-          storage.write (tgtPath </> fileName) bytes
-          storage.delete srcPath
+        storage.cp srcPath (tgtPath </> fileName)
+        -- bytes <- storage.get srcPath >>= storage.read
+        -- storage.write (tgtPath </> fileName) bytes
+        storage.delete srcPath
       addHeader FileMoved <$> index sessionId
 
 
