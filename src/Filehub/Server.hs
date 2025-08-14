@@ -7,9 +7,10 @@
 module Filehub.Server (application, main, mainDev) where
 
 import Data.String.Interpolate (i)
-import Data.Maybe (fromMaybe, isJust)
+import Data.Maybe (fromMaybe)
 import Data.Foldable (forM_)
 import Data.List qualified as List
+import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.ByteString (ByteString)
@@ -21,7 +22,7 @@ import Data.Time (secondsToNominalDiffTime)
 import Data.Map.Strict qualified as Map
 import Data.Map.Strict (Map)
 import Effectful.Log (logAttention_, logInfo_)
-import Effectful ( withRunInIO )
+import Effectful ( withRunInIO, MonadIO (liftIO) )
 import Effectful.Error.Dynamic (throwError)
 import Effectful (runEff)
 import Effectful.FileSystem (runFileSystem)
@@ -30,21 +31,22 @@ import Lens.Micro
 import Lens.Micro.Platform ()
 import Lucid
 import Prelude hiding (readFile)
+import System.Random (randomRIO)
 import Servant.Server.Generic (AsServerT)
-import Servant (errBody, Headers, Header, NoContent (..), err404, errHeaders, err301, noHeader)
+import Servant (errBody, Headers, Header, NoContent (..), err404, errHeaders, err301, noHeader, err400)
 import Servant (addHeader, err500)
 import Servant (serveWithContextT, Context (..), Application)
 import Servant.Conduit ()
 import System.FilePath (takeFileName, (</>), takeDirectory)
 import Control.Exception (SomeException)
-import Control.Monad (when)
+import Control.Monad (when, replicateM)
 import UnliftIO (catch)
 import Text.Printf (printf)
 import Filehub.Layout (Layout(..))
 import Filehub.Mime (isMime)
 import Filehub.Target qualified as Target
 import Filehub.Target.Types.TargetView (TargetView(..))
-import Filehub.Types ( FilehubEvent (..), LoginForm(..), MoveFile (..))
+import Filehub.Types ( FilehubEvent (..), LoginForm(..), MoveFile (..), UIComponent (..))
 import Filehub.Env qualified as Env
 import Filehub.Error ( withServerError, FilehubError(..), FilehubError(..), withServerError )
 import Filehub.Routes (Api (..))
@@ -86,7 +88,7 @@ import Filehub.Viewer qualified as Viewer
 import Filehub.ControlPanel qualified as ControlPanel
 import Filehub.Storage (getStorage, Storage(..))
 import Filehub.Cookie qualified as Cookie
-import Conduit (ConduitT, ResourceT)
+import Conduit (ConduitT, ResourceT, sourceLazy)
 import Network.Wai.Handler.Warp (setPort, defaultSettings, runSettings)
 import Network.Wai.Middleware.RequestLogger (logStdout)
 import System.Environment (withArgs)
@@ -99,7 +101,6 @@ import Filehub.Cookie qualified as Cookies
 import Web.Cookie (SetCookie)
 import Network.HTTP.Types.Header (hLocation)
 import Effectful.Reader.Dynamic (asks)
-import Data.Text (Text)
 import Debug.Trace
 
 
@@ -147,6 +148,18 @@ server = Api
         Mobile -> fmap (Template.withDefault display background) $ Server.Mobile.index sessionId
 
 
+  , refresh = \sessionId _ mUIComponent -> do
+      case mUIComponent of
+        Just UIComponentContronPanel -> do
+          controlPanel sessionId
+        Just UIComponentSideBar -> do
+          sideBar sessionId
+        Just UIComponentView -> do
+          view sessionId
+        Nothing ->
+          throwError (err400 { errBody = [i|Invalid ui component|]})
+
+
   , login = login
 
 
@@ -177,20 +190,18 @@ server = Api
       view sessionId
 
 
-  , deleteFile = \sessionId _ _ mClientPath deleteSelected -> do
+  , deleteFile = \sessionId _ _ clientPaths deleteSelected -> do
       withServerError do
-        root <- Env.getRoot sessionId
         storage <- getStorage sessionId
-
-        when (isJust mClientPath) do
-          clientPath <- withQueryParam mClientPath
-          let p = ClientPath.fromClientPath root clientPath
-          storage.delete p
+        root <- Env.getRoot sessionId
+        forM_ clientPaths $ \clientPath -> do
+          let path = ClientPath.fromClientPath root clientPath
+          storage.delete path
 
         when deleteSelected do
           allSelecteds <- Selected.allSelecteds sessionId
           forM_ allSelecteds $ \(target, selected) -> do
-            Target.withTarget sessionId (Target.getTargetId target) do
+            Target.withTarget sessionId (Target.getTargetId target) $ \_ -> do
               case selected of
                 NoSelection -> pure ()
                 Selected x xs -> do
@@ -268,12 +279,23 @@ server = Api
       index sessionId
 
 
-  , download = \sessionId _ mClientPath -> do
-      clientPath@(ClientPath path) <- withQueryParam mClientPath
-      bs <- withServerError do
-        storage <- getStorage sessionId
-        storage.download clientPath
-      pure $ addHeader (printf "attachement; filename=%s" (takeFileName path)) bs
+  , download = \sessionId _ clientPaths -> do
+      case clientPaths of
+        [clientPath@(ClientPath path)] -> do
+          bs <- withServerError do
+            storage <- getStorage sessionId
+            storage.download clientPath
+          pure $ addHeader (printf "attachement; filename=%s" (takeFileName path)) bs
+
+        _ -> do
+          root <- Env.getRoot sessionId & withServerError
+          let paths = fmap (ClientPath.fromClientPath root) clientPaths
+          tag <- replicateM 8 $ randomRIO ('a', 'z')
+          -- TODO
+          undefined
+          -- archive <- liftIO $ Zip.addFilesToArchive [OptRecursive, OptPreserveSymbolicLinks] Zip.emptyArchive paths
+          -- let conduit = sourceLazy $ Zip.fromArchive archive
+          -- pure $ addHeader (printf "attachement; filename=D%s.zip" tag) conduit
 
 
   , copy = \sessionId _ _ -> do
@@ -517,6 +539,14 @@ controlPanel sessionId = withServerError do
       Desktop -> Template.Desktop.controlPanel layout theme readOnly state
       Mobile -> Template.Mobile.controlPanel theme readOnly state
       NoDisplay -> Template.Mobile.controlPanel theme readOnly state
+
+
+sideBar :: SessionId -> Filehub (Html ())
+sideBar sessionId = do
+  display <- Env.getDisplay sessionId & withServerError
+  case display of
+    Desktop -> Server.Desktop.sideBar sessionId
+    _ -> error "impossible"
 
 
 serve :: SessionId -> ConfirmLogin -> Maybe ClientPath

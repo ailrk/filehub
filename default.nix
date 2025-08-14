@@ -5,11 +5,11 @@
 , hspec-wai, http-api-data, http-types, JuicyPixels
 , JuicyPixels-stbir, lib, log-base, log-effectful, lucid, microlens
 , microlens-platform, mime-types, network-uri, optparse-applicative
-, QuickCheck, servant, servant-conduit, servant-lucid
+, QuickCheck, random, servant, servant-conduit, servant-lucid
 , servant-multipart, servant-server, split, string-interpolate
 , suspend, text, time, timers, transformers, unliftio
 , unordered-containers, uri-encode, uuid, vault, wai
-, wai-app-static, wai-extra, warp, zip-archive
+, wai-app-static, wai-extra, warp, zip, zip-archive
 }:
 mkDerivation {
   pname = "filehub";
@@ -25,10 +25,11 @@ mkDerivation {
     generic-lens hashable hashtables http-api-data http-types
     JuicyPixels JuicyPixels-stbir log-base log-effectful lucid
     microlens microlens-platform mime-types network-uri
-    optparse-applicative servant servant-conduit servant-lucid
+    optparse-applicative random servant servant-conduit servant-lucid
     servant-multipart servant-server split string-interpolate suspend
     text time timers transformers unliftio unordered-containers
-    uri-encode uuid vault wai wai-app-static wai-extra warp zip-archive
+    uri-encode uuid vault wai wai-app-static wai-extra warp zip
+    zip-archive
   ];
   executableHaskellDepends = [ base ];
   testHaskellDepends = [

@@ -30,6 +30,7 @@ module Filehub.Types
   , Theme(..)
   , FilehubEvent(..)
   , OpenTarget (..)
+  , UIComponent(..)
   , Resource(..)
   , Manifest
   )
@@ -130,6 +131,28 @@ instance ToJSON Resource where
   toJSON (Resource { url = RawClientPath path, mimetype }) = toJSON [ toJSON path , toJSON mimetype ]
 
 
+data UIComponent
+  = UIComponentView
+  | UIComponentSideBar
+  | UIComponentContronPanel
+  deriving (Show)
+
+
+instance ToJSON UIComponent where
+  toJSON = toJSON . show
+
+
+instance ToHttpApiData UIComponent where
+  toUrlPiece v = (v & Aeson.encode & LText.decodeUtf8) ^. strict
+
+
+instance FromHttpApiData UIComponent where
+  parseUrlPiece "UIComponentView" = pure UIComponentView
+  parseUrlPiece "UIComponentSideBar" = pure UIComponentSideBar
+  parseUrlPiece "UIComponentContronPanel" = pure UIComponentContronPanel
+  parseUrlPiece _ = Left "unknown ui component"
+
+
 data FilehubEvent
   = ViewerInited [Resource] Int -- Update image list and show the viewer
   | TargetChanged
@@ -140,6 +163,7 @@ data FilehubEvent
   | FileMoved
   | Canceled -- Action canceled
   | Opened OpenTarget ClientPath -- load a resource into tab/window/iframe. Hook  for window.open
+  | UIComponentReloaded UIComponent
   | Dummy Text -- dummy event for testing
   deriving (Show)
 
@@ -164,6 +188,12 @@ instance ToJSON FilehubEvent where
       [ "Opened" .= Aeson.object
           [ "path" .= toJSON path
           , "tgt" .= toJSON target
+          ]
+      ]
+  toJSON (UIComponentReloaded comp) =
+    Aeson.object
+      [ "UIComponentReloaded" .= Aeson.object
+          [ "component" .= toJSON comp
           ]
       ]
   toJSON (Dummy t) = Aeson.object [ "Dummy" .= Aeson.object [ "msg" .= t ] ]

@@ -3,8 +3,6 @@
 
 module Filehub.Storage.File (storage) where
 
-import Codec.Archive.Zip (ZipOption(..))
-import Codec.Archive.Zip qualified as Zip
 import Control.Monad (unless, when, forM_, join)
 import Conduit (ConduitT, ResourceT, sourceFile, sourceLazy)
 import Data.ByteString (ByteString)
@@ -184,8 +182,10 @@ download sessionId clientPath = do
   case file.content of
     Content -> readStream sessionId file
     Dir _ -> do
-      archive <- liftIO $ Zip.addFilesToArchive [OptRecursive, OptPreserveSymbolicLinks] Zip.emptyArchive [file.path]
-      pure . sourceLazy $ Zip.fromArchive archive
+      -- TODO
+      undefined
+      -- archive <- liftIO $ Zip.addFilesToArchive [OptRecursive, OptPreserveSymbolicLinks] Zip.emptyArchive [file.path]
+      -- pure . sourceLazy $ Zip.fromArchive archive
 
 
 storage :: Storage.Context es => SessionId -> (Storage (Eff es))

@@ -363,7 +363,7 @@ controlPanel theme =
     deleteBtn :: Html ()
     deleteBtn = do
       button_ [ class_ "action-btn"
-              , term "hx-delete" $ linkToText (apiLinks.deleteFile Nothing True)
+              , term "hx-delete" $ linkToText (apiLinks.deleteFile [] True)
               , term "hx-target" "#index"
               , term "hx-swap" "outerHTML"
               , term "hx-confirm" ("Are you sure about deleting selected files?")

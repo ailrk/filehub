@@ -3,6 +3,7 @@ module Filehub.Selected
   , setSelected
   , anySelected
   , countSelected
+  , countSelected'
   , clearSelected
   , clearSelectedAllTargets
   , toList

@@ -21,12 +21,28 @@ function register1() {
  * NOTE: we restore the click event handler in closeDropdown.ts.
  * */
 export function handle(item: HTMLElement, e: MouseEvent) {
-  const path = item.dataset.path!;
+  const isSelected = item.classList.contains('selected');
   let contextMenu = document.querySelector('#contextmenu')
   if (contextMenu) {
     contextMenu.remove();
   }
-  fetch(`/contextmenu?file=${path}`)
+  const params = new URLSearchParams();
+
+  if (isSelected) {
+    let selected = document.querySelectorAll('.table-item.selected');
+    selected.forEach(sel => {
+      if (sel instanceof HTMLElement) {
+        const path = sel.dataset.path!;
+        params.append('file', path)
+      }
+    });
+  } else {
+    const path = item.dataset.path!;
+    params.append('file', path);
+  }
+
+
+  fetch(`/contextmenu?${params.toString()}`)
     .then(res => res.text())
     .then(html => {
       const table = document.getElementById('table') as HTMLElement
@@ -42,7 +58,6 @@ export function handle(item: HTMLElement, e: MouseEvent) {
           detail: {
             pageX: e.pageX,
             pageY: e.pageY,
-            path
           }
         })
         contextMenu.dispatchEvent(event)

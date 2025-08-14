@@ -12,4 +12,8 @@ hspkgs.shellFor {
     pkgs.bashInteractive
     pkgs.upx
   ];
+
+  shellHook = ''
+    export LD_LIBRARY_PATH="${pkgs.bzip2}/lib:$LD_LIBRARY_PATH"
+  '';
 }

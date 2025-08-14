@@ -34,7 +34,7 @@ import Filehub.Types
       SortFileBy(..),
       ClientPath(..),
       Target(..),
-      Selected,
+      Selected(..),
       ControlPanelState(..))
 import Filehub.Routes (Api(..))
 import Filehub.Sort (sortFiles)
@@ -57,6 +57,7 @@ import Filehub.Target.File (FileSys, Backend (..))
 import Filehub.Target.Types (targetHandler)
 import Filehub.Layout (Layout (..))
 import Filehub.Theme (Theme (..))
+import Control.Monad (when)
 
 ------------------------------------
 -- components
@@ -91,13 +92,13 @@ toolBar pathBreadcrumb' = do
     searchBar
 
 
-sideBar :: [Target] -> TargetView -> Html ()
+sideBar :: [(Target, Int)] -> TargetView -> Html ()
 sideBar targets (TargetView currentTarget _ _) = do
   div_ [ id_ sideBarId ] do
     traverse_ targetTab targets
   where
-    targetTab :: Target -> Html ()
-    targetTab target = do
+    targetTab :: (Target, Int) -> Html ()
+    targetTab (target, selectedCount) = do
       div_ [ class_ "target-tab"
            , term "hx-get" $ linkToText (apiLinks.changeTarget (Just (Target.getTargetId target)))
            , term "hx-target" "#index"
@@ -113,6 +114,11 @@ sideBar targets (TargetView currentTarget _ _) = do
             [ targetHandler @S3 $ \(S3Backend { bucket }) -> span_ [iii| /#{bucket} |]
             , targetHandler @FileSys $ \(FileBackend { root }) -> span_ [iii| /#{takeFileName root} |]
             ]
+
+        when (selectedCount > 0) do
+          div_ [ class_ "target-tab-selected-counter" ] do
+            toHtml . Text.pack . show $ selectedCount
+
       `with` targetAttr target
       `with` tooltipInfo
       where
@@ -215,12 +221,12 @@ controlPanel layout theme =
 
     deleteBtn :: Html ()
     deleteBtn = do
-      button_ [ class_ "btn btn-control"
+      button_ [ class_ "btn btn-control urgent"
               , type_ "submit"
-              , term "hx-delete" $ linkToText (apiLinks.deleteFile Nothing True)
+              , term "hx-delete" $ linkToText (apiLinks.deleteFile [] True)
               , term "hx-target" "#index"
               , term "hx-swap" "outerHTML"
-              , term "hx-confirm" ("Are you sure about deleting selected files?")
+              , term "hx-confirm" "Are you sure about deleting selected files?\n\n (All selected files will be deleted)"
               , term "data-btn-title" "Delete"
               ] do
         span_ [ class_ "field " ] do
@@ -639,8 +645,8 @@ table target root files selected order layout =
     clientPathOf file = ClientPath.toClientPath root file.path
 
 
-contextMenu :: Bool -> FilePath -> File -> Html ()
-contextMenu readOnly root file = do
+contextMenu :: Bool -> FilePath -> [File] -> Html ()
+contextMenu readOnly root [file] = do
   let textClientPath = toClientPath root file.path
   let clientPath = ClientPath.toClientPath root file.path
 
@@ -656,7 +662,7 @@ contextMenu readOnly root file = do
         | otherwise -> mempty
       `with` Template.open root file
 
-    a_ [ class_ "dropdown-item" ,  href_ (linkToText $ apiLinks.download (Just clientPath)) ] do
+    a_ [ class_ "dropdown-item" ,  href_ (linkToText $ apiLinks.download [clientPath]) ] do
       i_ [ class_ "bx bx-download" ] mempty
       span_ "Download"
 
@@ -664,7 +670,7 @@ contextMenu readOnly root file = do
       True -> mempty
       False -> do
         div_ [ class_ "dropdown-item"
-             , term "hx-delete" $ linkToText (apiLinks.deleteFile (Just clientPath) False)
+             , term "hx-delete" $ linkToText (apiLinks.deleteFile [clientPath] False)
              , term "hx-target" "#index"
              , term "hx-swap" "outerHTML"
              , term "hx-confirm" ("Are you sure about deleting " <> textClientPath <> "?")
@@ -679,6 +685,39 @@ contextMenu readOnly root file = do
          ] do
       i_ [ class_ "bx bx-detail" ] mempty
       span_ "Details"
+contextMenu readOnly root files = do
+  let clientPaths = fmap (ClientPath.toClientPath root . (.path)) files
+
+  div_ [ class_ "dropdown-content " , id_ contextMenuId ] do
+    div_ [ class_ "dropdown-item no-effect" ] do
+      i_ [ class_ "bx bx-select-multiple" ] mempty
+      span_ [i|#{length files} Selected|]
+
+    br_ []
+    case readOnly of
+      True -> mempty
+      False -> do
+        div_ [ class_ "dropdown-item"
+             , term "hx-delete" $ linkToText (apiLinks.deleteFile clientPaths False)
+             , term "hx-target" "#index"
+             , term "hx-swap" "outerHTML"
+             , term "hx-confirm" ("Are you sure about deleting " <> Text.pack (show (length clientPaths)) <> " files?\n\n (Only selected files in the current directory will be deleted)")
+             ] do
+          i_ [ class_ "bx bxs-trash" ] mempty
+          span_ "Delete (Local)"
+
+        div_ [ class_ "dropdown-item"
+             , term "hx-get" $ linkToText apiLinks.copy
+             , term "hx-target" "#control-panel"
+             , term "hx-swap" "outerHTML"
+             ] do
+          i_ [ class_ "bx bx-detail" ] mempty
+          span_ "Copy"
+
+
+    a_ [ class_ "dropdown-item" ,  href_ (linkToText $ apiLinks.download clientPaths) ] do
+      i_ [ class_ "bx bx-download" ] mempty
+      span_ "Download"
 
 
 ------------------------------------

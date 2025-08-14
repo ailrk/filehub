@@ -2,29 +2,31 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Filehub.Server.Desktop where
 
+import Control.Monad (forM)
 import Filehub.ClientPath qualified as ClientPath
 import Filehub.Env qualified as Env
 import Filehub.Target qualified as Target
+import Filehub.Target.Types (Target(..))
 import Filehub.Target.Types.TargetView (TargetView(..))
 import Filehub.Error ( withServerError )
 import Filehub.Monad ( Filehub )
+import Filehub.Session.Types (TargetSessionData(..))
 import Filehub.Selected qualified as Selected
 import Filehub.Sort (sortFiles)
 import Filehub.Storage qualified as Storage
 import Filehub.Template.Desktop qualified as Template.Desktop
 import Filehub.Template.Internal qualified as Template
 import Filehub.Server.Internal (withQueryParam)
-import Filehub.Types
-    ( SessionId(..),
-      SessionId(..), ClientPath)
+import Filehub.Types ( SessionId(..), ClientPath, Selected(..))
+import Filehub.Server.Handler (ConfirmDesktopOnly)
+import Filehub.Storage (getStorage)
+import Filehub.Target.Class (IsTarget(..))
 import Filehub.ControlPanel qualified as ControlPanel
 import Lens.Micro
 import Lens.Micro.Platform ()
 import Lucid
 import Prelude hiding (readFile)
 import System.FilePath (takeFileName)
-import Filehub.Server.Handler (ConfirmDesktopOnly)
-import Filehub.Storage (getStorage)
 
 
 fileDetailModal :: SessionId -> ConfirmDesktopOnly -> Maybe ClientPath -> Filehub (Html ())
@@ -50,15 +52,13 @@ editorModal sessionId mClientPath = withServerError do
   pure $ Template.Desktop.editorModal readOnly filename content
 
 
-contextMenu :: SessionId -> ConfirmDesktopOnly -> Maybe ClientPath -> Filehub (Html ())
-contextMenu sessionId _ mClientPath = withServerError do
-  clientPath <- withQueryParam mClientPath
+contextMenu :: SessionId -> ConfirmDesktopOnly -> [ClientPath] -> Filehub (Html ())
+contextMenu sessionId _ clientPaths = withServerError do
   storage <- getStorage sessionId
   root <- Env.getRoot sessionId
-  let filePath = ClientPath.fromClientPath root clientPath
-  file <- storage.get filePath
+  files <- traverse storage.get $ ClientPath.fromClientPath root <$> clientPaths
   readOnly <- Env.getReadOnly
-  pure $ Template.Desktop.contextMenu readOnly root file
+  pure $ Template.Desktop.contextMenu readOnly root files
 
 
 index :: SessionId -> Filehub (Html ())
@@ -73,11 +73,18 @@ index sessionId = do
 
 
 sideBar :: SessionId -> Filehub (Html ())
-sideBar sessionId =
-  Template.Desktop.sideBar
-  <$> Env.getTargets
-  <*> Target.currentTarget sessionId
-  & withServerError
+sideBar sessionId = do
+  targets <- Env.getTargets
+
+  targets' <- forM targets $ \(Target backend) -> withServerError do
+    let targetId = getTargetIdFromBackend backend
+    Target.withTarget sessionId targetId $ \(TargetView target targetData _) -> do
+      case targetData.selected of
+        Selected _ sels -> pure (target, length sels + 1)
+        NoSelection -> pure (target, 0)
+  currentTargetView <- Target.currentTarget sessionId & withServerError
+
+  pure $ Template.Desktop.sideBar targets' currentTargetView
 
 
 view :: SessionId -> Filehub (Html ())

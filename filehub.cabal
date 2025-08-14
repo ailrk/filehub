@@ -102,6 +102,7 @@ library
     , mime-types
     , network-uri
     , optparse-applicative
+    , random
     , servant
     , servant-conduit
     , servant-lucid
@@ -124,7 +125,7 @@ library
     , wai-app-static
     , wai-extra
     , warp
-    , zip-archive
+    , zip
 
   exposed-modules:
     Filehub.ClientPath

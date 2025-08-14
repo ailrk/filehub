@@ -9,7 +9,7 @@ import * as MobileCloseSidebar from './handlers/mobile/closeSidebar.js';
 import * as MobileSelected from './handlers/mobile/selected.js';
 import * as Cookie from './cookie.js';
 import { Display } from './def.js';
-import type { Opened, ViewerInited } from './def.js';
+import type { Opened, UIComponent, ViewerInited } from './def.js';
 import Viewer from './viewer.js';
 
 
@@ -43,12 +43,14 @@ document.addEventListener('Dummy', (e: any) => { console.log("testing dummy even
 document.addEventListener('ViewerInited', (e: any) => initViewer(e.detail));
 document.addEventListener('Opened', open);
 document.addEventListener('ThemeChanged', reloadTheme);
-
+document.addEventListener('UIComponentReloaded', reloadUIComponent);
 
 /* Preserve scroll positions */
 document.body.addEventListener('htmx:responseError', handleError);
 document.addEventListener('htmx:afterOnLoad', restoreViewScrollTop);
+document.addEventListener('htmx:afterOnLoad', restoreViewScrollTop);
 document.addEventListener('htmx:beforeRequest', saveViewScrollTop);
+document.addEventListener('htmx:afterSettle', closeDropdowns);
 
 
 function reloadTheme() {
@@ -198,6 +200,22 @@ function closePanel (e: MouseEvent) {
   if (controlPanel && controlPanel.classList.contains('show')) {
     controlPanel.classList.remove('show')
     overlay!.classList.remove('show')
+  }
+}
+
+
+function reloadUIComponent (e: any) {
+  let payload = e.detail as UIComponent;
+  switch (payload) {
+    case 'UIComponentView':
+      htmx.ajax('GET', `/refresh?component=UIComponentView`, { target: '#view', swap: 'outerHtml'});
+      break;
+    case 'UIComponentSideBar':
+      htmx.ajax('GET', `/refresh?component=UIComponentSideBar`, { target: '#side-bar', swap: 'outerHtml'});
+      break;
+    case 'UIComponentContronPanel':
+      htmx.ajax('GET', `/refresh?component=UIComponentContronPanel`, { target: '#control-panel', swap: 'outerHtml'});
+      break;
   }
 }
 

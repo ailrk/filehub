@@ -45,10 +45,10 @@ currentTarget sessionId = do
   mSession <- SessionPool.getSession sessionId
   targets <- Env.getTargets
   maybe (throwError InvalidSession) pure do
-      index <- mSession ^? #index
-      targetSessionData <- mSession ^? #targets . ix index
-      target <- targets ^? ix index
-      pure $ TargetView target targetSessionData index
+    index <- mSession ^? #index
+    targetSessionData <- mSession ^? #targets . ix index
+    target <- targets ^? ix index
+    pure $ TargetView target targetSessionData index
 
 
 changeCurrentTarget :: (Reader Env :> es, IOE :> es, Error FilehubError :> es, Log :> es) => SessionId -> TargetId -> Eff es ()
@@ -67,10 +67,10 @@ changeCurrentTarget sessionId targetId = do
            throwError InvalidSession
 
 
-withTarget :: (Reader Env :> es, IOE :> es, Error FilehubError :> es, Log :> es) => SessionId -> TargetId -> Eff es a -> Eff es a
+withTarget :: (Reader Env :> es, IOE :> es, Error FilehubError :> es, Log :> es) => SessionId -> TargetId -> (TargetView -> Eff es a) -> Eff es a
 withTarget sessionId targetId action = do
   TargetView saved _ _ <- currentTarget sessionId
   changeCurrentTarget sessionId targetId
-  result <- action
+  result <- currentTarget sessionId >>= action
   changeCurrentTarget sessionId (getTargetId saved)
   pure result

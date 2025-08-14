@@ -33,7 +33,9 @@ sitemapLinks =
   , apiLinks.cd $ Just (ClientPath "dummy.txt")
   , apiLinks.newFile
   , apiLinks.updateFile
-  , apiLinks.deleteFile (Just (ClientPath "dummy.txt")) True
+  , apiLinks.deleteFile [ClientPath "dummy.txt"] True
+  , apiLinks.copy
+  , apiLinks.paste
   , apiLinks.newFolder
   , apiLinks.newFileModal
   , apiLinks.newFolderModal
@@ -44,8 +46,8 @@ sitemapLinks =
   , apiLinks.selectLayout (Just ThumbnailLayout)
   , apiLinks.selectRows
   , apiLinks.upload
-  , apiLinks.download $ Just (ClientPath "dummy.txt")
-  , apiLinks.contextMenu $ Just (ClientPath "dummy.txt")
+  , apiLinks.download $ [ClientPath "dummy.txt"]
+  , apiLinks.contextMenu $ [ ClientPath "dummy.txt"]
   , apiLinks.initViewer $ Just (ClientPath "dummy.txt")
   , apiLinks.open (Just OpenDOMBlank) $ Just (ClientPath "dummy.txt")
   , apiLinks.changeTarget $ Just (TargetId $ fromJust $ UUID.fromString "8d8ac610-566d-4ef0-9c22-186b2a5ed793")

@@ -29,10 +29,13 @@ document.addEventListener('Dummy', (e) => { console.log("testing dummy event", e
 document.addEventListener('ViewerInited', (e) => initViewer(e.detail));
 document.addEventListener('Opened', open);
 document.addEventListener('ThemeChanged', reloadTheme);
+document.addEventListener('UIComponentReloaded', reloadUIComponent);
 /* Preserve scroll positions */
 document.body.addEventListener('htmx:responseError', handleError);
 document.addEventListener('htmx:afterOnLoad', restoreViewScrollTop);
+document.addEventListener('htmx:afterOnLoad', restoreViewScrollTop);
 document.addEventListener('htmx:beforeRequest', saveViewScrollTop);
+document.addEventListener('htmx:afterSettle', closeDropdowns);
 function reloadTheme() {
     const oldLink = document.querySelector('link[rel="stylesheet"][href*="/theme.css"]');
     if (!oldLink)
@@ -162,6 +165,20 @@ function closePanel(e) {
     if (controlPanel && controlPanel.classList.contains('show')) {
         controlPanel.classList.remove('show');
         overlay.classList.remove('show');
+    }
+}
+function reloadUIComponent(e) {
+    let payload = e.detail;
+    switch (payload) {
+        case 'UIComponentView':
+            htmx.ajax('GET', `/refresh?component=UIComponentView`, { target: '#view', swap: 'outerHtml' });
+            break;
+        case 'UIComponentSideBar':
+            htmx.ajax('GET', `/refresh?component=UIComponentSideBar`, { target: '#side-bar', swap: 'outerHtml' });
+            break;
+        case 'UIComponentContronPanel':
+            htmx.ajax('GET', `/refresh?component=UIComponentContronPanel`, { target: '#control-panel', swap: 'outerHtml' });
+            break;
     }
 }
 function showBalloon(message, duration = 3000) {

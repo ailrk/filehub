@@ -171,6 +171,8 @@ function handleMouseUp(e) {
     selectionScreen?.elt.remove();
     selectionScreen = null;
     dragging = false;
+    // update sidebar
+    htmx.ajax('GET', `/refresh?component=UIComponentSideBar`, { target: '#side-bar', swap: 'outerHtml' });
 }
 function prevent(e) {
     e.preventDefault();

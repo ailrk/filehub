@@ -31,7 +31,7 @@ import Servant
       StreamGet,
       NoFraming,
       NoContent,
-      CaptureAll,
+      CaptureAll, QueryParams,
     )
 import Lucid
 import Lens.Micro.Platform ()
@@ -51,7 +51,7 @@ import Filehub.Types
       Selected(..),
       FilehubEvent(..),
       SessionId,
-      Resolution(..), Manifest, LoginForm, OpenTarget, MoveFile
+      Resolution(..), Manifest, LoginForm, OpenTarget, MoveFile, UIComponent
     )
 import GHC.Generics (Generic)
 import Filehub.Server.Handler (ConfirmReadOnly, ConfirmMobilOnly, ConfirmDesktopOnly, ConfirmLogin)
@@ -84,6 +84,14 @@ data Api mode = Api
   , index           :: mode
                     :- AuthProtect "session"
                     :> AuthProtect "login"
+                    :> Get '[HTML] (Html ())
+
+
+  , refresh         :: mode
+                    :- "refresh"
+                    :> AuthProtect "session"
+                    :> AuthProtect "login"
+                    :> QueryParam "component" UIComponent
                     :> Get '[HTML] (Html ())
 
 
@@ -134,7 +142,7 @@ data Api mode = Api
                     :> AuthProtect "session"
                     :> AuthProtect "login"
                     :> AuthProtect "readonly"
-                    :> QueryParam "file" ClientPath
+                    :> QueryParams "file" ClientPath
                     :> QueryFlag "selected"
                     :> Delete '[HTML] (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))
 
@@ -253,7 +261,7 @@ data Api mode = Api
                     :- "download"
                     :> AuthProtect "session"
                     :> AuthProtect "login"
-                    :> QueryParam "file" ClientPath
+                    :> QueryParams "file" ClientPath
                     :> StreamGet NoFraming OctetStream (Headers '[ Header "Content-Disposition" String ] (ConduitT () ByteString (ResourceT IO) ()))
 
 
@@ -269,7 +277,7 @@ data Api mode = Api
                     :> AuthProtect "session"
                     :> AuthProtect "login"
                     :> AuthProtect "desktop-only"
-                    :> QueryParam "file" ClientPath
+                    :> QueryParams "file" ClientPath
                     :> Get '[HTML] (Html ())
 
 
