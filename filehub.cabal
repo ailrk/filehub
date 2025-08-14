@@ -111,8 +111,8 @@ library
     , split
     , string-interpolate
     , suspend
+    , temporary
     , text
-    , time
     , time
     , timers
     , transformers

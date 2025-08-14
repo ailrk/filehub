@@ -7,34 +7,37 @@ import Amazonka.Data qualified as Amazonka
 import Amazonka.S3 (Object(..), CommonPrefix)
 import Amazonka.S3 qualified as Amazonka
 import Amazonka.S3.Lens qualified as Amazonka
+import Codec.Archive.Zip qualified as Zip
+import Conduit (ConduitT, ResourceT, MonadTrans (..))
 import Conduit qualified
 import Control.Monad (void)
+import Data.ByteString (ByteString)
 import Data.ByteString.Lazy qualified as LBS
 import Data.Foldable (forM_)
+import Data.Generics.Labels ()
 import Data.Generics.Labels ()
 import Data.List (uncons)
 import Data.Maybe (fromMaybe)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
-import Effectful (Eff, Eff, MonadIO (..))
+import Effectful (Eff, Eff, MonadIO (..), runEff)
 import Effectful.Error.Dynamic (throwError)
+import Effectful.FileSystem (runFileSystem, removeFile)
 import Filehub.ClientPath (fromClientPath)
 import Filehub.Env qualified as Env
-import Filehub.Target (TargetView(..), handleTarget)
 import Filehub.Error (FilehubError (..))
+import Filehub.Storage.Context qualified as Storage
+import Filehub.Target (TargetView(..), handleTarget)
+import Filehub.Target.S3 (Backend(..), S3)
 import Filehub.Target.Types (Storage(..))
+import Filehub.Target.Types (targetHandler)
 import Filehub.Types (File(..), FileContent(..), ClientPath, SessionId)
 import Lens.Micro
+import Lens.Micro.Platform ()
 import Network.Mime (defaultMimeLookup)
 import Prelude hiding (read, readFile, writeFile)
 import Servant.Multipart (MultipartData(..), Mem, FileData (..))
-import Data.Generics.Labels ()
-import Lens.Micro.Platform ()
-import Conduit (ConduitT, ResourceT, MonadTrans (..), sourceLazy)
-import Data.ByteString (ByteString)
-import Filehub.Target.S3 (Backend(..), S3)
-import Filehub.Target.Types (targetHandler)
-import Filehub.Storage.Context qualified as Storage
+import System.IO.Temp qualified as Temp
 
 
 get :: Storage.Context es => SessionId -> FilePath -> Eff es File
@@ -181,15 +184,27 @@ upload sessionId multipart = do
 download :: Storage.Context es => SessionId -> ClientPath -> Eff es (ConduitT () ByteString (ResourceT IO) ())
 download sessionId clientPath = do
   root <- Env.getRoot sessionId
-  let abspath = fromClientPath root clientPath
-  file <- get sessionId abspath
+  let path = fromClientPath root clientPath
+  file <- get sessionId path
   case file.content of
     Content -> readStream sessionId file
     Dir _ -> do
-      -- TODO
-      undefined
-      -- archive <- liftIO $ Zip.addFilesToArchive [OptRecursive, OptPreserveSymbolicLinks] Zip.emptyArchive [file.path]
-      -- pure . sourceLazy $ Zip.fromArchive archive
+      (zipPath, _) <- liftIO do
+        tempDir <- Temp.getCanonicalTemporaryDirectory
+        Temp.openTempFile tempDir "DXXXXXX.zip"
+
+      Zip.createArchive zipPath $ do
+        Zip.packDirRecur
+          Zip.Zstd
+          Zip.mkEntrySelector
+          path
+
+      pure $
+        Conduit.bracketP
+          (pure ())
+          (\_ -> runEff . runFileSystem $ removeFile zipPath)
+          (\_ -> Conduit.sourceFile zipPath)
+
 
 
 storage :: Storage.Context es => SessionId -> (Storage (Eff es))

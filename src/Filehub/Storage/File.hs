@@ -3,14 +3,16 @@
 
 module Filehub.Storage.File (storage) where
 
+import Codec.Archive.Zip qualified as Zip
 import Control.Monad (unless, when, forM_, join)
-import Conduit (ConduitT, ResourceT, sourceFile, sourceLazy)
+import Conduit (ConduitT, ResourceT)
+import Conduit qualified
 import Data.ByteString (ByteString)
 import Data.ByteString (readFile)
 import Data.ByteString.Lazy qualified as LBS
 import Data.Generics.Labels ()
 import Data.Text qualified as Text
-import Effectful ( Eff, Eff )
+import Effectful ( Eff, Eff, runEff )
 import Effectful.Error.Dynamic (throwError)
 import Effectful.FileSystem
 import Effectful.FileSystem.IO (withFile, IOMode (..))
@@ -29,6 +31,7 @@ import System.FilePath ( (</>) )
 import Data.Generics.Labels ()
 import UnliftIO (MonadIO (..))
 import Lens.Micro.Platform ()
+import System.IO.Temp qualified as Temp
 
 
 get :: Storage.Context es => SessionId -> FilePath -> Eff es File
@@ -74,7 +77,7 @@ read _ file = liftIO $ readFile file.path
 
 
 readStream :: SessionId -> File -> Eff es (ConduitT () ByteString (ResourceT IO) ())
-readStream _sessionId file = pure $ sourceFile file.path
+readStream _sessionId file = pure $ Conduit.sourceFile file.path
 
 
 newFolder :: Storage.Context es => SessionId -> String -> Eff es ()
@@ -177,15 +180,26 @@ upload sessionId multipart = do
 download :: Storage.Context es => SessionId -> ClientPath -> Eff es (ConduitT () ByteString (ResourceT IO) ())
 download sessionId clientPath = do
   root <- Env.getRoot sessionId
-  let abspath = fromClientPath root clientPath
-  file <- get sessionId abspath
+  let path = fromClientPath root clientPath
+  file <- get sessionId path
   case file.content of
     Content -> readStream sessionId file
     Dir _ -> do
-      -- TODO
-      undefined
-      -- archive <- liftIO $ Zip.addFilesToArchive [OptRecursive, OptPreserveSymbolicLinks] Zip.emptyArchive [file.path]
-      -- pure . sourceLazy $ Zip.fromArchive archive
+      (zipPath, _) <- liftIO do
+        tempDir <- Temp.getCanonicalTemporaryDirectory
+        Temp.openTempFile tempDir "DXXXXXX.zip"
+
+      Zip.createArchive zipPath $ do
+        Zip.packDirRecur
+          Zip.Zstd
+          Zip.mkEntrySelector
+          path
+
+      pure $
+        Conduit.bracketP
+          (pure ())
+          (\_ -> runEff . runFileSystem $ removeFile zipPath)
+          (\_ -> Conduit.sourceFile zipPath)
 
 
 storage :: Storage.Context es => SessionId -> (Storage (Eff es))

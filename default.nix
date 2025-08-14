@@ -7,9 +7,9 @@
 , microlens-platform, mime-types, network-uri, optparse-applicative
 , QuickCheck, random, servant, servant-conduit, servant-lucid
 , servant-multipart, servant-server, split, string-interpolate
-, suspend, text, time, timers, transformers, unliftio
+, suspend, temporary, text, time, timers, transformers, unliftio
 , unordered-containers, uri-encode, uuid, vault, wai
-, wai-app-static, wai-extra, warp, zip, zip-archive
+, wai-app-static, wai-extra, warp, zip
 }:
 mkDerivation {
   pname = "filehub";
@@ -27,9 +27,9 @@ mkDerivation {
     microlens microlens-platform mime-types network-uri
     optparse-applicative random servant servant-conduit servant-lucid
     servant-multipart servant-server split string-interpolate suspend
-    text time timers transformers unliftio unordered-containers
-    uri-encode uuid vault wai wai-app-static wai-extra warp zip
-    zip-archive
+    temporary text time timers transformers unliftio
+    unordered-containers uri-encode uuid vault wai wai-app-static
+    wai-extra warp zip
   ];
   executableHaskellDepends = [ base ];
   testHaskellDepends = [

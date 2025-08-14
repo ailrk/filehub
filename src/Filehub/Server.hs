@@ -6,6 +6,8 @@
 {-# OPTIONS_GHC -Wno-partial-type-signatures #-}
 module Filehub.Server (application, main, mainDev) where
 
+import Codec.Archive.Zip qualified as Zip
+import System.IO.Temp qualified as Temp
 import Data.String.Interpolate (i)
 import Data.Maybe (fromMaybe)
 import Data.Foldable (forM_)
@@ -31,22 +33,21 @@ import Lens.Micro
 import Lens.Micro.Platform ()
 import Lucid
 import Prelude hiding (readFile)
-import System.Random (randomRIO)
 import Servant.Server.Generic (AsServerT)
 import Servant (errBody, Headers, Header, NoContent (..), err404, errHeaders, err301, noHeader, err400)
 import Servant (addHeader, err500)
 import Servant (serveWithContextT, Context (..), Application)
 import Servant.Conduit ()
-import System.FilePath (takeFileName, (</>), takeDirectory)
+import System.FilePath (takeFileName, (</>), takeDirectory, makeRelative)
 import Control.Exception (SomeException)
-import Control.Monad (when, replicateM)
+import Control.Monad (when, forM, replicateM)
 import UnliftIO (catch)
 import Text.Printf (printf)
 import Filehub.Layout (Layout(..))
 import Filehub.Mime (isMime)
 import Filehub.Target qualified as Target
 import Filehub.Target.Types.TargetView (TargetView(..))
-import Filehub.Types ( FilehubEvent (..), LoginForm(..), MoveFile (..), UIComponent (..))
+import Filehub.Types ( FilehubEvent (..), LoginForm(..), MoveFile (..), UIComponent (..), FileContent (..))
 import Filehub.Env qualified as Env
 import Filehub.Error ( withServerError, FilehubError(..), FilehubError(..), withServerError )
 import Filehub.Routes (Api (..))
@@ -88,7 +89,8 @@ import Filehub.Viewer qualified as Viewer
 import Filehub.ControlPanel qualified as ControlPanel
 import Filehub.Storage (getStorage, Storage(..))
 import Filehub.Cookie qualified as Cookie
-import Conduit (ConduitT, ResourceT, sourceLazy)
+import Conduit (ConduitT, ResourceT)
+import Conduit qualified
 import Network.Wai.Handler.Warp (setPort, defaultSettings, runSettings)
 import Network.Wai.Middleware.RequestLogger (logStdout)
 import System.Environment (withArgs)
@@ -101,7 +103,8 @@ import Filehub.Cookie qualified as Cookies
 import Web.Cookie (SetCookie)
 import Network.HTTP.Types.Header (hLocation)
 import Effectful.Reader.Dynamic (asks)
-import Debug.Trace
+import System.Directory (removeFile)
+import System.Random (randomRIO)
 
 
 #ifdef DEBUG
@@ -280,22 +283,43 @@ server = Api
 
 
   , download = \sessionId _ clientPaths -> do
+      storage <- getStorage sessionId & withServerError
+      root <- Env.getRoot sessionId & withServerError
+
       case clientPaths of
         [clientPath@(ClientPath path)] -> do
-          bs <- withServerError do
-            storage <- getStorage sessionId
-            storage.download clientPath
-          pure $ addHeader (printf "attachement; filename=%s" (takeFileName path)) bs
+          file <- storage.get (ClientPath.fromClientPath root clientPath) & withServerError
+          conduit <- withServerError $ storage.download clientPath
+          let filename =
+                case file.content of
+                  Content -> printf "attachement; filename=%s" (takeFileName path)
+                  Dir _ -> printf "attachement; filename=%s.zip" (takeFileName path)
+          pure $ addHeader filename conduit
 
         _ -> do
-          root <- Env.getRoot sessionId & withServerError
-          let paths = fmap (ClientPath.fromClientPath root) clientPaths
-          tag <- replicateM 8 $ randomRIO ('a', 'z')
-          -- TODO
-          undefined
-          -- archive <- liftIO $ Zip.addFilesToArchive [OptRecursive, OptPreserveSymbolicLinks] Zip.emptyArchive paths
-          -- let conduit = sourceLazy $ Zip.fromArchive archive
-          -- pure $ addHeader (printf "attachement; filename=D%s.zip" tag) conduit
+          (zipPath, _) <- liftIO do
+            tempDir <- Temp.getCanonicalTemporaryDirectory
+            Temp.openTempFile tempDir "DXXXXXX.zip"
+
+          tasks <-
+            forM (fmap (ClientPath.fromClientPath root) clientPaths) $ \path -> withServerError do
+              file <- storage.get path
+              conduit <- storage.readStream file
+              pure (path, conduit)
+
+
+          Zip.createArchive zipPath $ do
+            forM_ tasks $ \(path, conduit) -> do
+              m <- Zip.mkEntrySelector  (makeRelative root path)
+              Zip.sinkEntry Zip.Zstd conduit m
+          tag <- Text.pack <$> replicateM 8 (randomRIO ('a', 'z'))
+          let conduit =
+                Conduit.bracketP
+                  (pure ())
+                  (\_ -> liftIO $ removeFile zipPath)
+                  (\_ -> Conduit.sourceFile zipPath)
+
+          pure $ addHeader (printf "attachement; filename=%s.zip" tag) conduit
 
 
   , copy = \sessionId _ _ -> do
