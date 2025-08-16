@@ -49,7 +49,7 @@ import Servant
       FromHttpApiData(..),
       Accept (..),
       MimeRender )
-import Web.FormUrlEncoded (FromForm (..), parseUnique, ToForm (..))
+import Web.FormUrlEncoded (FromForm (..), parseUnique, ToForm (..), parseAll)
 import Servant.API (MimeRender(..))
 import Filehub.Target.Types (Target (..))
 import Filehub.Target.Types.TargetId (TargetId(..))
@@ -104,8 +104,8 @@ newtype NewFolder = NewFolder Text deriving (Show, Eq, Generic)
 instance FromForm NewFolder where fromForm f = NewFolder <$> parseUnique "new-folder" f
 
 
-data MoveFile = MoveFile ClientPath ClientPath deriving (Show, Eq)
-instance FromForm MoveFile where fromForm f = MoveFile <$> parseUnique "src" f <*> parseUnique "tgt" f
+data MoveFile = MoveFile [ClientPath] ClientPath deriving (Show, Eq)
+instance FromForm MoveFile where fromForm f = MoveFile <$> parseAll "src" f <*> parseUnique "tgt" f
 
 
 data UpdatedFile = UpdatedFile

@@ -85,8 +85,9 @@ function selectN(item) {
         recover: () => { selectedIds.delete(id); }
     });
 }
-function handleClick(evt) {
-    let e = evt;
+function handleClick(e) {
+    if (!(e instanceof MouseEvent))
+        return;
     let item = e.target.closest('.table-item');
     if (!item)
         return;
@@ -100,17 +101,18 @@ function handleClick(evt) {
 // Once it's moved out of the rectangle, remove the selection
 // Once mouse up, commit the selection
 function handleMouseDown(e) {
-    let evt = e;
-    selectionScreen?.elt.remove();
-    if (!(evt.ctrlKey || evt.metaKey))
+    if (!(e instanceof MouseEvent))
         return;
-    evt.preventDefault();
-    evt.stopImmediatePropagation();
+    selectionScreen?.elt.remove();
+    if (!(e.ctrlKey || e.metaKey))
+        return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
     document.addEventListener('dragstart', prevent, true); // temporary disable drags
     fileItems = document.querySelectorAll('#table .table-item'); // cache file items
     dragging = false;
-    let x = evt.clientX;
-    let y = evt.clientY;
+    let x = e.clientX;
+    let y = e.clientY;
     let elt = document.createElement('div');
     elt.id = 'selection-screen';
     elt.style.left = x.toString();
@@ -121,16 +123,17 @@ function handleMouseDown(e) {
     table.appendChild(selectionScreen.elt);
 }
 function handleMouseMove(e) {
-    let evt = e;
-    if (!(evt.ctrlKey || evt.metaKey)) {
+    if (!(e instanceof MouseEvent))
+        return;
+    if (!(e.ctrlKey || e.metaKey)) {
         selectionScreen?.elt.remove();
         return;
     }
     if (selectionScreen === null) {
         return;
     }
-    let x = evt.clientX;
-    let y = evt.clientY;
+    let x = e.clientX;
+    let y = e.clientY;
     const left = Math.min(selectionScreen.x, x);
     const top = Math.min(selectionScreen.y, y);
     const width = Math.abs(x - selectionScreen.x);
@@ -156,8 +159,9 @@ function handleMouseMove(e) {
         .forEach(selectN);
 }
 function handleMouseUp(e) {
-    let evt = e;
-    if (!(evt.ctrlKey || evt.metaKey))
+    if (!(e instanceof MouseEvent))
+        return;
+    if (!(e.ctrlKey || e.metaKey))
         return;
     table.addEventListener('click', prevent, true);
     // 'click' is fired right after mouseup.

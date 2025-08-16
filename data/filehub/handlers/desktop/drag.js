@@ -1,55 +1,162 @@
 export function register() {
+    register1();
     document.body.addEventListener('htmx:afterSettle', _ => {
-        console.log('load drag again!');
         register1();
     });
 }
 function register1() {
-    console.log('load drag');
-    let items = document.querySelectorAll('.table-item');
-    let dirs = document.querySelectorAll('.dir');
+    const items = document.querySelectorAll('.table-item');
+    const dirs = document.querySelectorAll('.dir');
     for (let i = 0; i < items.length; ++i) {
-        let item = items[i];
-        item.addEventListener('dragstart', e => handleDrag(e));
+        const item = items[i];
+        item.removeEventListener('dragstart', handleDragStart);
+        item.addEventListener('dragstart', handleDragStart);
     }
     for (let i = 0; i < dirs.length; ++i) {
-        let dir = dirs[i];
-        dir.addEventListener('drop', e => handleDrop(e));
-        dir.addEventListener('dragover', e => handleDragOver(e));
+        const dir = dirs[i];
+        dir.removeEventListener('drop', handleDrop);
+        dir.removeEventListener('dragover', handleDragOver);
+        dir.addEventListener('drop', handleDrop);
+        dir.addEventListener('dragover', handleDragOver);
     }
 }
 function handleDragOver(e) {
     e.preventDefault();
 }
-function handleDrag(e) {
-    console.log("dragged!");
+function handleDragStart(e) {
+    if (!(e instanceof DragEvent))
+        return;
     if (e.target instanceof HTMLElement) {
-        let path = e.target.dataset.path;
-        if (path === undefined) {
+        const path = e.target.dataset.path;
+        if (path === undefined)
             return;
-        }
         e.dataTransfer.clearData();
-        e.dataTransfer.setData('text', path);
         e.dataTransfer.dropEffect = 'move';
+        if (e.target.classList.contains('selected')) {
+            let allSelected = document.querySelectorAll('.selected');
+            const heads = allSelected
+                .values()
+                .take(6)
+                .map(elt => elt.querySelector('.image-wrapper'))
+                .toArray();
+            drawIconAsync(heads).
+                then(img => {
+                e.dataTransfer.setDragImage(img, 180, 180);
+            });
+            let paths = allSelected.values().map(elt => elt.dataset.path).toArray();
+            e.dataTransfer.setData('application/json', JSON.stringify(paths));
+        }
+        else {
+            e.dataTransfer.setData('application/json', JSON.stringify(path));
+        }
     }
 }
+async function drawIconAsync(wrappers) {
+    const canvas = document.createElement('canvas');
+    const theme = getComputedStyle(document.querySelector(':root'));
+    canvas.width = 400;
+    canvas.height = 400;
+    const ctx = canvas.getContext('2d');
+    const dx = 8;
+    const dr = 4 * Math.PI / 180;
+    // Gather all <img> elements
+    const imgs = [];
+    wrappers.forEach(wrapper => {
+        const ele = wrapper.children[0];
+        if (ele.tagName === 'IMG') {
+            const img = ele;
+            img.removeAttribute('loading');
+            imgs.push(img);
+        }
+    });
+    // Wait for all images to load
+    await Promise.all(imgs.map(img => img.complete
+        ? Promise.resolve()
+        : new Promise(res => img.addEventListener('load', () => res(), { once: true }))));
+    fillRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 16, theme.getPropertyValue('--background3'));
+    wrappers.forEach((wrapper, i) => {
+        ctx.save();
+        ctx.translate(canvas.width / 2 + dx * i, canvas.height / 2);
+        ctx.rotate(dr * i);
+        const ele = wrapper.children[0];
+        if (ele.tagName === 'IMG') {
+            const img = ele;
+            const scale = Math.min(180 / img.naturalWidth, 180 / img.naturalHeight);
+            const w = img.naturalWidth * scale;
+            const h = img.naturalHeight * scale;
+            ctx.drawImage(img, -w / 2, -h / 2, w, h);
+        }
+        else if (ele.tagName === 'I') {
+            const icon = ele;
+            const style = getComputedStyle(icon);
+            const fontSize = parseFloat(style.fontSize);
+            ctx.font = `${style.fontWeight} ${fontSize}px ${style.fontFamily}`;
+            ctx.fillStyle = style.color;
+            ctx.textBaseline = 'middle';
+            ctx.textAlign = 'center';
+            ctx.fillText(icon.textContent || '', 0, 0);
+        }
+        ctx.restore();
+    });
+    // Return as image
+    const img = new Image();
+    img.src = canvas.toDataURL();
+    img.style.borderRadius = '6px';
+    return img;
+}
+function fillRoundedRect(ctx, x, y, width, height, radius, fillStyle) {
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + width - radius, y);
+    ctx.arcTo(x + width, y, x + width, y + radius, radius);
+    ctx.lineTo(x + width, y + height - radius);
+    ctx.arcTo(x + width, y + height, x + width - radius, y + height, radius);
+    ctx.lineTo(x + radius, y + height);
+    ctx.arcTo(x, y + height, x, y + height - radius, radius);
+    ctx.lineTo(x, y + radius);
+    ctx.arcTo(x, y, x + radius, y, radius);
+    ctx.closePath();
+    ctx.fillStyle = fillStyle;
+    ctx.fill();
+}
 function handleDrop(e) {
+    if (!(e instanceof DragEvent))
+        return;
     e.preventDefault();
     if (e.target instanceof HTMLElement) {
-        let tgt = e.target.dataset.path;
-        if (tgt === undefined) {
+        const tgt = e.target.dataset.path;
+        if (tgt === undefined)
+            return;
+        const json = e.dataTransfer.getData('application/json');
+        let src;
+        try {
+            src = JSON.parse(json);
+        }
+        catch {
+            console.error('invalid drag data');
             return;
         }
-        const src = e.dataTransfer.getData('text');
-        const values = { src, tgt };
-        htmx.ajax('POST', '/files/move', {
-            values,
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded'
-            },
-            target: '#index',
-            swap: 'outerHTML'
-        });
-        console.log('dropped! - ', tgt, src);
+        if (typeof src === 'string') {
+            const values = { src, tgt };
+            htmx.ajax('POST', '/files/move', {
+                values,
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                target: '#index',
+                swap: 'outerHTML'
+            });
+        }
+        if (Array.isArray(src)) {
+            const values = { src, tgt };
+            htmx.ajax('POST', '/files/move', {
+                values,
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                target: '#index',
+                swap: 'outerHTML'
+            });
+        }
     }
 }
