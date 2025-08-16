@@ -1,55 +1,137 @@
+let dragging = null;
 export function register() {
     document.body.addEventListener('htmx:afterSettle', _ => {
-        console.log('load drag again!');
         register1();
     });
 }
 function register1() {
-    console.log('load drag');
-    let items = document.querySelectorAll('.table-item');
-    let dirs = document.querySelectorAll('.dir');
+    const items = document.querySelectorAll('.table-item');
+    const dirs = document.querySelectorAll('.dir');
     for (let i = 0; i < items.length; ++i) {
-        let item = items[i];
-        item.addEventListener('dragstart', e => handleDrag(e));
+        const item = items[i];
+        item.addEventListener('dragstart', handleDragStart, { once: true });
     }
     for (let i = 0; i < dirs.length; ++i) {
-        let dir = dirs[i];
-        dir.addEventListener('drop', e => handleDrop(e));
-        dir.addEventListener('dragover', e => handleDragOver(e));
+        const dir = dirs[i];
+        dir.addEventListener('drop', handleDrop, { once: true });
+        dir.addEventListener('dragover', handleDragOver, { once: true });
     }
 }
 function handleDragOver(e) {
     e.preventDefault();
 }
-function handleDrag(e) {
-    console.log("dragged!");
+function handleDragStart(e) {
+    if (!(e instanceof DragEvent))
+        return;
+    console.log('dragging', e.target);
     if (e.target instanceof HTMLElement) {
-        let path = e.target.dataset.path;
-        if (path === undefined) {
+        const path = e.target.dataset.path;
+        if (path === undefined)
             return;
-        }
         e.dataTransfer.clearData();
-        e.dataTransfer.setData('text', path);
         e.dataTransfer.dropEffect = 'move';
+        if (e.target.classList.contains('selected')) {
+            let allSelected = document.querySelectorAll('.selected');
+            const heads = allSelected
+                .values()
+                .take(10)
+                .map(elt => elt.querySelector('.image-wrapper'))
+                .toArray();
+            drawIconAsync(heads).then(img => {
+                e.dataTransfer.setDragImage(img, 200, 200);
+            });
+            e.dataTransfer.setData('application/json', JSON.stringify(allSelected.values().map(elt => elt.dataset.path)));
+        }
+        else {
+            e.dataTransfer.setData('application/json', path);
+        }
     }
 }
+async function drawIconAsync(wrappers) {
+    const canvas = document.createElement('canvas');
+    // document.body.prepend(canvas)
+    canvas.width = 240;
+    canvas.height = 240;
+    const ctx = canvas.getContext('2d');
+    const dx = 8;
+    const dr = 4 * Math.PI / 180;
+    // Gather all <img> elements
+    const imgs = [];
+    wrappers.forEach(wrapper => {
+        const ele = wrapper.children[0];
+        if (ele.tagName === 'IMG') {
+            const img = ele;
+            img.removeAttribute('loading');
+            imgs.push(img);
+        }
+    });
+    // Wait for all images to load
+    await Promise.all(imgs.map(img => img.complete
+        ? Promise.resolve()
+        : new Promise(res => img.addEventListener('load', () => res(), { once: true }))));
+    wrappers.forEach((wrapper, i) => {
+        ctx.save();
+        ctx.translate(canvas.width / 2 + dx * i, canvas.height / 2);
+        ctx.rotate(dr * i);
+        const ele = wrapper.children[0];
+        if (ele.tagName === 'IMG') {
+            const img = ele;
+            const scale = Math.min(180 / img.naturalWidth, 180 / img.naturalHeight);
+            const w = img.naturalWidth * scale;
+            const h = img.naturalHeight * scale;
+            ctx.drawImage(img, -w / 2, -h / 2, w, h);
+        }
+        else if (ele.tagName === 'I') {
+            const icon = ele;
+            const style = getComputedStyle(icon);
+            const fontSize = parseFloat(style.fontSize);
+            ctx.font = `${style.fontWeight} ${fontSize}px ${style.fontFamily}`;
+            ctx.fillStyle = style.color;
+            ctx.textBaseline = 'middle';
+            ctx.textAlign = 'center';
+            ctx.fillText(icon.textContent || '', 0, 0);
+        }
+        ctx.restore();
+    });
+    // Return as image
+    const img = new Image();
+    img.src = canvas.toDataURL();
+    return img;
+}
 function handleDrop(e) {
+    console.log('drop');
+    if (!(e instanceof DragEvent))
+        return;
     e.preventDefault();
     if (e.target instanceof HTMLElement) {
-        let tgt = e.target.dataset.path;
-        if (tgt === undefined) {
+        const tgt = e.target.dataset.path;
+        if (tgt === undefined)
             return;
+        const json = e.dataTransfer.getData('application/json');
+        const src = JSON.parse(json);
+        console.log(src);
+        if (typeof src === 'string') {
+            const values = { src, tgt };
+            htmx.ajax('POST', '/files/move', {
+                values,
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                target: '#index',
+                swap: 'outerHTML'
+            });
         }
-        const src = e.dataTransfer.getData('text');
-        const values = { src, tgt };
-        htmx.ajax('POST', '/files/move', {
-            values,
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded'
-            },
-            target: '#index',
-            swap: 'outerHTML'
-        });
-        console.log('dropped! - ', tgt, src);
+        if (Array.isArray(src)) {
+            const values = { src, tgt };
+            htmx.ajax('POST', '/files/move', {
+                values,
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                target: '#index',
+                swap: 'outerHTML'
+            });
+        }
     }
+    dragging = null;
 }

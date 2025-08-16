@@ -224,16 +224,19 @@ textarea {
   pointer-events: none;
 
 
-  & .image-wrapper i {
-    font-size: 8em;
-  }
+}
 
-  & .image-wrapper img {
-    display: block;
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-  }
+
+.image-wrapper i {
+  font-size: 8em;
+}
+
+
+.image-wrapper img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 
@@ -688,4 +691,40 @@ a.dropdown-item {
   z-index: 100;
   border: var(--background3) solid;
   pointer-events: none;
+}
+
+
+
+.drag-icon .image-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100;
+  height: 100;
+  object-fit: contain;
+}
+
+.drag-icon .image-wrapper:nth-child(1) {
+  transform: translateX(0px) rotate(3deg);
+  z-index: 5;
+}
+
+.drag-icon .image-wrapper:nth-child(2) {
+  transform: translateX(8px) rotate(6deg);
+  z-index: 4;
+}
+
+.drag-icon .image-wrapper:nth-child(3) {
+  transform: translateX(16px) rotate(9deg);
+  z-index: 3;
+}
+
+.drag-icon .image-wrapper:nth-child(4) {
+  transform: translateX(24px) rotate(12deg);
+  z-index: 2;
+}
+
+.drag-icon .image-wrapper:nth-child(5) {
+  transform: translateX(32px) rotate(15deg);
+  z-index: 1;
 }

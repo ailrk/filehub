@@ -110,8 +110,8 @@ function selectN(item: HTMLElement) {
 }
 
 
-function handleClick(evt: Event) {
-  let e = evt as MouseEvent;
+function handleClick(e: Event) {
+  if (!(e instanceof MouseEvent)) return;
   let item = (e.target as Element).closest('.table-item') as HTMLElement;
   if (!item) return;
 
@@ -129,19 +129,18 @@ function handleClick(evt: Event) {
 
 
 function handleMouseDown(e: Event) {
-  let evt = e as MouseEvent
+  if (!(e instanceof MouseEvent)) return;
   selectionScreen?.elt.remove();
-
-  if (!(evt.ctrlKey || evt.metaKey)) return;
-  evt.preventDefault();
-  evt.stopImmediatePropagation();
+  if (!(e.ctrlKey || e.metaKey)) return;
+  e.preventDefault();
+  e.stopImmediatePropagation();
   document.addEventListener('dragstart', prevent, true); // temporary disable drags
   fileItems = document.querySelectorAll('#table .table-item'); // cache file items
 
   dragging = false;
 
-  let x = evt.clientX;
-  let y = evt.clientY;
+  let x = e.clientX;
+  let y = e.clientY;
   let elt = document.createElement('div');
   elt.id = 'selection-screen';
   elt.style.left = x.toString();
@@ -154,9 +153,9 @@ function handleMouseDown(e: Event) {
 
 
 function handleMouseMove(e: Event) {
-  let evt = e as MouseEvent
+  if (!(e instanceof MouseEvent)) return;
 
-  if (!(evt.ctrlKey || evt.metaKey)) {
+  if (!(e.ctrlKey || e.metaKey)) {
     selectionScreen?.elt.remove();
     return;
   }
@@ -165,8 +164,8 @@ function handleMouseMove(e: Event) {
     return;
   }
 
-  let x = evt.clientX;
-  let y = evt.clientY;
+  let x = e.clientX;
+  let y = e.clientY;
 
   const left = Math.min(selectionScreen.x, x);
   const top = Math.min(selectionScreen.y, y);
@@ -198,8 +197,8 @@ function handleMouseMove(e: Event) {
 
 
 function handleMouseUp(e: Event) {
-  let evt = e as MouseEvent
-  if (!(evt.ctrlKey || evt.metaKey)) return;
+  if (!(e instanceof MouseEvent)) return;
+  if (!(e.ctrlKey || e.metaKey)) return;
 
   table!.addEventListener('click', prevent, true);
   // 'click' is fired right after mouseup.

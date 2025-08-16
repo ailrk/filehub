@@ -337,12 +337,12 @@ server = Api
   , move = \sessionId _ _ (MoveFile src tgt) -> do
       root <- Env.getRoot sessionId & withServerError
       storage <- getStorage sessionId & withServerError
-      let srcPath = ClientPath.fromClientPath root src
+      let srcPaths = fmap (ClientPath.fromClientPath root) src
       let tgtPath = ClientPath.fromClientPath root tgt
-      let fileName = takeFileName srcPath
-      withServerError do
+
+      forM_ srcPaths $ \srcPath -> withServerError do
+        let fileName = takeFileName srcPath
         isTgtDir <- storage.isDirectory tgtPath
-        -- TODO 2025-08-12 Better errors
         when (not isTgtDir) do
           throwError InvalidDir
 
@@ -353,8 +353,7 @@ server = Api
           throwError InvalidDir
 
         storage.cp srcPath (tgtPath </> fileName)
-        -- bytes <- storage.get srcPath >>= storage.read
-        -- storage.write (tgtPath </> fileName) bytes
+
         storage.delete srcPath
       addHeader FileMoved <$> index sessionId
 
