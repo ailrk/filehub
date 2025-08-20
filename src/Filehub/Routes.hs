@@ -116,7 +116,7 @@ data Api mode = Api
                     :> AuthProtect "session"
                     :> AuthProtect "login"
                     :> QueryParam "dir" ClientPath
-                    :> Get '[HTML] (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
+                    :> Get '[HTML] (Headers '[ Header "HX-Trigger-After-Swap" FilehubEvent ] (Html ()))
 
 
   , newFile         :: mode
@@ -304,7 +304,7 @@ data Api mode = Api
                     :> AuthProtect "session"
                     :> AuthProtect "login"
                     :> QueryParam "target" TargetId
-                    :> Get '[HTML] (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
+                    :> Get '[HTML] (Headers '[ Header "HX-Trigger-After-Swap" FilehubEvent ] (Html ()))
 
 
   -- Servant api forces you to provide a content type at compile time, but we want to dynamically determine the content type instead.

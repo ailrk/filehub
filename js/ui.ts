@@ -45,6 +45,7 @@ document.addEventListener('Opened', open);
 document.addEventListener('ThemeChanged', reloadTheme);
 document.addEventListener('UIComponentReloaded', reloadUIComponent);
 
+
 /* Preserve scroll positions */
 document.body.addEventListener('htmx:responseError', handleError);
 document.addEventListener('htmx:afterOnLoad', restoreViewScrollTop);

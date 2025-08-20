@@ -319,7 +319,7 @@ newFileModal = do
            , term "_" "on click trigger Close"
            ] do
         i_ [ class_ "bx bx-x"] mempty
-    br_ mempty >> br_ mempty
+    br_ mempty
     form_ [ term "hx-post" $ linkToText (apiLinks.newFile)
           , term "hx-target" "#view"
           , term "hx-swap" "outerHTML"
@@ -399,7 +399,6 @@ editorModal readOnly filename content = do
                , term "_" "on click trigger Close"
                ] do
             i_ [ class_ "bx bx-x"] mempty
-
 
     br_ mempty
 
