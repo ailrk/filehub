@@ -49,7 +49,7 @@ import Filehub.Target qualified as Target
 import Filehub.Target.Types.TargetView (TargetView(..))
 import Filehub.Types ( FilehubEvent (..), LoginForm(..), MoveFile (..), UIComponent (..), FileContent (..))
 import Filehub.Env qualified as Env
-import Filehub.Error ( withServerError, FilehubError(..), FilehubError(..), withServerError )
+import Filehub.Error ( withServerError, FilehubError(..), withServerError, Error' (..) )
 import Filehub.Routes (Api (..))
 import Filehub.Types
     ( SessionId(..), Display (..))
@@ -268,7 +268,7 @@ server = Api
       case selected of
         NoSelection -> do
           logAttention_ [i|No selection: #{sessionId}|]
-          throwError InvalidSelection & withServerError
+          throwError (FilehubError InvalidSelection "Nothing is selected") & withServerError
         _ -> do
           Selected.setSelected sessionId selected
           count <- Selected.countSelected sessionId & withServerError
@@ -344,13 +344,13 @@ server = Api
         let fileName = takeFileName srcPath
         isTgtDir <- storage.isDirectory tgtPath
         when (not isTgtDir) do
-          throwError InvalidDir
+          throwError $ FilehubError InvalidDir "Target is not a directory"
 
         when (srcPath == tgtPath)  do
-          throwError InvalidDir
+          throwError $ FilehubError InvalidDir "Can't move to the same directory"
 
         when (takeDirectory srcPath == tgtPath)  do
-          throwError InvalidDir
+          throwError $ FilehubError InvalidDir "Already in the current directory"
 
         storage.cp srcPath (tgtPath </> fileName)
 
@@ -611,7 +611,7 @@ thumbnail sessionId _ mFile = do
       if
         | file.mimetype `isMime` "image" ->
           storage.readStream file
-        | otherwise -> throwError InvalidMimeTypeForThumbnail & withServerError
+        | otherwise -> throwError (FilehubError FormatError "Invalid mime type for thumbnail") & withServerError
 
 
 application :: Env -> Application

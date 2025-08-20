@@ -19,7 +19,7 @@ import Effectful.FileSystem (FileSystem)
 import Effectful.Log (Log, logAttention_)
 import Filehub.Types (Env, CopyState(..), SessionId, File(..), Selected (..))
 import Filehub.Target (TargetView(..))
-import Filehub.Error (FilehubError (..))
+import Filehub.Error (FilehubError (..), Error' (..))
 import Filehub.Env qualified as Env
 import Filehub.Storage (getStorage, Storage(..))
 import Filehub.Target qualified as Target
@@ -61,7 +61,7 @@ select sessionId = do
             CopySelected {} -> pure ()
             _ -> do
               logAttention_ [i|Select error: #{sessionId}|]
-              throwError SelectError
+              throwError (FilehubError SelectError "Invalid selection")
         Selected x xs -> do
           root <- Env.getRoot sessionId
           storage <- getStorage sessionId
@@ -73,7 +73,7 @@ select sessionId = do
             CopySelected selections -> setCopyState sessionId (CopySelected (merge (target, files) selections))
             _ -> do
               logAttention_ [i|Select error: #{sessionId}|]
-              throwError SelectError
+              throwError (FilehubError SelectError "Invalid selection")
   where
     merge sel [] = [sel]
     merge sel@(target, files) (h@(target', files'):rest)
@@ -89,7 +89,7 @@ copy sessionId = do
     CopySelected selections -> setCopyState sessionId (Paste selections)
     _ -> do
       logAttention_ [i|Copy error: #{sessionId}, not in copyable state.|]
-      throwError CopyError
+      throwError (FilehubError SelectError "Not in a copyable state")
 
 
 -- | Paste files
@@ -113,4 +113,4 @@ paste sessionId = do
       Selected.clearSelectedAllTargets sessionId
     _ -> do
       logAttention_ [i|Paste error: #{sessionId}, not in pastable state.|]
-      throwError PasteError
+      throwError (FilehubError SelectError "Not in a pastable state")

@@ -23,7 +23,7 @@ import Effectful.Error.Dynamic (Error, throwError)
 import Effectful.Log (Log, logAttention, logTrace_)
 import Lens.Micro hiding (to)
 import Lens.Micro.Platform ()
-import Filehub.Error (FilehubError (..))
+import Filehub.Error (FilehubError (..), Error' (..))
 import Filehub.SessionPool qualified as SessionPool
 import Filehub.Env.Internal qualified as Env
 import Filehub.Target.Class (IsTarget(..))
@@ -44,7 +44,7 @@ currentTarget :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> 
 currentTarget sessionId = do
   mSession <- SessionPool.getSession sessionId
   targets <- Env.getTargets
-  maybe (throwError InvalidSession) pure do
+  maybe (throwError (FilehubError InvalidSession "Invalid session")) pure do
     index <- mSession ^? #index
     targetSessionData <- mSession ^? #targets . ix index
     target <- targets ^? ix index
@@ -64,7 +64,7 @@ changeCurrentTarget sessionId targetId = do
            SessionPool.updateSession sessionId (\s -> s & #index .~ idx)
          Nothing -> do
            logAttention "Can't find target" (show targetId)
-           throwError InvalidSession
+           throwError (FilehubError InvalidSession "Invalid session")
 
 
 withTarget :: (Reader Env :> es, IOE :> es, Error FilehubError :> es, Log :> es) => SessionId -> TargetId -> (TargetView -> Eff es a) -> Eff es a

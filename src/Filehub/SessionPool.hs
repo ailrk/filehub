@@ -23,7 +23,7 @@ import Control.Monad (when)
 import Filehub.Types (Session(..), SessionPool (..), Env, SessionId)
 import Filehub.Session qualified as Session
 import Filehub.Env.Internal qualified as Env
-import Filehub.Error (FilehubError (..))
+import Filehub.Error (FilehubError (..), Error' (..))
 
 
 new :: (IOE :> es) => Eff es SessionPool
@@ -72,7 +72,7 @@ getSession sessionId = do
     Just session -> pure session
     Nothing -> do
       logTrace_ [i|No such session #{sessionId}|]
-      throwError InvalidSession
+      throwError (FilehubError InvalidSession "Invalid session")
 
 
 updateSession :: (Reader Env :> es, IOE :> es) => SessionId -> (Session -> Session) -> Eff es ()

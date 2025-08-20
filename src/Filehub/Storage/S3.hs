@@ -25,7 +25,7 @@ import Effectful.Error.Dynamic (throwError)
 import Effectful.FileSystem (runFileSystem, removeFile)
 import Filehub.ClientPath (fromClientPath)
 import Filehub.Env qualified as Env
-import Filehub.Error (FilehubError (..))
+import Filehub.Error (FilehubError (..), Error' (..))
 import Filehub.Storage.Context qualified as Storage
 import Filehub.Target (TargetView(..), handleTarget)
 import Filehub.Target.S3 (Backend(..), S3)
@@ -235,7 +235,7 @@ storage sessionId =
 getS3 :: Storage.Context es => SessionId -> Eff es (Backend S3)
 getS3 sessionId = do
   TargetView target _ _ <- Env.currentTarget sessionId
-  maybe (throwError TargetError) pure $ handleTarget target
+  maybe (throwError (FilehubError TargetError "Target is not valid S3 bucket")) pure $ handleTarget target
     [ targetHandler @S3 $ \x -> x
     ]
 

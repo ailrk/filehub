@@ -16,7 +16,7 @@ import Effectful.Log (logAttention_)
 import Filehub.Target.File (FileSys)
 import Filehub.Target.S3 (S3)
 import Filehub.Target.Types (targetHandler)
-import Filehub.Error (FilehubError(..))
+import Filehub.Error (FilehubError(..), Error' (..))
 import Filehub.Env qualified as Env
 import Filehub.Target (TargetView(..), handleTarget)
 import Filehub.Storage.Context qualified as Storage
@@ -38,4 +38,4 @@ getStorage sessionId = do
   where
     onError = do
       logAttention_ "[getStorage] target error"
-      throwError TargetError
+      throwError (FilehubError TargetError "Invalid target")

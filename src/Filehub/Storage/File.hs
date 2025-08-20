@@ -20,7 +20,7 @@ import Effectful.FileSystem.IO.ByteString (hPut)
 import Effectful.Log
 import Filehub.ClientPath (fromClientPath)
 import Filehub.Env qualified as Env
-import Filehub.Error (FilehubError(..))
+import Filehub.Error (FilehubError(..), Error' (..))
 import Filehub.Types ( SessionId, File(..), FileContent(..), ClientPath )
 import Filehub.Target.Types (Storage(..))
 import Filehub.Storage.Context qualified as Storage
@@ -86,7 +86,7 @@ newFolder sessionId name = do
   exists <- doesFileExist filePath
   when exists do
     logAttention "[newFolder] path doesn't exists:" filePath
-    throwError FileExists
+    throwError (FilehubError FileExists "Folder already exists")
   createDirectoryIfMissing True filePath
 
 
@@ -96,7 +96,7 @@ new sessionId name = do
   exists <- doesFileExist filePath
   when exists do
     logAttention "[new] path doesn't exists:" filePath
-    throwError FileExists
+    throwError (FilehubError FileExists "File already exists")
   withFile filePath ReadWriteMode (\_ -> pure ())
 
 
@@ -143,7 +143,7 @@ ls sessionId path = do
   exists <- doesDirectoryExist path
   unless exists do
     logAttention "[lsDir] dir doesn't exists:" path
-    throwError InvalidDir
+    throwError (FilehubError InvalidDir "Can't list, not a directory")
   withCurrentDirectory path $
     listDirectory path
       >>= traverse makeAbsolute
@@ -155,7 +155,7 @@ cd sessionId path = do
   exists <- doesDirectoryExist path
   unless exists do
     logAttention "[cd] dir doesn't exists:" path
-    throwError InvalidDir
+    throwError (FilehubError InvalidDir "Can enter, not a directory")
   Env.setCurrentDir sessionId path
 
 
@@ -165,7 +165,7 @@ lsCwd sessionId = do
   exists <- doesDirectoryExist path
   unless exists do
     logAttention "[lsCwd] dir doesn't exists:" path
-    throwError InvalidDir
+    throwError (FilehubError InvalidDir "Not a directory")
   ls sessionId path
 
 
