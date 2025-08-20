@@ -313,51 +313,53 @@ search (SearchWord searchWord) target root files selected order layout = do
 newFileModal :: Html ()
 newFileModal = do
   modal [ id_ newFileModalId ] do
-    bold "File"
+    span_ [ class_ "modal-title-bar " ] do
+      bold "Folder"
+      div_ [ class_ "title-bar-btn btn-modal-close "
+           , term "_" "on click trigger Close"
+           ] do
+        i_ [ class_ "bx bx-x"] mempty
     br_ mempty >> br_ mempty
     form_ [ term "hx-post" $ linkToText (apiLinks.newFile)
           , term "hx-target" "#view"
           , term "hx-swap" "outerHTML"
           ] do
-      input_ [ class_ "form-control "
-             , type_ "text"
-             , name_ "new-file"
-             , placeholder_ "New file name"
-             ]
-      br_ mempty >> br_ mempty
-      button_ [ class_ "btn btn-modal-confirm mr-2 "
-              , type_ "submit"
-              , term "_" "on click trigger Close"
-              ] "CREATE"
-      button_ [ class_ "btn btn-modal-close "
-              , type_ "button" -- prevent submission
-              , term "_" "on click trigger Close"
-              ] "CLOSE"
+      div_ [ style_ "display: flex" ] do
+        input_ [ class_ "form-control "
+               , type_ "text"
+               , name_ "new-file"
+               , placeholder_ "New file name"
+               ]
+        button_ [ class_ "btn btn-modal-confirm "
+                , type_ "submit"
+                , term "_" "on click trigger Close"
+                ] "CREATE"
 
 
 newFolderModal :: Html ()
 newFolderModal = do
   modal [ id_ newFolderModalId ] do
-    bold "Folder"
+    span_ [ class_ "modal-title-bar " ] do
+      bold "Folder"
+      div_ [ class_ "title-bar-btn btn-modal-close "
+           , term "_" "on click trigger Close"
+           ] do
+        i_ [ class_ "bx bx-x"] mempty
     br_ mempty >> br_ mempty
     form_ [ term "hx-post" $ linkToText (apiLinks.newFolder)
           , term "hx-target" "#view"
           , term "hx-swap" "outerHTML"
           ] do
-      input_ [ class_ "form-control "
-             , type_ "text"
-             , name_ "new-folder"
-             , placeholder_ "New folder name"
-             ]
-      br_ mempty >> br_ mempty
-      button_ [ class_ "btn btn-modal-confirm mr-2 "
-              , type_ "submit"
-              , term "_" "on click trigger Close"
-              ] "CREATE"
-      button_ [ class_ "btn btn-modal-close "
-              , type_ "button"
-              , term "_" "on click trigger Close"
-              ] "CLOSE"
+      div_ [ style_ "display: flex" ] do
+        input_ [ class_ "form-control "
+               , type_ "text"
+               , name_ "new-folder"
+               , placeholder_ "New folder name"
+               ]
+        button_ [ class_ "btn btn-modal-confirm "
+                , type_ "submit"
+                , term "_" "on click trigger Close"
+                ] "CREATE"
 
 
 fileDetailModal :: File -> Html ()
@@ -425,7 +427,7 @@ editorModal readOnly filename content = do
         True -> do
           mempty
         False -> do
-          button_ [ class_ "btn btn-modal-confirm mr-2 "
+          button_ [ class_ "btn btn-modal-confirm "
                   , term "_" "on click trigger Close"
                   ] "EDIT"
 
