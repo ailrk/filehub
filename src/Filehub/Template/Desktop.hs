@@ -249,13 +249,12 @@ controlPanel layout theme =
 
     logoutBtn :: Html ()
     logoutBtn = do
-      button_ [ class_ "btn btn-control"
+      button_ [ class_ "btn btn-control urgent "
               , type_ "submit"
               , term "hx-post" $ linkToText apiLinks.logout
               , term "hx-target" "#index"
               , term "hx-swap" "outerHTML"
               , term "hx-confirm" "Logout?"
-              , term "data-btn-title" "Logout"
               ] do
         span_ [ class_ "field " ] do
           i_ [ class_ "bx bx-power-off" ] mempty

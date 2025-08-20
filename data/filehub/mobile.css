@@ -526,6 +526,11 @@ input.form-control {
 }
 
 
+.urgent {
+  color: var(--secondary);
+}
+
+
 .debug {
   position: fixed;
   top: 5px;
