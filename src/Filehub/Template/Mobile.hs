@@ -267,6 +267,7 @@ controlPanel theme =
     deleteBtn
     cancelBtn
     themeBtn
+    logoutBtn
     Nothing
     (Just scroll2TopBtn)
   where
@@ -383,6 +384,21 @@ controlPanel theme =
         span_ [ class_ "field " ] do
           i_ [ class_ "bx bxs-message-alt-x" ] mempty
           span_ "Cancel"
+
+
+    logoutBtn :: Html ()
+    logoutBtn = do
+      button_ [ class_ "btn btn-control"
+              , type_ "submit"
+              , term "hx-post" $ linkToText apiLinks.logout
+              , term "hx-target" "#index"
+              , term "hx-swap" "outerHTML"
+              , term "hx-confirm" "Logout?"
+              , term "data-btn-title" "Logout"
+              ] do
+        span_ [ class_ "field " ] do
+          i_ [ class_ "bx bx-power-off" ] mempty
+          span_ "Logout"
 
 
     themeBtn :: Html ()

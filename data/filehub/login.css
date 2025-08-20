@@ -48,7 +48,7 @@ html, body {
 
 #login input:focus {
   outline: none;
-  box-shadow: none;
+  box-shadow: 0 0 0 2px var(--secondary);
 }
 
 /* Buttons full width */

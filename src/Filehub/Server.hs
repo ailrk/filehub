@@ -20,7 +20,7 @@ import Data.ByteString.Char8 qualified as ByteString
 import Data.Aeson (object, KeyValue (..), (.:), withObject)
 import Data.Aeson.Types (parseMaybe)
 import Data.FileEmbed qualified as FileEmbed
-import Data.Time (secondsToNominalDiffTime)
+import Data.Time (secondsToNominalDiffTime, UTCTime (..), fromGregorian)
 import Data.Map.Strict qualified as Map
 import Data.Map.Strict (Map)
 import Effectful.Log (logAttention_, logInfo_)
@@ -100,7 +100,7 @@ import Filehub.Server.Handler (ConfirmLogin)
 import Filehub.User qualified as User
 import Filehub.User (Username(..))
 import Filehub.Cookie qualified as Cookies
-import Web.Cookie (SetCookie)
+import Web.Cookie (SetCookie (..))
 import Network.HTTP.Types.Header (hLocation)
 import Effectful.Reader.Dynamic (asks)
 import System.Directory (removeFile)
@@ -167,6 +167,9 @@ server = Api
 
 
   , loginPost = loginPost
+
+
+  , logout = logout
 
 
   , cd = \sessionId _ mClientPath -> do
@@ -539,6 +542,24 @@ loginPost sessionId (LoginForm username password) =  do
         addHeader setCookie . addHeader "/" <$> pure mempty
       Nothing -> do noHeader . noHeader <$> pure Template.loginFailed
   else do noHeader . noHeader <$> pure Template.loginFailed
+
+
+
+logout :: SessionId -> ConfirmLogin -> Filehub (Headers '[ Header "Set-Cookie" SetCookie
+                                                         , Header "HX-Redirect" Text
+                                                         ] (Html ()))
+logout sessionId _ = do
+  session <- Env.getSession sessionId & withServerError
+  case Cookie.setAuthId session of
+    Just setCookie -> do
+      Env.setAuthId sessionId Nothing
+      addHeader
+        (setCookie
+          { setCookieExpires = Just (UTCTime (fromGregorian 1970 1 1) 0) })
+        . addHeader "/login"
+        <$> pure mempty
+
+    Nothing -> noHeader . noHeader <$> pure mempty
 
 
 view :: SessionId -> Filehub (Html ())

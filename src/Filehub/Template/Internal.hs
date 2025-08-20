@@ -98,7 +98,7 @@ searchBar = do
 
 
 controlPanel
-  :: Html () -> Html () -> Html () -> Html () -> Html () -> Html () -> Html () -> Html () -> Maybe (Html()) -> Maybe (Html ())
+  :: Html () -> Html () -> Html () -> Html () -> Html () -> Html () -> Html () -> Html () -> Html ()-> Maybe (Html()) -> Maybe (Html ())
   -> Bool -> ControlPanelState -> Html ()
 controlPanel
   newFolderBtn
@@ -109,6 +109,7 @@ controlPanel
   deleteBtn
   cancelBtn
   themeBtn
+  logoutBtn
   mLayoutBtn
   mScroll2TopBtn
   readOnly state = do
@@ -127,6 +128,8 @@ controlPanel
           div_ [ id_ controlPanelId ] do
             maybe mempty id mLayoutBtn
             themeBtn
+            logoutBtn
+            span_ [ style_ "display:inline-block; width: 20px"]  mempty
             newFolderBtn
             newFileBtn
             uploadBtn
@@ -135,6 +138,8 @@ controlPanel
           div_ [ id_ controlPanelId ] do
             maybe mempty id mLayoutBtn
             themeBtn
+            logoutBtn
+            span_ [ style_ "display:inline-block; width: 20px"]  mempty
             newFolderBtn
             newFileBtn
             uploadBtn
@@ -146,6 +151,8 @@ controlPanel
           div_ [ id_ controlPanelId ] do
             maybe mempty id mLayoutBtn
             themeBtn
+            logoutBtn
+            span_ [ style_ "display:inline-block; width: 20px"]  mempty
             newFolderBtn
             newFileBtn
             uploadBtn

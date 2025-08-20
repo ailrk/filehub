@@ -110,6 +110,14 @@ data Api mode = Api
                                               , Header "HX-Redirect" Text
                                               ] (Html ()))
 
+  , logout          :: mode
+                    :- "logout"
+                    :> AuthProtect "session"
+                    :> AuthProtect "login"
+                    :> Post '[HTML] (Headers '[ Header "Set-Cookie" SetCookie
+                                              , Header "HX-Redirect" Text
+                                              ] (Html ()))
+
 
   , cd              :: mode
                     :- "cd"
