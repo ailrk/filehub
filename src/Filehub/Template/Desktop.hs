@@ -720,6 +720,16 @@ contextMenu readOnly root files = do
       span_ "Download"
 
 
+    div_ [ class_ "dropdown-item"
+         , term "hx-post" $ linkToText apiLinks.cancel
+         , term "hx-target" "#index"
+         , term "hx-swap" "outerHTML"
+         ] do
+      i_ [ class_ "bx bx-message-alt-x" ] mempty
+      span_ "Cancel"
+
+
+
 ------------------------------------
 -- component ids
 ------------------------------------
