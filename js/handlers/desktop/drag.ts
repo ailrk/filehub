@@ -66,16 +66,11 @@ function handleDragStart(e: Event) {
 async function drawIconAsync(wrappers: HTMLElement[]): Promise<HTMLImageElement> {
   const canvas = document.createElement('canvas');
   const theme = getComputedStyle(document.querySelector(':root')!);
-
-  canvas.width = 400;
-  canvas.height = 400;
-  const ctx = canvas.getContext('2d')!;
-
   const dx = 8;
   const dr = 4 * Math.PI / 180;
-
-  // Gather all <img> elements
+  const ctx = canvas.getContext('2d')!;
   const imgs: HTMLImageElement[] = [];
+  const shift = Math.min (wrappers.length * 10, 50);
   wrappers.forEach(wrapper => {
     const ele = wrapper.children[0];
     if (ele.tagName === 'IMG') {
@@ -85,15 +80,27 @@ async function drawIconAsync(wrappers: HTMLElement[]): Promise<HTMLImageElement>
     }
   });
 
+  canvas.width = 500;
+  canvas.height = 500;
+
   // Wait for all images to load
   await Promise.all(imgs.map(img =>
     img.complete
     ? Promise.resolve()
     : new Promise<void>(res => img.addEventListener('load', () => res(), { once: true }))
   ));
+  await document.fonts.ready;
 
   fillRoundedRect(ctx, 0, 0, canvas.width, canvas.height, 16, theme.getPropertyValue('--background3'))
-  wrappers.forEach((wrapper, i) => {
+  wrappers
+  .sort((w1, w2)=> {
+    let t1 = w1.children[0].tagName
+    let t2 = w2.children[0].tagName
+    if (t1 == 'IMG' && t2 == 'I') { return -1; }
+    if (t1 == 'I' && t2 == 'IMG') { return 1; }
+    return 0;
+  })
+  .forEach((wrapper, i) => {
     ctx.save();
     ctx.translate(canvas.width / 2 + dx * i, canvas.height / 2);
     ctx.rotate(dr * i);
@@ -101,26 +108,25 @@ async function drawIconAsync(wrappers: HTMLElement[]): Promise<HTMLImageElement>
     const ele = wrapper.children[0];
     if (ele.tagName === 'IMG') {
       const img = ele as HTMLImageElement;
-      const scale = Math.min(180 / img.naturalWidth, 180 / img.naturalHeight);
+      const scale = Math.min(300 / img.naturalWidth, 300 / img.naturalHeight);
       const w = img.naturalWidth * scale;
       const h = img.naturalHeight * scale;
-      ctx.drawImage(img, -w/2, -h/2, w, h);
+      ctx.drawImage(img, (-w/2) - shift, -h/2, w, h);
 
     } else if (ele.tagName === 'I') {
       const icon = ele as HTMLElement;
-      const style = getComputedStyle(icon);
-      const fontSize = parseFloat(style.fontSize);
+      const style = getComputedStyle(icon, '::before');
+      const fontSize = 2 * parseFloat(style.fontSize);
       ctx.font = `${style.fontWeight} ${fontSize}px ${style.fontFamily}`;
       ctx.fillStyle = style.color;
       ctx.textBaseline = 'middle';
       ctx.textAlign = 'center';
-      ctx.fillText(icon.textContent || '', 0, 0);
+      ctx.fillText(style.content.replace(/^"(.*)"$/, '$1') || 'X', 0, 0);
     }
 
     ctx.restore();
   });
 
-  // Return as image
   const img = new Image();
   img.src = canvas.toDataURL();
   img.style.borderRadius = '6px';
