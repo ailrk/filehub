@@ -345,7 +345,7 @@ newFolderModal = do
            , term "_" "on click trigger Close"
            ] do
         i_ [ class_ "bx bx-x"] mempty
-    br_ mempty >> br_ mempty
+    br_ mempty
     form_ [ term "hx-post" $ linkToText (apiLinks.newFolder)
           , term "hx-target" "#view"
           , term "hx-swap" "outerHTML"
@@ -366,7 +366,7 @@ fileDetailModal :: File -> Html ()
 fileDetailModal file = do
   modal [ id_ fileDetailModalId ] do
     bold "Detail"
-    br_ mempty >> br_ mempty
+    br_ mempty
     table_ do
       tbody_ do
         tr_ do
@@ -389,11 +389,19 @@ fileDetailModal file = do
 editorModal :: Bool -> FilePath -> ByteString -> Html ()
 editorModal readOnly filename content = do
   modal [ id_ editorModalId ] do
+
     case readOnly of
       True -> bold "Read-only"
-      False -> bold "Edit"
+      False ->  do
+        span_ [ class_ "modal-title-bar " ] do
+          bold "Edit"
+          div_ [ class_ "title-bar-btn btn-modal-close "
+               , term "_" "on click trigger Close"
+               ] do
+            i_ [ class_ "bx bx-x"] mempty
 
-    br_ mempty >> br_ mempty
+
+    br_ mempty
 
     form_ [ term "hx-post" $ linkToText (apiLinks.updateFile)
           , term "hx-confirm" ("Save the edit of " <> Text.pack filename <> "?")
@@ -405,7 +413,8 @@ editorModal readOnly filename content = do
              , placeholder_ "Filename"
              ]
 
-      br_ mempty >> br_ mempty
+      br_ mempty
+      br_ mempty
 
       textarea_
         (mconcat
@@ -420,21 +429,15 @@ editorModal readOnly filename content = do
         )
         (toHtml $ Text.decodeUtf8 content)
 
-
       br_ mempty >> br_ mempty
 
       case readOnly of
         True -> do
           mempty
         False -> do
-          button_ [ class_ "btn btn-modal-confirm "
+          button_ [ class_ "btn btn-modal-confirm-1 "
                   , term "_" "on click trigger Close"
                   ] "EDIT"
-
-          button_ [ class_ "btn btn-modal-close "
-                  , type_ "button"
-                  , term "_" "on click trigger Close"
-                  ] "CLOSE"
 
 
 ------------------------------------

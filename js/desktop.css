@@ -509,6 +509,12 @@ textarea.form-control {
   }
 
 
+  & .btn-modal-confirm-1 {
+    background: var(--primary);
+    border-radius: 5px !important;
+  }
+
+
   & > #new-file-modal {
     width: 100%;
     max-width: 300px;
