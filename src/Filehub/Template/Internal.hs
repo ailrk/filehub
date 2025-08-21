@@ -17,6 +17,7 @@ import Data.Sequence qualified as Seq
 import Data.Foldable (Foldable(..))
 import System.FilePath (splitPath)
 import Filehub.Mime (isMime)
+import Control.Monad (when)
 
 
 withDefault :: Display -> Text -> Html () -> Html ()
@@ -98,8 +99,8 @@ searchBar = do
 
 
 controlPanel
-  :: Html () -> Html () -> Html () -> Html () -> Html () -> Html () -> Html () -> Html () -> Html ()-> Maybe (Html()) -> Maybe (Html ())
-  -> Bool -> ControlPanelState -> Html ()
+  :: Html () -> Html () -> Html () -> Html () -> Html () -> Html () -> Html () -> Html () -> Html () -> Maybe (Html()) -> Maybe (Html ())
+  -> Bool -> Bool -> ControlPanelState -> Html ()
 controlPanel
   newFolderBtn
   newFileBtn
@@ -112,7 +113,7 @@ controlPanel
   logoutBtn
   mLayoutBtn
   mScroll2TopBtn
-  readOnly state = do
+  readOnly noLogin state = do
   case readOnly of
     True ->
       div_ [ id_ controlPanelId ] do
@@ -128,8 +129,8 @@ controlPanel
           div_ [ id_ controlPanelId ] do
             maybe mempty id mLayoutBtn
             themeBtn
-            logoutBtn
-            span_ [ style_ "display:inline-block; width: 20px"]  mempty
+            when (not noLogin) logoutBtn
+            sep
             newFolderBtn
             newFileBtn
             uploadBtn
@@ -138,8 +139,8 @@ controlPanel
           div_ [ id_ controlPanelId ] do
             maybe mempty id mLayoutBtn
             themeBtn
-            logoutBtn
-            span_ [ style_ "display:inline-block; width: 20px"]  mempty
+            when (not noLogin) logoutBtn
+            sep
             newFolderBtn
             newFileBtn
             uploadBtn
@@ -151,14 +152,16 @@ controlPanel
           div_ [ id_ controlPanelId ] do
             maybe mempty id mLayoutBtn
             themeBtn
-            logoutBtn
-            span_ [ style_ "display:inline-block; width: 20px"]  mempty
+            when (not noLogin) logoutBtn
+            sep
             newFolderBtn
             newFileBtn
             uploadBtn
             pasteBtn
             cancelBtn
             maybe mempty id mScroll2TopBtn
+  where
+    sep = span_ [ style_ "display:inline-block; width: 20px"]  mempty
 
 
 login :: Html ()

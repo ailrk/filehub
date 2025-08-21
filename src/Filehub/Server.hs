@@ -343,8 +343,8 @@ server = Api
       let srcPaths = fmap (ClientPath.fromClientPath root) src
       let tgtPath = ClientPath.fromClientPath root tgt
 
+      -- check before take action
       forM_ srcPaths $ \srcPath -> withServerError do
-        let fileName = takeFileName srcPath
         isTgtDir <- storage.isDirectory tgtPath
         when (not isTgtDir) do
           throwError $ FilehubError InvalidDir "Target is not a directory"
@@ -355,8 +355,9 @@ server = Api
         when (takeDirectory srcPath == tgtPath)  do
           throwError $ FilehubError InvalidDir "Already in the current directory"
 
+      forM_ srcPaths $ \srcPath -> withServerError do
+        let fileName = takeFileName srcPath
         storage.cp srcPath (tgtPath </> fileName)
-
         storage.delete srcPath
       addHeader FileMoved <$> index sessionId
 
@@ -577,12 +578,13 @@ controlPanel sessionId = withServerError do
   theme <- Env.getSessionTheme sessionId
   layout <- Env.getLayout sessionId
   readOnly <- Env.getReadOnly
+  noLogin <- Env.getNoLogin
   state <- ControlPanel.getControlPanelState sessionId
   pure $
     case display of
-      Desktop -> Template.Desktop.controlPanel layout theme readOnly state
-      Mobile -> Template.Mobile.controlPanel theme readOnly state
-      NoDisplay -> Template.Mobile.controlPanel theme readOnly state
+      Desktop -> Template.Desktop.controlPanel layout theme readOnly noLogin state
+      Mobile -> Template.Mobile.controlPanel theme readOnly noLogin state
+      NoDisplay -> Template.Mobile.controlPanel theme readOnly noLogin state
 
 
 sideBar :: SessionId -> Filehub (Html ())

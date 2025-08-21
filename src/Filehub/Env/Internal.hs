@@ -5,6 +5,7 @@ module Filehub.Env.Internal
   , getReadOnly
   , getSessionDuration
   , getTargets
+  , getNoLogin
   , getUserDB
   )
   where
@@ -43,6 +44,10 @@ getSessionDuration = asks @Env (.sessionDuration)
 
 getTargets :: (Reader Env :> es) => Eff es [Target]
 getTargets = asks @Env (.targets)
+
+
+getNoLogin :: (Reader Env :> es) => Eff es Bool
+getNoLogin = asks @Env (.noLogin)
 
 
 getUserDB :: (Reader Env :> es) => Eff es UserDB

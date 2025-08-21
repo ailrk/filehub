@@ -41,20 +41,21 @@ import Filehub.Theme (Theme(..))
 
 
 index :: Bool
+      -> Bool
       -> Html ()
       -> Html ()
       -> Theme
       -> ControlPanelState
       -> Int
       -> Html ()
-index readOnly sideBar' view' theme controlPanelState selectedCount = do
+index readOnly noLogin sideBar' view' theme controlPanelState selectedCount = do
   safeAreaShim
   div_ [ id_ "index" ] do
     overlay
     selectedCounter selectedCount
     sideBar'
     view'
-    controlPanel theme readOnly controlPanelState
+    controlPanel theme readOnly noLogin controlPanelState
     controlPanelBtn
 
 
@@ -256,7 +257,7 @@ table target root files selected = do
             ]
 
 
-controlPanel :: Theme -> Bool -> ControlPanelState -> Html ()
+controlPanel :: Theme -> Bool -> Bool -> ControlPanelState -> Html ()
 controlPanel theme =
   Template.controlPanel
     newFolderBtn

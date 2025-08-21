@@ -65,16 +65,17 @@ import Control.Monad (when)
 
 
 index :: Bool
+      -> Bool
       -> Html ()
       -> Html ()
       -> Layout
       -> Theme
       -> ControlPanelState
       -> Html ()
-index readOnly sideBar' view' layout theme controlPanelState = do
+index readOnly noLogin sideBar' view' layout theme controlPanelState = do
   div_ [ id_ "index" ] do
     sideBar'
-    controlPanel layout theme readOnly controlPanelState
+    controlPanel layout theme readOnly noLogin controlPanelState
     view'
 
 
@@ -132,7 +133,7 @@ sideBar targets (TargetView currentTarget _ _) = do
             ]
 
 
-controlPanel :: Layout -> Theme -> Bool -> ControlPanelState -> Html ()
+controlPanel :: Layout -> Theme -> Bool -> Bool -> ControlPanelState -> Html ()
 controlPanel layout theme =
   Template.controlPanel
     newFolderBtn
