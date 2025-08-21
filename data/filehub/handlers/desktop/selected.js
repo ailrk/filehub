@@ -7,6 +7,7 @@ const selectedIds = new Set();
 let selectionScreen = null;
 let clearSelectedHandler = _ => selectedIds.clear();
 let dragging = false;
+let isMouseDown = false;
 let fileItems;
 let table;
 let view;
@@ -69,10 +70,10 @@ function handleMouseDown(e) {
         return;
     if (!(e instanceof MouseEvent))
         return;
-    // otherwise, it'
+    isMouseDown = true;
+    dragging = false;
     selectionScreen?.elt.remove();
     fileItems = document.querySelectorAll('#table .table-item'); // cache file items
-    dragging = false;
     let x = e.clientX;
     let y = e.clientY;
     let elt = document.createElement('div');
@@ -88,6 +89,8 @@ function handleMouseMove(e) {
     if (!(e instanceof MouseEvent))
         return;
     if (selectionScreen === null)
+        return;
+    if (!isMouseDown)
         return;
     let x = e.clientX;
     let y = e.clientY;
@@ -116,6 +119,7 @@ function handleMouseMove(e) {
         .forEach(selectN);
 }
 function handleMouseUp(e) {
+    isMouseDown = false;
     function handleClick(e) {
         if (!(e instanceof MouseEvent))
             return;
@@ -126,13 +130,16 @@ function handleMouseUp(e) {
     }
     if (!(e instanceof MouseEvent))
         return;
-    if (!dragging && ((e.ctrlKey || e.metaKey))) {
-        view.addEventListener('click', prevent, true);
-        // 'click' is fired right after mouseup.
-        // we block click on this event loop cycle. set timeout 0 will trigger the call back
-        // on the next cycle, in which click is fired exactly once.
-        setTimeout(() => { view.removeEventListener("click", prevent, true); }, 0);
-        handleClick(e);
+    if (!dragging) {
+        if (e.ctrlKey || e.metaKey) {
+            view.addEventListener('click', prevent, true);
+            // 'click' is fired right after mouseup.
+            // we block click on this event loop cycle. set timeout 0 will trigger the call back
+            // on the next cycle, in which click is fired exactly once.
+            setTimeout(() => { view.removeEventListener("click", prevent, true); }, 0);
+            handleClick(e);
+        }
+        return;
     }
     // update sidebar
     htmx

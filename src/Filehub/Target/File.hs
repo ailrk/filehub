@@ -6,7 +6,7 @@ import Data.Text (Text)
 import Effectful (IOE, (:>), Eff, MonadIO (..))
 import Effectful.Log (Log, logInfo_)
 import Effectful.FileSystem (FileSystem, makeAbsolute)
-import Filehub.Options (FSTargetOption(..))
+import Filehub.Config (FSTargetConfig(..))
 import Data.String.Interpolate (i)
 import Data.UUID.V4 qualified as UUID
 
@@ -25,7 +25,7 @@ instance IsTarget FileSys where
 
 
 
-initialize :: (IOE :> es, Log :> es, FileSystem :> es) => FSTargetOption -> Eff es (Backend FileSys)
+initialize :: (IOE :> es, Log :> es, FileSystem :> es) => FSTargetConfig -> Eff es (Backend FileSys)
 initialize opt = do
   targetId <- liftIO $ TargetId <$> UUID.nextRandom
   root <- makeAbsolute opt.root

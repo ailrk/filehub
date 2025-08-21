@@ -6,7 +6,7 @@ import Data.Text (Text)
 import Amazonka.Env qualified as Amazonka
 import Effectful (IOE, (:>), Eff, MonadIO (..))
 import Effectful.Log (Log, logInfo_)
-import Filehub.Options (S3TargetOption(..))
+import Filehub.Config (S3TargetConfig(..))
 import Data.String.Interpolate (i)
 import Amazonka.Types qualified as Amazonka
 import Data.UUID.V4 qualified as UUID
@@ -36,7 +36,7 @@ instance IsTarget S3 where
 
 -- | The default `discover` method only discover `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`,
 --   and `AWS_SESSION_TOKEN`. To set custom endpoint url, we also need to hand `AWS_ENDPOINT_URL`.
-initialize :: (IOE :> es, Log :> es) => S3TargetOption -> Eff es (Backend S3)
+initialize :: (IOE :> es, Log :> es) => S3TargetConfig -> Eff es (Backend S3)
 initialize opt = do
   targetId <- liftIO $ TargetId <$> UUID.nextRandom
   let bucket = Text.pack opt.bucket

@@ -25,7 +25,7 @@ import Crypto.BCrypt qualified as BCrypt
 import Effectful (Eff, (:>), MonadIO (..), IOE)
 import Effectful.FileSystem (FileSystem)
 import Effectful.FileSystem.IO.ByteString (readFile)
-import Filehub.Options (LoginInfo(..))
+import Filehub.Config (LoginUser(..))
 import Control.Monad (forM)
 import Data.Maybe (maybeToList)
 import Prelude hiding (readFile)
@@ -49,17 +49,14 @@ validate name password (UserDB db) =
     Nothing -> False
 
 
-createUserDB :: (FileSystem :> es, IOE :> es) => LoginInfo -> Eff es UserDB
+createUserDB :: (IOE :> es) => [LoginUser] -> Eff es UserDB
 createUserDB loginInfo =
   case loginInfo of
-    LoginInfo1 infos -> fromList infos
-    LoginInfo2 path -> do
-      infos <- readLoginConfig path
-      fromList infos
-    NoLogin -> pure (UserDB mempty)
+    [] -> pure (UserDB mempty)
+    infos -> fromList infos
   where
     fromList xs = liftIO $ do
-      infos <- forM xs $ \(u, p) -> do
+      infos <- forM xs $ \(LoginUser u p) -> do
         let username = Username . Text.pack $ u
         mHash <- BCrypt.hashPasswordUsingPolicy BCrypt.slowerBcryptHashingPolicy (Char8.pack p)
         pure $ maybeToList $ fmap (\hash -> (username, PasswordHash hash)) mHash

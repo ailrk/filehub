@@ -62,7 +62,9 @@ import Filehub.Selected qualified as Selected
 import Filehub.Env
 import Filehub.Log qualified as Log
 import Filehub.Monad
-import Filehub.Options (Options(..), parseOptions, TargetOption (..), LoginInfo (..))
+import Filehub.Options (parseOptions, Options(..))
+import Filehub.Config (Config(..), TargetConfig (..))
+import Filehub.Config qualified as Config
 import Filehub.Routes qualified as Routes
 import Filehub.Server.Handler qualified as Server.Handler
 import Filehub.Server.Middleware qualified as Server.Middleware
@@ -89,6 +91,11 @@ import Filehub.Viewer qualified as Viewer
 import Filehub.ControlPanel qualified as ControlPanel
 import Filehub.Storage (getStorage, Storage(..))
 import Filehub.Cookie qualified as Cookie
+import Filehub.Server.Handler (ConfirmLogin)
+import Filehub.User qualified as User
+import Filehub.User (Username(..))
+import Filehub.Cookie qualified as Cookies
+import Filehub.Toml qualified as Toml
 import Conduit (ConduitT, ResourceT)
 import Conduit qualified
 import Network.Wai.Handler.Warp (setPort, defaultSettings, runSettings)
@@ -96,15 +103,13 @@ import Network.Wai.Middleware.RequestLogger (logStdout)
 import System.Environment (withArgs)
 import UnliftIO (hFlush, stdout)
 import Network.Mime qualified as Mime
-import Filehub.Server.Handler (ConfirmLogin)
-import Filehub.User qualified as User
-import Filehub.User (Username(..))
-import Filehub.Cookie qualified as Cookies
 import Web.Cookie (SetCookie (..))
 import Network.HTTP.Types.Header (hLocation)
 import Effectful.Reader.Dynamic (asks)
 import System.Directory (removeFile)
 import System.Random (randomRIO)
+import Data.Functor.Identity (Identity(..))
+import Control.Exception (throwIO)
 
 
 #ifdef DEBUG
@@ -661,30 +666,39 @@ application env
 
 main :: IO ()
 main = Log.withColoredStdoutLogger \logger -> do
-  options <- parseOptions
+  Options { configFile = configFile, optionConfig } <- parseOptions
+  config <- Toml.parseConfigFile configFile
+  Config
+    { port      = Identity port
+    , theme     = Identity theme
+    , verbosity = Identity verbosity
+    , readOnly  = Identity readOnly
+    , targets   = Identity targetConfigs
+    , loginUsers = Identity loginUsers
+    } <- either (\err -> throwIO (userError err)) pure (Config.merge optionConfig config)
   sessionPool <- runEff SessionPool.new
-  targets <- runEff . runLog "Targets" logger options.verbosity . runFileSystem $ fromTargetOptions options.targets
-  userDB <- runEff . runFileSystem $ User.createUserDB options.loginInfo
+  targets <- runEff . runLog "Targets" logger verbosity . runFileSystem $ fromTargetConfig targetConfigs
+  userDB <- runEff . runFileSystem $ User.createUserDB loginUsers
 
-  printf "PORT: %d\n" options.port
-  printf "V: %s\n" (show options.verbosity)
+  printf "PORT: %d\n" port
+  printf "V: %s\n" (show verbosity)
 #ifdef DEBUG
   printf "DEBUG build\n"
 #endif
 
   let env =
         Env
-          { port = options.port
-          , theme = options.theme
+          { port = port
+          , theme = theme
           , sessionPool = sessionPool
           , sessionDuration = secondsToNominalDiffTime (60 * 60)
           , targets = targets
-          , readOnly = options.readOnly
+          , readOnly = readOnly
           , logger = logger
-          , logLevel = options.verbosity
+          , logLevel = verbosity
           , userDB = userDB
-          , noLogin = case options.loginInfo of
-                        NoLogin -> True
+          , noLogin = case loginUsers of
+                        [] -> True
                         _ -> False
           }
   go env `catch` handler
@@ -695,10 +709,10 @@ main = Log.withColoredStdoutLogger \logger -> do
       runSettings settings . logStdout $ application env
     handler (e :: SomeException) = putStrLn ("server is down " <> show e) >> hFlush stdout
 
-    fromTargetOptions opts = traverse transform opts
+    fromTargetConfig opts = traverse transform opts
       where
-        transform (FSTargetOption opt) = Target <$> FS.initialize opt
-        transform (S3TargetOption opt) = Target <$> S3.initialize opt
+        transform (FSTargetConfig c) = Target <$> FS.initialize c
+        transform (S3TargetConfig c) = Target <$> S3.initialize c
 
 
 -- | For developement with ghciwatch

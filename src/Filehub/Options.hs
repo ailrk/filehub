@@ -1,60 +1,49 @@
 module Filehub.Options
-  ( Options(..)
-  , TargetOption(..)
-  , FSTargetOption(..)
-  , S3TargetOption(..)
-  , LoginInfo(..)
-  , parseOptions
+  ( parseOptions
+  , Options(..)
   )
   where
 
-import Data.List.Split (splitOn)
+
+import Filehub.Config
 import Options.Applicative
-import Filehub.Theme (Theme(..))
-import Log (LogLevel(..))
+  ( Parser
+  , ReadM
+  , Alternative (..)
+  , option
+  , str
+  , long
+  , metavar
+  , help
+  , eitherReader
+  , switch
+  , auto
+  , value
+  , flag'
+  , short
+  , execParser
+  , info, (<**>)
+  , helper
+  , fullDesc
+  , progDesc
+  , optional
+  )
+import Effectful.Log (LogLevel (..))
+import Filehub.Theme (Theme (..))
+import Data.List.Split (splitOn)
 
 
 data Options = Options
-  { port :: Int
-  , theme :: Theme
-  , verbosity :: LogLevel
-  , readOnly :: Bool
-  , targets :: [TargetOption]
-  , loginInfo :: LoginInfo
+  { optionConfig :: Config Maybe
+  , configFile :: Maybe FilePath
   }
-  deriving (Show)
 
 
-data LoginInfo
-  = LoginInfo1 [(String, String)]
-  | LoginInfo2 FilePath
-  | NoLogin
-  deriving (Show)
-
-
-data TargetOption
-  = FSTargetOption FSTargetOption
-  | S3TargetOption S3TargetOption
-  deriving (Show)
-
-
-data FSTargetOption = FSTargetOption_
-  { root :: FilePath
-  }
-  deriving (Show)
-
-
-data S3TargetOption = S3TargetOption_
-  { bucket :: String
-  }
-  deriving (Show)
-
-
-targetOption :: Parser TargetOption
-targetOption = (S3TargetOption <$> s3TargetOption) <|> (FSTargetOption <$> fsTargetOption)
+targetConfig :: Parser TargetConfig
+targetConfig = (S3TargetConfig <$> s3TargetConfig) <|> (FSTargetConfig <$> fsTargetConfig)
   where
-    s3TargetOption =
-        S3TargetOption_
+    s3TargetConfig =
+        S3TargetConfig_
             <$> option str
                   (mconcat
                     [ long "s3"
@@ -62,8 +51,8 @@ targetOption = (S3TargetOption <$> s3TargetOption) <|> (FSTargetOption <$> fsTar
                     , help "S3 bucket"
                     ])
 
-    fsTargetOption =
-      FSTargetOption_
+    fsTargetConfig =
+      FSTargetConfig_
         <$> option str
               (mconcat
                 [ long "fs"
@@ -72,44 +61,24 @@ targetOption = (S3TargetOption <$> s3TargetOption) <|> (FSTargetOption <$> fsTar
                 ])
 
 
-loginInfoOption :: Parser LoginInfo
-loginInfoOption =
-  (noLogin *> pure NoLogin)
-  <|> (LoginInfo1 <$> some loginUserOption)
-  <|> (LoginInfo2 <$> loginInfoFileOption)
+loginUsersConfig :: Parser [LoginUser]
+loginUsersConfig = pure [] <|> some loginUserConfig
 
 
-loginUserOption :: Parser (String, String)
-loginUserOption =
+loginUserConfig :: Parser LoginUser
+loginUserConfig =
   option parseLoginUser
-  $ mconcat
-  $ [ long "login"
-    , metavar "USERNAME PASSWORD"
-    ]
+      $ mconcat
+      $ [ long "login"
+        , metavar "USERNAME PASSWORD"
+        ]
 
 
-parseLoginUser :: ReadM (String, String)
+parseLoginUser :: ReadM LoginUser
 parseLoginUser = eitherReader $ \s ->
   case splitOn "," s of
-    [u, p] -> Right (u, p)
+    [u, p] -> Right $ LoginUser u p
     _      -> Left "Expected USERNAME and PASSWORD separated by space"
-
-
-loginInfoFileOption :: Parser FilePath
-loginInfoFileOption =
-  option str
-  $ mconcat
-  $ [ long "login-config"
-    , metavar "CONFIG-FILE"
-    ]
-
-
-noLogin :: Parser Bool
-noLogin = switch
-         $ mconcat
-         $ [ long "no-login"
-           , help "Disable login"
-           ]
 
 
 port :: Parser Int
@@ -149,15 +118,27 @@ readonly = switch
            ]
 
 
+configFile :: Parser FilePath
+configFile = option str
+           $ mconcat
+           $ [ long "config-file"
+             , help "Config file"
+             ]
+
+
+config :: Parser (Config Maybe)
+config =
+  Config
+  <$> optional port
+  <*> optional theme
+  <*> optional verbosity
+  <*> optional readonly
+  <*> optional (some targetConfig)
+  <*> optional loginUsersConfig
+
+
 options :: Parser Options
-options =
-  Options
-  <$> port
-  <*> theme
-  <*> verbosity
-  <*> readonly
-  <*> some targetOption
-  <*> loginInfoOption
+options = Options <$> config <*> optional configFile
 
 
 parseOptions :: IO Options

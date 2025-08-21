@@ -9,7 +9,10 @@ declare var htmx: any;
 const selectedIds: Set<string> = new Set();
 let selectionScreen: { x: number, y: number, elt: HTMLElement } | null = null
 let clearSelectedHandler: EventListener = _ => selectedIds.clear();
+
 let dragging = false;
+
+let isMouseDown = false;
 let fileItems: NodeListOf<HTMLElement>;
 let table: HTMLElement;
 let view: HTMLElement;
@@ -85,11 +88,10 @@ function selectN(item: HTMLElement) {
 function handleMouseDown(e: Event) {
   if ((e.target as Element).closest(".thumbnail")) return;
   if (!(e instanceof MouseEvent)) return;
-// otherwise, it'
+  isMouseDown = true;
+  dragging = false;
   selectionScreen?.elt.remove();
   fileItems = document.querySelectorAll('#table .table-item'); // cache file items
-
-  dragging = false;
 
   let x = e.clientX;
   let y = e.clientY;
@@ -107,6 +109,7 @@ function handleMouseDown(e: Event) {
 function handleMouseMove(e: Event) {
   if (!(e instanceof MouseEvent)) return;
   if (selectionScreen === null) return;
+  if (!isMouseDown) return;
 
   let x = e.clientX;
   let y = e.clientY;
@@ -141,6 +144,7 @@ function handleMouseMove(e: Event) {
 
 
 function handleMouseUp(e: Event) {
+  isMouseDown = false;
   function handleClick(e: Event) {
     if (!(e instanceof MouseEvent)) return;
     let item = (e.target as Element).closest('.table-item') as HTMLElement;
@@ -149,13 +153,16 @@ function handleMouseUp(e: Event) {
   }
 
   if (!(e instanceof MouseEvent)) return;
-  if (!dragging && ((e.ctrlKey || e.metaKey))) {
-    view!.addEventListener('click', prevent, true);
-    // 'click' is fired right after mouseup.
-    // we block click on this event loop cycle. set timeout 0 will trigger the call back
-    // on the next cycle, in which click is fired exactly once.
-    setTimeout(() => { view!.removeEventListener("click", prevent, true); }, 0);
-    handleClick(e)
+  if (!dragging ) {
+    if (e.ctrlKey || e.metaKey) {
+      view!.addEventListener('click', prevent, true);
+      // 'click' is fired right after mouseup.
+      // we block click on this event loop cycle. set timeout 0 will trigger the call back
+      // on the next cycle, in which click is fired exactly once.
+      setTimeout(() => { view!.removeEventListener("click", prevent, true); }, 0);
+      handleClick(e)
+    }
+    return;
   }
 
   // update sidebar

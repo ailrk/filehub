@@ -85,6 +85,7 @@ library
     , cookie
     , cryptohash-sha256
     , directory
+    , data-default
     , effectful
     , filepath
     , file-embed
@@ -115,6 +116,7 @@ library
     , text
     , time
     , timers
+    , tomland
     , transformers
     , unliftio
     , unordered-containers
@@ -133,10 +135,12 @@ library
     Filehub.Cookie
     Filehub.Copy
     Filehub.Copy.Types
+    Filehub.Config
     Filehub.Display
     Filehub.Env
     Filehub.Env.Internal
     Filehub.Env.Types
+    Filehub.ExpandEnv
     Filehub.Error
     Filehub.File
     Filehub.Layout
@@ -177,6 +181,7 @@ library
     Filehub.Template.Desktop
     Filehub.Template.Internal
     Filehub.Template.Mobile
+    Filehub.Toml
     Filehub.Theme
     Filehub.Types
     Filehub.User
