@@ -22,11 +22,7 @@ html, body {
 /* Style the form container */
 #login form {
   user-select: none;
-  background: var(--background2);
-  padding: 2rem;
-  border-radius: 8px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-  width: 90%;
+  width: 60%;
   max-width: 400px;
   display: flex;
   flex-direction: column;
