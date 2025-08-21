@@ -34,6 +34,7 @@ function handleDragOver(e: Event) {
 
 
 function handleDragStart(e: Event) {
+  console.log('drag')
   if (!(e instanceof DragEvent)) return;
   if (e.target instanceof HTMLElement) {
     const path = e.target.dataset.path;
