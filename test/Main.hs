@@ -37,8 +37,8 @@ import Web.FormUrlEncoded qualified as UrlFormEncoded
 import Network.HTTP.Types.Status
 import Network.HTTP.Types (methodPost)
 import Filehub.User (createUserDB)
-import Filehub.Options (LoginInfo(..))
 import Effectful.FileSystem (runFileSystem)
+import Filehub.Config (LoginUser(..))
 
 
 main :: IO ()
@@ -230,7 +230,7 @@ serverSpec = before setup  $ after_ teardown do
 
   describe "Login" $ do
     !env <- runIO $ mkEnv >>= \e -> do
-      userDB <- runEff . runFileSystem $ createUserDB (LoginInfo1 [("paul", "123"), ("peter", "345")])
+      userDB <- runEff . runFileSystem $ createUserDB [LoginUser "paul" "123", LoginUser "peter" "345"]
       pure $ e
         { noLogin = False
         , userDB = userDB
