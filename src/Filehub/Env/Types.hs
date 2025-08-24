@@ -4,7 +4,7 @@ import Data.Time (NominalDiffTime)
 import Filehub.Theme (Theme)
 import Filehub.SessionPool.Types (SessionPool)
 import Filehub.Target.Types (Target)
-import Filehub.User (UserDB)
+import Filehub.Auth.Simple (UserDB)
 import Log (Logger, LogLevel)
 
 data Env = Env

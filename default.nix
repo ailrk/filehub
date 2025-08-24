@@ -3,13 +3,13 @@
 , cookie, cryptohash-sha256, data-default, directory, effectful
 , file-embed, filepath, fuzzy, generic-lens, hashable, hashtables
 , hspec, hspec-wai, http-api-data, http-types, JuicyPixels
-, JuicyPixels-stbir, lib, log-base, log-effectful, lucid, microlens
-, microlens-platform, mime-types, network-uri, optparse-applicative
-, QuickCheck, random, servant, servant-conduit, servant-lucid
-, servant-multipart, servant-server, split, string-interpolate
-, suspend, temporary, text, time, timers, tomland, transformers
-, unliftio, unordered-containers, uri-encode, uuid, vault, wai
-, wai-app-static, wai-extra, warp, zip
+, JuicyPixels-stbir, jwt, lib, log-base, log-effectful, lucid
+, microlens, microlens-platform, mime-types, network-uri
+, optparse-applicative, QuickCheck, random, servant
+, servant-conduit, servant-lucid, servant-multipart, servant-server
+, split, string-interpolate, suspend, temporary, text, time, timers
+, tomland, transformers, unliftio, unordered-containers, uri-encode
+, uuid, vault, wai, wai-app-static, wai-extra, warp, zip
 }:
 mkDerivation {
   pname = "filehub";
@@ -23,7 +23,7 @@ mkDerivation {
     bytestring case-insensitive conduit containers cookie
     cryptohash-sha256 data-default directory effectful file-embed
     filepath fuzzy generic-lens hashable hashtables http-api-data
-    http-types JuicyPixels JuicyPixels-stbir log-base log-effectful
+    http-types JuicyPixels JuicyPixels-stbir jwt log-base log-effectful
     lucid microlens microlens-platform mime-types network-uri
     optparse-applicative random servant servant-conduit servant-lucid
     servant-multipart servant-server split string-interpolate suspend

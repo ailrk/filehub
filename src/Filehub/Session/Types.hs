@@ -17,7 +17,7 @@ import Filehub.Copy.Types (CopyState)
 import Filehub.Selected.Types (Selected)
 import Filehub.Layout (Layout)
 import Filehub.Theme (Theme)
-import Filehub.User (AuthId)
+import Filehub.Auth.Simple (AuthId)
 
 
 data Session = Session

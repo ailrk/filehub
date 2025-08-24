@@ -19,7 +19,7 @@ import Filehub.Env.Types (Env(..))
 import Filehub.SessionPool.Types (SessionPool)
 import Filehub.Theme (Theme)
 import Filehub.Types (Target)
-import Filehub.User (UserDB)
+import Filehub.Auth.Simple (UserDB)
 
 
 getPort :: (Reader Env :> es) => Eff es Int

@@ -95,6 +95,7 @@ library
     , hashtables
     , http-api-data
     , http-types
+    , jwt
     , log-base
     , log-effectful
     , lucid
@@ -130,6 +131,8 @@ library
     , zip
 
   exposed-modules:
+    Filehub.Auth.Simple
+    Filehub.Auth.OIDC
     Filehub.ClientPath
     Filehub.ControlPanel
     Filehub.Cookie
@@ -184,7 +187,6 @@ library
     Filehub.Toml
     Filehub.Theme
     Filehub.Types
-    Filehub.User
     Filehub.UserAgent
     Filehub.Viewer
     Paths_filehub

@@ -1,16 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module Filehub.User
-  ( UserDB(..)
-  , AuthId(..)
-  , Username(..)
-  , PasswordHash(..)
-  , createAuthId
-  , validate
-  , createUserDB
-  , readLoginConfig
-  )
-  where
-
+module Filehub.Auth.Simple where
 
 import Data.Map.Strict qualified as Map
 import Data.Map.Strict (Map)
@@ -23,13 +12,10 @@ import Data.ByteString.Char8 qualified as Char8
 import Data.Hashable (Hashable)
 import Crypto.BCrypt qualified as BCrypt
 import Effectful (Eff, (:>), MonadIO (..), IOE)
-import Effectful.FileSystem (FileSystem)
-import Effectful.FileSystem.IO.ByteString (readFile)
 import Filehub.Config (LoginUser(..))
 import Control.Monad (forM)
 import Data.Maybe (maybeToList)
 import Prelude hiding (readFile)
-import Data.List.Split (splitOn)
 
 
 newtype AuthId = AuthId UUID deriving (Show, Eq, Ord, Hashable)
@@ -61,17 +47,3 @@ createUserDB loginInfo =
         mHash <- BCrypt.hashPasswordUsingPolicy BCrypt.slowerBcryptHashingPolicy (Char8.pack p)
         pure $ maybeToList $ fmap (\hash -> (username, PasswordHash hash)) mHash
       pure $ UserDB . Map.fromList . mconcat $ infos
-
-
-readLoginConfig :: FileSystem :> es => FilePath -> Eff es [(String, String)]
-readLoginConfig filePath = do
-  content <- Char8.unpack <$> readFile filePath
-  pure $ mconcat
-        . fmap maybeToList
-        . fmap (\case
-                n:p:_ -> Just (n, p)
-                _ -> Nothing
-             )
-        . fmap (\l -> splitOn "," l )
-        . lines
-        $ content

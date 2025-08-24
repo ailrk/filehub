@@ -8,7 +8,7 @@ import Network.Wai.Test hiding (request)
 import Filehub.ClientPath qualified as ClientPath
 import Filehub.SessionPool qualified as SessionPool
 import Filehub.Env (Env(..))
-import Filehub.User (UserDB(..))
+import Filehub.Auth.Simple (UserDB(..))
 import Filehub.Server qualified as Filehub
 import Data.Char (isPrint)
 import System.FilePath ((</>), normalise)
@@ -36,7 +36,7 @@ import Web.FormUrlEncoded (ToForm(..))
 import Web.FormUrlEncoded qualified as UrlFormEncoded
 import Network.HTTP.Types.Status
 import Network.HTTP.Types (methodPost)
-import Filehub.User (createUserDB)
+import Filehub.Auth.Simple (createUserDB)
 import Effectful.FileSystem (runFileSystem)
 import Filehub.Config (LoginUser(..))
 

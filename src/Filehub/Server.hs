@@ -92,8 +92,8 @@ import Filehub.ControlPanel qualified as ControlPanel
 import Filehub.Storage (getStorage, Storage(..))
 import Filehub.Cookie qualified as Cookie
 import Filehub.Server.Handler (ConfirmLogin)
-import Filehub.User qualified as User
-import Filehub.User (Username(..))
+import Filehub.Auth.Simple qualified as User
+import Filehub.Auth.Simple (Username(..))
 import Filehub.Cookie qualified as Cookies
 import Filehub.Toml qualified as Toml
 import Conduit (ConduitT, ResourceT)
