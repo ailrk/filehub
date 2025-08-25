@@ -11,7 +11,6 @@ let selectionScreen: { x: number, y: number, elt: HTMLElement } | null = null
 let clearSelectedHandler: EventListener = _ => selectedIds.clear();
 
 let dragging = false;
-
 let isMouseDown = false;
 let fileItems: NodeListOf<HTMLElement>;
 let table: HTMLElement;
@@ -107,9 +106,9 @@ function handleMouseDown(e: Event) {
 
 
 function handleMouseMove(e: Event) {
+  if (!isMouseDown) return;
   if (!(e instanceof MouseEvent)) return;
   if (selectionScreen === null) return;
-  if (!isMouseDown) return;
 
   let x = e.clientX;
   let y = e.clientY;
@@ -120,14 +119,13 @@ function handleMouseMove(e: Event) {
   const height = Math.abs(y - selectionScreen.y);
 
   // ignore small mouse movement
-  if (width > 50 || height > 50) {
-    dragging = true;
-    selectionScreen.elt.style.top = top.toString();
-    selectionScreen.elt.style.left = left.toString();
-    selectionScreen.elt.style.width = width.toString();
-    selectionScreen.elt.style.height = height.toString();
-  }
+  if (width < 50 || height < 50) return;
 
+  dragging = true;
+  selectionScreen.elt.style.top = top.toString();
+  selectionScreen.elt.style.left = left.toString();
+  selectionScreen.elt.style.width = width.toString();
+  selectionScreen.elt.style.height = height.toString();
 
   let rect = selectionScreen.elt.getBoundingClientRect();
   Array
@@ -153,7 +151,7 @@ function handleMouseUp(e: Event) {
   }
 
   if (!(e instanceof MouseEvent)) return;
-  if (!dragging ) {
+  if (!dragging) {
     if (e.ctrlKey || e.metaKey) {
       view!.addEventListener('click', prevent, true);
       // 'click' is fired right after mouseup.
@@ -167,7 +165,7 @@ function handleMouseUp(e: Event) {
 
   // update sidebar
   htmx
-    .ajax('GET', `/refresh?component=UIComponentSideBar`, { target: '#side-bar', swap: 'outerHtml'})
+    .ajax('GET', `/refresh?component=UIComponentSideBar`, { target: '#side-bar', swap: 'outerHtml' })
     .finally((_: any) => {
       dragging = false;
       selectionScreen?.elt.remove();
