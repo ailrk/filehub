@@ -12,7 +12,6 @@ import Data.ByteString.Char8 qualified as Char8
 import Data.Hashable (Hashable)
 import Crypto.BCrypt qualified as BCrypt
 import Effectful (Eff, (:>), MonadIO (..), IOE)
-import Filehub.Config (LoginUser(..))
 import Control.Monad (forM)
 import Data.Maybe (maybeToList)
 import Prelude hiding (readFile)
@@ -22,6 +21,14 @@ newtype AuthId = AuthId UUID deriving (Show, Eq, Ord, Hashable)
 newtype Username = Username Text deriving (Show, Eq, Ord, Hashable)
 newtype PasswordHash = PasswordHash ByteString deriving (Show, Eq, Ord)
 newtype UserDB = UserDB (Map Username PasswordHash) deriving (Show, Eq)
+
+
+data LoginUser = LoginUser
+  { username :: String
+  , password :: String
+  }
+  deriving (Show, Eq)
+
 
 
 createAuthId :: (IOE :> es) => Eff es AuthId

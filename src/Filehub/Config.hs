@@ -2,6 +2,7 @@ module Filehub.Config where
 
 
 import Filehub.Theme (Theme (..))
+import Filehub.Auth.Simple (LoginUser)
 import Effectful.Log (LogLevel (..))
 import Data.Functor.Identity
 import Control.Applicative ((<|>))
@@ -17,13 +18,6 @@ data Config f = Config
   , targets :: f [TargetConfig]
   , loginUsers :: f [LoginUser]
   }
-
-
-data LoginUser = LoginUser
-  { username :: String
-  , password :: String
-  }
-  deriving (Show, Eq)
 
 
 data TargetConfig

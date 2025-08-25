@@ -364,6 +364,7 @@ data Api mode = Api
 
   -- /static serves static files, it faces the same problem /serve has.
   , static          :: mode :- "static" :> CaptureAll "file" FilePath :> Get '[OctetStream]  (Headers '[ Header "Content-Type" String
+                                                                                                       , Header "Cache-Control" String
                                                                                                        ] ByteString)
 
 

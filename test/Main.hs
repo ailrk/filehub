@@ -8,7 +8,7 @@ import Network.Wai.Test hiding (request)
 import Filehub.ClientPath qualified as ClientPath
 import Filehub.SessionPool qualified as SessionPool
 import Filehub.Env (Env(..))
-import Filehub.Auth.Simple (UserDB(..))
+import Filehub.Auth.Simple (UserDB(..), LoginUser(..))
 import Filehub.Server qualified as Filehub
 import Data.Char (isPrint)
 import System.FilePath ((</>), normalise)
@@ -38,7 +38,6 @@ import Network.HTTP.Types.Status
 import Network.HTTP.Types (methodPost)
 import Filehub.Auth.Simple (createUserDB)
 import Effectful.FileSystem (runFileSystem)
-import Filehub.Config (LoginUser(..))
 
 
 main :: IO ()

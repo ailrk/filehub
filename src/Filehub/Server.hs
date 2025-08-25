@@ -474,6 +474,7 @@ server = Api
       content <- liftIO . readFile $ path
       pure
         $ addHeader (ByteString.unpack mimetype)
+        $ addHeader "public, max-age=31536000, immutable"
         $ content
 #else
       let path = List.intercalate "/" paths
@@ -482,6 +483,7 @@ server = Api
           let mimetype = Mime.defaultMimeLookup (Text.pack path)
           pure
             $ addHeader (ByteString.unpack mimetype)
+            $ addHeader "public, max-age=31536000, immutable"
             $ content
         Nothing -> throwError (err404 { errBody = [i|File doesn't exist|]})
 #endif

@@ -6,6 +6,7 @@ module Filehub.Options
 
 
 import Filehub.Config
+import Filehub.Auth.Simple (LoginUser (..))
 import Options.Applicative
   ( Parser
   , ReadM

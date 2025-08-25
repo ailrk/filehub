@@ -6,6 +6,7 @@ import Toml (TomlCodec, (.=), Key)
 import Filehub.Config
 import Filehub.Theme (Theme (..))
 import Filehub.ExpandEnv (expandVars)
+import Filehub.Auth.Simple (LoginUser(..))
 import Effectful.Log (LogLevel (..))
 import Control.Applicative ((<|>))
 import Control.Exception (throwIO)
