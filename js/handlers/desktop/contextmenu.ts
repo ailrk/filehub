@@ -11,7 +11,7 @@ export function register() {
 
 function register1() {
   document.addEventListener('contextmenu', e => e.preventDefault());
-  document.querySelectorAll('#table .table-item').forEach(item => item.addEventListener('contextmenu', e => handle(item as HTMLElement, e as MouseEvent)))
+  document.querySelectorAll('#table .table-item').forEach(item => item.addEventListener('contextmenu', handle))
 }
 
 
@@ -20,9 +20,11 @@ function register1() {
  * 3. disable 'click' event handler on the table
  * NOTE: we restore the click event handler in closeDropdown.ts.
  * */
-export function handle(item: HTMLElement, e: MouseEvent) {
-  const isSelected = item.classList.contains('selected');
+export function handle(e: Event) {
+  if (!(e instanceof MouseEvent)) return;
+  let item = e.target as HTMLElement;
   let contextMenu = document.querySelector('#contextmenu')
+  const isSelected = item.classList.contains('selected');
   if (contextMenu) {
     contextMenu.remove();
   }

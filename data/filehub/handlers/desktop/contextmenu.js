@@ -6,16 +6,19 @@ export function register() {
 }
 function register1() {
     document.addEventListener('contextmenu', e => e.preventDefault());
-    document.querySelectorAll('#table .table-item').forEach(item => item.addEventListener('contextmenu', e => handle(item, e)));
+    document.querySelectorAll('#table .table-item').forEach(item => item.addEventListener('contextmenu', handle));
 }
 /* 1. fetch contextmenu for the current file
  * 2. show the context menu at the cursor position
  * 3. disable 'click' event handler on the table
  * NOTE: we restore the click event handler in closeDropdown.ts.
  * */
-export function handle(item, e) {
-    const isSelected = item.classList.contains('selected');
+export function handle(e) {
+    if (!(e instanceof MouseEvent))
+        return;
+    let item = e.target;
     let contextMenu = document.querySelector('#contextmenu');
+    const isSelected = item.classList.contains('selected');
     if (contextMenu) {
         contextMenu.remove();
     }
