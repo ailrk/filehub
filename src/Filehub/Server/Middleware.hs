@@ -4,6 +4,7 @@ module Filehub.Server.Middleware
   , dedupHeadersKeepLast
   , displayMiddleware
   , sessionMiddleware
+  , stripCookiesForStatic
   ) where
 
 import Control.Monad (when)
@@ -33,6 +34,7 @@ import Lens.Micro.Platform ()
 import Log (logTrace_)
 import Network.HTTP.Types (HeaderName)
 import Network.HTTP.Types (hUserAgent, status500)
+import Network.HTTP.Types.Header (hSetCookie)
 import Network.Wai
 import Network.Wai.Middleware.AddHeaders
 import Prelude hiding (readFile)
@@ -128,3 +130,15 @@ sessionMiddleware env app req respond = toIO onErr env do
         let res' = mapResponseHeaders (setCookieHeader :) res
          in respond res'
     onErr _ = respond $ responseLBS status500 [] "server error" -- impossible
+
+
+
+-- | We want to strict all cookies on responds to static files, otherwise CDN will not cache these
+--   content.
+stripCookiesForStatic :: Middleware
+stripCookiesForStatic app req respond
+  | not (null path) && head path == "static" =
+    app req $ \res -> do
+      respond $ mapResponseHeaders (filter (\(h,_) -> h /= hSetCookie)) res
+  | otherwise = app req respond
+  where path = pathInfo req

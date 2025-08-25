@@ -646,7 +646,8 @@ thumbnail sessionId _ mFile = do
 
 application :: Env -> Application
 application env
-  = Server.Middleware.exposeHeaders
+  = Server.Middleware.stripCookiesForStatic
+  . Server.Middleware.exposeHeaders
   . Server.Middleware.sessionMiddleware env
   . Server.Middleware.dedupHeadersKeepLast
   . Server.Middleware.displayMiddleware env
