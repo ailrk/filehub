@@ -50,16 +50,6 @@ function collectFromHtml() {
         }
     });
 }
-function selectN(item) {
-    const id = item.dataset.path;
-    if (item.classList.contains('selected'))
-        return;
-    selectGo({
-        prepare: () => { selectedIds.add(id); },
-        confirm: () => { item.classList.add('selected'); },
-        recover: () => { selectedIds.delete(id); }
-    });
-}
 // when ctrl-click-drag, draw a translucent rectangle #selection-screen
 // use intersection observer to register callback on each file-item, once it
 // intersects with the rectangle, select it.
@@ -86,11 +76,11 @@ function handleMouseDown(e) {
     table.appendChild(selectionScreen.elt);
 }
 function handleMouseMove(e) {
+    if (!isMouseDown)
+        return;
     if (!(e instanceof MouseEvent))
         return;
     if (selectionScreen === null)
-        return;
-    if (!isMouseDown)
         return;
     let x = e.clientX;
     let y = e.clientY;
@@ -99,13 +89,13 @@ function handleMouseMove(e) {
     const width = Math.abs(x - selectionScreen.x);
     const height = Math.abs(y - selectionScreen.y);
     // ignore small mouse movement
-    if (width > 50 || height > 50) {
-        dragging = true;
-        selectionScreen.elt.style.top = top.toString();
-        selectionScreen.elt.style.left = left.toString();
-        selectionScreen.elt.style.width = width.toString();
-        selectionScreen.elt.style.height = height.toString();
-    }
+    if (width < 50 || height < 50)
+        return;
+    dragging = true;
+    selectionScreen.elt.style.top = top.toString();
+    selectionScreen.elt.style.left = left.toString();
+    selectionScreen.elt.style.width = width.toString();
+    selectionScreen.elt.style.height = height.toString();
     let rect = selectionScreen.elt.getBoundingClientRect();
     Array
         .from(fileItems)
@@ -143,7 +133,10 @@ function handleMouseUp(e) {
     }
     // update sidebar
     htmx
-        .ajax('GET', `/refresh?component=UIComponentSideBar`, { target: '#side-bar', swap: 'outerHtml' })
+        .ajax('GET', `/refresh?component=UIComponentSideBar`, { target: '#side-bar',
+        source: "#side-bar",
+        swap: 'outerHtml',
+    })
         .finally((_) => {
         dragging = false;
         selectionScreen?.elt.remove();
@@ -162,6 +155,7 @@ function selectGo(hooks) {
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded'
         },
+        source: "#control-panel",
         target: '#control-panel',
         swap: 'outerHTML'
     }).then((_) => {
@@ -187,4 +181,14 @@ function select1(item) {
             recover: () => { selectedIds.delete(id); }
         });
     }
+}
+function selectN(item) {
+    const id = item.dataset.path;
+    if (item.classList.contains('selected'))
+        return;
+    selectGo({
+        prepare: () => { selectedIds.add(id); },
+        confirm: () => { item.classList.add('selected'); },
+        recover: () => { selectedIds.delete(id); }
+    });
 }

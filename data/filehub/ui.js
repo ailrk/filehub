@@ -135,7 +135,10 @@ function open(e) {
             break;
         case "OpenViewer":
             let query = new URLSearchParams({ file: payload.path });
-            htmx.ajax('GET', `/viewer?${query.toString()}`, { target: 'head', swap: 'none' });
+            htmx.ajax('GET', `/viewer?${query.toString()}`, { target: 'head',
+                source: 'head',
+                swap: 'none'
+            });
             return;
     }
     window.open(`/serve?file=${payload.path}`, target);
@@ -171,13 +174,22 @@ function reloadUIComponent(e) {
     let payload = e.detail;
     switch (payload) {
         case 'UIComponentView':
-            htmx.ajax('GET', `/refresh?component=UIComponentView`, { target: '#view', swap: 'outerHtml' });
+            htmx.ajax('GET', `/refresh?component=UIComponentView`, { target: '#view',
+                source: '#view',
+                swap: 'outerHtml'
+            });
             break;
         case 'UIComponentSideBar':
-            htmx.ajax('GET', `/refresh?component=UIComponentSideBar`, { target: '#side-bar', swap: 'outerHtml' });
+            htmx.ajax('GET', `/refresh?component=UIComponentSideBar`, { target: '#side-bar',
+                source: '#side-bar',
+                swap: 'outerHtml'
+            });
             break;
         case 'UIComponentContronPanel':
-            htmx.ajax('GET', `/refresh?component=UIComponentContronPanel`, { target: '#control-panel', swap: 'outerHtml' });
+            htmx.ajax('GET', `/refresh?component=UIComponentContronPanel`, { target: '#control-panel',
+                source: '#control-panel',
+                swap: 'outerHtml'
+            });
             break;
     }
 }

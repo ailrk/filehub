@@ -66,17 +66,6 @@ function collectFromHtml() {
 }
 
 
-function selectN(item: HTMLElement) {
-  const id = item.dataset.path!;
-  if (item.classList.contains('selected')) return;
-  selectGo({
-    prepare: () => { selectedIds.add(id) },
-    confirm: () => { item.classList.add('selected') },
-    recover: () => { selectedIds.delete(id) }
-  })
-}
-
-
 // when ctrl-click-drag, draw a translucent rectangle #selection-screen
 // use intersection observer to register callback on each file-item, once it
 // intersects with the rectangle, select it.
@@ -165,7 +154,11 @@ function handleMouseUp(e: Event) {
 
   // update sidebar
   htmx
-    .ajax('GET', `/refresh?component=UIComponentSideBar`, { target: '#side-bar', swap: 'outerHtml' })
+    .ajax('GET', `/refresh?component=UIComponentSideBar`,
+      { target: '#side-bar',
+        source: "#side-bar",
+        swap: 'outerHtml' ,
+      })
     .finally((_: any) => {
       dragging = false;
       selectionScreen?.elt.remove();
@@ -194,6 +187,7 @@ function selectGo(
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded'
       },
+      source: "#control-panel",
       target: '#control-panel',
       swap: 'outerHTML'
     }
@@ -221,4 +215,15 @@ function select1(item: HTMLElement) {
       recover: () => { selectedIds.delete(id) }
     })
   }
+}
+
+
+function selectN(item: HTMLElement) {
+  const id = item.dataset.path!;
+  if (item.classList.contains('selected')) return;
+  selectGo({
+    prepare: () => { selectedIds.add(id) },
+    confirm: () => { item.classList.add('selected') },
+    recover: () => { selectedIds.delete(id) }
+  })
 }
