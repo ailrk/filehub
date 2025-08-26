@@ -236,3 +236,21 @@ test-suite filehub_test
     , wai
     , wai-extra
   default-language:   Haskell2010
+
+
+benchmark filehub_bench
+  import: extensions, options
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      benchmark
+  main-is:             Main.hs
+  build-depends:
+      base >=4.16 && <5
+    , filehub
+    , criterion >=1.6
+    , async
+    , req
+    , time
+    , process
+    , temporary
+    , http-types
+  default-language: Haskell2010

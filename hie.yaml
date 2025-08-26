@@ -8,3 +8,6 @@ cradle:
 
     - path: "test"
       component: "test-suite:filehub_test"
+
+    - path: "benchmark"
+      component: "benchmark:filehub_bench"
