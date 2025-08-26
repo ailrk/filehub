@@ -24,7 +24,7 @@ import Effectful (Eff, Eff, MonadIO (..), runEff)
 import Effectful.Error.Dynamic (throwError)
 import Effectful.FileSystem (runFileSystem, removeFile)
 import Filehub.ClientPath (fromClientPath)
-import Filehub.Env qualified as Env
+import Filehub.Session qualified as Session
 import Filehub.Error (FilehubError (..), Error' (..))
 import Filehub.Storage.Context qualified as Storage
 import Filehub.Target (TargetView(..), handleTarget)
@@ -183,7 +183,7 @@ upload sessionId multipart = do
 
 download :: Storage.Context es => SessionId -> ClientPath -> Eff es (ConduitT () ByteString (ResourceT IO) ())
 download sessionId clientPath = do
-  root <- Env.getRoot sessionId
+  root <- Session.getRoot sessionId
   let path = fromClientPath root clientPath
   file <- get sessionId path
   case file.content of
@@ -234,7 +234,7 @@ storage sessionId =
 
 getS3 :: Storage.Context es => SessionId -> Eff es (Backend S3)
 getS3 sessionId = do
-  TargetView target _ _ <- Env.currentTarget sessionId
+  TargetView target _ _ <- Session.currentTarget sessionId
   maybe (throwError (FilehubError TargetError "Target is not valid S3 bucket")) pure $ handleTarget target
     [ targetHandler @S3 $ \x -> x
     ]

@@ -6,9 +6,9 @@ import Test.Hspec.Wai
 import Test.QuickCheck
 import Network.Wai.Test hiding (request)
 import Filehub.ClientPath qualified as ClientPath
-import Filehub.SessionPool qualified as SessionPool
+import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Env (Env(..))
-import Filehub.Auth.Simple (UserDB(..), LoginUser(..))
+import Filehub.Auth.Simple (SimpleAuthUserDB(..), LoginUser(..))
 import Filehub.Server qualified as Filehub
 import Data.Char (isPrint)
 import System.FilePath ((</>), normalise)
@@ -36,8 +36,10 @@ import Web.FormUrlEncoded (ToForm(..))
 import Web.FormUrlEncoded qualified as UrlFormEncoded
 import Network.HTTP.Types.Status
 import Network.HTTP.Types (methodPost)
-import Filehub.Auth.Simple (createUserDB)
+import Filehub.Auth.Simple (createSimpleAuthUserDB)
 import Effectful.FileSystem (runFileSystem)
+import Filehub.Auth.Types (ActiveUsers(..))
+import Filehub.Auth.OIDC (OIDCAuthProviders(..))
 
 
 main :: IO ()
@@ -211,8 +213,10 @@ serverSpec = before setup  $ after_ teardown do
 
 
   describe "Prevent access without logging-in" $ do
-    env <- runIO $ mkEnv
-    with (pure $ Filehub.application (env { noLogin = False })) do
+    env <- runIO $ mkEnv >>= \e -> do
+      userDB <- runEff . runFileSystem $ createSimpleAuthUserDB [LoginUser "paul" "123"]
+      pure $ e { simpleAuthUserDB = userDB }
+    with (pure $ Filehub.application $ env) do
       it "should redirect to /login" do
         get "/" >>= \res -> liftIO do
           simpleStatus res `shouldBe` status307
@@ -228,14 +232,11 @@ serverSpec = before setup  $ after_ teardown do
 
 
   describe "Login" $ do
-    !env <- runIO $ mkEnv >>= \e -> do
-      userDB <- runEff . runFileSystem $ createUserDB [LoginUser "paul" "123", LoginUser "peter" "345"]
-      pure $ e
-        { noLogin = False
-        , userDB = userDB
-        }
+    env <- runIO $ mkEnv >>= \e -> do
+      userDB <- runEff . runFileSystem $ createSimpleAuthUserDB [LoginUser "paul" "123", LoginUser "peter" "345"]
+      pure $ e { simpleAuthUserDB = userDB }
     let f =  UrlFormEncoded.urlEncodeAsForm . toForm
-    with (pure $ Filehub.application $ env) do
+    with (pure $ Filehub.application env) do
       it "Login succeed, should redirect to /" do
         request methodPost "/login" [ (hContentType, "application/x-www-form-urlencoded") ] (f $ LoginForm "peter" "345") >>= \res -> liftIO do
             simpleStatus res `shouldBe` status200
@@ -254,7 +255,7 @@ serverSpec = before setup  $ after_ teardown do
 
 mkEnv :: IO Env
 mkEnv = do
-  sessionPool <- runEff SessionPool.new
+  sessionPool <- runEff Session.Pool.new
   logger <- nullLogger
   let env =
         Env
@@ -272,8 +273,9 @@ mkEnv = do
           , readOnly = False
           , logger = logger
           , logLevel = LogTrace
-          , userDB = UserDB mempty
-          , noLogin = True
+          , simpleAuthUserDB = SimpleAuthUserDB mempty
+          , oidcAuthProviders = OIDCAuthProviders mempty
+          , activeUsers = ActiveUsers mempty
           }
   pure env
 

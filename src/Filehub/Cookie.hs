@@ -20,7 +20,7 @@ import Filehub.Types (Session(..), SessionId (..), Display)
 import Lens.Micro ((<&>))
 import Data.ByteString (ByteString)
 import Data.ByteString.Char8 qualified as ByteString
-import Filehub.Auth.Simple (AuthId(..))
+import Filehub.Auth.Types (AuthId (..))
 
 
 newtype Cookies' = Cookies' Cookies

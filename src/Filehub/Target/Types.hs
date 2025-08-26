@@ -18,6 +18,7 @@ import Data.Generics.Labels ()
 import Prelude hiding (readFile, writeFile)
 
 
+-- | Existential wrapper of `Backend a`.
 data Target where
   Target :: (Typeable a, IsTarget a) => Backend a -> Target
 

@@ -17,15 +17,14 @@ import Filehub.Types
 import Data.List (find)
 import Data.Generics.Labels ()
 import Data.String.Interpolate (i)
-import Effectful.Reader.Dynamic (Reader)
+import Effectful.Reader.Dynamic (Reader, asks)
 import Effectful ((:>), Eff, IOE)
 import Effectful.Error.Dynamic (Error, throwError)
 import Effectful.Log (Log, logAttention, logTrace_)
 import Lens.Micro hiding (to)
 import Lens.Micro.Platform ()
 import Filehub.Error (FilehubError (..), Error' (..))
-import Filehub.SessionPool qualified as SessionPool
-import Filehub.Env.Internal qualified as Env
+import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Target.Class (IsTarget(..))
 import Control.Applicative (asum)
 import Filehub.Target.Types.TargetView (TargetView(..))
@@ -42,8 +41,8 @@ handleTarget target handlers = asum (map (runTargetHandler target) handlers)
 
 currentTarget :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es TargetView
 currentTarget sessionId = do
-  mSession <- SessionPool.getSession sessionId
-  targets <- Env.getTargets
+  mSession <- Session.Pool.getSession sessionId
+  targets <- asks @Env (.targets)
   maybe (throwError (FilehubError InvalidSession "Invalid session")) pure do
     index <- mSession ^? #index
     targetSessionData <- mSession ^? #targets . ix index
@@ -55,13 +54,13 @@ changeCurrentTarget :: (Reader Env :> es, IOE :> es, Error FilehubError :> es, L
 changeCurrentTarget sessionId targetId = do
   logTrace_ [i|Changing target to #{targetId}|]
   TargetView target _ _ <- currentTarget sessionId
-  targets <- Env.getTargets
+  targets <- asks @Env (.targets)
   if getTargetId target == targetId
      then pure ()
      else do
        case find (\(_, x) -> getTargetId x == targetId) ([0..] `zip` targets) of
          Just (idx, _) -> do
-           SessionPool.updateSession sessionId (\s -> s & #index .~ idx)
+           Session.Pool.updateSession sessionId (\s -> s & #index .~ idx)
          Nothing -> do
            logAttention "Can't find target" (show targetId)
            throwError (FilehubError InvalidSession "Invalid session")

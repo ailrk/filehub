@@ -20,11 +20,10 @@ import Data.List (union)
 import Effectful (Eff, (:>), Eff, (:>), IOE)
 import Effectful.Log (Log)
 import Effectful.Error.Dynamic (Error)
-import Effectful.Reader.Dynamic (Reader)
-import Filehub.Types
-    ( ClientPath, Env, SessionId, Session(..), Selected(..), Target)
+import Effectful.Reader.Dynamic (Reader, asks)
+import Filehub.Types ( ClientPath, Env(..), SessionId, Session(..), Selected(..), Target)
 import Filehub.Error (FilehubError)
-import Filehub.Env qualified as Env
+import Filehub.Session qualified as Session
 import Filehub.Target qualified as Target
 import Prelude hiding (elem)
 import Prelude qualified
@@ -36,11 +35,11 @@ getSelected sessionId = (^. #sessionData . #selected) <$> Target.currentTarget s
 
 
 setSelected :: (Reader Env :> es, IOE :> es) => SessionId -> Selected -> Eff es ()
-setSelected sessionId selected = Env.updateSession sessionId $ \s -> s & #targets . ix s.index . #selected .~ selected
+setSelected sessionId selected = Session.updateSession sessionId $ \s -> s & #targets . ix s.index . #selected .~ selected
 
 
 anySelected :: (Reader Env :> es, IOE :> es, Error FilehubError :> es, Log :> es) => SessionId -> Eff es Bool
-anySelected sessionId = anySelected'  <$> Env.getSession sessionId
+anySelected sessionId = anySelected'  <$> Session.getSession sessionId
 
 
 anySelected' :: Session -> Bool
@@ -54,9 +53,9 @@ anySelected' session =
 -- | Get all selected files grouped by targets
 allSelecteds :: (Reader Env :> es, IOE :> es, Error FilehubError :> es, Log :> es) => SessionId -> Eff es [(Target, Selected)]
 allSelecteds sessionId = do
-  session <- Env.getSession sessionId
+  session <- Session.getSession sessionId
   let selecteds = session ^. #targets & fmap (^. #selected)
-  targets <- Env.getTargets
+  targets <- asks @Env (.targets)
   pure (allSelecteds' selecteds targets)
 
 
@@ -66,9 +65,9 @@ allSelecteds' selecteds targets = targets `zip` selecteds
 
 countSelected :: (Reader Env :> es, IOE :> es, Error FilehubError :> es, Log :> es) => SessionId -> Eff es Int
 countSelected sessionId = do
-  session <- Env.getSession sessionId
+  session <- Session.getSession sessionId
   let selecteds = session ^. #targets & fmap (^. #selected)
-  targets <- Env.getTargets
+  targets <- asks @Env (.targets)
   pure $ countSelected' selecteds targets
 
 
@@ -84,7 +83,7 @@ clearSelected sessionId = setSelected sessionId NoSelection
 clearSelectedAllTargets :: (Reader Env :> es, IOE :> es) => SessionId -> Eff es ()
 clearSelectedAllTargets sessionId = do
   let update sessionData = sessionData & #selected .~ NoSelection
-  Env.updateSession sessionId $ \s -> s &  #targets . mapped %~ update
+  Session.updateSession sessionId $ \s -> s &  #targets . mapped %~ update
 
 
 toList :: Selected -> [ClientPath]

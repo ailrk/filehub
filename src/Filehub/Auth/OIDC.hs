@@ -1,35 +1,43 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Filehub.Auth.OIDC where
 
 
-import Network.URI (URI)
 import Data.Text (Text)
 import Data.Map.Strict (Map)
-import Data.Set (Set)
 
 
-newtype OIDCClientId = OIDCClientId Text deriving (Show, Eq)
-newtype OIDCClientSecret = OIDCClientSecret Text deriving (Show, Eq)
-newtype OIDCSub = OIDCSub Text deriving (Show, Eq)
+data Token = Token
+  { idToken :: Text
+  , accessToken :: Text
+  , refreshToken :: Text
+  , expiresIn :: Int
+  , tokenType :: Text
+  }
+  deriving (Show, Eq)
 
-newtype OIDCAllowedUsers = OIDCAllowedUsers (Set OIDCSub) deriving (Show, Eq)
 
-data OIDCUser = OIDCUser
-  { user :: Text
-  , sub :: OIDCSub
+data User = User
+  { sub :: Text
+  , user :: Text
   , email :: Maybe Text
+  , token :: Token
   }
   deriving (Show, Eq)
 
 
-newtype OIDCUserDB = OIDCUserDB (Map OIDCSub OIDCUser) deriving (Show, Eq)
+newtype Issuer = Issuer Text deriving (Eq, Show, Ord)
 
 
-data OIDCProvider = OIDCProvider
+data Provider = Provider
   { name :: Text
-  , issuer :: URI
-  , clientId :: OIDCClientId
-  , clientSecret :: OIDCClientSecret
-  , allowedUser :: [Text]
-  , redirectURI :: URI
+  , issuer :: Text
+  , clientId :: Text
+  , clientSecret :: Text
+  , grantType :: Text
+  , allowedUsers :: [Text]
+  , redirectURIs :: [Text]
   }
   deriving (Show, Eq)
+
+
+newtype OIDCAuthProviders = OIDCAuthProviders (Map Issuer Provider)

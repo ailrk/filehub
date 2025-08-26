@@ -1,9 +1,10 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Filehub.Session.Types
-  ( SessionId(..),
-    Session(..),
-    TargetSessionData(..)
+  ( SessionId(..)
+  , Session(..)
+  , TargetSessionData(..)
+  , Pool(..)
   )
   where
 
@@ -17,7 +18,10 @@ import Filehub.Copy.Types (CopyState)
 import Filehub.Selected.Types (Selected)
 import Filehub.Layout (Layout)
 import Filehub.Theme (Theme)
-import Filehub.Auth.Simple (AuthId)
+import Filehub.Auth.Types (AuthId)
+import Control.Concurrent.Timer qualified as Timer
+import Data.HashTable.IO (BasicHashTable)
+
 
 
 data Session = Session
@@ -45,3 +49,10 @@ data TargetSessionData = TargetSessionData
   , selected :: Selected
   }
   deriving (Generic)
+
+
+data Pool = Pool
+  { pool :: BasicHashTable SessionId Session
+  , gc :: Timer.TimerIO
+  -- ^ garbage collector, periodically clean up expired sessions.
+  }

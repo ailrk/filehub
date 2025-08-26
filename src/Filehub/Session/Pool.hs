@@ -1,5 +1,5 @@
-module Filehub.SessionPool
-  ( SessionPool(..)
+module Filehub.Session.Pool
+  ( Session.Pool(..)
   , new
   , newSession
   , extendSession
@@ -9,7 +9,8 @@ module Filehub.SessionPool
   )
   where
 
-import Effectful.Reader.Dynamic (Reader)
+
+import Effectful.Reader.Dynamic (Reader, asks)
 import Effectful ((:>), Eff, IOE, MonadIO (liftIO))
 import Effectful.Error.Dynamic (Error, throwError)
 import Effectful.Log (logTrace_, Log)
@@ -20,13 +21,14 @@ import Data.String.Interpolate (i)
 import Control.Concurrent.Timer qualified as Timer
 import Control.Concurrent.Suspend qualified as Suspend
 import Control.Monad (when)
-import Filehub.Types (Session(..), SessionPool (..), Env, SessionId)
-import Filehub.Session qualified as Session
-import Filehub.Env.Internal qualified as Env
+import Filehub.Types (Env(..))
+import Filehub.Session.Internal qualified as Session
 import Filehub.Error (FilehubError (..), Error' (..))
+import Filehub.Session.Types (Session(..), SessionId)
+import Filehub.Session.Types qualified as Session
 
 
-new :: (IOE :> es) => Eff es SessionPool
+new :: (IOE :> es) => Eff es Session.Pool
 new = do
   table <- liftIO HashTable.new
   let cleanUp = do
@@ -35,12 +37,12 @@ new = do
           when (now > session.expireDate) do
             HashTable.delete table k
   gc <- liftIO $ Timer.repeatedTimer cleanUp (Suspend.sDelay 10)
-  pure $ SessionPool table gc
+  pure $ Session.Pool table gc
 
 
 newSession :: (Reader Env :> es, IOE :> es) => Eff es Session
 newSession = do
-  SessionPool pool _ <- Env.getSessionPool
+  Session.Pool pool _ <- asks @Env (.sessionPool)
   session <- Session.createSession
   liftIO $ HashTable.insert pool session.sessionId session
   pure session
@@ -48,8 +50,8 @@ newSession = do
 
 extendSession :: (Reader Env :> es, IOE :> es) => SessionId -> Eff es ()
 extendSession sessionId = do
-  duration <- Env.getSessionDuration
-  SessionPool pool _ <- Env.getSessionPool
+  duration <- asks @Env (.sessionDuration)
+  Session.Pool pool _ <- asks @Env (.sessionPool)
   now <- liftIO Time.getCurrentTime
   liftIO $ HashTable.mutate pool sessionId
     (\case
@@ -60,13 +62,13 @@ extendSession sessionId = do
 
 deleteSession :: (Reader Env :> es, IOE :> es) => SessionId -> Eff es ()
 deleteSession sessionId = do
-  SessionPool pool _ <- Env.getSessionPool
+  Session.Pool pool _ <- asks @Env (.sessionPool)
   liftIO $ HashTable.delete pool sessionId
 
 
 getSession :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es Session
 getSession sessionId = do
-  SessionPool pool _ <- Env.getSessionPool
+  Session.Pool pool _ <- asks @Env (.sessionPool)
   mResult <- liftIO $ HashTable.lookup pool sessionId
   case mResult of
     Just session -> pure session
@@ -77,7 +79,7 @@ getSession sessionId = do
 
 updateSession :: (Reader Env :> es, IOE :> es) => SessionId -> (Session -> Session) -> Eff es ()
 updateSession sessionId update = do
-  SessionPool pool _ <- Env.getSessionPool
+  Session.Pool pool _ <- asks @Env (.sessionPool)
   liftIO $ HashTable.mutate pool sessionId
     (\case
         Just session -> (Just $ update session, ())

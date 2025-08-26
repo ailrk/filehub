@@ -48,18 +48,19 @@ import Filehub.Mime (isMime)
 import Filehub.Target qualified as Target
 import Filehub.Target.Types.TargetView (TargetView(..))
 import Filehub.Types ( FilehubEvent (..), LoginForm(..), MoveFile (..), UIComponent (..), FileContent (..))
+import Filehub.Session qualified as Session
+import Filehub.Session (SessionId(..))
 import Filehub.Env qualified as Env
+import Filehub.Env (Env(..))
 import Filehub.Error ( withServerError, FilehubError(..), withServerError, Error' (..) )
 import Filehub.Routes (Api (..))
-import Filehub.Types
-    ( SessionId(..), Display (..))
+import Filehub.Types ( Display (..))
 import Filehub.Template.Internal qualified as Template
 import Filehub.Template qualified as Template
 import Filehub.Template.Desktop qualified as Template.Desktop
 import Filehub.Template.Mobile qualified as Template.Mobile
 import Filehub.ClientPath qualified as ClientPath
 import Filehub.Selected qualified as Selected
-import Filehub.Env
 import Filehub.Log qualified as Log
 import Filehub.Monad
 import Filehub.Options (parseOptions, Options(..))
@@ -71,7 +72,7 @@ import Filehub.Server.Middleware qualified as Server.Middleware
 import Filehub.Server.Desktop qualified as Server.Desktop
 import Filehub.Server.Mobile qualified as Server.Mobile
 import Filehub.Server.Internal (withQueryParam, clear, copy, paste, parseHeader')
-import Filehub.SessionPool qualified as SessionPool
+import Filehub.Session.Pool qualified as SessionPool
 import Filehub.Types (Target(..))
 import Filehub.Target.File qualified as FS
 import Filehub.Target.S3 qualified as S3
@@ -92,8 +93,8 @@ import Filehub.ControlPanel qualified as ControlPanel
 import Filehub.Storage (getStorage, Storage(..))
 import Filehub.Cookie qualified as Cookie
 import Filehub.Server.Handler (ConfirmLogin)
-import Filehub.Auth.Simple qualified as User
-import Filehub.Auth.Simple (Username(..))
+import Filehub.Auth.Types qualified as Auth
+import Filehub.Auth.Simple qualified as Auth.Simple
 import Filehub.Cookie qualified as Cookies
 import Filehub.Toml qualified as Toml
 import Conduit (ConduitT, ResourceT)
@@ -105,11 +106,13 @@ import UnliftIO (hFlush, stdout)
 import Network.Mime qualified as Mime
 import Web.Cookie (SetCookie (..))
 import Network.HTTP.Types.Header (hLocation)
-import Effectful.Reader.Dynamic (asks)
+import Effectful.Reader.Dynamic (ask, asks)
 import System.Directory (removeFile)
 import System.Random (randomRIO)
 import Data.Functor.Identity (Identity(..))
 import Control.Exception (throwIO)
+import Filehub.Auth.OIDC (OIDCAuthProviders(..))
+import Filehub.Auth.Types (ActiveUsers(..))
 
 
 #ifdef DEBUG
@@ -124,7 +127,7 @@ import Data.ByteString (readFile)
 server :: Api (AsServerT Filehub)
 server = Api
   { init = \sessionId res -> do
-      Env.updateSession sessionId $
+      Session.updateSession sessionId $
         \s -> s & #resolution .~ Just res
       clear sessionId
       index sessionId
@@ -141,7 +144,7 @@ server = Api
   -- The frontend js deletes the `display` cookie on `pageunload`, so the backend can
   -- start a full reload from the bootstrap stage.
   , index = \sessionId _ -> do
-      display <- Env.getDisplay sessionId & withServerError
+      display <- Session.getDisplay sessionId & withServerError
       manifest <- server.manifest
       let background
             = fromMaybe "#000000"
@@ -180,7 +183,7 @@ server = Api
   , cd = \sessionId _ mClientPath -> do
       clientPath <- withQueryParam mClientPath
       withServerError do
-        root <- Env.getRoot sessionId
+        root <- Session.getRoot sessionId
         storage <- getStorage sessionId
         storage.cd (ClientPath.fromClientPath root clientPath)
       view sessionId <&> addHeader DirChanged
@@ -204,7 +207,7 @@ server = Api
   , deleteFile = \sessionId _ _ clientPaths deleteSelected -> do
       withServerError do
         storage <- getStorage sessionId
-        root <- Env.getRoot sessionId
+        root <- Session.getRoot sessionId
         forM_ clientPaths $ \clientPath -> do
           let path = ClientPath.fromClientPath root clientPath
           storage.delete path
@@ -240,7 +243,7 @@ server = Api
 
 
   , editorModal = \sessionId _ mClientPath -> do
-      display <- Env.getDisplay sessionId & withServerError
+      display <- Session.getDisplay sessionId & withServerError
       case display of
         Mobile -> Server.Mobile.editorModal sessionId mClientPath
         Desktop -> Server.Desktop.editorModal sessionId mClientPath
@@ -248,13 +251,13 @@ server = Api
 
 
   , search = \sessionId _ searchWord -> withServerError do
-      display <- Env.getDisplay sessionId
+      display <- Session.getDisplay sessionId
       storage <- getStorage sessionId
-      TargetView target _ _ <- Env.currentTarget sessionId
-      root <- Env.getRoot sessionId
+      TargetView target _ _ <- Session.currentTarget sessionId
+      root <- Session.getRoot sessionId
       files <- storage.lsCwd
-      order <- Env.getSortFileBy sessionId
-      layout <- Env.getLayout sessionId
+      order <- Session.getSortFileBy sessionId
+      layout <- Session.getLayout sessionId
       selected <- Selected.getSelected sessionId
       case display of
         Mobile -> pure $ Template.Mobile.search searchWord target root files selected order
@@ -263,12 +266,12 @@ server = Api
 
 
   , sortTable = \sessionId _ order -> do
-      Env.setSortFileBy sessionId (fromMaybe ByNameUp order)
+      Session.setSortFileBy sessionId (fromMaybe ByNameUp order)
       addHeader TableSorted <$> view sessionId
 
 
   , selectLayout = \sessionId _ layout -> do
-      Env.setLayout sessionId (fromMaybe ThumbnailLayout layout)
+      Session.setLayout sessionId (fromMaybe ThumbnailLayout layout)
       addHeader LayoutChanged <$> index sessionId
 
 
@@ -292,7 +295,7 @@ server = Api
 
   , download = \sessionId _ clientPaths -> do
       storage <- getStorage sessionId & withServerError
-      root <- Env.getRoot sessionId & withServerError
+      root <- Session.getRoot sessionId & withServerError
 
       case clientPaths of
         [clientPath@(ClientPath path)] -> do
@@ -343,7 +346,7 @@ server = Api
 
 
   , move = \sessionId _ _ (MoveFile src tgt) -> do
-      root <- Env.getRoot sessionId & withServerError
+      root <- Session.getRoot sessionId & withServerError
       storage <- getStorage sessionId & withServerError
       let srcPaths = fmap (ClientPath.fromClientPath root) src
       let tgtPath = ClientPath.fromClientPath root tgt
@@ -379,7 +382,7 @@ server = Api
   , initViewer = \sessionId _ mClientPath -> do
       withServerError do
         clientPath <- withQueryParam mClientPath
-        root <- Env.getRoot sessionId
+        root <- Session.getRoot sessionId
         payload <- Viewer.initViewer sessionId root clientPath
         pure $ addHeader payload NoContent
 
@@ -395,9 +398,9 @@ server = Api
         TargetView saved _ _ <- Target.currentTarget sessionId
         pure $ Target.getTargetId saved
 
-      let restore = Env.changeCurrentTarget sessionId savedTargetId & withServerError
+      let restore = Session.changeCurrentTarget sessionId savedTargetId & withServerError
       targetId <- withQueryParam mTargetId
-      Env.changeCurrentTarget sessionId targetId & withServerError
+      Session.changeCurrentTarget sessionId targetId & withServerError
 
       html <- withRunInIO $ \unlift -> do
         unlift (index sessionId) `catch` \(_ :: SomeException) -> unlift do
@@ -409,14 +412,14 @@ server = Api
 
   , themeCss = \sessionId -> do
 #ifdef DEBUG
-      theme <- Env.getSessionTheme sessionId & withServerError
+      theme <- Session.getSessionTheme sessionId & withServerError
       dir <- liftIO $ Paths_filehub.getDataDir >>= makeAbsolute <&> (++ "/data/filehub")
       liftIO . readFile $
         case theme of
           Dark -> dir </> "theme-dark.css"
           Light -> dir </> "theme-light.css"
 #else
-      theme <- Env.getSessionTheme sessionId & withServerError
+      theme <- Session.getSessionTheme sessionId & withServerError
       pure
         case theme of
           Dark -> fromMaybe "no-theme" $ Map.lookup "theme-dark.css" staticFiles
@@ -425,10 +428,10 @@ server = Api
 
 
   , toggleTheme = \sessionId _ -> do
-      theme <- Env.getSessionTheme sessionId & withServerError
+      theme <- Session.getSessionTheme sessionId & withServerError
       case theme of
-        Theme.Light -> Env.setSessionTheme sessionId Theme.Dark
-        Theme.Dark -> Env.setSessionTheme sessionId Theme.Light
+        Theme.Light -> Session.setSessionTheme sessionId Theme.Dark
+        Theme.Dark -> Session.setSessionTheme sessionId Theme.Light
       addHeader ThemeChanged <$> index sessionId
 
 
@@ -511,7 +514,7 @@ staticFiles = Map.fromList
 -- | index that reset the state
 index :: SessionId -> Filehub (Html ())
 index sessionId = do
-  display <- Env.getDisplay sessionId & withServerError
+  display <- Session.getDisplay sessionId & withServerError
   case display of
     NoDisplay -> pure Template.bootstrap
     Desktop -> Server.Desktop.index sessionId
@@ -520,13 +523,13 @@ index sessionId = do
 
 login :: SessionId -> Maybe Text -> Filehub (Html ())
 login sessionId cookie = do
-  noLogin <- asks @Env (.noLogin)
+  noLogin <- Env.hasNoLogin <$> ask @Env
   if noLogin
      then go
      else do
        case fmap Text.encodeUtf8 cookie >>= parseHeader' >>= Cookies.getAuthId of
          Just authId' -> do
-           authId <- Env.getAuthId sessionId & withServerError
+           authId <- Session.getAuthId sessionId & withServerError
            if authId == Just authId'
               then go
               else pure Template.login
@@ -540,10 +543,10 @@ loginPost :: SessionId -> LoginForm
                                , Header "HX-Redirect" Text
                                ] (Html ()))
 loginPost sessionId (LoginForm username password) =  do
-  db <- Env.getUserDB
-  if User.validate (Username username) (Text.encodeUtf8 password) db then do
-    User.createAuthId >>= Env.setAuthId sessionId . Just
-    session <- Env.getSession sessionId & withServerError
+  db <- asks @Env (.simpleAuthUserDB)
+  if Auth.Simple.validate (Auth.Simple.Username username) (Text.encodeUtf8 password) db then do
+    Auth.createAuthId >>= Session.setAuthId sessionId . Just
+    session <- Session.getSession sessionId & withServerError
     case Cookie.setAuthId session of
       Just setCookie -> do
         logInfo_ [i|User #{username} logged in|]
@@ -557,10 +560,10 @@ logout :: SessionId -> ConfirmLogin -> Filehub (Headers '[ Header "Set-Cookie" S
                                                          , Header "HX-Redirect" Text
                                                          ] (Html ()))
 logout sessionId _ = do
-  session <- Env.getSession sessionId & withServerError
+  session <- Session.getSession sessionId & withServerError
   case Cookie.setAuthId session of
     Just setCookie -> do
-      Env.setAuthId sessionId Nothing
+      Session.setAuthId sessionId Nothing
       addHeader
         (setCookie
           { setCookieExpires = Just (UTCTime (fromGregorian 1970 1 1) 0) })
@@ -572,7 +575,7 @@ logout sessionId _ = do
 
 view :: SessionId -> Filehub (Html ())
 view sessionId = do
-  display <- Env.getDisplay sessionId & withServerError
+  display <- Session.getDisplay sessionId & withServerError
   case display of
     Desktop -> Server.Desktop.view sessionId
     Mobile -> Server.Mobile.view sessionId
@@ -581,11 +584,11 @@ view sessionId = do
 
 controlPanel :: SessionId -> Filehub (Html ())
 controlPanel sessionId = withServerError do
-  display <- Env.getDisplay sessionId
-  theme <- Env.getSessionTheme sessionId
-  layout <- Env.getLayout sessionId
-  readOnly <- Env.getReadOnly
-  noLogin <- Env.getNoLogin
+  display <- Session.getDisplay sessionId
+  theme <- Session.getSessionTheme sessionId
+  layout <- Session.getLayout sessionId
+  readOnly <- asks @Env (.readOnly)
+  noLogin <- Env.hasNoLogin <$> ask @Env
   state <- ControlPanel.getControlPanelState sessionId
   pure $
     case display of
@@ -596,7 +599,7 @@ controlPanel sessionId = withServerError do
 
 sideBar :: SessionId -> Filehub (Html ())
 sideBar sessionId = do
-  display <- Env.getDisplay sessionId & withServerError
+  display <- Session.getDisplay sessionId & withServerError
   case display of
     Desktop -> Server.Desktop.sideBar sessionId
     _ -> error "impossible"
@@ -609,7 +612,7 @@ serve :: SessionId -> ConfirmLogin -> Maybe ClientPath
 serve sessionId _ mFile = do
   withServerError do
     storage <- getStorage sessionId
-    root <- Env.getRoot sessionId
+    root <- Session.getRoot sessionId
     clientPath <- withQueryParam mFile
     let path = ClientPath.fromClientPath root clientPath
     file <- storage.get path
@@ -627,7 +630,7 @@ thumbnail :: SessionId -> ConfirmLogin -> Maybe ClientPath
 thumbnail sessionId _ mFile = do
   withServerError do
     storage <- getStorage sessionId
-    root <- Env.getRoot sessionId
+    root <- Session.getRoot sessionId
     clientPath <- withQueryParam mFile
     let path = ClientPath.fromClientPath root clientPath
     file <- storage.get path
@@ -681,7 +684,7 @@ main = Log.withColoredStdoutLogger \logger -> do
     } <- either (\err -> throwIO (userError err)) pure (Config.merge optionConfig config)
   sessionPool <- runEff SessionPool.new
   targets <- runEff . runLog "Targets" logger verbosity . runFileSystem $ fromTargetConfig targetConfigs
-  userDB <- runEff . runFileSystem $ User.createUserDB loginUsers
+  simpleAuthUserDB <- runEff . runFileSystem $ Auth.Simple.createSimpleAuthUserDB loginUsers
 
   printf "PORT: %d\n" port
   printf "V: %s\n" (show verbosity)
@@ -699,10 +702,9 @@ main = Log.withColoredStdoutLogger \logger -> do
           , readOnly = readOnly
           , logger = logger
           , logLevel = verbosity
-          , userDB = userDB
-          , noLogin = case loginUsers of
-                        [] -> True
-                        _ -> False
+          , simpleAuthUserDB = simpleAuthUserDB
+          , oidcAuthProviders = OIDCAuthProviders mempty
+          , activeUsers = ActiveUsers mempty
           }
   go env `catch` handler
   where

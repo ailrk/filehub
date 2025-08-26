@@ -17,7 +17,7 @@ import Filehub.Target.File (FileSys)
 import Filehub.Target.S3 (S3)
 import Filehub.Target.Types (targetHandler)
 import Filehub.Error (FilehubError(..), Error' (..))
-import Filehub.Env qualified as Env
+import Filehub.Session qualified as Session
 import Filehub.Target (TargetView(..), handleTarget)
 import Filehub.Storage.Context qualified as Storage
 import Filehub.Storage.File qualified as File
@@ -30,7 +30,7 @@ import Prelude hiding (read, readFile, writeFile)
 
 getStorage :: Storage.Context es => SessionId -> Eff es (Storage (Eff es))
 getStorage sessionId = do
-  TargetView target _ _ <- Env.currentTarget sessionId
+  TargetView target _ _ <- Session.currentTarget sessionId
   maybe onError pure $ handleTarget target
     [ targetHandler @FileSys $ \_ -> File.storage sessionId
     , targetHandler @S3 $ \_ -> S3.storage sessionId

@@ -19,7 +19,7 @@ import Effectful.FileSystem.IO (withFile, IOMode (..))
 import Effectful.FileSystem.IO.ByteString (hPut)
 import Effectful.Log
 import Filehub.ClientPath (fromClientPath)
-import Filehub.Env qualified as Env
+import Filehub.Session qualified as Session
 import Filehub.Error (FilehubError(..), Error' (..))
 import Filehub.Types ( SessionId, File(..), FileContent(..), ClientPath )
 import Filehub.Target.Types (Storage(..))
@@ -156,12 +156,12 @@ cd sessionId path = do
   unless exists do
     logAttention "[cd] dir doesn't exists:" path
     throwError (FilehubError InvalidDir "Can enter, not a directory")
-  Env.setCurrentDir sessionId path
+  Session.setCurrentDir sessionId path
 
 
 lsCwd :: Storage.Context es => SessionId -> Eff es [File]
 lsCwd sessionId = do
-  path <- Env.getCurrentDir sessionId
+  path <- Session.getCurrentDir sessionId
   exists <- doesDirectoryExist path
   unless exists do
     logAttention "[lsCwd] dir doesn't exists:" path
@@ -179,7 +179,7 @@ upload sessionId multipart = do
 
 download :: Storage.Context es => SessionId -> ClientPath -> Eff es (ConduitT () ByteString (ResourceT IO) ())
 download sessionId clientPath = do
-  root <- Env.getRoot sessionId
+  root <- Session.getRoot sessionId
   let path = fromClientPath root clientPath
   file <- get sessionId path
   case file.content of
@@ -229,5 +229,5 @@ storage sessionId =
 
 toFilePath :: Storage.Context es => SessionId -> FilePath -> Eff es FilePath
 toFilePath sessionId name = do
-  currentDir <- Env.getCurrentDir sessionId
+  currentDir <- Session.getCurrentDir sessionId
   makeAbsolute (currentDir </> name)

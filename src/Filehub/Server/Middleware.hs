@@ -19,12 +19,11 @@ import Effectful ( MonadIO(liftIO), liftIO, liftIO )
 import Effectful.Error.Dynamic (runErrorNoCallStack)
 import Filehub.Cookie qualified as Cookies
 import Filehub.Env (Env (..))
-import Filehub.Env qualified as Env
+import Filehub.Session qualified as Session
 import Filehub.Error ( withServerError, withServerError )
 import Filehub.Error (FilehubError)
 import Filehub.Monad ( toIO )
 import Filehub.Server.Internal (parseHeader')
-import Filehub.SessionPool qualified as SessionPool
 import Filehub.Types (Session(..), SessionId(..))
 import Filehub.UserAgent qualified as UserAgent
 import Lens.Micro
@@ -73,7 +72,7 @@ displayMiddleware :: Env -> Middleware
 displayMiddleware  env app req respond = toIO onErr env do
   let mCookie = lookup "Cookie" $ requestHeaders req
   let Just sessionId = mCookie >>= parseHeader' >>= Cookies.getSessionId
-  session <- SessionPool.getSession sessionId & withServerError
+  session <- Session.getSession sessionId & withServerError
 
   -- set device type
   do
@@ -83,12 +82,12 @@ displayMiddleware  env app req respond = toIO onErr env do
             Just userAgent -> UserAgent.detectDeviceType userAgent
             Nothing -> UserAgent.Unknown
     when (session ^. #deviceType /= deviceType) do
-      SessionPool.updateSession sessionId $ #deviceType .~ deviceType
+      Session.updateSession sessionId $ #deviceType .~ deviceType
 
   -- set display cookie
   -- Note only the server set the cookie.
   setCookieHeader <- do
-    currentDisplay <- Env.getDisplay sessionId & withServerError
+    currentDisplay <- Session.getDisplay sessionId & withServerError
     let header = ("Set-Cookie", Cookies.renderSetCookie $ Cookies.setDisplay currentDisplay)
     pure (header :)
 
@@ -107,7 +106,7 @@ sessionMiddleware env app req respond = toIO onErr env do
   let mSessionId = mCookie >>= parseHeader' >>= Cookies.getSessionId
   case mSessionId of
     Just sessionId -> do
-      eSession <- runErrorNoCallStack @FilehubError $ SessionPool.getSession sessionId
+      eSession <- runErrorNoCallStack @FilehubError $ Session.getSession sessionId
       case eSession of
         Left _ -> do
           logTrace_ [i|Invalid session: #{sessionId}|]
@@ -120,7 +119,7 @@ sessionMiddleware env app req respond = toIO onErr env do
       respondWithNewSession
   where
     respondWithNewSession = do
-      session <- SessionPool.newSession
+      session <- Session.newSession
       let sessionId@(SessionId sid) = session.sessionId
       let setCookieHeader = ("Set-Cookie", Cookies.renderSetCookie $ Cookies.setSessionId session)
       let injectedCookieHeader = ("Cookie", "sessionId=" <> UUID.toASCIIBytes sid)

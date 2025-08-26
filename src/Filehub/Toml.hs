@@ -7,6 +7,7 @@ import Filehub.Config
 import Filehub.Theme (Theme (..))
 import Filehub.ExpandEnv (expandVars)
 import Filehub.Auth.Simple (LoginUser(..))
+import Filehub.Auth.OIDC qualified as Auth.OIDC
 import Effectful.Log (LogLevel (..))
 import Control.Applicative ((<|>))
 import Control.Exception (throwIO)
@@ -19,6 +20,18 @@ loginUser =
   LoginUser
   <$> Toml.string "username" .= (.username)
   <*> Toml.string "password" .= (.password)
+
+
+oidcConfig :: TomlCodec Auth.OIDC.Provider
+oidcConfig =
+  Auth.OIDC.Provider
+  <$> Toml.text "name" .= (.name)
+  <*> Toml.text "issuer" .= (.issuer)
+  <*> Toml.text "client_id" .= (.clientId)
+  <*> Toml.text "client_secret" .= (.clientSecret)
+  <*> Toml.text "grant_types" .= (.grantType)
+  <*> Toml.arrayOf Toml._Text "allowed_users" .= (.allowedUsers)
+  <*> Toml.arrayOf Toml._Text "redirect_uris" .= (.redirectURIs)
 
 
 targetConfig :: TomlCodec TargetConfig

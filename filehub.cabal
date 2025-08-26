@@ -131,6 +131,8 @@ library
     , zip
 
   exposed-modules:
+    Filehub.Auth
+    Filehub.Auth.Types
     Filehub.Auth.Simple
     Filehub.Auth.OIDC
     Filehub.ClientPath
@@ -141,7 +143,6 @@ library
     Filehub.Config
     Filehub.Display
     Filehub.Env
-    Filehub.Env.Internal
     Filehub.Env.Types
     Filehub.ExpandEnv
     Filehub.Error
@@ -162,10 +163,10 @@ library
     Filehub.Server.Middleware
     Filehub.Server.Mobile
     Filehub.Session
+    Filehub.Session.Internal
+    Filehub.Session.Pool
     Filehub.Session.Types
     Filehub.Session.Types.SessionId
-    Filehub.SessionPool
-    Filehub.SessionPool.Types
     Filehub.Size
     Filehub.Sort
     Filehub.Storage

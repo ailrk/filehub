@@ -15,7 +15,7 @@ import Effectful.Log (Log)
 import Effectful.Reader.Dynamic (Reader)
 import Filehub.ClientPath (fromClientPath, toClientPath)
 import Filehub.Env (Env(..))
-import Filehub.Env qualified as Env
+import Filehub.Session qualified as Session
 import Filehub.Error (FilehubError(..))
 import Filehub.Mime (isMime)
 import Filehub.Sort (sortFiles)
@@ -50,7 +50,7 @@ initViewer sessionId root clientPath = do
   storage <- getStorage sessionId
   let filePath = fromClientPath root clientPath
   let dir = takeDirectory filePath
-  order <- Env.getSortFileBy sessionId
+  order <- Session.getSortFileBy sessionId
   files <- takeResourceFiles . sortFiles order <$> (storage.ls dir)
   let idx = fromMaybe 0 $ List.elemIndex filePath (fmap (.path) files)
   let resources = fmap (toResource root) files

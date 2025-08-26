@@ -4,7 +4,9 @@ module Filehub.Server.Desktop where
 
 import Control.Monad (forM)
 import Filehub.ClientPath qualified as ClientPath
+import Filehub.Session qualified as Session
 import Filehub.Env qualified as Env
+import Filehub.Env (Env)
 import Filehub.Target qualified as Target
 import Filehub.Target.Types (Target(..))
 import Filehub.Target.Types.TargetView (TargetView(..))
@@ -27,13 +29,14 @@ import Lens.Micro.Platform ()
 import Lucid
 import Prelude hiding (readFile)
 import System.FilePath (takeFileName)
+import Effectful.Reader.Dynamic (ask, asks)
 
 
 fileDetailModal :: SessionId -> ConfirmDesktopOnly -> Maybe ClientPath -> Filehub (Html ())
 fileDetailModal sessionId _ mClientPath = withServerError do
   clientPath <- withQueryParam mClientPath
   storage <- getStorage sessionId
-  root <- Env.getRoot sessionId
+  root <- Session.getRoot sessionId
   file <- storage.get (ClientPath.fromClientPath root clientPath)
   pure (Template.Desktop.fileDetailModal file)
 
@@ -42,41 +45,40 @@ editorModal :: SessionId -> Maybe ClientPath -> Filehub (Html ())
 editorModal sessionId mClientPath = withServerError do
   clientPath <- withQueryParam mClientPath
   storage <- getStorage sessionId
-  root <- Env.getRoot sessionId
+  root <- Session.getRoot sessionId
   let p = ClientPath.fromClientPath root clientPath
   content <- do
     f <- storage.get p
     storage.read f
   let filename = takeFileName p
-  readOnly <- Env.getReadOnly
+  readOnly <- asks @Env (.readOnly)
   pure $ Template.Desktop.editorModal readOnly filename content
 
 
 contextMenu :: SessionId -> ConfirmDesktopOnly -> [ClientPath] -> Filehub (Html ())
 contextMenu sessionId _ clientPaths = withServerError do
   storage <- getStorage sessionId
-  root <- Env.getRoot sessionId
+  root <- Session.getRoot sessionId
   files <- traverse storage.get $ ClientPath.fromClientPath root <$> clientPaths
-  readOnly <- Env.getReadOnly
+  readOnly <- asks @Env (.readOnly)
   pure $ Template.Desktop.contextMenu readOnly root files
 
 
 index :: SessionId -> Filehub (Html ())
 index sessionId = do
-  readOnly <- Env.getReadOnly
-  noLogin <- Env.getNoLogin
+  readOnly <- asks @Env (.readOnly)
+  noLogin <- Env.hasNoLogin <$> ask @Env
   sideBar' <- sideBar sessionId
   view' <- view sessionId
-  layout <- Env.getLayout sessionId & withServerError
-  theme <- Env.getSessionTheme sessionId & withServerError
+  layout <- Session.getLayout sessionId & withServerError
+  theme <- Session.getSessionTheme sessionId & withServerError
   state <- ControlPanel.getControlPanelState sessionId & withServerError
   pure $ Template.Desktop.index readOnly noLogin sideBar' view' layout theme state
 
 
 sideBar :: SessionId -> Filehub (Html ())
 sideBar sessionId = do
-  targets <- Env.getTargets
-
+  targets <- asks @Env (.targets)
   targets' <- forM targets $ \(Target backend) -> withServerError do
     let targetId = getTargetIdFromBackend backend
     Target.withTarget sessionId targetId $ \(TargetView target targetData _) -> do
@@ -92,11 +94,11 @@ view :: SessionId -> Filehub (Html ())
 view sessionId = do
   table <- withServerError do
     storage <- getStorage sessionId
-    root <- Env.getRoot sessionId
-    order <- Env.getSortFileBy sessionId
-    layout <- Env.getLayout sessionId & withServerError
+    root <- Session.getRoot sessionId
+    order <- Session.getSortFileBy sessionId
+    layout <- Session.getLayout sessionId & withServerError
     files <- sortFiles order <$> storage.lsCwd
-    TargetView target _ _ <- Env.currentTarget sessionId
+    TargetView target _ _ <- Session.currentTarget sessionId
     selected <- Selected.getSelected sessionId
     pure $ Template.Desktop.table target root files selected order layout
   Template.Desktop.view table <$> pathBreadcrumb sessionId
@@ -105,6 +107,6 @@ view sessionId = do
 pathBreadcrumb :: SessionId -> Filehub (Html ())
 pathBreadcrumb sessionId =
   Template.pathBreadcrumb
-  <$> (Env.getCurrentDir sessionId)
-  <*> (Env.getRoot sessionId)
+  <$> (Session.getCurrentDir sessionId)
+  <*> (Session.getRoot sessionId)
   & withServerError

@@ -21,16 +21,16 @@ import Servant.Server.Experimental.Auth (AuthHandler, mkAuthHandler)
 import Filehub.Types (SessionId)
 import Filehub.Cookie qualified as Cookie
 import Filehub.Env (Env(..))
+import Filehub.Env qualified as Env
+import Filehub.Session qualified as Session
+import Filehub.Session (Session(..))
 import Filehub.Error (withServerError)
-import Filehub.Session.Types (Session(..))
-import Filehub.SessionPool qualified as SessionPool
 import Network.Wai
 import Prelude hiding (readFile)
 import Lens.Micro.Platform ()
 import Lens.Micro
 import Servant
 import Filehub.Types (Display (..))
-import Filehub.Env qualified as Env
 import Filehub.Cookie qualified as Cookies
 import Filehub.Server.Internal (parseHeader')
 import Filehub.Monad (runFilehub, Filehub)
@@ -76,7 +76,7 @@ sessionHandler env = mkAuthHandler handler
         header <- toEither "cookie not found" $ lookup "Cookie" $ requestHeaders req
         cookie <- bimap (Text.encodeUtf8 . Text.fromStrict) id $ parseHeader header
         toEither "can't get sessionId" $ Cookie.getSessionId cookie
-      _ <- toServantHandler env $ SessionPool.getSession sessionId & withServerError
+      _ <- toServantHandler env $ Session.getSession sessionId & withServerError
       pure sessionId
 
 
@@ -113,7 +113,7 @@ displayOnlyHandler witness predicate msg env =
     sessionId <- maybe (throwError $ err401 { errBody = "invalid session" }) pure do
       cookie <-  lookup "Cookie" $ requestHeaders req
       parseHeader' cookie >>= Cookies.getSessionId
-    display <- liftIO . runFilehub env $ Env.getDisplay sessionId & withServerError
+    display <- liftIO . runFilehub env $ Session.getDisplay sessionId & withServerError
     case display of
       Right d | predicate d -> pure witness
       _ -> throwError err400 { errBody = msg }
@@ -126,13 +126,13 @@ data ConfirmLogin = ConfirmLogin
 --   otherwise we check the validity of the current auth Id from cookie.
 loginHandler :: Env -> AuthHandler Request ConfirmLogin
 loginHandler env
-  | env.noLogin = mkAuthHandler $ \_ -> pure ConfirmLogin
+  | Env.hasNoLogin env = mkAuthHandler $ \_ -> pure ConfirmLogin
   | otherwise = mkAuthHandler $ \req -> do
       result <- runMaybeT do
         cookie <- MaybeT . pure $ lookup "Cookie" (requestHeaders req)
         sessionId <- MaybeT . pure $ parseHeader' cookie >>= Cookies.getSessionId
         authId <- MaybeT . pure $ parseHeader' cookie >>= Cookies.getAuthId
-        eSession  <- liftIO . runFilehub env . withServerError $ Env.getSession sessionId
+        eSession  <- liftIO . runFilehub env . withServerError $ Session.getSession sessionId
         session   <- MaybeT . pure $ either (const Nothing) Just eSession
         guard (session.authId == Just authId)
         pure ConfirmLogin

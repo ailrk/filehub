@@ -20,7 +20,7 @@ import Effectful.Log (Log, logAttention_)
 import Filehub.Types (Env, CopyState(..), SessionId, File(..), Selected (..))
 import Filehub.Target (TargetView(..))
 import Filehub.Error (FilehubError (..), Error' (..))
-import Filehub.Env qualified as Env
+import Filehub.Session qualified as Session
 import Filehub.Storage (getStorage, Storage(..))
 import Filehub.Target qualified as Target
 import Filehub.Selected qualified as Selected
@@ -33,11 +33,11 @@ import Data.List (nub)
 
 
 getCopyState :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es CopyState
-getCopyState sessionId = (^. #copyState) <$> Env.getSession sessionId
+getCopyState sessionId = (^. #copyState) <$> Session.getSession sessionId
 
 
 setCopyState :: (Reader Env :> es, IOE :> es) => SessionId -> CopyState -> Eff es ()
-setCopyState sessionId copyState = Env.updateSession sessionId $ \s -> s & #copyState .~ copyState
+setCopyState sessionId copyState = Session.updateSession sessionId $ \s -> s & #copyState .~ copyState
 
 
 clearCopyState :: (Reader Env :> es, IOE :> es) => SessionId -> Eff es ()
@@ -63,7 +63,7 @@ select sessionId = do
               logAttention_ [i|Select error: #{sessionId}|]
               throwError (FilehubError SelectError "Invalid selection")
         Selected x xs -> do
-          root <- Env.getRoot sessionId
+          root <- Session.getRoot sessionId
           storage <- getStorage sessionId
           let paths = (x:xs) & fmap (ClientPath.fromClientPath root)
           files <- traverse storage.get paths
@@ -98,7 +98,7 @@ paste sessionId = do
   state <- getCopyState sessionId
   case state of
     Paste selections -> do
-      TargetView to _ _ <- Env.currentTarget sessionId
+      TargetView to _ _ <- Session.currentTarget sessionId
       forM_ selections $ \(from, files) -> do
         forM_ files $ \file -> do
           bytes <- Target.withTarget sessionId (Target.getTargetId from) \_ -> do
@@ -106,7 +106,7 @@ paste sessionId = do
             storage.read file
           Target.withTarget sessionId (Target.getTargetId to) \_ -> do
             storage <- getStorage sessionId
-            dirPath <- Env.getCurrentDir sessionId
+            dirPath <- Session.getCurrentDir sessionId
             let destination = dirPath </> takeFileName file.path
             storage.write destination bytes
       setCopyState sessionId NoCopyPaste
