@@ -1,3 +1,10 @@
+-- |
+-- Maintainer  :  jimmy@ailrk.com
+-- Copyright   :  (c) 2025-present Jinyang yao
+--
+-- This module implements Sorting strategy for the table. By default
+-- directories will be sorted with higher priority.
+
 module Filehub.Sort (SortFileBy(..), sortFiles) where
 
 import Data.List ( sortOn )

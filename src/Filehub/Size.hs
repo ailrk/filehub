@@ -1,4 +1,9 @@
 {-# LANGUAGE MultiWayIf #-}
+-- |
+-- Maintainer  :  jimmy@ailrk.com
+-- Copyright   :  (c) 2025-present Jinyang yao
+--
+-- File size formatting.
 
 module Filehub.Size (toReadableSize) where
 import Text.Printf (printf)

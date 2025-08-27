@@ -1,3 +1,11 @@
+-- |
+-- Maintainer  :  jimmy@ailrk.com
+-- Copyright   :  (c) 2025-present Jinyang yao
+--
+-- This module implements the command line option parser. Config generated from
+-- the option parser will be combined with Config generated from the config file
+-- to create the final `Config`.
+
 module Filehub.Options
   ( parseOptions
   , Options(..)
@@ -37,6 +45,7 @@ import Data.List.Split (splitOn)
 data Options = Options
   { optionConfig :: Config Maybe
   , configFile :: Maybe FilePath
+  -- ^ Path of the toml configuration file.
   }
 
 

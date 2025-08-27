@@ -1,14 +1,20 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
--- | Conceal the full absolute path by splitting a absolute path into
---   root part and the client part, the client part can be rendered safely in the frontend.
---   ClientPath is percent encoded, the frontend code can safely display it in the UI.
---   When the server receives a ClientPath, it will restore it to normal path by first decode
---   the percent encoding, then append the root prefix.
+-- |
+-- Maintainer  :  jimmy@ailrk.com
+-- Copyright   :  (c) 2025-present Jinyang yao
 --
---   ClientPath is unique within a directory.
+-- Conceal the full absolute path by splitting a absolute path into
+-- root part and the client part, the client part can be rendered safely in the frontend.
+-- ClientPath is percent encoded, the frontend code can safely display it in the UI.
+-- When the server receives a ClientPath, it will restore it to normal path by first decode
+-- the percent encoding, then append the root prefix.
 --
---   Note: S3 path is already absolute and fully qualified. Because root of S3 bucket is always "",
---   client path acts like a noop.
+-- ClientPath is unique within a directory.
+--
+-- Note: S3 path is already absolute and fully qualified. Because root of S3 bucket is always "",
+-- client path acts like a noop.
+
+
 module Filehub.ClientPath
   ( ClientPath(..)
   , RawClientPath(..)

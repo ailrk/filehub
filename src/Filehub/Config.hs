@@ -38,7 +38,7 @@ data S3TargetConfig = S3TargetConfig_
   deriving (Show, Eq)
 
 
--- | Left config onverrides the right one
+-- | Left config overrides the right one
 merge :: Config Maybe -> Config Maybe -> Either String (Config Identity)
 merge cfg1 cfg2 = do
   port      <-  maybe (Left "port is missing")     Right $ cfg1.port <|> cfg2.port

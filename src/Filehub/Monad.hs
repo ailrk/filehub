@@ -1,3 +1,9 @@
+-- |
+-- Maintainer  :  jimmy@ailrk.com
+-- Copyright   :  (c) 2025-present Jinyang yao
+--
+-- The effect of filehub.
+
 module Filehub.Monad
   ( runFilehub
   , toIO
@@ -21,6 +27,7 @@ import Control.Monad ((>=>))
 type Filehub = Eff [Reader Env, Log, Error ServerError, FileSystem, Concurrent, IOE]
 
 
+-- | Discharge a `Filehub` effect
 runFilehub :: Env -> Filehub a -> IO (Either ServerError a)
 runFilehub env eff =
   runEff $
@@ -32,6 +39,7 @@ runFilehub env eff =
   $ eff
 
 
+-- | Convenient helper to run Filehub effect in IO.
 toIO :: (ServerError -> IO a) -> Env -> Filehub a -> IO a
 toIO onErr env eff = do
   (runExceptT >=> either onErr pure)
