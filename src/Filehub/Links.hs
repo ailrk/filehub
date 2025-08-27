@@ -29,7 +29,7 @@ apiLinks = allFieldLinks @Api
 
 sitemapLinks :: [Link]
 sitemapLinks =
-  [ apiLinks.index
+  [ apiLinks.home
   , apiLinks.cd $ Just (ClientPath "dummy.txt")
   , apiLinks.newFile
   , apiLinks.updateFile

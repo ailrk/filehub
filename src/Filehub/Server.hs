@@ -4,6 +4,14 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE MultiWayIf #-}
 {-# OPTIONS_GHC -Wno-partial-type-signatures #-}
+-- |
+-- Maintainer  :  jimmy@ailrk.com
+-- Copyright   :  (c) 2025-present Jinyang yao
+--
+-- This module implements the filehub server. Most of the server is
+-- implemented with servant handlers. Some features that are hard to
+-- implement with servant are provided through wai middleware.
+
 module Filehub.Server (application, main, mainDev) where
 
 import Codec.Archive.Zip qualified as Zip
@@ -17,7 +25,7 @@ import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.ByteString (ByteString)
 import Data.ByteString.Char8 qualified as ByteString
-import Data.Aeson (object, KeyValue (..), (.:), withObject)
+import Data.Aeson (object, KeyValue (..), (.:), withObject, Value)
 import Data.Aeson.Types (parseMaybe)
 import Data.FileEmbed qualified as FileEmbed
 import Data.Time (secondsToNominalDiffTime, UTCTime (..), fromGregorian)
@@ -32,7 +40,7 @@ import Effectful.Log (runLog)
 import Lens.Micro
 import Lens.Micro.Platform ()
 import Lucid
-import Prelude hiding (readFile)
+import Prelude hiding (init, readFile)
 import Servant.Server.Generic (AsServerT)
 import Servant (errBody, Headers, Header, NoContent (..), err404, errHeaders, err301, noHeader, err400)
 import Servant (addHeader, err500)
@@ -47,7 +55,7 @@ import Filehub.Layout (Layout(..))
 import Filehub.Mime (isMime)
 import Filehub.Target qualified as Target
 import Filehub.Target.Types.TargetView (TargetView(..))
-import Filehub.Types ( FilehubEvent (..), LoginForm(..), MoveFile (..), UIComponent (..), FileContent (..))
+import Filehub.Types ( FilehubEvent (..), LoginForm(..), MoveFile (..), UIComponent (..), FileContent (..), TargetId, SearchWord, OpenTarget, Resolution)
 import Filehub.Session qualified as Session
 import Filehub.Session (SessionId(..))
 import Filehub.Env qualified as Env
@@ -71,7 +79,8 @@ import Filehub.Server.Handler qualified as Server.Handler
 import Filehub.Server.Middleware qualified as Server.Middleware
 import Filehub.Server.Desktop qualified as Server.Desktop
 import Filehub.Server.Mobile qualified as Server.Mobile
-import Filehub.Server.Internal (withQueryParam, clear, copy, paste, parseHeader')
+import Filehub.Server.Internal (withQueryParam, parseHeader')
+import Filehub.Server.Internal qualified as Server.Internal
 import Filehub.Session.Pool qualified as SessionPool
 import Filehub.Types (Target(..))
 import Filehub.Target.File qualified as FS
@@ -92,7 +101,7 @@ import Filehub.Viewer qualified as Viewer
 import Filehub.ControlPanel qualified as ControlPanel
 import Filehub.Storage (getStorage, Storage(..))
 import Filehub.Cookie qualified as Cookie
-import Filehub.Server.Handler (ConfirmLogin)
+import Filehub.Server.Handler (ConfirmLogin, ConfirmReadOnly)
 import Filehub.Auth.Types qualified as Auth
 import Filehub.Auth.Simple qualified as Auth.Simple
 import Filehub.Cookie qualified as Cookies
@@ -113,6 +122,7 @@ import Data.Functor.Identity (Identity(..))
 import Control.Exception (throwIO)
 import Filehub.Auth.OIDC (OIDCAuthProviders(..))
 import Filehub.Auth.Types (ActiveUsers(..))
+import Servant.Multipart (MultipartData, Mem)
 
 
 #ifdef DEBUG
@@ -123,385 +133,10 @@ import System.Directory (makeAbsolute)
 import Data.ByteString (readFile)
 #endif
 
--- | Server definition
-server :: Api (AsServerT Filehub)
-server = Api
-  { init = \sessionId res -> do
-      Session.updateSession sessionId $
-        \s -> s & #resolution .~ Just res
-      clear sessionId
-      index sessionId
 
-
-  -- Only the top level index will load resources (js, css, etc) if display is valid.
-  -- Whenver you need to re-render the index page, call the `index` free function instead,
-  -- which only render the element #index.
-  --
-  -- `bootstrap` is used to query the device resolution before rendering anything. Once
-  -- the session is bootstrapped, display information will be available for all subsequent
-  -- requests.
-  --
-  -- The frontend js deletes the `display` cookie on `pageunload`, so the backend can
-  -- start a full reload from the bootstrap stage.
-  , index = \sessionId _ -> do
-      display <- Session.getDisplay sessionId & withServerError
-      manifest <- server.manifest
-      let background
-            = fromMaybe "#000000"
-            $ flip parseMaybe manifest
-            $ withObject "manifest"
-            $ (.: "theme_color")
-
-      clear sessionId
-      case display of
-        NoDisplay -> pure Template.bootstrap
-        Desktop -> fmap (Template.withDefault display background) $ Server.Desktop.index sessionId
-        Mobile -> fmap (Template.withDefault display background) $ Server.Mobile.index sessionId
-
-
-  , refresh = \sessionId _ mUIComponent -> do
-      case mUIComponent of
-        Just UIComponentContronPanel -> do
-          controlPanel sessionId
-        Just UIComponentSideBar -> do
-          sideBar sessionId
-        Just UIComponentView -> do
-          view sessionId
-        Nothing ->
-          throwError (err400 { errBody = [i|Invalid ui component|]})
-
-
-  , login = login
-
-
-  , loginPost = loginPost
-
-
-  , logout = logout
-
-
-  , cd = \sessionId _ mClientPath -> do
-      clientPath <- withQueryParam mClientPath
-      withServerError do
-        root <- Session.getRoot sessionId
-        storage <- getStorage sessionId
-        storage.cd (ClientPath.fromClientPath root clientPath)
-      view sessionId <&> addHeader DirChanged
-
-
-  , newFile = \sessionId _ _ (NewFile path) -> do
-      withServerError do
-        storage <- getStorage sessionId
-        storage.new (Text.unpack path)
-      view sessionId
-
-
-  , updateFile = \sessionId _ _ (UpdatedFile clientPath content) -> do
-      let path = clientPath.unClientPath
-      withServerError do
-        storage <- getStorage sessionId
-        storage.write path (Text.encodeUtf8 content)
-      view sessionId
-
-
-  , deleteFile = \sessionId _ _ clientPaths deleteSelected -> do
-      withServerError do
-        storage <- getStorage sessionId
-        root <- Session.getRoot sessionId
-        forM_ clientPaths $ \clientPath -> do
-          let path = ClientPath.fromClientPath root clientPath
-          storage.delete path
-
-        when deleteSelected do
-          allSelecteds <- Selected.allSelecteds sessionId
-          forM_ allSelecteds $ \(target, selected) -> do
-            Target.withTarget sessionId (Target.getTargetId target) $ \_ -> do
-              case selected of
-                NoSelection -> pure ()
-                Selected x xs -> do
-                  forM_ (fmap (ClientPath.fromClientPath root) (x:xs)) $ \path -> do
-                    storage.delete path
-      clear sessionId
-      count <- Selected.countSelected sessionId & withServerError
-      addHeader count <$> index sessionId
-
-
-  , newFolder = \sessionId _ _ (NewFolder path) -> do
-      withServerError do
-        storage <- getStorage sessionId
-        storage.newFolder (Text.unpack path)
-      view sessionId
-
-
-  , newFileModal = \_ _ _ _ -> pure Template.Desktop.newFileModal
-
-
-  , newFolderModal = \_ _ _ _ -> pure Template.Desktop.newFolderModal
-
-
-  , fileDetailModal = \sessionId _ -> Server.Desktop.fileDetailModal sessionId
-
-
-  , editorModal = \sessionId _ mClientPath -> do
-      display <- Session.getDisplay sessionId & withServerError
-      case display of
-        Mobile -> Server.Mobile.editorModal sessionId mClientPath
-        Desktop -> Server.Desktop.editorModal sessionId mClientPath
-        NoDisplay -> undefined
-
-
-  , search = \sessionId _ searchWord -> withServerError do
-      display <- Session.getDisplay sessionId
-      storage <- getStorage sessionId
-      TargetView target _ _ <- Session.currentTarget sessionId
-      root <- Session.getRoot sessionId
-      files <- storage.lsCwd
-      order <- Session.getSortFileBy sessionId
-      layout <- Session.getLayout sessionId
-      selected <- Selected.getSelected sessionId
-      case display of
-        Mobile -> pure $ Template.Mobile.search searchWord target root files selected order
-        Desktop -> pure $ Template.Desktop.search searchWord target root files selected order layout
-        NoDisplay -> undefined
-
-
-  , sortTable = \sessionId _ order -> do
-      Session.setSortFileBy sessionId (fromMaybe ByNameUp order)
-      addHeader TableSorted <$> view sessionId
-
-
-  , selectLayout = \sessionId _ layout -> do
-      Session.setLayout sessionId (fromMaybe ThumbnailLayout layout)
-      addHeader LayoutChanged <$> index sessionId
-
-
-  , selectRows = \sessionId _ selected -> do
-      case selected of
-        NoSelection -> do
-          logAttention_ [i|No selection: #{sessionId}|]
-          throwError (FilehubError InvalidSelection "Nothing is selected") & withServerError
-        _ -> do
-          Selected.setSelected sessionId selected
-          count <- Selected.countSelected sessionId & withServerError
-          addHeader count <$> controlPanel sessionId
-
-
-  , upload = \sessionId _ _ multipart -> do
-      withServerError do
-        storage <- getStorage sessionId
-        storage.upload multipart
-      index sessionId
-
-
-  , download = \sessionId _ clientPaths -> do
-      storage <- getStorage sessionId & withServerError
-      root <- Session.getRoot sessionId & withServerError
-
-      case clientPaths of
-        [clientPath@(ClientPath path)] -> do
-          file <- storage.get (ClientPath.fromClientPath root clientPath) & withServerError
-          conduit <- withServerError $ storage.download clientPath
-          let filename =
-                case file.content of
-                  Content -> printf "attachement; filename=%s" (takeFileName path)
-                  Dir _ -> printf "attachement; filename=%s.zip" (takeFileName path)
-          pure $ addHeader filename conduit
-
-        _ -> do
-          (zipPath, _) <- liftIO do
-            tempDir <- Temp.getCanonicalTemporaryDirectory
-            Temp.openTempFile tempDir "DXXXXXX.zip"
-
-          tasks <-
-            forM (fmap (ClientPath.fromClientPath root) clientPaths) $ \path -> withServerError do
-              file <- storage.get path
-              conduit <- storage.readStream file
-              pure (path, conduit)
-
-
-          Zip.createArchive zipPath $ do
-            forM_ tasks $ \(path, conduit) -> do
-              m <- Zip.mkEntrySelector  (makeRelative root path)
-              Zip.sinkEntry Zip.Zstd conduit m
-          tag <- Text.pack <$> replicateM 8 (randomRIO ('a', 'z'))
-          let conduit =
-                Conduit.bracketP
-                  (pure ())
-                  (\_ -> liftIO $ removeFile zipPath)
-                  (\_ -> Conduit.sourceFile zipPath)
-
-          pure $ addHeader (printf "attachement; filename=%s.zip" tag) conduit
-
-
-  , copy = \sessionId _ _ -> do
-      copy sessionId
-      controlPanel sessionId
-
-
-  , paste = \sessionId _ _ -> do
-      paste sessionId
-      clear sessionId
-      count <- Selected.countSelected sessionId & withServerError
-      addHeader count <$> index sessionId
-
-
-  , move = \sessionId _ _ (MoveFile src tgt) -> do
-      root <- Session.getRoot sessionId & withServerError
-      storage <- getStorage sessionId & withServerError
-      let srcPaths = fmap (ClientPath.fromClientPath root) src
-      let tgtPath = ClientPath.fromClientPath root tgt
-
-      -- check before take action
-      forM_ srcPaths $ \srcPath -> withServerError do
-        isTgtDir <- storage.isDirectory tgtPath
-        when (not isTgtDir) do
-          throwError $ FilehubError InvalidDir "Target is not a directory"
-
-        when (srcPath == tgtPath)  do
-          throwError $ FilehubError InvalidDir "Can't move to the same directory"
-
-        when (takeDirectory srcPath == tgtPath)  do
-          throwError $ FilehubError InvalidDir "Already in the current directory"
-
-      forM_ srcPaths $ \srcPath -> withServerError do
-        let fileName = takeFileName srcPath
-        storage.cp srcPath (tgtPath </> fileName)
-        storage.delete srcPath
-      addHeader FileMoved <$> index sessionId
-
-
-  , cancel = \sessionId _ -> do
-      clear sessionId
-      count <- Selected.countSelected sessionId & withServerError
-      addHeader count <$> index sessionId
-
-
-  , contextMenu = \sessionId _ -> Server.Desktop.contextMenu sessionId
-
-
-  , initViewer = \sessionId _ mClientPath -> do
-      withServerError do
-        clientPath <- withQueryParam mClientPath
-        root <- Session.getRoot sessionId
-        payload <- Viewer.initViewer sessionId root clientPath
-        pure $ addHeader payload NoContent
-
-
-  , open = \_ _ mTarget mClientPath -> do
-      clientPath <- withQueryParam mClientPath
-      target <- withQueryParam mTarget
-      pure $ addHeader (Opened target clientPath) NoContent
-
-
-  , changeTarget = \sessionId _ mTargetId -> do
-      savedTargetId <- withServerError do
-        TargetView saved _ _ <- Target.currentTarget sessionId
-        pure $ Target.getTargetId saved
-
-      let restore = Session.changeCurrentTarget sessionId savedTargetId & withServerError
-      targetId <- withQueryParam mTargetId
-      Session.changeCurrentTarget sessionId targetId & withServerError
-
-      html <- withRunInIO $ \unlift -> do
-        unlift (index sessionId) `catch` \(_ :: SomeException) -> unlift do
-          restore
-          throwError (err500 { errBody = [i|Invalid target|]})
-
-      pure $ addHeader TargetChanged html
-
-
-  , themeCss = \sessionId -> do
-#ifdef DEBUG
-      theme <- Session.getSessionTheme sessionId & withServerError
-      dir <- liftIO $ Paths_filehub.getDataDir >>= makeAbsolute <&> (++ "/data/filehub")
-      liftIO . readFile $
-        case theme of
-          Dark -> dir </> "theme-dark.css"
-          Light -> dir </> "theme-light.css"
-#else
-      theme <- Session.getSessionTheme sessionId & withServerError
-      pure
-        case theme of
-          Dark -> fromMaybe "no-theme" $ Map.lookup "theme-dark.css" staticFiles
-          Light -> fromMaybe "no-theme" $ Map.lookup "theme-light.css" staticFiles
-#endif
-
-
-  , toggleTheme = \sessionId _ -> do
-      theme <- Session.getSessionTheme sessionId & withServerError
-      case theme of
-        Theme.Light -> Session.setSessionTheme sessionId Theme.Dark
-        Theme.Dark -> Session.setSessionTheme sessionId Theme.Light
-      addHeader ThemeChanged <$> index sessionId
-
-
-  , serve = serve
-
-
-  , thumbnail = thumbnail
-
-
-  , manifest = do
-      let t = Text.pack
-      pure $
-        object
-          [ "name"       .= t "FileHub"
-          , "short_name" .= t "FileHub"
-          , "start_url"  .= t "/"
-          , "display"    .= t "standalone"
-          , "icons" .=
-              [ object
-                    [ "src"     .= t "/static/web-app-manifest-192x192.png"
-                    , "sizes"   .= t "192x192"
-                    , "type"    .= t "image/png"
-                    , "purpose" .= t "any"
-                    ]
-              , object
-                    [ "src"     .= t "/static/web-app-manifest-512x512.png"
-                    , "sizes"   .= t "512x512"
-                    , "type"    .= t "image/png"
-                    , "purpose" .= t "maskable"
-                    ]
-              ]
-          ]
-
-
-  , favicon = pure $(FileEmbed.embedFile "data/filehub/favicon.ico")
-
-
-  , static = \paths -> do
-#ifdef DEBUG
-      dir <- liftIO $ Paths_filehub.getDataDir >>= makeAbsolute <&> (++ "/data/filehub")
-      let path = dir </> List.intercalate "/" paths
-      let mimetype = Mime.defaultMimeLookup (Text.pack path)
-      content <- liftIO . readFile $ path
-      pure
-        $ addHeader (ByteString.unpack mimetype)
-        $ addHeader "public, max-age=31536000, immutable"
-        $ content
-#else
-      let path = List.intercalate "/" paths
-      case Map.lookup path staticFiles of
-        Just content -> do
-          let mimetype = Mime.defaultMimeLookup (Text.pack path)
-          pure
-            $ addHeader (ByteString.unpack mimetype)
-            $ addHeader "public, max-age=31536000, immutable"
-            $ content
-        Nothing -> throwError (err404 { errBody = [i|File doesn't exist|]})
-#endif
-
-
-  , offline = pure Template.offline
-
-
-  , healthz = pure "ok"
-
-
-#ifdef DEBUG
-  , debug1 = \_ -> pure $ addHeader (Dummy "Hello") NoContent
-#endif
-  }
+------------------------------------
+-- Static files
+------------------------------------
 
 
 -- | Static files are embeded into the final excutable. The key is the path of the file.
@@ -511,14 +146,104 @@ staticFiles = Map.fromList
   $(FileEmbed.embedDir "data/filehub")
 
 
--- | index that reset the state
-index :: SessionId -> Filehub (Html ())
-index sessionId = do
+------------------------------------
+-- Sever endpoints
+------------------------------------
+
+
+server :: Api (AsServerT Filehub)
+server = Api
+  { init            = init
+  , home            = home
+  , refresh         = refresh
+  , login           = login
+  , loginPost       = loginPost
+  , logout          = logout
+  , cd              = cd
+  , newFile         = newFile
+  , updateFile      = updateFile
+  , deleteFile      = deleteFile
+  , newFolder       = newFolder
+  , newFileModal    = \_ _ _ _ -> pure Template.Desktop.newFileModal
+  , newFolderModal  = \_ _ _ _ -> pure Template.Desktop.newFolderModal
+  , fileDetailModal = \sessionId _ -> Server.Desktop.fileDetailModal sessionId
+  , editorModal     = editorModal
+  , search          = search
+  , sortTable       = \sessionId _ order -> Session.setSortFileBy sessionId (fromMaybe ByNameUp order) >> addHeader TableSorted <$> view sessionId
+  , selectLayout    = \sessionId _ layout -> Session.setLayout sessionId (fromMaybe ThumbnailLayout layout) >> addHeader LayoutChanged <$> index sessionId
+  , selectRows      = selectRows
+  , upload          = upload
+  , download        = download
+  , copy            = copy
+  , paste           = paste
+  , move            = move
+  , cancel          = cancel
+  , contextMenu     = \sessionId _ -> Server.Desktop.contextMenu sessionId
+  , initViewer      = initViewer
+  , open            = open
+  , changeTarget    = changeTarget
+  , themeCss        = themeCss
+  , toggleTheme     = toggleTheme
+  , serve           = serve
+  , thumbnail       = thumbnail
+  , manifest        = manifest
+  , favicon         = pure $(FileEmbed.embedFile "data/filehub/favicon.ico")
+  , static          = static
+  , offline         = pure Template.offline
+  , healthz         = pure "ok"
+#ifdef DEBUG
+  , debug1          = \_ -> pure $ addHeader (Dummy "Hello") NoContent
+#endif
+  }
+
+
+init :: SessionId -> Resolution -> Filehub (Html ())
+init sessionId res = do
+  Session.updateSession sessionId $
+    \s -> s & #resolution .~ Just res
+  Server.Internal.clear sessionId
+  index sessionId
+
+
+-- | The main entrance of the application.
+-- Home reloads static resources (js, css, etc).
+-- Whenver you need to re-render the index page, call the `index` free function instead,
+-- which only render the element #index.
+--
+-- `bootstrap` is used to query the device resolution before rendering anything. Once
+-- the session is bootstrapped, display information will be available for all subsequent
+-- requests.
+--
+-- The frontend js deletes the `display` cookie on `pageunload`, so the backend can
+-- start a full reload from the bootstrap stage.
+home :: SessionId -> ConfirmLogin -> Filehub (Html ())
+home sessionId _  = do
   display <- Session.getDisplay sessionId & withServerError
+  m <- manifest
+  let background
+        = fromMaybe "#000000"
+        $ flip parseMaybe m
+        $ withObject "manifest"
+        $ (.: "theme_color")
+  Server.Internal.clear sessionId
   case display of
     NoDisplay -> pure Template.bootstrap
-    Desktop -> Server.Desktop.index sessionId
-    Mobile -> Server.Mobile.index sessionId
+    Desktop -> fmap (Template.withDefault display background) $ Server.Desktop.index sessionId
+    Mobile -> fmap (Template.withDefault display background) $ Server.Mobile.index sessionId
+
+
+-- Force to refresh a component. It's useful for the client to selectively update ui.
+refresh :: SessionId -> ConfirmLogin -> Maybe UIComponent -> Filehub (Html ())
+refresh sessionId _ mUIComponent = do
+  case mUIComponent of
+    Just UIComponentContronPanel -> do
+      controlPanel sessionId
+    Just UIComponentSideBar -> do
+      sideBar sessionId
+    Just UIComponentView -> do
+      view sessionId
+    Nothing ->
+      throwError (err400 { errBody = [i|Invalid ui component|]})
 
 
 login :: SessionId -> Maybe Text -> Filehub (Html ())
@@ -573,6 +298,372 @@ logout sessionId _ = do
     Nothing -> noHeader . noHeader <$> pure mempty
 
 
+cd :: SessionId -> ConfirmLogin -> Maybe ClientPath
+   ->  Filehub (Headers '[ Header "HX-Trigger-After-Swap" FilehubEvent ] (Html ()))
+cd sessionId _ mClientPath = do
+  clientPath <- withQueryParam mClientPath
+  withServerError do
+    root <- Session.getRoot sessionId
+    storage <- getStorage sessionId
+    storage.cd (ClientPath.fromClientPath root clientPath)
+  view sessionId <&> addHeader DirChanged
+
+
+newFile :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> NewFile -> Filehub (Html ())
+newFile sessionId _ _ (NewFile path) = do
+  withServerError do
+    storage <- getStorage sessionId
+    storage.new (Text.unpack path)
+  view sessionId
+
+updateFile :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> UpdatedFile -> Filehub (Html ())
+updateFile sessionId _ _ (UpdatedFile clientPath content) = do
+  let path = clientPath.unClientPath
+  withServerError do
+    storage <- getStorage sessionId
+    storage.write path (Text.encodeUtf8 content)
+  view sessionId
+
+
+newFolder :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> NewFolder -> Filehub (Html ())
+newFolder = \sessionId _ _ (NewFolder path) -> do
+  withServerError do
+    storage <- getStorage sessionId
+    storage.newFolder (Text.unpack path)
+  view sessionId
+
+
+deleteFile :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> [ClientPath] -> Bool
+           -> Filehub (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))
+deleteFile sessionId _ _ clientPaths deleteSelected = do
+  withServerError do
+    storage <- getStorage sessionId
+    root <- Session.getRoot sessionId
+    forM_ clientPaths $ \clientPath -> do
+      let path = ClientPath.fromClientPath root clientPath
+      storage.delete path
+    when deleteSelected do
+      allSelecteds <- Selected.allSelecteds sessionId
+      forM_ allSelecteds $ \(target, selected) -> do
+        Target.withTarget sessionId (Target.getTargetId target) $ \_ -> do
+          case selected of
+            NoSelection -> pure ()
+            Selected x xs -> do
+              forM_ (fmap (ClientPath.fromClientPath root) (x:xs)) $ \path -> do
+                storage.delete path
+  Server.Internal.clear sessionId
+  count <- Selected.countSelected sessionId & withServerError
+  addHeader count <$> index sessionId
+
+
+copy :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> Filehub (Html ())
+copy sessionId _ _  = Server.Internal.copy sessionId >> controlPanel sessionId
+
+
+paste :: SessionId -> ConfirmLogin -> ConfirmReadOnly
+      -> Filehub (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))
+paste sessionId _ _ = do
+  Server.Internal.paste sessionId
+  Server.Internal.clear sessionId
+  count <- (Selected.countSelected sessionId & withServerError)
+  addHeader count <$> index sessionId
+
+
+editorModal :: SessionId -> ConfirmLogin -> Maybe ClientPath -> Filehub (Html ())
+editorModal sessionId _ mClientPath = do
+  display <- Session.getDisplay sessionId & withServerError
+  case display of
+    Mobile -> Server.Mobile.editorModal sessionId mClientPath
+    Desktop -> Server.Desktop.editorModal sessionId mClientPath
+    NoDisplay -> undefined
+
+
+search :: SessionId -> ConfirmLogin -> SearchWord -> Filehub (Html ())
+search sessionId _ searchWord = withServerError do
+  display <- Session.getDisplay sessionId
+  storage <- getStorage sessionId
+  TargetView target _ _ <- Session.currentTarget sessionId
+  root <- Session.getRoot sessionId
+  files <- storage.lsCwd
+  order <- Session.getSortFileBy sessionId
+  layout <- Session.getLayout sessionId
+  selected <- Selected.getSelected sessionId
+  case display of
+    Mobile -> pure $ Template.Mobile.search searchWord target root files selected order
+    Desktop -> pure $ Template.Desktop.search searchWord target root files selected order layout
+    NoDisplay -> undefined
+
+
+selectRows :: SessionId -> ConfirmLogin -> Selected -> Filehub (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))
+selectRows sessionId _ selected = do
+  case selected of
+    NoSelection -> do
+      logAttention_ [i|No selection: #{sessionId}|]
+      throwError (FilehubError InvalidSelection "Nothing is selected") & withServerError
+    _ -> do
+      Selected.setSelected sessionId selected
+      count <- Selected.countSelected sessionId & withServerError
+      addHeader count <$> controlPanel sessionId
+
+
+upload :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> MultipartData Mem -> Filehub (Html ())
+upload sessionId _ _ multipart = do
+  withServerError do
+    storage <- getStorage sessionId
+    storage.upload multipart
+  index sessionId
+
+
+download :: SessionId -> ConfirmLogin -> [ClientPath]
+         -> Filehub (Headers '[ Header "Content-Disposition" String ] (ConduitT () ByteString (ResourceT IO) ()))
+download sessionId _ clientPaths = do
+  storage <- getStorage sessionId & withServerError
+  root <- Session.getRoot sessionId & withServerError
+  case clientPaths of
+    [clientPath@(ClientPath path)] -> do
+      file <- storage.get (ClientPath.fromClientPath root clientPath) & withServerError
+      conduit <- withServerError $ storage.download clientPath
+      let filename =
+            case file.content of
+              Content -> printf "attachement; filename=%s" (takeFileName path)
+              Dir _ -> printf "attachement; filename=%s.zip" (takeFileName path)
+      pure $ addHeader filename conduit
+    _ -> do
+      (zipPath, _) <- liftIO do
+        tempDir <- Temp.getCanonicalTemporaryDirectory
+        Temp.openTempFile tempDir "DXXXXXX.zip"
+      tasks <-
+        forM (fmap (ClientPath.fromClientPath root) clientPaths) $ \path -> withServerError do
+          file <- storage.get path
+          conduit <- storage.readStream file
+          pure (path, conduit)
+      Zip.createArchive zipPath $ do
+        forM_ tasks $ \(path, conduit) -> do
+          m <- Zip.mkEntrySelector  (makeRelative root path)
+          Zip.sinkEntry Zip.Zstd conduit m
+      tag <- Text.pack <$> replicateM 8 (randomRIO ('a', 'z'))
+      let conduit =
+            Conduit.bracketP
+              (pure ())
+              (\_ -> liftIO $ removeFile zipPath)
+              (\_ -> Conduit.sourceFile zipPath)
+      pure $ addHeader (printf "attachement; filename=%s.zip" tag) conduit
+
+
+move :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> MoveFile
+     -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
+move sessionId _ _ (MoveFile src tgt) = do
+  root <- Session.getRoot sessionId & withServerError
+  storage <- getStorage sessionId & withServerError
+  let srcPaths = fmap (ClientPath.fromClientPath root) src
+  let tgtPath = ClientPath.fromClientPath root tgt
+
+  -- check before take action
+  forM_ srcPaths $ \srcPath -> withServerError do
+    isTgtDir <- storage.isDirectory tgtPath
+    when (not isTgtDir) do
+      throwError $ FilehubError InvalidDir "Target is not a directory"
+
+    when (srcPath == tgtPath)  do
+      throwError $ FilehubError InvalidDir "Can't move to the same directory"
+
+    when (takeDirectory srcPath == tgtPath)  do
+      throwError $ FilehubError InvalidDir "Already in the current directory"
+
+  forM_ srcPaths $ \srcPath -> withServerError do
+    let fileName = takeFileName srcPath
+    storage.cp srcPath (tgtPath </> fileName)
+    storage.delete srcPath
+  addHeader FileMoved <$> index sessionId
+
+
+cancel :: SessionId -> ConfirmLogin -> Filehub (Headers '[Header "X-Filehub-Selected-Count" Int] (Html ()))
+cancel sessionId _ = do
+  Server.Internal.clear sessionId
+  count <- Selected.countSelected sessionId & withServerError
+  addHeader count <$> index sessionId
+
+
+initViewer :: SessionId -> ConfirmLogin -> Maybe ClientPath
+           -> Filehub (Headers '[Header "HX-Trigger" FilehubEvent] NoContent)
+initViewer sessionId _ mClientPath = do
+  withServerError do
+    clientPath <- withQueryParam mClientPath
+    root <- Session.getRoot sessionId
+    payload <- Viewer.initViewer sessionId root clientPath
+    pure $ addHeader payload NoContent
+
+
+open :: SessionId -> ConfirmLogin -> Maybe OpenTarget -> Maybe ClientPath
+     -> Filehub (Headers '[Header "HX-Trigger" FilehubEvent] NoContent)
+open _ _ mTarget mClientPath = do
+  clientPath <- withQueryParam mClientPath
+  target <- withQueryParam mTarget
+  pure $ addHeader (Opened target clientPath) NoContent
+
+
+changeTarget :: SessionId -> ConfirmLogin -> Maybe TargetId
+             -> Filehub (Headers '[Header "HX-Trigger-After-Swap" FilehubEvent] (Html ()))
+changeTarget sessionId _ mTargetId = do
+  savedTargetId <- withServerError do
+    TargetView saved _ _ <- Target.currentTarget sessionId
+    pure $ Target.getTargetId saved
+  let restore = Session.changeCurrentTarget sessionId savedTargetId & withServerError
+  targetId <- withQueryParam mTargetId
+  Session.changeCurrentTarget sessionId targetId & withServerError
+  html <- withRunInIO $ \unlift -> do
+    unlift (index sessionId) `catch` \(_ :: SomeException) -> unlift do
+      restore
+      throwError (err500 { errBody = [i|Invalid target|]})
+  pure $ addHeader TargetChanged html
+
+
+themeCss :: SessionId -> Filehub ByteString
+themeCss sessionId = do
+#ifdef DEBUG
+  theme <- Session.getSessionTheme sessionId & withServerError
+  dir <- liftIO $ Paths_filehub.getDataDir >>= makeAbsolute <&> (++ "/data/filehub")
+  liftIO . readFile $
+    case theme of
+      Dark -> dir </> "theme-dark.css"
+      Light -> dir </> "theme-light.css"
+#else
+  theme <- Session.getSessionTheme sessionId & withServerError
+  pure
+    case theme of
+      Dark -> fromMaybe "no-theme" $ Map.lookup "theme-dark.css" staticFiles
+      Light -> fromMaybe "no-theme" $ Map.lookup "theme-light.css" staticFiles
+#endif
+
+
+toggleTheme :: SessionId -> ConfirmLogin -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
+toggleTheme sessionId _ = do
+  theme <- Session.getSessionTheme sessionId & withServerError
+  case theme of
+    Theme.Light -> Session.setSessionTheme sessionId Theme.Dark
+    Theme.Dark -> Session.setSessionTheme sessionId Theme.Light
+  addHeader ThemeChanged <$> index sessionId
+
+
+serve :: SessionId -> ConfirmLogin -> Maybe ClientPath
+      -> Filehub (Headers '[ Header "Content-Type" String
+                           , Header "Content-Disposition" String
+                           ]
+                           (ConduitT () ByteString (ResourceT IO) ()))
+serve sessionId _ mFile = do
+  withServerError do
+    storage <- getStorage sessionId
+    root <- Session.getRoot sessionId
+    clientPath <- withQueryParam mFile
+    let path = ClientPath.fromClientPath root clientPath
+    file <- storage.get path
+    conduit <- storage.readStream file
+    pure
+      $ addHeader (ByteString.unpack file.mimetype)
+      $ addHeader (printf "inline; filename=%s" (takeFileName path))
+      $ conduit
+
+
+thumbnail :: SessionId -> ConfirmLogin -> Maybe ClientPath
+          -> Filehub (Headers '[ Header "Content-Type" String
+                               , Header "Content-Disposition" String
+                               ]
+                               (ConduitT () ByteString (ResourceT IO) ()))
+thumbnail sessionId _ mFile = do
+  withServerError do
+    storage <- getStorage sessionId
+    root <- Session.getRoot sessionId
+    clientPath <- withQueryParam mFile
+    let path = ClientPath.fromClientPath root clientPath
+    file <- storage.get path
+    conduit <- serveOriginal storage file
+    pure
+      $ addHeader (ByteString.unpack file.mimetype)
+      $ addHeader (printf "inline; filename=%s" (takeFileName path))
+      $ conduit
+  where
+    serveOriginal storage file =
+      if
+        | file.mimetype `isMime` "image" ->
+          storage.readStream file
+        | otherwise -> throwError (FilehubError FormatError "Invalid mime type for thumbnail") & withServerError
+
+
+
+-- It's for PWA. More on https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Manifest
+manifest :: Filehub Value
+manifest = do
+  let t = Text.pack
+  pure $
+    object
+      [ "name"       .= t "FileHub"
+      , "short_name" .= t "FileHub"
+      , "start_url"  .= t "/"
+      , "display"    .= t "standalone"
+      , "icons" .=
+          [ object
+                [ "src"     .= t "/static/web-app-manifest-192x192.png"
+                , "sizes"   .= t "192x192"
+                , "type"    .= t "image/png"
+                , "purpose" .= t "any"
+                ]
+          , object
+                [ "src"     .= t "/static/web-app-manifest-512x512.png"
+                , "sizes"   .= t "512x512"
+                , "type"    .= t "image/png"
+                , "purpose" .= t "maskable"
+                ]
+          ]
+      ]
+
+
+-- The production implementation uses static files embeded in the executable, while the
+-- debug implementation uses path so you can hot reload frontend code.
+--
+-- == Content-Type header is used to specify the content type. Note it's hard to set the
+-- content type dynamically with servant because the type makes an assumption of the content
+-- type. This handler simply adds the correct Content-Type, and the `dedupHeadersKeepLast`
+-- middleware will strip the default servant header.
+--
+-- == Cache-Control header is required to make sure static files are properly cached.
+static :: [FilePath] -> Filehub (Headers '[ Header "Content-Type" String, Header "Cache-Control" String ] ByteString)
+static paths = do
+#ifdef DEBUG
+  dir <- liftIO $ Paths_filehub.getDataDir >>= makeAbsolute <&> (++ "/data/filehub")
+  let path = dir </> List.intercalate "/" paths
+  let mimetype = Mime.defaultMimeLookup (Text.pack path)
+  content <- liftIO . readFile $ path
+  pure
+    $ addHeader (ByteString.unpack mimetype)
+    $ addHeader "public, max-age=31536000, immutable"
+    $ content
+#else
+  let path = List.intercalate "/" paths
+  case Map.lookup path staticFiles of
+    Just content -> do
+      let mimetype = Mime.defaultMimeLookup (Text.pack path)
+      pure
+        $ addHeader (ByteString.unpack mimetype)
+        $ addHeader "public, max-age=31536000, immutable"
+        $ content
+    Nothing -> throwError (err404 { errBody = [i|File doesn't exist|]})
+#endif
+
+
+------------------------------------
+-- Components
+------------------------------------
+
+
+index :: SessionId -> Filehub (Html ())
+index sessionId = do
+  display <- Session.getDisplay sessionId & withServerError
+  case display of
+    NoDisplay -> pure Template.bootstrap
+    Desktop -> Server.Desktop.index sessionId
+    Mobile -> Server.Mobile.index sessionId
+
+
 view :: SessionId -> Filehub (Html ())
 view sessionId = do
   display <- Session.getDisplay sessionId & withServerError
@@ -605,46 +696,9 @@ sideBar sessionId = do
     _ -> error "impossible"
 
 
-serve :: SessionId -> ConfirmLogin -> Maybe ClientPath
-      -> Filehub (Headers '[ Header "Content-Type" String
-                           , Header "Content-Disposition" String
-                           ] (ConduitT () ByteString (ResourceT IO) ()))
-serve sessionId _ mFile = do
-  withServerError do
-    storage <- getStorage sessionId
-    root <- Session.getRoot sessionId
-    clientPath <- withQueryParam mFile
-    let path = ClientPath.fromClientPath root clientPath
-    file <- storage.get path
-    conduit <- storage.readStream file
-    pure
-      $ addHeader (ByteString.unpack file.mimetype)
-      $ addHeader (printf "inline; filename=%s" (takeFileName path))
-      $ conduit
-
-
-thumbnail :: SessionId -> ConfirmLogin -> Maybe ClientPath
-          -> Filehub (Headers '[ Header "Content-Type" String
-                               , Header "Content-Disposition" String
-                               ] (ConduitT () ByteString (ResourceT IO) ()))
-thumbnail sessionId _ mFile = do
-  withServerError do
-    storage <- getStorage sessionId
-    root <- Session.getRoot sessionId
-    clientPath <- withQueryParam mFile
-    let path = ClientPath.fromClientPath root clientPath
-    file <- storage.get path
-    conduit <- serveOriginal storage file
-    pure
-      $ addHeader (ByteString.unpack file.mimetype)
-      $ addHeader (printf "inline; filename=%s" (takeFileName path))
-      $ conduit
-  where
-    serveOriginal storage file =
-      if
-        | file.mimetype `isMime` "image" ->
-          storage.readStream file
-        | otherwise -> throwError (FilehubError FormatError "Invalid mime type for thumbnail") & withServerError
+------------------------------------
+-- application
+------------------------------------
 
 
 application :: Env -> Application
@@ -657,13 +711,13 @@ application env
   . serveWithContextT Routes.api ctx (Server.Handler.toServantHandler env)
   $ server
   where
-
     ctx = Server.Handler.sessionHandler env
         :. Server.Handler.readOnlyHandler env
         :. Server.Handler.desktopOnlyHandler env
         :. Server.Handler.mobileOnlyHandler env
         :. Server.Handler.loginHandler env
         :. EmptyContext
+
 
 ------------------------------------
 -- main

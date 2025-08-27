@@ -81,7 +81,7 @@ data Api mode = Api
                     :> Post '[HTML] (Html ())
 
 
-  , index           :: mode
+  , home            :: mode
                     :- AuthProtect "session"
                     :> AuthProtect "login"
                     :> Get '[HTML] (Html ())

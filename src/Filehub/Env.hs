@@ -1,3 +1,11 @@
+-- |
+-- Maintainer  :  jimmy@ailrk.com
+-- Copyright   :  (c) 2025-present Jinyang yao
+--
+-- This module defines some helpers on `Env`. All functions should be pure and simply
+-- take `Env` and tell some facts about it.
+
+
 module Filehub.Env
   ( Env(..)
   , hasNoLogin
