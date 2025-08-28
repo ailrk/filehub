@@ -20,16 +20,7 @@ let viewer: Viewer | null = null;
 let display: Display = Cookie.getCookie('display')! as Display
 
 
-window.addEventListener("load", _ => {
-  const el = document.querySelector("#index");
-  if (el) {
-    el.classList.add("fade-in");
-    el.addEventListener("animationend", () => {
-      el.classList.remove("fade-in");
-      el.classList.remove("hidden");
-    }, { once: true });
-  }
-})
+window.addEventListener('load', removeClassOnIndex)
 
 
 if (display == 'Desktop') {
@@ -71,7 +62,10 @@ function reloadTheme() {
 
   const newLink = oldLink.cloneNode() as HTMLLinkElement;
   newLink.href = '/theme.css?v=' + Date.now(); // cache-busting
-  newLink.onload = () => oldLink.remove(); // remove old stylesheet after new one loads
+  newLink.onload = () => {
+    oldLink.remove(); // remove old stylesheet after new one loads
+    removeClassOnIndex(); // remove animation class.
+  }
 
   oldLink.parentNode!.insertBefore(newLink, oldLink.nextSibling);
 }
@@ -216,6 +210,17 @@ function closePanel (e: MouseEvent) {
   if (controlPanel && controlPanel.classList.contains('show')) {
     controlPanel.classList.remove('show')
     overlay!.classList.remove('show')
+  }
+}
+
+
+/* Remove all class on #index */
+function removeClassOnIndex() {
+  const el = document.querySelector("#index");
+  if (el) {
+    el.addEventListener("animationend", () => {
+      el.classList = "";
+    });
   }
 }
 

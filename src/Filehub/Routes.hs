@@ -368,7 +368,7 @@ data Api mode = Api
                           :- "theme" :> "toggle"
                           :> AuthProtect "session"
                           :> AuthProtect "login"
-                          :> Get '[HTML] (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
+                          :> Get '[HTML] (Headers '[ Header "HX-Trigger-After-Settle" FilehubEvent ] (Html ()))
 
 
   , manifest              :: mode :- "manifest.json" :> Get '[Manifest] Value

@@ -230,16 +230,18 @@ home sessionId _  = do
   Server.Internal.clear sessionId
   case display of
     NoDisplay -> pure Template.bootstrap
-    -- index is initially hidden, the frontend will play an intro animation then set
+    -- Index is initially hidden, the frontend will play an intro animation, set
     -- the opacity to 1.
+    -- `home` is the only endpoint that needs to play the animation, so it's important
+    -- that the animation classes are removed from the js.
     Desktop -> do
       html <- Server.Desktop.index sessionId
       pure $ Template.withDefault display background do
-        html `with` [ class_ "hidden" ]
+        html `with` [ class_ "hidden fade-in " ]
     Mobile -> do
       html <- Server.Mobile.index sessionId
       pure $ Template.withDefault display background do
-        html `with` [ class_ "hidden" ]
+        html `with` [ class_ "hidden fade-in" ]
 
 
 -- | Force to refresh a component. It's useful for the client to selectively update ui.
@@ -252,6 +254,8 @@ refresh sessionId _ mUIComponent = do
       sideBar sessionId
     Just UIComponentView -> do
       view sessionId
+    Just UIComponentIndex -> do
+      index sessionId
     Nothing ->
       throwError (err400 { errBody = [i|Invalid ui component|]})
 
@@ -555,13 +559,17 @@ themeCss sessionId = do
 #endif
 
 
-toggleTheme :: SessionId -> ConfirmLogin -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
+-- | Toggle the frontend theme by triggering the event handler of `ThemeChanged`
+-- in the frontend. A fade-in animation is played when the theme toggled, and it needs
+-- to be removed by the frontend.
+toggleTheme :: SessionId -> ConfirmLogin -> Filehub (Headers '[ Header "HX-Trigger-After-Settle" FilehubEvent ] (Html ()))
 toggleTheme sessionId _ = do
   theme <- Session.getSessionTheme sessionId & withServerError
   case theme of
     Theme.Light -> Session.setSessionTheme sessionId Theme.Dark
     Theme.Dark -> Session.setSessionTheme sessionId Theme.Light
-  addHeader ThemeChanged <$> index sessionId
+  html <- index sessionId
+  pure $ addHeader ThemeChanged $ html `with` [ class_ "fade-in " ]
 
 
 serve :: SessionId -> ConfirmLogin -> Maybe ClientPath

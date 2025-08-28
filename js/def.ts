@@ -25,4 +25,4 @@ export type OpenedTarget
 export type Display = 'Desktop' | 'Mobile' | 'NoDisplay'
 
 
-export type UIComponent = 'UIComponentView' | 'UIComponentSideBar' | 'UIComponentContronPanel'
+export type UIComponent = 'UIComponentView' | 'UIComponentSideBar' | 'UIComponentContronPanel' | 'UIComponentIndex'

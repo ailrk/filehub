@@ -133,6 +133,7 @@ data UIComponent
   = UIComponentView
   | UIComponentSideBar
   | UIComponentContronPanel
+  | UIComponentIndex
   deriving (Show)
 
 
@@ -148,6 +149,7 @@ instance FromHttpApiData UIComponent where
   parseUrlPiece "UIComponentView" = pure UIComponentView
   parseUrlPiece "UIComponentSideBar" = pure UIComponentSideBar
   parseUrlPiece "UIComponentContronPanel" = pure UIComponentContronPanel
+  parseUrlPiece "UIComponentIndex" = pure UIComponentIndex
   parseUrlPiece _ = Left "unknown ui component"
 
 

@@ -22,7 +22,7 @@
 }
 
 
-selected {
+.selected {
   background-color: var(--background3) !important;
 }
 
