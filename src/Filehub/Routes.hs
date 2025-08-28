@@ -95,20 +95,21 @@ data Api mode = Api
                     :> Get '[HTML] (Html ())
 
 
-  , login           :: mode
+  , loginPage       :: mode
                     :- "login"
                     :> AuthProtect "session"
                     :> Header "Cookie" Text
                     :> Get '[HTML] (Html ())
 
 
-  , loginPost       :: mode
+  , loginAuthSimple :: mode
                     :- "login"
                     :> AuthProtect "session"
                     :> ReqBody '[FormUrlEncoded] LoginForm
                     :> Post '[HTML] (Headers '[ Header "Set-Cookie" SetCookie
                                               , Header "HX-Redirect" Text
                                               ] (Html ()))
+
 
   , logout          :: mode
                     :- "logout"

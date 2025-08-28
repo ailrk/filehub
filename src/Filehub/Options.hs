@@ -71,8 +71,8 @@ targetConfig = (S3TargetConfig <$> s3TargetConfig) <|> (FSTargetConfig <$> fsTar
                 ])
 
 
-loginUsersConfig :: Parser [LoginUser]
-loginUsersConfig = pure [] <|> some loginUserConfig
+simpleAuthLoginUsers :: Parser [LoginUser]
+simpleAuthLoginUsers = pure [] <|> some loginUserConfig
 
 
 loginUserConfig :: Parser LoginUser
@@ -144,7 +144,8 @@ config =
   <*> optional verbosity
   <*> optional readonly
   <*> optional (some targetConfig)
-  <*> optional loginUsersConfig
+  <*> optional simpleAuthLoginUsers
+  <*> pure Nothing
 
 
 options :: Parser Options

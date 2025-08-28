@@ -3,7 +3,6 @@ module Filehub.Auth.OIDC where
 
 
 import Data.Text (Text)
-import Data.Map.Strict (Map)
 
 
 data Token = Token
@@ -25,9 +24,6 @@ data User = User
   deriving (Show, Eq)
 
 
-newtype Issuer = Issuer Text deriving (Eq, Show, Ord)
-
-
 data Provider = Provider
   { name :: Text
   , issuer :: Text
@@ -40,4 +36,5 @@ data Provider = Provider
   deriving (Show, Eq)
 
 
-newtype OIDCAuthProviders = OIDCAuthProviders (Map Issuer Provider)
+newtype OIDCAuthProviders = OIDCAuthProviders [Provider]
+  deriving (Show, Eq)

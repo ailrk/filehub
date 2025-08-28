@@ -25,21 +25,21 @@ import Control.Monad (when)
 import Data.Maybe (fromMaybe)
 
 
-loginUser :: TomlCodec LoginUser
-loginUser =
+simpleAuthLoginUser :: TomlCodec LoginUser
+simpleAuthLoginUser =
   LoginUser
   <$> Toml.string "username" .= (.username)
   <*> Toml.string "password" .= (.password)
 
 
-oidcConfig :: TomlCodec Auth.OIDC.Provider
-oidcConfig =
+oidcAuthProvider :: TomlCodec Auth.OIDC.Provider
+oidcAuthProvider =
   Auth.OIDC.Provider
   <$> Toml.text "name" .= (.name)
   <*> Toml.text "issuer" .= (.issuer)
   <*> Toml.text "client_id" .= (.clientId)
   <*> Toml.text "client_secret" .= (.clientSecret)
-  <*> Toml.text "grant_types" .= (.grantType)
+  <*> Toml.text "grant_type" .= (.grantType)
   <*> Toml.arrayOf Toml._Text "allowed_users" .= (.allowedUsers)
   <*> Toml.arrayOf Toml._Text "redirect_uris" .= (.redirectURIs)
 
@@ -85,12 +85,13 @@ verbosity key =
 
 config :: TomlCodec (Config Maybe)
 config = Config
-  <$> Toml.dioptional (Toml.int                "port")      .= (.port)
-  <*> Toml.dioptional (theme                   "theme")     .= (.theme)
-  <*> Toml.dioptional (verbosity               "verbosity") .= (.verbosity)
-  <*> Toml.dioptional (Toml.bool               "readonly")  .= (.readOnly)
-  <*> Toml.dioptional (Toml.list targetConfig  "target")    .= (.targets)
-  <*> Toml.dioptional (Toml.list loginUser     "login")     .= (.loginUsers)
+  <$> Toml.dioptional (Toml.int                      "port")      .= (.port)
+  <*> Toml.dioptional (theme                         "theme")     .= (.theme)
+  <*> Toml.dioptional (verbosity                     "verbosity") .= (.verbosity)
+  <*> Toml.dioptional (Toml.bool                     "readonly")  .= (.readOnly)
+  <*> Toml.dioptional (Toml.list targetConfig        "target")    .= (.targets)
+  <*> Toml.dioptional (Toml.list simpleAuthLoginUser "login")     .= (.simpleAuthLoginUsers)
+  <*> Toml.dioptional (Toml.list oidcAuthProvider    "oidc")      .= (.oidcAuthProviders)
 
 
 -- | It should be called at the top level, let it throw if we failed to decode.
@@ -112,4 +113,4 @@ parseConfigFile (Just filePath) = do
       when (null $ fromMaybe [] c.targets) do
         throwIO (userError "No target specified")
       pure c
-parseConfigFile _ = pure (Config Nothing Nothing Nothing Nothing Nothing Nothing)
+parseConfigFile _ = pure (Config Nothing Nothing Nothing Nothing Nothing Nothing Nothing)

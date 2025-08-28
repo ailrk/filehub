@@ -155,8 +155,8 @@ server = Api
   { init            = init
   , home            = home
   , refresh         = refresh
-  , login           = login
-  , loginPost       = loginPost
+  , loginPage       = loginPage
+  , loginAuthSimple = loginAuthSimple
   , logout          = logout
   , cd              = cd
   , newFile         = newFile
@@ -231,7 +231,7 @@ home sessionId _  = do
     Mobile -> fmap (Template.withDefault display background) $ Server.Mobile.index sessionId
 
 
--- Force to refresh a component. It's useful for the client to selectively update ui.
+-- | Force to refresh a component. It's useful for the client to selectively update ui.
 refresh :: SessionId -> ConfirmLogin -> Maybe UIComponent -> Filehub (Html ())
 refresh sessionId _ mUIComponent = do
   case mUIComponent of
@@ -245,8 +245,9 @@ refresh sessionId _ mUIComponent = do
       throwError (err400 { errBody = [i|Invalid ui component|]})
 
 
-login :: SessionId -> Maybe Text -> Filehub (Html ())
-login sessionId cookie = do
+-- | Return the login page
+loginPage :: SessionId -> Maybe Text -> Filehub (Html ())
+loginPage sessionId cookie = do
   noLogin <- Env.hasNoLogin <$> ask @Env
   if noLogin
      then go
@@ -262,11 +263,12 @@ login sessionId cookie = do
     go = throwError (err301 { errHeaders = [(hLocation, "/")] })
 
 
-loginPost :: SessionId -> LoginForm
-          -> Filehub (Headers '[ Header "Set-Cookie" SetCookie
-                               , Header "HX-Redirect" Text
-                               ] (Html ()))
-loginPost sessionId (LoginForm username password) =  do
+-- | Handle the simple authetication login.
+loginAuthSimple :: SessionId -> LoginForm
+                -> Filehub (Headers '[ Header "Set-Cookie" SetCookie
+                                     , Header "HX-Redirect" Text
+                                     ] (Html ()))
+loginAuthSimple sessionId (LoginForm username password) =  do
   db <- asks @Env (.simpleAuthUserDB)
   if Auth.Simple.validate (Auth.Simple.Username username) (Text.encodeUtf8 password) db then do
     Auth.createAuthId >>= Session.setAuthId sessionId . Just
@@ -277,7 +279,6 @@ loginPost sessionId (LoginForm username password) =  do
         addHeader setCookie . addHeader "/" <$> pure mempty
       Nothing -> do noHeader . noHeader <$> pure Template.loginFailed
   else do noHeader . noHeader <$> pure Template.loginFailed
-
 
 
 logout :: SessionId -> ConfirmLogin -> Filehub (Headers '[ Header "Set-Cookie" SetCookie
@@ -725,19 +726,28 @@ application env
 
 main :: IO ()
 main = Log.withColoredStdoutLogger \logger -> do
-  Options { configFile = configFile, optionConfig } <- parseOptions
+  Options
+    { configFile = configFile
+    , optionConfig
+    } <- parseOptions
   config <- Toml.parseConfigFile configFile
   Config
-    { port      = Identity port
-    , theme     = Identity theme
-    , verbosity = Identity verbosity
-    , readOnly  = Identity readOnly
-    , targets   = Identity targetConfigs
-    , loginUsers = Identity loginUsers
-    } <- either (\err -> throwIO (userError err)) pure (Config.merge optionConfig config)
+    { port                 = Identity port
+    , theme                = Identity theme
+    , verbosity            = Identity verbosity
+    , readOnly             = Identity readOnly
+    , targets              = Identity targetConfigs
+    , simpleAuthLoginUsers = Identity simpleAuthLoginUsers
+    , oidcAuthProviders    = Identity oidcAuthProviders
+    } <-
+      either
+        (\err -> throwIO (userError err))
+        pure
+        (Config.merge optionConfig config)
+
   sessionPool <- runEff SessionPool.new
   targets <- runEff . runLog "Targets" logger verbosity . runFileSystem $ fromTargetConfig targetConfigs
-  simpleAuthUserDB <- runEff . runFileSystem $ Auth.Simple.createSimpleAuthUserDB loginUsers
+  simpleAuthUserDB <- runEff . runFileSystem $ Auth.Simple.createSimpleAuthUserDB simpleAuthLoginUsers
 
   printf "PORT: %d\n" port
   printf "V: %s\n" (show verbosity)
@@ -756,9 +766,10 @@ main = Log.withColoredStdoutLogger \logger -> do
           , logger = logger
           , logLevel = verbosity
           , simpleAuthUserDB = simpleAuthUserDB
-          , oidcAuthProviders = OIDCAuthProviders mempty
+          , oidcAuthProviders = OIDCAuthProviders oidcAuthProviders
           , activeUsers = ActiveUsers mempty
           }
+
   go env `catch` handler
   where
     go env = do
