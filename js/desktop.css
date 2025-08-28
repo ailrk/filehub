@@ -1,3 +1,5 @@
+@import "common.css";
+
 html, body {
   width: 100%;
   height: 100%;
@@ -305,6 +307,7 @@ textarea {
   border: none;
   font-weight: bold;
   border-radius: 8px;
+  color: var(--frontground);
 }
 
 
@@ -314,6 +317,7 @@ textarea {
   border: none;
   font-weight: bold;
   border-radius: 8px;
+  color: var(--frontground);
 
   &:active {
     transform: translateY(2px);
@@ -507,12 +511,14 @@ textarea.form-control {
 
 
   & .btn-modal-confirm {
+    color: var(--dark);
     background: var(--primary);
     border-radius: 0 5px 5px 0 !important;
   }
 
 
   & .btn-modal-confirm-1 {
+    color: var(--dark);
     background: var(--primary);
     border-radius: 5px !important;
   }
@@ -590,10 +596,6 @@ textarea.form-control {
 }
 
 
-.dropdown-btn {
-}
-
-
 .dropdown-content {
   position: absolute;
   background: var(--background2);
@@ -663,47 +665,6 @@ a.dropdown-item {
 }
 
 
-.closed {
-  display: none;
-}
-
-
-.selected {
-  background: var(--background3);
-}
-
-
-.balloon {
-  background: var(--secondary);
-  color: var(--frontground);
-  position: fixed;
-  bottom: 10px;
-  left: 5px;
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  margin-bottom: 0.5rem;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-  animation: fadeInBallon 0.3s ease;
-  font-size: 0.9rem;
-}
-
-
-@keyframes fadeInBallon {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-
-.bold {
-  font-weight: bold;
-}
-
-
-.urgent {
-  color: var(--secondary);
-}
-
-
 #selection-screen {
   position: absolute;
   opacity: 0.5;
@@ -713,8 +674,6 @@ a.dropdown-item {
   border: var(--background3) solid;
   pointer-events: none;
 }
-
-
 
 .drag-icon .image-wrapper {
   position: absolute;

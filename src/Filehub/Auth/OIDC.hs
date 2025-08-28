@@ -38,3 +38,13 @@ data Provider = Provider
 
 newtype OIDCAuthProviders = OIDCAuthProviders [Provider]
   deriving (Show, Eq)
+
+
+
+-- | Exchange token with the IdP
+exchangeToken = undefined
+
+
+
+-- | Verify ID token
+verifyToken = undefined

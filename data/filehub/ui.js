@@ -11,6 +11,16 @@ import Viewer from './viewer.js';
 const ballonWaitTime = 2000;
 let viewer = null;
 let display = Cookie.getCookie('display');
+window.addEventListener("load", _ => {
+    const el = document.querySelector("#index");
+    if (el) {
+        el.classList.add("fade-in");
+        el.addEventListener("animationend", () => {
+            el.classList.remove("fade-in");
+            el.classList.remove("hidden");
+        }, { once: true });
+    }
+});
 if (display == 'Desktop') {
     document.addEventListener('click', closeDropdowns);
     DesktopContextmenu.register();
@@ -135,8 +145,8 @@ function open(e) {
             break;
         case "OpenViewer":
             let query = new URLSearchParams({ file: payload.path });
-            htmx.ajax('GET', `/viewer?${query.toString()}`, { target: 'head',
-                source: 'head',
+            htmx.ajax('GET', `/viewer?${query.toString()}`, { target: 'body',
+                source: 'body',
                 swap: 'none'
             });
             return;

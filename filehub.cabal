@@ -184,6 +184,7 @@ library
     Filehub.Template
     Filehub.Template.Desktop
     Filehub.Template.Internal
+    Filehub.Template.Login
     Filehub.Template.Mobile
     Filehub.Toml
     Filehub.Theme

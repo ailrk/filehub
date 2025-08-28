@@ -12,6 +12,10 @@ html, body {
   justify-content: center; /* horizontal center */
   align-items: center;     /* vertical center */
   height: 100%;
+  flex-direction: column;
+  animation-name: fadeIn;
+  animation-duration: 700ms;
+  animation-timing-function: ease;
 }
 
 #login img {
@@ -20,13 +24,33 @@ html, body {
 }
 
 /* Style the form container */
-#login form {
+#login .panel {
   user-select: none;
   width: 60%;
   max-width: 400px;
   display: flex;
   flex-direction: column;
 }
+
+
+#login .oidc button {
+  margin-bottom: 1rem;
+  color: var(--background1);
+  background: var(--primary);
+}
+
+
+#login .oidc button:hover {
+  background: color-mix(in srgb, var(--primary) 85%, black);
+}
+
+
+#login .or-sep {
+  color: var(--frontground);
+  padding: 4px;
+  margin-bottom: 15px;
+}
+
 
 /* Inputs full width */
 #login input {

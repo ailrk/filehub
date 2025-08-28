@@ -64,6 +64,7 @@ import Filehub.Routes (Api (..))
 import Filehub.Types ( Display (..))
 import Filehub.Template.Internal qualified as Template
 import Filehub.Template qualified as Template
+import Filehub.Template.Login qualified as Template.Login
 import Filehub.Template.Desktop qualified as Template.Desktop
 import Filehub.Template.Mobile qualified as Template.Mobile
 import Filehub.ClientPath qualified as ClientPath
@@ -152,46 +153,48 @@ staticFiles = Map.fromList
 
 server :: Api (AsServerT Filehub)
 server = Api
-  { init            = init
-  , home            = home
-  , refresh         = refresh
-  , loginPage       = loginPage
-  , loginAuthSimple = loginAuthSimple
-  , logout          = logout
-  , cd              = cd
-  , newFile         = newFile
-  , updateFile      = updateFile
-  , deleteFile      = deleteFile
-  , newFolder       = newFolder
-  , newFileModal    = \_ _ _ _ -> pure Template.Desktop.newFileModal
-  , newFolderModal  = \_ _ _ _ -> pure Template.Desktop.newFolderModal
-  , fileDetailModal = \sessionId _ -> Server.Desktop.fileDetailModal sessionId
-  , editorModal     = editorModal
-  , search          = search
-  , sortTable       = \sessionId _ order -> Session.setSortFileBy sessionId (fromMaybe ByNameUp order) >> addHeader TableSorted <$> view sessionId
-  , selectLayout    = \sessionId _ layout -> Session.setLayout sessionId (fromMaybe ThumbnailLayout layout) >> addHeader LayoutChanged <$> index sessionId
-  , selectRows      = selectRows
-  , upload          = upload
-  , download        = download
-  , copy            = copy
-  , paste           = paste
-  , move            = move
-  , cancel          = cancel
-  , contextMenu     = \sessionId _ -> Server.Desktop.contextMenu sessionId
-  , initViewer      = initViewer
-  , open            = open
-  , changeTarget    = changeTarget
-  , themeCss        = themeCss
-  , toggleTheme     = toggleTheme
-  , serve           = serve
-  , thumbnail       = thumbnail
-  , manifest        = manifest
-  , favicon         = pure $(FileEmbed.embedFile "data/filehub/favicon.ico")
-  , static          = static
-  , offline         = pure Template.offline
-  , healthz         = pure "ok"
+  { init                  = init
+  , home                  = home
+  , refresh               = refresh
+  , loginPage             = loginPage
+  , loginAuthSimple       = loginAuthSimple
+  , loginAuthOIDCRedirect = loginAuthOIDCRedirect
+  , loginAuthOIDCCallback = loginAuthOIDCCallback
+  , logout                = logout
+  , cd                    = cd
+  , newFile               = newFile
+  , updateFile            = updateFile
+  , deleteFile            = deleteFile
+  , newFolder             = newFolder
+  , newFileModal          = \_ _ _ _ -> pure Template.Desktop.newFileModal
+  , newFolderModal        = \_ _ _ _ -> pure Template.Desktop.newFolderModal
+  , fileDetailModal       = \sessionId _ -> Server.Desktop.fileDetailModal sessionId
+  , editorModal           = editorModal
+  , search                = search
+  , sortTable             = \sessionId _ order -> Session.setSortFileBy sessionId (fromMaybe ByNameUp order) >> addHeader TableSorted <$> view sessionId
+  , selectLayout          = \sessionId _ layout -> Session.setLayout sessionId (fromMaybe ThumbnailLayout layout) >> addHeader LayoutChanged <$> index sessionId
+  , selectRows            = selectRows
+  , upload                = upload
+  , download              = download
+  , copy                  = copy
+  , paste                 = paste
+  , move                  = move
+  , cancel                = cancel
+  , contextMenu           = \sessionId _ -> Server.Desktop.contextMenu sessionId
+  , initViewer            = initViewer
+  , open                  = open
+  , changeTarget          = changeTarget
+  , themeCss              = themeCss
+  , toggleTheme           = toggleTheme
+  , serve                 = serve
+  , thumbnail             = thumbnail
+  , manifest              = manifest
+  , favicon               = pure $(FileEmbed.embedFile "data/filehub/favicon.ico")
+  , static                = static
+  , offline               = pure Template.offline
+  , healthz               = pure "ok"
 #ifdef DEBUG
-  , debug1          = \_ -> pure $ addHeader (Dummy "Hello") NoContent
+  , debug1                = \_ -> pure $ addHeader (Dummy "Hello") NoContent
 #endif
   }
 
@@ -227,8 +230,16 @@ home sessionId _  = do
   Server.Internal.clear sessionId
   case display of
     NoDisplay -> pure Template.bootstrap
-    Desktop -> fmap (Template.withDefault display background) $ Server.Desktop.index sessionId
-    Mobile -> fmap (Template.withDefault display background) $ Server.Mobile.index sessionId
+    -- index is initially hidden, the frontend will play an intro animation then set
+    -- the opacity to 1.
+    Desktop -> do
+      html <- Server.Desktop.index sessionId
+      pure $ Template.withDefault display background do
+        html `with` [ class_ "hidden" ]
+    Mobile -> do
+      html <- Server.Mobile.index sessionId
+      pure $ Template.withDefault display background do
+        html `with` [ class_ "hidden" ]
 
 
 -- | Force to refresh a component. It's useful for the client to selectively update ui.
@@ -249,6 +260,8 @@ refresh sessionId _ mUIComponent = do
 loginPage :: SessionId -> Maybe Text -> Filehub (Html ())
 loginPage sessionId cookie = do
   noLogin <- Env.hasNoLogin <$> ask @Env
+  simpleAuthLoginUsers <- asks @Env (.simpleAuthUserDB)
+  oidcAuthProviders <- asks @Env (.oidcAuthProviders)
   if noLogin
      then go
      else do
@@ -257,8 +270,8 @@ loginPage sessionId cookie = do
            authId <- Session.getAuthId sessionId & withServerError
            if authId == Just authId'
               then go
-              else pure Template.login
-         Nothing -> pure Template.login
+              else pure $ Template.Login.login simpleAuthLoginUsers oidcAuthProviders
+         Nothing -> pure $ Template.Login.login simpleAuthLoginUsers oidcAuthProviders
   where
     go = throwError (err301 { errHeaders = [(hLocation, "/")] })
 
@@ -277,8 +290,14 @@ loginAuthSimple sessionId (LoginForm username password) =  do
       Just setCookie -> do
         logInfo_ [i|User #{username} logged in|]
         addHeader setCookie . addHeader "/" <$> pure mempty
-      Nothing -> do noHeader . noHeader <$> pure Template.loginFailed
-  else do noHeader . noHeader <$> pure Template.loginFailed
+      Nothing -> do noHeader . noHeader <$> pure Template.Login.loginFailed
+  else do noHeader . noHeader <$> pure Template.Login.loginFailed
+
+
+loginAuthOIDCRedirect sessionId = undefined
+
+
+loginAuthOIDCCallback sessionId mCode mState = undefined
 
 
 logout :: SessionId -> ConfirmLogin -> Filehub (Headers '[ Header "Set-Cookie" SetCookie

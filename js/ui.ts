@@ -20,6 +20,17 @@ let viewer: Viewer | null = null;
 let display: Display = Cookie.getCookie('display')! as Display
 
 
+window.addEventListener("load", _ => {
+  const el = document.querySelector("#index");
+  if (el) {
+    el.classList.add("fade-in");
+    el.addEventListener("animationend", () => {
+      el.classList.remove("fade-in");
+      el.classList.remove("hidden");
+    }, { once: true });
+  }
+})
+
 
 if (display == 'Desktop') {
   document.addEventListener('click', closeDropdowns);
@@ -166,8 +177,8 @@ function open(e: any) {
     case "OpenViewer":
       let query = new URLSearchParams({ file: payload.path });
       htmx.ajax('GET', `/viewer?${query.toString()}`,
-        { target: 'head',
-          source: 'head',
+        { target: 'body',
+          source: 'body',
           swap: 'none'
         });
       return;
