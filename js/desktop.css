@@ -67,7 +67,7 @@ textarea {
 
 #control-panel {
   grid-area: control-panel;
-  background-color: var(--background2);
+  background-color: var(--background1);
 }
 
 
@@ -140,12 +140,12 @@ textarea {
 #tool-bar {
   position: sticky;
   top: 0;
-  background: var(--background2);
+  background: var(--background1);
   display: flex;
   justify-content: space-between;
   align-items: center;
   overflow: hidden;
-  transition: box-shadow 0.1s ease-in-out;
+  transition: box-shadow 0.5s ease-in-out;
 
   & #path-breadcrumb {
     white-space: nowrap;

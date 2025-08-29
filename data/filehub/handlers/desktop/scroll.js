@@ -20,7 +20,7 @@ function onScroll() {
         }
     }
     clearTimeout(scrollTimeout);
-    scrollTimeout = setTimeout(onScrollEnds);
+    scrollTimeout = setTimeout(onScrollEnds, 150);
     if (!ticking) {
         window.requestAnimationFrame(() => {
             let toolBar = document.querySelector("#tool-bar");
