@@ -145,6 +145,7 @@ textarea {
   justify-content: space-between;
   align-items: center;
   overflow: hidden;
+  transition: box-shadow 0.1s ease-in-out;
 
   & #path-breadcrumb {
     white-space: nowrap;

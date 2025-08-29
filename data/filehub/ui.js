@@ -2,6 +2,7 @@
 import * as DesktopContextmenu from './handlers/desktop/contextmenu.js';
 import * as DesktopSelected from './handlers/desktop/selected.js';
 import * as DesktopDrag from './handlers/desktop/drag.js';
+import * as DesktopScroll from './handlers/desktop/scroll.js';
 import * as MobileCloseSidebar from './handlers/mobile/closeSidebar.js';
 import * as MobileSelected from './handlers/mobile/selected.js';
 import * as Cookie from './cookie.js';
@@ -13,35 +14,11 @@ let viewer = null;
 let display = Cookie.getCookie('display');
 document.addEventListener("DOMContentLoaded", () => {
     if (display == 'Desktop') {
-        let ticking = false; // prevent throttling.
-        let scrollTimeout;
         document.addEventListener('click', closeDropdowns);
-        document.addEventListener('scroll', _ => {
-            function onScrollEnds() {
-                let toolBar = document.querySelector("#tool-bar");
-                if (toolBar) {
-                    toolBar.style.boxShadow = "";
-                }
-            }
-            function onScroll() {
-                if (!ticking) {
-                    window.requestAnimationFrame(() => {
-                        let toolBar = document.querySelector("#tool-bar");
-                        if (toolBar) {
-                            toolBar.style.boxShadow = "0 4px 10px rgba(0, 0, 0, 0.3)";
-                        }
-                        ticking = false;
-                    });
-                    ticking = true;
-                }
-            }
-            clearTimeout(scrollTimeout);
-            scrollTimeout = setTimeout(onScrollEnds);
-            onScroll();
-        });
         DesktopContextmenu.register();
         DesktopSelected.register();
         DesktopDrag.register();
+        DesktopScroll.register();
     }
     if (display == 'Mobile') {
         document.addEventListener('click', closePanel);
