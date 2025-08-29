@@ -10,9 +10,12 @@ export function register() {
 
 
 function register1() {
-  document.addEventListener('contextmenu', e => e.preventDefault());
+  document.addEventListener('contextmenu', prevent);
   document.querySelectorAll('#table .table-item').forEach(item => item.addEventListener('contextmenu', handle))
 }
+
+
+function prevent(e: Event) { e.preventDefault() }
 
 
 /* 1. fetch contextmenu for the current file

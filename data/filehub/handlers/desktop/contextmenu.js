@@ -5,9 +5,10 @@ export function register() {
     });
 }
 function register1() {
-    document.addEventListener('contextmenu', e => e.preventDefault());
+    document.addEventListener('contextmenu', prevent);
     document.querySelectorAll('#table .table-item').forEach(item => item.addEventListener('contextmenu', handle));
 }
+function prevent(e) { e.preventDefault(); }
 /* 1. fetch contextmenu for the current file
  * 2. show the context menu at the cursor position
  * 3. disable 'click' event handler on the table
