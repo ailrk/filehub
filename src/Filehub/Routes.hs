@@ -60,6 +60,7 @@ import Data.ByteString (ByteString)
 import Conduit (ConduitT, ResourceT)
 import Amazonka.Data (Value)
 import Web.Cookie (SetCookie)
+import Filehub.Locale (Locale)
 
 
 type instance AuthServerData (AuthProtect "session") = SessionId
@@ -372,6 +373,11 @@ data Api mode = Api
                           :> AuthProtect "login"
                           :> Get '[HTML] (Headers '[ Header "HX-Trigger-After-Settle" FilehubEvent ] (Html ()))
 
+  , changeLocale          :: mode
+                          :- "locale" :> "change"
+                          :> AuthProtect "session"
+                          :> QueryParam "locale" Locale
+                          :> Get '[HTML] (Headers '[ Header "HX-Trigger-After-Settle" FilehubEvent ] (Html ()))
 
   , manifest              :: mode :- "manifest.json" :> Get '[Manifest] Value
 

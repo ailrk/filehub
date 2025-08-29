@@ -21,6 +21,7 @@ import Data.Maybe (fromJust)
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Filehub.Layout (Layout(..))
+import Filehub.Locale (Locale(..))
 
 
 apiLinks :: Api (AsLink Link)
@@ -52,6 +53,8 @@ sitemapLinks =
   , apiLinks.open (Just OpenDOMBlank) $ Just (ClientPath "dummy.txt")
   , apiLinks.changeTarget $ Just (TargetId $ fromJust $ UUID.fromString "8d8ac610-566d-4ef0-9c22-186b2a5ed793")
   , apiLinks.themeCss
+  , apiLinks.toggleTheme
+  , apiLinks.changeLocale $ Just EN
   , apiLinks.healthz
   ]
 

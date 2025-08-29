@@ -5,7 +5,7 @@ import Servant (ToHttpApiData(..), FromHttpApiData(..))
 data Layout
   = ThumbnailLayout
   | ListLayout
-  deriving (Show)
+  deriving (Show, Eq)
 
 
 instance ToHttpApiData Layout where

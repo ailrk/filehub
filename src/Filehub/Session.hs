@@ -49,6 +49,8 @@ module Filehub.Session
   , setLayout
   , getSessionTheme
   , setSessionTheme
+  , getSessionLocale
+  , setSessionLocale
   , getDisplay
   , newSession
   , getSession
@@ -80,6 +82,7 @@ import Filehub.Error (FilehubError)
 import Effectful.Error.Dynamic (Error)
 import Filehub.Layout (Layout)
 import Filehub.Auth.Types (AuthId)
+import Filehub.Locale (Locale)
 
 
 
@@ -148,6 +151,18 @@ getSessionTheme sessionId = (^. #theme) <$> getSession sessionId
 setSessionTheme :: (Reader Env :> es, IOE :> es) => SessionId -> Theme -> Eff es ()
 setSessionTheme sessionId theme = do
   updateSession sessionId (\s -> s & #theme .~ theme)
+
+
+-- | Get the current session theme.
+getSessionLocale :: (Reader Env :> es, Error FilehubError :> es, IOE :> es,  Log :> es) => SessionId -> Eff es Locale
+getSessionLocale sessionId = (^. #locale) <$> getSession sessionId
+
+
+-- | Set the current session theme.
+setSessionLocale :: (Reader Env :> es, IOE :> es) => SessionId -> Locale -> Eff es ()
+setSessionLocale sessionId locale = do
+  updateSession sessionId (\s -> s & #locale .~ locale)
+
 
 
 -- | Get the current session display. The display is calculated base on the client screen resolution.

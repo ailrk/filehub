@@ -2,12 +2,14 @@
 module Filehub.Locale (Locale(..), Phrase(..), phrase) where
 
 
+import Data.Either (fromRight)
 import Data.FileEmbed qualified as FileEmbed
-import Toml.Codec (TomlCodec, (.=))
-import Toml.Codec qualified as Toml
 import Data.Text (Text)
 import Data.Text.Encoding qualified as Text
-import Data.Either (fromRight)
+import Lens.Micro.Platform ()
+import Toml.Codec (TomlCodec, (.=))
+import Toml.Codec qualified as Toml
+import Web.HttpApiData (ToHttpApiData(..), FromHttpApiData(..))
 
 
 data Locale = EN | ZH_CN | ZH_TW | ZH_HK | ES | FR | DE | KR | RU | PT | IT
@@ -56,6 +58,35 @@ localeCodec KR    = Toml.table phraseCodec "kr"
 localeCodec RU    = Toml.table phraseCodec "ru"
 localeCodec PT    = Toml.table phraseCodec "pt"
 localeCodec IT    = Toml.table phraseCodec "it"
+
+
+instance ToHttpApiData Locale where
+  toUrlPiece EN    = "EN"
+  toUrlPiece ZH_CN = "ZH_CN"
+  toUrlPiece ZH_TW = "ZH_TW"
+  toUrlPiece ZH_HK = "ZH_HK"
+  toUrlPiece ES    = "ES"
+  toUrlPiece FR    = "FR"
+  toUrlPiece DE    = "DE"
+  toUrlPiece KR    = "KR"
+  toUrlPiece RU    = "RU"
+  toUrlPiece PT    = "PT"
+  toUrlPiece IT    = "IT"
+
+
+instance FromHttpApiData Locale where
+  parseUrlPiece "EN"     = pure EN
+  parseUrlPiece "ZH_CN"  = pure ZH_CN
+  parseUrlPiece "ZH_TW"  = pure ZH_CN
+  parseUrlPiece "ZH_HK"  = pure ZH_CN
+  parseUrlPiece "ES"     = pure ZH_CN
+  parseUrlPiece "FR"     = pure ZH_CN
+  parseUrlPiece "DE"     = pure ZH_CN
+  parseUrlPiece "KR"     = pure ZH_CN
+  parseUrlPiece "RU"     = pure ZH_CN
+  parseUrlPiece "PT"     = pure ZH_CN
+  parseUrlPiece "IT"     = pure ZH_CN
+  parseUrlPiece _        = Left "unknown locale"
 
 
 phraseEN :: Phrase

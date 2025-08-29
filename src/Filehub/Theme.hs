@@ -24,7 +24,7 @@ import Data.ByteString (ByteString)
 import Data.ByteString.Char8 qualified as ByteString
 
 
-data Theme = Dark | Light
+data Theme = Dark | Light deriving (Eq)
 
 instance Show Theme where
   show = \case

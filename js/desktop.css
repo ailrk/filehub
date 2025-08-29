@@ -716,3 +716,8 @@ a.dropdown-item {
   transform: translateX(32px) rotate(15deg);
   z-index: 1;
 }
+
+
+#locale {
+  display: inline-block;
+}

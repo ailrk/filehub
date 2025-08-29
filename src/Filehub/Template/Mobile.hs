@@ -261,6 +261,7 @@ table target root files selected = do
 controlPanel :: Theme -> Bool -> Bool -> ControlPanelState -> Html ()
 controlPanel theme =
   Template.controlPanel
+    localeBtn
     newFolderBtn
     newFileBtn
     uploadBtn
@@ -273,6 +274,15 @@ controlPanel theme =
     Nothing
     (Just scroll2TopBtn)
   where
+    localeBtn :: Html ()
+    localeBtn = do
+      button_ [ class_ "action-btn"
+              ] do
+        span_ [ class_ "field " ] do
+          i_ [ class_ "bx bx-world" ] mempty
+          span_ "Language"
+
+
     newFolderBtn :: Html ()
     newFolderBtn =
       button_ [ class_ "action-btn"

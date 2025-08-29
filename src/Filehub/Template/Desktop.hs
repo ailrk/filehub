@@ -58,6 +58,7 @@ import Filehub.Target.Types (targetHandler)
 import Filehub.Layout (Layout (..))
 import Filehub.Theme (Theme (..))
 import Control.Monad (when)
+import Filehub.Locale (Locale(..))
 
 ------------------------------------
 -- components
@@ -137,6 +138,7 @@ sideBar targets (TargetView currentTarget _ _) = do
 controlPanel :: Layout -> Theme -> Bool -> Bool -> ControlPanelState -> Html ()
 controlPanel layout theme =
   Template.controlPanel
+    localeBtn
     newFolderBtn
     newFileBtn
     uploadBtn
@@ -149,6 +151,26 @@ controlPanel layout theme =
     (Just layoutBtn)
     Nothing
   where
+    localeBtn :: Html ()
+    localeBtn =
+      div_ [ id_ "locale" ] do
+        button_ [ class_ "btn btn-control "
+                ] do
+          span_ [ class_ "field " ] do
+            i_ [ class_ "bx bx-world" ] mempty
+        div_ [ class_ "dropdown-content " ] do
+          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just EN)), term "hx-target" "#index" , term "hx-swap" "outerHTML" ] $ span_ "English"
+          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ZH_CN)), term "hx-target" "#index" , term "hx-swap" "outerHTML" ] $ span_ "简体中文"
+          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ZH_TW)), term "hx-target" "#index" , term "hx-swap" "outerHTML" ] $ span_ "繁體中文"
+          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ZH_HK)), term "hx-target" "#index" , term "hx-swap" "outerHTML" ] $ span_ "繁體中文"
+          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ES)), term "hx-target" "#index" , term "hx-swap" "outerHTML" ] $ span_ "Español"
+          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just FR)), term "hx-target" "#index" , term "hx-swap" "outerHTML" ] $ span_ "Français"
+          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just DE)), term "hx-target" "#index" , term "hx-swap" "outerHTML" ] $ span_ "Deutsch"
+          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just KR)), term "hx-target" "#index" , term "hx-swap" "outerHTML" ] $ span_ "한국어"
+          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just RU)), term "hx-target" "#index" , term "hx-swap" "outerHTML" ] $ span_ "Русский"
+          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just PT)), term "hx-target" "#index" , term "hx-swap" "outerHTML" ] $ span_ "Português"
+          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just IT)), term "hx-target" "#index" , term "hx-swap" "outerHTML" ] $ span_ "Italiano"
+
     newFolderBtn :: Html ()
     newFolderBtn =
       button_ [ class_ "btn btn-control "

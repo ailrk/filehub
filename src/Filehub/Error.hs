@@ -25,6 +25,7 @@ data Error'
   | FormatError
   | InternalError
   | TargetError
+  | LocaleError
   | FailedToDecodeImage
   | FailedToEncodeImage
   | MimeTypeMissing
@@ -51,6 +52,7 @@ toServerError (FilehubError err msg) =
     FormatError ->         err400 { errBody = fromString msg }
     InternalError ->       err500 { errBody = fromString msg }
     TargetError ->         err500 { errBody = fromString msg }
+    LocaleError ->         err400 { errBody = fromString msg }
     FailedToDecodeImage -> err500 { errBody = fromString msg }
     FailedToEncodeImage -> err500 { errBody = fromString msg }
     MimeTypeMissing ->     err400 { errBody = fromString msg }

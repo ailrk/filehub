@@ -19,7 +19,6 @@ import System.FilePath (splitPath)
 import Filehub.Mime (isMime)
 import Control.Monad (when)
 
-
 withDefault :: Display -> Text -> Html () -> Html ()
 withDefault display background html = do
 
@@ -99,9 +98,10 @@ searchBar = do
 
 
 controlPanel
-  :: Html () -> Html () -> Html () -> Html () -> Html () -> Html () -> Html () -> Html () -> Html () -> Maybe (Html()) -> Maybe (Html ())
+  :: Html () -> Html () -> Html () -> Html () -> Html () -> Html () -> Html () -> Html () -> Html () -> Html () -> Maybe (Html()) -> Maybe (Html ())
   -> Bool -> Bool -> ControlPanelState -> Html ()
 controlPanel
+  localeBtn
   newFolderBtn
   newFileBtn
   uploadBtn
@@ -119,16 +119,17 @@ controlPanel
       div_ [ id_ controlPanelId ] do
         maybe mempty id mLayoutBtn
         themeBtn
+        localeBtn
+        when (not noLogin) logoutBtn
         maybe mempty id mScroll2TopBtn
-        span_ [ class_ "btn-like field " ] do
-          i_ [ class_ "bx bx-lock-alt" ] mempty
-          span_ "Read-only"
+        span_ [ class_ "btn-like field " ] $ i_ [ class_ "bx bx-lock-alt" ] mempty >> span_ "Read-only"
     False ->
       case state of
         ControlPanelDefault ->
           div_ [ id_ controlPanelId ] do
             maybe mempty id mLayoutBtn
             themeBtn
+            localeBtn
             when (not noLogin) logoutBtn
             sep
             newFolderBtn
@@ -139,6 +140,7 @@ controlPanel
           div_ [ id_ controlPanelId ] do
             maybe mempty id mLayoutBtn
             themeBtn
+            localeBtn
             when (not noLogin) logoutBtn
             sep
             newFolderBtn
@@ -152,6 +154,7 @@ controlPanel
           div_ [ id_ controlPanelId ] do
             maybe mempty id mLayoutBtn
             themeBtn
+            localeBtn
             when (not noLogin) logoutBtn
             sep
             newFolderBtn

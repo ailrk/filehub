@@ -88,6 +88,7 @@ data ControlPanelState
   = ControlPanelDefault
   | ControlPanelSelecting
   | ControlPanelCopied
+  deriving (Show, Eq)
 
 
 newtype SearchWord = SearchWord Text deriving (Show, Eq, Generic)
@@ -153,6 +154,10 @@ instance FromHttpApiData UIComponent where
   parseUrlPiece _                         = Left "unknown ui component"
 
 
+-- | Filehub events that delivers to the frontend via HX-Trigger. By default these events are
+-- just ignored in the frontend. To handle an event, add a corresponding event handler in `ui.ts`
+-- When adding a new event, as long as you don't plan to handle the event yet, you don't need to
+-- touch the frontend code.
 data FilehubEvent
   = ViewerInited [Resource] Int -- Update image list and show the viewer
   | TargetChanged
@@ -160,6 +165,7 @@ data FilehubEvent
   | DirChanged
   | LayoutChanged
   | ThemeChanged
+  | LocaleChanged
   | FileMoved
   | Canceled -- Action canceled
   | Opened OpenTarget ClientPath -- load a resource into tab/window/iframe. Hook  for window.open
@@ -181,6 +187,7 @@ instance ToJSON FilehubEvent where
   toJSON DirChanged    = Aeson.object [ "DirChanged" .= Aeson.object [] ]
   toJSON LayoutChanged = Aeson.object [ "LayoutChanged" .= Aeson.object [] ]
   toJSON ThemeChanged  = Aeson.object [ "ThemeChanged" .= Aeson.object [] ]
+  toJSON LocaleChanged = Aeson.object [ "LocaleChanged" .= Aeson.object [] ]
   toJSON FileMoved     = Aeson.object [ "FileMoved" .= Aeson.object [] ]
   toJSON Canceled      = Aeson.object [ "Canceled" .= Aeson.object [] ]
   toJSON (Opened target path) =

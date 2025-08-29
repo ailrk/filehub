@@ -124,6 +124,7 @@ import Control.Exception (throwIO)
 import Filehub.Auth.OIDC (OIDCAuthProviders(..))
 import Filehub.Auth.Types (ActiveUsers(..))
 import Servant.Multipart (MultipartData, Mem)
+import Filehub.Locale (Locale)
 
 
 #ifdef DEBUG
@@ -187,6 +188,7 @@ server = Api
   , changeTarget          = changeTarget
   , themeCss              = themeCss
   , toggleTheme           = toggleTheme
+  , changeLocale          = changeLocale
   , serve                 = serve
   , thumbnail             = thumbnail
   , manifest              = manifest
@@ -578,6 +580,13 @@ toggleTheme sessionId _ = do
     Theme.Dark -> Session.setSessionTheme sessionId Theme.Light
   html <- index sessionId
   pure $ addHeader ThemeChanged $ html `with` [ class_ "fade-in " ]
+
+
+changeLocale :: SessionId -> Maybe Locale -> Filehub (Headers '[ Header "HX-Trigger-After-Settle" FilehubEvent ] (Html ()))
+changeLocale _ Nothing = withServerError . throwError $ FilehubError LocaleError "Invalid locale"
+changeLocale sessionId (Just locale) = do
+  Session.setSessionLocale sessionId locale
+  addHeader LocaleChanged <$> index sessionId
 
 
 serve :: SessionId -> ConfirmLogin -> Maybe ClientPath
