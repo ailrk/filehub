@@ -168,6 +168,7 @@ function handleDrop(e: Event) {
     }
 
     if (typeof src === 'string') {
+      if (src === tgt) return; // ignore recursive drop
       const values: Record<string, string> = { src, tgt }
       htmx.ajax('POST',
         '/files/move',

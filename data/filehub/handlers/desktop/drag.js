@@ -150,6 +150,8 @@ function handleDrop(e) {
             return;
         }
         if (typeof src === 'string') {
+            if (src === tgt)
+                return; // ignore recursive drop
             const values = { src, tgt };
             htmx.ajax('POST', '/files/move', {
                 values,
