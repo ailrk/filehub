@@ -5,8 +5,12 @@ export function register() {
     });
 }
 function register1() {
+    const table = document.querySelector('#table');
+    if (!table)
+        return;
     document.addEventListener('contextmenu', prevent);
-    document.querySelectorAll('#table .table-item').forEach(item => item.addEventListener('contextmenu', handle));
+    table.addEventListener('contextmenu', onContextMenu); // no capture needed
+    // document.querySelectorAll('#table .table-item').forEach(item => item.addEventListener('contextmenu', handle, { capture: true }))
 }
 function prevent(e) { e.preventDefault(); }
 /* 1. fetch contextmenu for the current file
@@ -14,10 +18,17 @@ function prevent(e) { e.preventDefault(); }
  * 3. disable 'click' event handler on the table
  * NOTE: we restore the click event handler in closeDropdown.ts.
  * */
-export function handle(e) {
+export function onContextMenu(e) {
     if (!(e instanceof MouseEvent))
         return;
-    let item = e.target;
+    const table = e.currentTarget;
+    const target = e.target;
+    if (!target)
+        return;
+    // Find the row (.table-item) nearest to the click
+    const item = target.closest('.table-item');
+    if (!item || !table.contains(item))
+        return;
     let contextMenu = document.querySelector('#contextmenu');
     const isSelected = item.classList.contains('selected');
     if (contextMenu) {
