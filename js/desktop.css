@@ -26,11 +26,17 @@ input {
   color: var(--frontground);
   border: none;
   outline: none;
-  border-radius: 5px 0 0 5px;
+  border-radius: 5px;
 
   &:focus {
     outline: transparent;
   }
+}
+
+input[name="new-folder"],
+input[name="new-file"]
+{
+  border-radius: 5px 0 0 5px;
 }
 
 
