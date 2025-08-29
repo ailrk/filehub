@@ -109,7 +109,8 @@ import Filehub.Toml qualified as Toml
 import Conduit (ConduitT, ResourceT)
 import Conduit qualified
 import Network.Wai.Handler.Warp (setPort, defaultSettings, runSettings)
-import Network.Wai.Middleware.RequestLogger (logStdout)
+import Network.Wai.Middleware.RequestLogger qualified as Wai.Middleware (logStdout)
+import Network.Wai.Middleware.Gzip qualified as Wai.Middleware
 import System.Environment (withArgs)
 import UnliftIO (hFlush, stdout)
 import Network.Mime qualified as Mime
@@ -734,7 +735,9 @@ sideBar sessionId = do
 
 application :: Env -> Application
 application env
-  = Server.Middleware.stripCookiesForStatic
+  = Wai.Middleware.gzip Wai.Middleware.defaultGzipSettings
+  . Wai.Middleware.logStdout
+  . Server.Middleware.stripCookiesForStatic
   . Server.Middleware.exposeHeaders
   . Server.Middleware.sessionMiddleware env
   . Server.Middleware.dedupHeadersKeepLast
@@ -806,7 +809,7 @@ main = Log.withColoredStdoutLogger \logger -> do
     go env = do
       putStr "[Filehub server is up and running]\n" >> hFlush stdout
       let settings = setPort env.port defaultSettings
-      runSettings settings . logStdout $ application env
+      runSettings settings $ application env
     handler (e :: SomeException) = putStrLn ("server is down " <> show e) >> hFlush stdout
 
     fromTargetConfig opts = traverse transform opts
