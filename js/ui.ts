@@ -20,40 +20,87 @@ let viewer: Viewer | null = null;
 let display: Display = Cookie.getCookie('display')! as Display
 
 
-window.addEventListener('load', removeClassOnIndex)
+document.addEventListener("DOMContentLoaded", () => {
+  if (display == 'Desktop') {
+    let ticking = false; // prevent throttling.
+    let scrollTimeout: number;
+    document.addEventListener('click', closeDropdowns);
+    document.addEventListener('scroll', _ => { // add animation when scrolling.
+      function onScrollEnds() {
+        let toolBar = document.querySelector("#tool-bar") as HTMLElement | null;
+        if (toolBar) {
+          toolBar.style.boxShadow = "";
+        }
+      }
+      function onScroll() {
+        if (!ticking) {
+          window.requestAnimationFrame(() => {
+            let toolBar = document.querySelector("#tool-bar") as HTMLElement | null;
+            if (toolBar) {
+              toolBar.style.boxShadow = "0 4px 10px rgba(0, 0, 0, 0.3)";
+            }
+            ticking = false;
+          });
+          ticking = true;
+        }
+      }
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(onScrollEnds);
+      onScroll();
+    });
+    DesktopContextmenu.register();
+    DesktopSelected.register();
+    DesktopDrag.register();
+  }
+
+  if (display == 'Mobile') {
+    document.addEventListener('click', closePanel)
+    MobileCloseSidebar.register();
+    MobileSelected.register();
+    const table = document.querySelector('#table'); // change selector to fit your layout
+    table!.addEventListener('contextmenu', e => e.preventDefault());
+  }
+
+  /* HX-Trigger */
+  document.addEventListener('Dummy', (e: any) => { console.log("testing dummy event", e.detail); });
+  document.addEventListener('ViewerInited', (e: any) => initViewer(e.detail));
+  document.addEventListener('Opened', open);
+  document.addEventListener('ThemeChanged', reloadTheme);
+  document.addEventListener('UIComponentReloaded', reloadUIComponent);
 
 
-if (display == 'Desktop') {
-  document.addEventListener('click', closeDropdowns);
-  DesktopContextmenu.register();
-  DesktopSelected.register();
-  DesktopDrag.register();
+  /* Preserve scroll positions */
+  document.body.addEventListener('htmx:responseError', handleError);
+  document.addEventListener('htmx:afterOnLoad', restoreViewScrollTop);
+  document.addEventListener('htmx:afterOnLoad', restoreViewScrollTop);
+  document.addEventListener('htmx:beforeRequest', saveViewScrollTop);
+  document.addEventListener('htmx:afterSettle', closeDropdowns);
+
+  removeClassOnIndex();
+});
+
+
+/* Register service worker, required for PWA support. */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register( '/static/serviceWorker.js', { type: "module" })
+      .then(reg => console.log('Service worker registered:', reg))
+      .catch(err => console.error('Service worker registration failed:', err));
+  });
 }
 
 
-if (display == 'Mobile') {
-  document.addEventListener('click', closePanel)
-  MobileCloseSidebar.register();
-  MobileSelected.register();
-  const table = document.querySelector('#table'); // change selector to fit your layout
-  table!.addEventListener('contextmenu', e => e.preventDefault());
-}
-
-
-/* HX-Trigger */
-document.addEventListener('Dummy', (e: any) => { console.log("testing dummy event", e.detail); });
-document.addEventListener('ViewerInited', (e: any) => initViewer(e.detail));
-document.addEventListener('Opened', open);
-document.addEventListener('ThemeChanged', reloadTheme);
-document.addEventListener('UIComponentReloaded', reloadUIComponent);
-
-
-/* Preserve scroll positions */
-document.body.addEventListener('htmx:responseError', handleError);
-document.addEventListener('htmx:afterOnLoad', restoreViewScrollTop);
-document.addEventListener('htmx:afterOnLoad', restoreViewScrollTop);
-document.addEventListener('htmx:beforeRequest', saveViewScrollTop);
-document.addEventListener('htmx:afterSettle', closeDropdowns);
+/* Reinitialize the resolution again before refresh the page
+ * This happens before the browser sending the request to reload the page,
+ * so we can guarantee when the page is reloaded the resolution is up to date.
+ * */
+window.addEventListener("beforeunload", async (_) => {
+  await fetch('/init',
+    { method: 'POST',
+      headers: { "Content-Type": "application/x-www-form-urlencoded", },
+      body: new URLSearchParams({ res: window.innerWidth + 'x' + window.innerHeight })
+    })
+})
 
 
 function reloadTheme() {
@@ -267,26 +314,3 @@ function showBalloon(message: string, duration = 3000) {
     setTimeout(() => balloon.remove(), 500)
   }, duration)
 }
-
-
-/* Register service worker, required for PWA support. */
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register( '/static/serviceWorker.js', { type: "module" })
-      .then(reg => console.log('Service worker registered:', reg))
-      .catch(err => console.error('Service worker registration failed:', err));
-  });
-}
-
-
-/* Reinitialize the resolution again before refresh the page
- * This happens before the browser sending the request to reload the page,
- * so we can guarantee when the page is reloaded the resolution is up to date.
- * */
-window.addEventListener("beforeunload", async (_) => {
-  await fetch('/init',
-    { method: 'POST',
-      headers: { "Content-Type": "application/x-www-form-urlencoded", },
-      body: new URLSearchParams({ res: window.innerWidth + 'x' + window.innerHeight })
-    })
-})
