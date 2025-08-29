@@ -575,6 +575,7 @@ toggleTheme sessionId _ = do
 serve :: SessionId -> ConfirmLogin -> Maybe ClientPath
       -> Filehub (Headers '[ Header "Content-Type" String
                            , Header "Content-Disposition" String
+                           , Header "Cache-Control" String
                            ]
                            (ConduitT () ByteString (ResourceT IO) ()))
 serve sessionId _ mFile = do
@@ -588,12 +589,14 @@ serve sessionId _ mFile = do
     pure
       $ addHeader (ByteString.unpack file.mimetype)
       $ addHeader (printf "inline; filename=%s" (takeFileName path))
+      $ addHeader "public, max-age=31536000, immutable"
       $ conduit
 
 
 thumbnail :: SessionId -> ConfirmLogin -> Maybe ClientPath
           -> Filehub (Headers '[ Header "Content-Type" String
                                , Header "Content-Disposition" String
+                               , Header "Cache-Control" String
                                ]
                                (ConduitT () ByteString (ResourceT IO) ()))
 thumbnail sessionId _ mFile = do
@@ -607,6 +610,7 @@ thumbnail sessionId _ mFile = do
     pure
       $ addHeader (ByteString.unpack file.mimetype)
       $ addHeader (printf "inline; filename=%s" (takeFileName path))
+      $ addHeader "public, max-age=31536000, immutable"
       $ conduit
   where
     serveOriginal storage file =

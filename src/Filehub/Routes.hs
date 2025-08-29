@@ -342,6 +342,7 @@ data Api mode = Api
                           :> QueryParam "file" ClientPath
                           :> StreamGet NoFraming OctetStream (Headers '[ Header "Content-Type" String
                                                                        , Header "Content-Disposition" String
+                                                                       , Header "Cache-Control" String
                                                                        ] (ConduitT () ByteString (ResourceT IO) ()))
 
 
@@ -354,6 +355,7 @@ data Api mode = Api
                           :> QueryParam "file" ClientPath
                           :> StreamGet NoFraming OctetStream (Headers '[ Header "Content-Type" String
                                                                        , Header "Content-Disposition" String
+                                                                       , Header "Cache-Control" String
                                                                        ] (ConduitT () ByteString (ResourceT IO) ()))
 
 
