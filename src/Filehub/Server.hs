@@ -731,8 +731,7 @@ sideBar sessionId = do
   display <- Session.getDisplay sessionId & withServerError
   case display of
     Desktop -> Server.Desktop.sideBar sessionId
-    Mobile -> Server.Mobile.sideBar sessionId
-    _ -> error "impossible"
+    _ -> Server.Mobile.sideBar sessionId
 
 
 toolBar :: SessionId -> Filehub (Html ())
@@ -740,8 +739,7 @@ toolBar sessionId = do
   display <- Session.getDisplay sessionId & withServerError
   case display of
     Desktop -> Server.Desktop.toolBar sessionId
-    Mobile -> Server.Mobile.toolBar sessionId
-    _ -> error "impossible"
+    _ -> Server.Mobile.toolBar sessionId
 
 
 ------------------------------------
