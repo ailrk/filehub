@@ -36,19 +36,21 @@ createSession :: (Reader Env :> es, IOE :> es) => Eff es Session
 createSession = do
   targets <- asks @Env (.targets)
   theme <- asks @Env (.theme)
+  locale <- asks @Env (.locale)
   sessionId <- createSessionId
   expireDate <- createExpireDate
   pure Session
-    { sessionId = sessionId
-    , authId = Nothing
+    { sessionId  = sessionId
+    , authId     = Nothing
     , resolution = Nothing
     , deviceType = UserAgent.Unknown
     , expireDate = expireDate
-    , targets = targetToSessionData <$> targets
-    , copyState = NoCopyPaste
-    , index = 0
-    , layout = ThumbnailLayout
-    , theme = theme
+    , targets    = targetToSessionData <$> targets
+    , copyState  = NoCopyPaste
+    , index      = 0
+    , layout     = ThumbnailLayout
+    , theme      = theme
+    , locale     = locale
     }
 
 
@@ -61,9 +63,9 @@ targetToSessionData (Target target) =
   where
     defaultTargetSessionData =
       TargetSessionData
-        { currentDir = ""
+        { currentDir   = ""
         , sortedFileBy = ByNameUp
-        , selected = NoSelection
+        , selected     = NoSelection
         }
 
 

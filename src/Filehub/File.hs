@@ -14,12 +14,12 @@ data FileContent
 
 
 data File = File
-  { path :: FilePath -- absolute path
-  , atime :: Maybe UTCTime
-  , mtime :: Maybe UTCTime
-  , size :: Maybe Integer
+  { path     :: FilePath -- absolute path
+  , atime    :: Maybe UTCTime
+  , mtime    :: Maybe UTCTime
+  , size     :: Maybe Integer
   , mimetype :: MimeType
-  , content :: FileContent
+  , content  :: FileContent
   }
   deriving (Show, Eq, Generic)
 

@@ -21,20 +21,21 @@ import Filehub.Theme (Theme)
 import Filehub.Auth.Types (AuthId)
 import Control.Concurrent.Timer qualified as Timer
 import Data.HashTable.IO (BasicHashTable)
-
+import Filehub.Locale (Locale)
 
 
 data Session = Session
-  { sessionId :: SessionId
-  , authId :: Maybe AuthId
+  { sessionId  :: SessionId
+  , authId     :: Maybe AuthId
   , resolution :: Maybe Resolution
   , deviceType :: DeviceType
   , expireDate :: UTCTime
-  , targets :: [TargetSessionData]
-  , copyState :: CopyState
-  , index :: Int
-  , layout :: Layout
-  , theme :: Theme
+  , targets    :: [TargetSessionData]
+  , copyState  :: CopyState
+  , index      :: Int
+  , layout     :: Layout
+  , theme      :: Theme
+  , locale     :: Locale
   }
   deriving (Generic)
 
@@ -44,15 +45,15 @@ instance Eq Session where
 
 
 data TargetSessionData = TargetSessionData
-  { currentDir :: FilePath
+  { currentDir   :: FilePath
   , sortedFileBy :: SortFileBy
-  , selected :: Selected
+  , selected     :: Selected
   }
   deriving (Generic)
 
 
 data Pool = Pool
   { pool :: BasicHashTable SessionId Session
-  , gc :: Timer.TimerIO
+  , gc   :: Timer.TimerIO
   -- ^ garbage collector, periodically clean up expired sessions.
   }

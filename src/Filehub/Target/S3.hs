@@ -27,8 +27,8 @@ data S3
 instance IsTarget S3 where
   data Backend S3 = S3Backend
     { targetId :: TargetId
-    , bucket :: Text
-    , env :: Amazonka.Env
+    , bucket   :: Text
+    , env      :: Amazonka.Env
     }
   getTargetIdFromBackend f = f.targetId
 

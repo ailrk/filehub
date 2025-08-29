@@ -45,21 +45,21 @@ get sessionId  path = do
        isDir <- isDirectory sessionId path
        let mimetype = defaultMimeLookup (Text.pack path)
        pure File
-         { path = path
-         , size = Just size
-         , mtime = Just mtime
-         , atime = Just atime
+         { path     = path
+         , size     = Just size
+         , mtime    = Just mtime
+         , atime    = Just atime
          , mimetype = mimetype
-         , content = if isDir then Dir Nothing else Content
+         , content  = if isDir then Dir Nothing else Content
          }
       else do
         pure File
-          { path = path
-          , size = Just 0
-          , atime = Nothing
-          , mtime = Nothing
+          { path     = path
+          , size     = Just 0
+          , atime    = Nothing
+          , mtime    = Nothing
           , mimetype = "application/octet-stream"
-          , content = Content
+          , content  = Content
           }
 
 
@@ -205,19 +205,19 @@ download sessionId clientPath = do
 storage :: Storage.Context es => SessionId -> (Storage (Eff es))
 storage sessionId =
   Storage
-    { get = get sessionId
-    , read = read sessionId
-    , readStream = readStream sessionId
-    , write = write sessionId
-    , cp = cp sessionId
-    , delete = delete sessionId
-    , new = new sessionId
-    , newFolder = newFolder sessionId
-    , ls = ls sessionId
-    , cd = cd sessionId
-    , lsCwd = lsCwd sessionId
-    , upload = upload sessionId
-    , download = download sessionId
+    { get         = get sessionId
+    , read        = read sessionId
+    , readStream  = readStream sessionId
+    , write       = write sessionId
+    , cp          = cp sessionId
+    , delete      = delete sessionId
+    , new         = new sessionId
+    , newFolder   = newFolder sessionId
+    , ls          = ls sessionId
+    , cd          = cd sessionId
+    , lsCwd       = lsCwd sessionId
+    , upload      = upload sessionId
+    , download    = download sessionId
     , isDirectory = isDirectory sessionId
     }
 

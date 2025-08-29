@@ -49,12 +49,12 @@ getSessionId (Cookies' cookies) = go
 setSessionId :: Session -> SetCookie
 setSessionId session =
   defaultSetCookie
-    { setCookieName = "sessionId"
-    , setCookieValue = bytes
-    , setCookieExpires = Just session.expireDate
+    { setCookieName     = "sessionId"
+    , setCookieValue    = bytes
+    , setCookieExpires  = Just session.expireDate
     , setCookieHttpOnly = True
-    , setCookiePath = Just "/"
-    , setCookieSecure = False -- Since there is no authentication, Secure is set to False
+    , setCookiePath     = Just "/"
+    , setCookieSecure   = False -- Since there is no authentication, Secure is set to False
     }
   where
     bytes =
@@ -75,12 +75,12 @@ setAuthId session = fmap mk session.authId
     mk (AuthId aid) = do
       let bytes = UUID.toASCIIBytes aid
       defaultSetCookie
-        { setCookieName = "authId"
-        , setCookieValue = bytes
-        , setCookieExpires = Just session.expireDate
+        { setCookieName     = "authId"
+        , setCookieValue    = bytes
+        , setCookieExpires  = Just session.expireDate
         , setCookieHttpOnly = True
-        , setCookiePath = Just "/"
-        , setCookieSecure = True
+        , setCookiePath     = Just "/"
+        , setCookieSecure   = True
         }
 
 
@@ -93,10 +93,10 @@ getDisplay (Cookies' cookies) = do
 setDisplay :: Display -> SetCookie
 setDisplay display =
   defaultSetCookie
-    { setCookieName = "display"
-    , setCookieValue = ByteString.pack $ show display
-    , setCookieExpires = Nothing
+    { setCookieName     = "display"
+    , setCookieValue    = ByteString.pack $ show display
+    , setCookieExpires  = Nothing
     , setCookieHttpOnly = False
-    , setCookiePath = Just "/"
-    , setCookieSecure = False
+    , setCookiePath     = Just "/"
+    , setCookieSecure   = False
     }

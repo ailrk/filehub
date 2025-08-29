@@ -24,22 +24,22 @@ data SortFileBy
 
 
 instance ToHttpApiData SortFileBy where
-  toUrlPiece ByNameUp = "nameUp"
-  toUrlPiece ByNameDown = "nameDown"
-  toUrlPiece ByModifiedUp = "modifiedUp"
+  toUrlPiece ByNameUp       = "nameUp"
+  toUrlPiece ByNameDown     = "nameDown"
+  toUrlPiece ByModifiedUp   = "modifiedUp"
   toUrlPiece ByModifiedDown = "modifiedDown"
-  toUrlPiece BySizeUp = "sizeUp"
-  toUrlPiece BySizeDown = "sizeDown"
+  toUrlPiece BySizeUp       = "sizeUp"
+  toUrlPiece BySizeDown     = "sizeDown"
 
 
 instance FromHttpApiData SortFileBy where
-  parseUrlPiece "nameUp" = pure ByNameUp
-  parseUrlPiece "nameDown" = pure ByNameDown
-  parseUrlPiece "modifiedUp" = pure ByModifiedUp
+  parseUrlPiece "nameUp"       = pure ByNameUp
+  parseUrlPiece "nameDown"     = pure ByNameDown
+  parseUrlPiece "modifiedUp"   = pure ByModifiedUp
   parseUrlPiece "modifiedDown" = pure ByModifiedDown
-  parseUrlPiece "sizeUp" = pure BySizeUp
-  parseUrlPiece "sizeDown" = pure BySizeDown
-  parseUrlPiece _ = Left "Unknown order"
+  parseUrlPiece "sizeUp"       = pure BySizeUp
+  parseUrlPiece "sizeDown"     = pure BySizeDown
+  parseUrlPiece _              = Left "Unknown order"
 
 
 byFileNamewithDirFirst :: File -> String
@@ -52,9 +52,9 @@ byFileNamewithDirFirst file = do
 
 
 sortFiles :: SortFileBy -> [File] -> [File]
-sortFiles ByNameUp = sortOn byFileNamewithDirFirst
-sortFiles ByNameDown = reverse . sortFiles ByNameUp
-sortFiles ByModifiedUp = sortOn (.mtime)
+sortFiles ByNameUp       = sortOn byFileNamewithDirFirst
+sortFiles ByNameDown     = reverse . sortFiles ByNameUp
+sortFiles ByModifiedUp   = sortOn (.mtime)
 sortFiles ByModifiedDown = reverse . sortFiles ByModifiedUp
-sortFiles BySizeUp = sortOn (.size)
-sortFiles BySizeDown = reverse . sortFiles BySizeUp
+sortFiles BySizeUp       = sortOn (.size)
+sortFiles BySizeDown     = reverse . sortFiles BySizeUp

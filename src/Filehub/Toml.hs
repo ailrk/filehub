@@ -23,6 +23,7 @@ import Control.Applicative ((<|>))
 import Control.Exception (throwIO)
 import Control.Monad (when)
 import Data.Maybe (fromMaybe)
+import Filehub.Locale (Locale(..))
 
 
 simpleAuthLoginUser :: TomlCodec LoginUser
@@ -83,12 +84,28 @@ verbosity key =
     key
 
 
+locale :: Key -> TomlCodec Locale
+locale key
+  =   Toml.dimatch (const $ Just "en")    (const EN)    (Toml.text key)
+  <|> Toml.dimatch (const $ Just "zh_cn") (const ZH_CN) (Toml.text key)
+  <|> Toml.dimatch (const $ Just "zh_tw") (const ZH_TW) (Toml.text key)
+  <|> Toml.dimatch (const $ Just "zh_hk") (const ZH_HK) (Toml.text key)
+  <|> Toml.dimatch (const $ Just "es")    (const ES)    (Toml.text key)
+  <|> Toml.dimatch (const $ Just "fr")    (const FR)    (Toml.text key)
+  <|> Toml.dimatch (const $ Just "de")    (const DE)    (Toml.text key)
+  <|> Toml.dimatch (const $ Just "kr")    (const KR)    (Toml.text key)
+  <|> Toml.dimatch (const $ Just "ru")    (const RU)    (Toml.text key)
+  <|> Toml.dimatch (const $ Just "pt")    (const PT)    (Toml.text key)
+  <|> Toml.dimatch (const $ Just "it")    (const IT)    (Toml.text key)
+
+
 config :: TomlCodec (Config Maybe)
 config = Config
   <$> Toml.dioptional (Toml.int                      "port")      .= (.port)
   <*> Toml.dioptional (theme                         "theme")     .= (.theme)
   <*> Toml.dioptional (verbosity                     "verbosity") .= (.verbosity)
   <*> Toml.dioptional (Toml.bool                     "readonly")  .= (.readOnly)
+  <*> Toml.dioptional (locale                        "locale")    .= (.locale)
   <*> Toml.dioptional (Toml.list targetConfig        "target")    .= (.targets)
   <*> Toml.dioptional (Toml.list simpleAuthLoginUser "login")     .= (.simpleAuthLoginUsers)
   <*> Toml.dioptional (Toml.list oidcAuthProvider    "oidc")      .= (.oidcAuthProviders)
@@ -113,4 +130,4 @@ parseConfigFile (Just filePath) = do
       when (null $ fromMaybe [] c.targets) do
         throwIO (userError "No target specified")
       pure c
-parseConfigFile _ = pure (Config Nothing Nothing Nothing Nothing Nothing Nothing Nothing)
+parseConfigFile _ = pure (Config Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing)

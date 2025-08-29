@@ -53,11 +53,11 @@ extendSession sessionId = do
   duration <- asks @Env (.sessionDuration)
   Session.Pool pool _ <- asks @Env (.sessionPool)
   now <- liftIO Time.getCurrentTime
-  liftIO $ HashTable.mutate pool sessionId
-    (\case
-        Just session -> (Just $ session { expireDate = duration `addUTCTime` now }, ())
-        Nothing -> (Nothing, ())
-    )
+  liftIO
+    $ HashTable.mutate pool sessionId
+    $ maybe
+        (Nothing, ())
+        (\session -> (Just $ session { expireDate = duration `addUTCTime` now }, ()))
 
 
 deleteSession :: (Reader Env :> es, IOE :> es) => SessionId -> Eff es ()
@@ -80,8 +80,8 @@ getSession sessionId = do
 updateSession :: (Reader Env :> es, IOE :> es) => SessionId -> (Session -> Session) -> Eff es ()
 updateSession sessionId update = do
   Session.Pool pool _ <- asks @Env (.sessionPool)
-  liftIO $ HashTable.mutate pool sessionId
-    (\case
-        Just session -> (Just $ update session, ())
-        Nothing -> (Nothing, ())
-    )
+  liftIO
+    $ HashTable.mutate pool sessionId
+    $ maybe
+        (Nothing, ())
+        (\session -> (Just $ update session, ()))

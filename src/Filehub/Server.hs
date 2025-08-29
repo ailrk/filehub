@@ -346,6 +346,7 @@ newFile sessionId _ _ (NewFile path) = do
     storage.new (Text.unpack path)
   view sessionId
 
+
 updateFile :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> UpdatedFile -> Filehub (Html ())
 updateFile sessionId _ _ (UpdatedFile clientPath content) = do
   let path = clientPath.unClientPath
@@ -785,6 +786,7 @@ main = Log.withColoredStdoutLogger \logger -> do
     , verbosity            = Identity verbosity
     , readOnly             = Identity readOnly
     , targets              = Identity targetConfigs
+    , locale               = Identity locale
     , simpleAuthLoginUsers = Identity simpleAuthLoginUsers
     , oidcAuthProviders    = Identity oidcAuthProviders
     } <-
@@ -805,17 +807,18 @@ main = Log.withColoredStdoutLogger \logger -> do
 
   let env =
         Env
-          { port = port
-          , theme = theme
-          , sessionPool = sessionPool
-          , sessionDuration = secondsToNominalDiffTime (60 * 60)
-          , targets = targets
-          , readOnly = readOnly
-          , logger = logger
-          , logLevel = verbosity
-          , simpleAuthUserDB = simpleAuthUserDB
+          { port              = port
+          , theme             = theme
+          , sessionPool       = sessionPool
+          , sessionDuration   = secondsToNominalDiffTime (60 * 60)
+          , targets           = targets
+          , readOnly          = readOnly
+          , locale            = locale
+          , logger            = logger
+          , logLevel          = verbosity
+          , simpleAuthUserDB  = simpleAuthUserDB
           , oidcAuthProviders = OIDCAuthProviders oidcAuthProviders
-          , activeUsers = ActiveUsers mempty
+          , activeUsers       = ActiveUsers mempty
           }
 
   go env `catch` handler

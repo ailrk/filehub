@@ -18,30 +18,33 @@ import Filehub.Auth.Simple (SimpleAuthUserDB)
 import Filehub.Auth.Types (ActiveUsers(..))
 import Log (Logger, LogLevel)
 import Filehub.Auth.OIDC (OIDCAuthProviders)
+import Filehub.Locale (Locale)
 
 
 data Env = Env
   { -- The port number the filehub listens on.
-    port :: !Int
+    port              :: !Int
     -- The initial theme. Each session has there own theme as well.
-  , theme :: Theme
+  , theme             :: Theme
     -- The session pool that maps from `SessionId` to `session`
-  , sessionPool :: Session.Pool
+  , sessionPool       :: Session.Pool
     -- Session duration setting. An idle session will expire after the duration.
-  , sessionDuration :: NominalDiffTime
+  , sessionDuration   :: NominalDiffTime
     -- List of targets. `Target` is existential, it hides different target backends.
-  , targets :: [Target]
+  , targets           :: [Target]
     -- Top level readonly setting.
-  , readOnly :: Bool
+  , readOnly          :: Bool
     -- Top level logging facility.
-  , logger :: Logger
+  , logger            :: Logger
     -- Log level configuaration
-  , logLevel :: LogLevel
+  , logLevel          :: LogLevel
+    -- Locale. e.g EN/ZH_CN
+  , locale            :: Locale
     -- User credentials for simple auth login mechanism.
-  , simpleAuthUserDB :: SimpleAuthUserDB
+  , simpleAuthUserDB  :: SimpleAuthUserDB
     -- OIDC configurations for OIDC loging mechanism
   , oidcAuthProviders :: OIDCAuthProviders
     -- Map from `AuthId` to `ActiveUser`. The definition of an active user depends on
     -- its login method. An active user can have multiple sessions.
-  , activeUsers :: ActiveUsers
+  , activeUsers       :: ActiveUsers
   }

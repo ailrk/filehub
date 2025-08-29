@@ -14,7 +14,7 @@ module Filehub.Env
 
 import Data.Map.Strict qualified as Map
 import Lens.Micro.Platform ()
-import Filehub.Types ( Env(..))
+import Filehub.Types (Env(..))
 import Filehub.Auth.Simple (SimpleAuthUserDB(..))
 import Filehub.Auth.OIDC (OIDCAuthProviders(..))
 

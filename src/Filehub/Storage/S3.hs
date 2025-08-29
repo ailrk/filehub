@@ -43,12 +43,12 @@ import System.IO.Temp qualified as Temp
 get :: Storage.Context es => SessionId -> FilePath -> Eff es File
 get sessionId path = do
   s3 <- getS3 sessionId
-  let bucket = Amazonka.BucketName s3.bucket
-  let key = Amazonka.ObjectKey $ Text.pack path
+  let bucket  = Amazonka.BucketName s3.bucket
+  let key     = Amazonka.ObjectKey $ Text.pack path
   let request = Amazonka.newHeadObject bucket key
   resp <- runResourceT $ send s3.env request
-  let mtime = resp ^. Amazonka.headObjectResponse_lastModified
-  let size = resp ^. Amazonka.headObjectResponse_contentLength
+  let mtime       = resp ^. Amazonka.headObjectResponse_lastModified
+  let size        = resp ^. Amazonka.headObjectResponse_contentLength
   let contentType = resp ^. Amazonka.headObjectResponse_contentType
   pure File
     { path = path
@@ -95,8 +95,8 @@ readStream sessionId file = do
 newFolder :: Storage.Context es => SessionId -> FilePath -> Eff es ()
 newFolder sessionId filePath = do
   s3 <- getS3 sessionId
-  let bucket = Amazonka.BucketName s3.bucket
-  let key = Amazonka.ObjectKey $ Text.pack $ normalizeDirPath filePath
+  let bucket  = Amazonka.BucketName s3.bucket
+  let key     = Amazonka.ObjectKey $ Text.pack $ normalizeDirPath filePath
   let request = Amazonka.newPutObject bucket key (toBody LBS.empty)
   void $ runResourceT $ send s3.env request
 
@@ -108,8 +108,8 @@ new sessionId filePath = write sessionId filePath mempty
 write :: Storage.Context es => SessionId -> FilePath -> ByteString -> Eff es ()
 write sessionId filePath bytes = do
   s3 <- getS3 sessionId
-  let bucket = Amazonka.BucketName s3.bucket
-  let key = Amazonka.ObjectKey $ Text.pack filePath
+  let bucket  = Amazonka.BucketName s3.bucket
+  let key     = Amazonka.ObjectKey $ Text.pack filePath
   let request = Amazonka.newPutObject bucket key (toBody bytes)
   void $ runResourceT $ send s3.env request
 
@@ -117,7 +117,7 @@ write sessionId filePath bytes = do
 cp :: Storage.Context es => SessionId -> FilePath -> FilePath -> Eff es ()
 cp sessionId src dest = do
   s3 <- getS3 sessionId
-  let bucket = Amazonka.BucketName s3.bucket
+  let bucket  = Amazonka.BucketName s3.bucket
   let destKey = Amazonka.ObjectKey $ Text.pack dest
   let request = Amazonka.newCopyObject bucket (Text.pack src) destKey
   void $ runResourceT $ send s3.env request
@@ -127,41 +127,41 @@ delete :: Storage.Context es => SessionId -> FilePath -> Eff es ()
 delete sessionId filePath = do
   s3 <- getS3 sessionId
   let bucket = Amazonka.BucketName s3.bucket
-  let key = Amazonka.ObjectKey $ Text.pack filePath
+  let key    = Amazonka.ObjectKey $ Text.pack filePath
   void $ runResourceT $ send s3.env (Amazonka.newDeleteObject bucket key)
 
 
 ls :: Storage.Context es => SessionId -> FilePath -> Eff es [File]
 ls sessionId _ = do
    s3 <- getS3 sessionId
-   let bucket = Amazonka.BucketName s3.bucket
+   let bucket  = Amazonka.BucketName s3.bucket
    let request = Amazonka.newListObjectsV2 bucket
                & Amazonka.listObjectsV2_prefix ?~ Text.pack "" -- root
    resp <- runResourceT $ send s3.env request
    let files = maybe [] (fmap toFile) $ resp ^. Amazonka.listObjectsV2Response_contents
-   let dirs = maybe [] (fmap toDir) $ resp ^. Amazonka.listObjectsV2Response_commonPrefixes
+   let dirs  = maybe [] (fmap toDir) $ resp ^. Amazonka.listObjectsV2Response_commonPrefixes
    pure $ files <> dirs
   where
     toDir (commonPrefix :: CommonPrefix) =
       let dirPath = fromMaybe mempty $ commonPrefix ^. Amazonka.commonPrefix_prefix
        in File
-         { path = Text.unpack dirPath
-         , atime = Nothing
-         , mtime = Nothing
-         , size = Nothing
+         { path     = Text.unpack dirPath
+         , atime    = Nothing
+         , mtime    = Nothing
+         , size     = Nothing
          , mimetype = "" -- content type can be unreliable because it's derived from the extension.
-         , content = Dir Nothing
+         , content  = Dir Nothing
          }
 
     toFile (object :: Object) =
       let filePath = Amazonka.toText $ object ^. Amazonka.object_key
        in File
-         { path = Text.unpack filePath
-         , atime = Nothing
-         , mtime = Just $ object ^. Amazonka.object_lastModified
-         , size = Just $ object ^. Amazonka.object_size
+         { path     = Text.unpack filePath
+         , atime    = Nothing
+         , mtime    = Just $ object ^. Amazonka.object_lastModified
+         , size     = Just $ object ^. Amazonka.object_size
          , mimetype = defaultMimeLookup filePath -- content type can be unreliable because it's derived from the extension.
-         , content = Content
+         , content  = Content
          }
 
 
@@ -176,7 +176,7 @@ lsCwd sessionId = ls sessionId ""
 upload :: Storage.Context es => SessionId -> MultipartData Mem -> Eff es ()
 upload sessionId multipart = do
   forM_ multipart.files $ \file -> do
-    let name = Text.unpack file.fdFileName
+    let name    = Text.unpack file.fdFileName
     let content = LBS.toStrict $ file.fdPayload
     write sessionId name content
 
@@ -210,19 +210,19 @@ download sessionId clientPath = do
 storage :: Storage.Context es => SessionId -> (Storage (Eff es))
 storage sessionId =
   Storage
-    { get = get sessionId
-    , read = read sessionId
-    , readStream = readStream sessionId
-    , write = write sessionId
-    , cp = cp sessionId
-    , delete = delete sessionId
-    , new = new sessionId
-    , newFolder = newFolder sessionId
-    , ls = ls sessionId
-    , cd = cd sessionId
-    , lsCwd = lsCwd sessionId
-    , upload = upload sessionId
-    , download = download sessionId
+    { get         = get sessionId
+    , read        = read sessionId
+    , readStream  = readStream sessionId
+    , write       = write sessionId
+    , cp          = cp sessionId
+    , delete      = delete sessionId
+    , new         = new sessionId
+    , newFolder   = newFolder sessionId
+    , ls          = ls sessionId
+    , cd          = cd sessionId
+    , lsCwd       = lsCwd sessionId
+    , upload      = upload sessionId
+    , download    = download sessionId
     , isDirectory = isDirectory sessionId
     }
 

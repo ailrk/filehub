@@ -49,9 +49,9 @@ initViewer :: (Reader Env :> es, Log :> es, Error FilehubError :> es, IOE :> es,
 initViewer sessionId root clientPath = do
   storage <- getStorage sessionId
   let filePath = fromClientPath root clientPath
-  let dir = takeDirectory filePath
+  let dir      = takeDirectory filePath
   order <- Session.getSortFileBy sessionId
   files <- takeResourceFiles . sortFiles order <$> (storage.ls dir)
-  let idx = fromMaybe 0 $ List.elemIndex filePath (fmap (.path) files)
+  let idx       = fromMaybe 0 $ List.elemIndex filePath (fmap (.path) files)
   let resources = fmap (toResource root) files
   pure $ ViewerInited resources idx

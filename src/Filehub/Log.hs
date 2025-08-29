@@ -26,7 +26,8 @@ withColoredStdoutLogger act = withRunInIO $ \unlift -> do
 
 -- | Render a 'LogMessage' to 'Text'.
 showColoredLogMessage :: Maybe UTCTime -> LogMessage -> Text
-showColoredLogMessage mInsertionTime LogMessage{..} = Text.concat $ [
+showColoredLogMessage mInsertionTime LogMessage{..}
+  = Text.concat $ [
     Text.pack $ formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S" lmTime
   , case mInsertionTime of
       Nothing -> " "

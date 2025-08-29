@@ -17,9 +17,9 @@ data FileSys
 instance IsTarget FileSys where
   data Backend FileSys =
     FileBackend
-      { targetId :: TargetId
+      { targetId   :: TargetId
       , targetName :: Maybe Text
-      , root :: FilePath
+      , root       :: FilePath
       }
   getTargetIdFromBackend f = f.targetId
 

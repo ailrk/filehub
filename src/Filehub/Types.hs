@@ -146,11 +146,11 @@ instance ToHttpApiData UIComponent where
 
 
 instance FromHttpApiData UIComponent where
-  parseUrlPiece "UIComponentView" = pure UIComponentView
-  parseUrlPiece "UIComponentSideBar" = pure UIComponentSideBar
+  parseUrlPiece "UIComponentView"         = pure UIComponentView
+  parseUrlPiece "UIComponentSideBar"      = pure UIComponentSideBar
   parseUrlPiece "UIComponentContronPanel" = pure UIComponentContronPanel
-  parseUrlPiece "UIComponentIndex" = pure UIComponentIndex
-  parseUrlPiece _ = Left "unknown ui component"
+  parseUrlPiece "UIComponentIndex"        = pure UIComponentIndex
+  parseUrlPiece _                         = Left "unknown ui component"
 
 
 data FilehubEvent
@@ -177,12 +177,12 @@ instance ToJSON FilehubEvent where
           ]
       ]
   toJSON TargetChanged = Aeson.object [ "TargetChanged" .= Aeson.object [] ]
-  toJSON TableSorted = Aeson.object [ "TableSorted" .= Aeson.object [] ]
-  toJSON DirChanged = Aeson.object [ "DirChanged" .= Aeson.object [] ]
+  toJSON TableSorted   = Aeson.object [ "TableSorted" .= Aeson.object [] ]
+  toJSON DirChanged    = Aeson.object [ "DirChanged" .= Aeson.object [] ]
   toJSON LayoutChanged = Aeson.object [ "LayoutChanged" .= Aeson.object [] ]
-  toJSON ThemeChanged = Aeson.object [ "ThemeChanged" .= Aeson.object [] ]
-  toJSON FileMoved = Aeson.object [ "FileMoved" .= Aeson.object [] ]
-  toJSON Canceled = Aeson.object [ "Canceled" .= Aeson.object [] ]
+  toJSON ThemeChanged  = Aeson.object [ "ThemeChanged" .= Aeson.object [] ]
+  toJSON FileMoved     = Aeson.object [ "FileMoved" .= Aeson.object [] ]
+  toJSON Canceled      = Aeson.object [ "Canceled" .= Aeson.object [] ]
   toJSON (Opened target path) =
     Aeson.object
       [ "Opened" .= Aeson.object
@@ -217,13 +217,13 @@ instance ToHttpApiData OpenTarget where
 
 
 instance FromHttpApiData OpenTarget where
-  parseUrlPiece "OpenDOMSelf" = pure OpenDOMSelf
-  parseUrlPiece "OpenDOMBlank" = pure OpenDOMBlank
-  parseUrlPiece "OpenDOMParent" = pure OpenDOMParent
-  parseUrlPiece "OpenDOMTop" = pure OpenDOMTop
+  parseUrlPiece "OpenDOMSelf"        = pure OpenDOMSelf
+  parseUrlPiece "OpenDOMBlank"       = pure OpenDOMBlank
+  parseUrlPiece "OpenDOMParent"      = pure OpenDOMParent
+  parseUrlPiece "OpenDOMTop"         = pure OpenDOMTop
   parseUrlPiece "OpenDOMUnfencedTop" = pure OpenDOMUnfencedTop
-  parseUrlPiece "OpenViewer" = pure OpenViewer
-  parseUrlPiece _ = Left "unknown target for open()"
+  parseUrlPiece "OpenViewer"         = pure OpenViewer
+  parseUrlPiece _                    = Left "unknown target for open()"
 
 
 instance ToJSON OpenTarget where

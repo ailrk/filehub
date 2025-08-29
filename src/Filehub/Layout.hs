@@ -10,10 +10,10 @@ data Layout
 
 instance ToHttpApiData Layout where
   toUrlPiece ThumbnailLayout = "ThumbnailLayout"
-  toUrlPiece ListLayout = "ListLayout"
+  toUrlPiece ListLayout      = "ListLayout"
 
 
 instance FromHttpApiData Layout where
   parseUrlPiece "ThumbnailLayout" = pure ThumbnailLayout
-  parseUrlPiece "ListLayout" = pure ListLayout
-  parseUrlPiece _ = Left "Unknown layout"
+  parseUrlPiece "ListLayout"      = pure ListLayout
+  parseUrlPiece _                 = Left "Unknown layout"

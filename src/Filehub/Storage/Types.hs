@@ -14,18 +14,18 @@ import Data.ByteString (ByteString)
 
 
 data Storage m = Storage
-  { get :: FilePath -> m File
-  , read :: File -> m ByteString
-  , readStream :: File -> m (ConduitT () ByteString (ResourceT IO) ())
-  , write :: FilePath -> ByteString -> m ()
-  , cp :: FilePath -> FilePath -> m ()
-  , delete :: FilePath -> m ()
-  , new :: FilePath -> m ()
-  , newFolder :: FilePath -> m ()
-  , ls :: FilePath -> m [File]
-  , cd :: FilePath -> m ()
-  , lsCwd :: m [File]
-  , upload :: MultipartData Mem -> m ()
-  , download :: ClientPath -> m (ConduitT () ByteString (ResourceT IO) ())
+  { get         :: FilePath -> m File
+  , read        :: File -> m ByteString
+  , readStream  :: File -> m (ConduitT () ByteString (ResourceT IO) ())
+  , write       :: FilePath -> ByteString -> m ()
+  , cp          :: FilePath -> FilePath -> m ()
+  , delete      :: FilePath -> m ()
+  , new         :: FilePath -> m ()
+  , newFolder   :: FilePath -> m ()
+  , ls          :: FilePath -> m [File]
+  , cd          :: FilePath -> m ()
+  , lsCwd       :: m [File]
+  , upload      :: MultipartData Mem -> m ()
+  , download    :: ClientPath -> m (ConduitT () ByteString (ResourceT IO) ())
   , isDirectory :: FilePath -> m Bool
   }

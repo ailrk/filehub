@@ -40,6 +40,7 @@ import Filehub.Auth.Simple (createSimpleAuthUserDB)
 import Effectful.FileSystem (runFileSystem)
 import Filehub.Auth.Types (ActiveUsers(..))
 import Filehub.Auth.OIDC (OIDCAuthProviders(..))
+import Filehub.Locale (Locale(..))
 
 
 main :: IO ()
@@ -271,6 +272,7 @@ mkEnv = do
               }
             ]
           , readOnly = False
+          , locale = EN
           , logger = logger
           , logLevel = LogTrace
           , simpleAuthUserDB = SimpleAuthUserDB mempty

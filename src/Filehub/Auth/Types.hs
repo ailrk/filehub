@@ -17,10 +17,10 @@ import Filehub.Auth.Simple qualified as Auth.Simple
 
 
 data ActiveUser = ActiveUser
-  { authId :: AuthId
-  , loginAt :: UTCTime
+  { authId   :: AuthId
+  , loginAt  :: UTCTime
   , sessions :: [SessionId]
-  , auth :: Auth
+  , auth     :: Auth
   }
   deriving (Show, Eq)
 

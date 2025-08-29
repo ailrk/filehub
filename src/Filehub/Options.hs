@@ -40,6 +40,7 @@ import Options.Applicative
 import Effectful.Log (LogLevel (..))
 import Filehub.Theme (Theme (..))
 import Data.List.Split (splitOn)
+import Filehub.Locale (Locale (..))
 
 
 data Options = Options
@@ -136,6 +137,16 @@ configFile = option str
              ]
 
 
+locale :: Parser Locale
+locale = option auto
+      $ mconcat
+      $ [ long "theme"
+        , metavar "THEME"
+        , help "default EN. EN | ZH_CN | ZH_TW | ZH_HK | ES | FR | DE | KR | RU | PT | IT"
+        , value EN
+        ]
+
+
 config :: Parser (Config Maybe)
 config =
   Config
@@ -143,6 +154,7 @@ config =
   <*> optional theme
   <*> optional verbosity
   <*> optional readonly
+  <*> optional locale
   <*> optional (some targetConfig)
   <*> optional simpleAuthLoginUsers
   <*> pure Nothing

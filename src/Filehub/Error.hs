@@ -43,19 +43,19 @@ withServerError action = runErrorNoCallStack action >>= either (\err -> throwErr
 toServerError :: FilehubError -> ServerError
 toServerError (FilehubError err msg) =
   case err of
-    FileExists -> err400 { errBody = fromString msg }
-    InvalidPath -> err400 { errBody = fromString msg }
-    InvalidDir -> err400 { errBody = fromString msg }
-    InvalidSession -> err400 { errBody = fromString msg }
-    InvalidSelection -> err400 { errBody = fromString msg }
-    FormatError -> err400 { errBody = fromString msg }
-    InternalError -> err500 { errBody = fromString msg }
-    TargetError -> err500 { errBody = fromString msg }
+    FileExists ->          err400 { errBody = fromString msg }
+    InvalidPath ->         err400 { errBody = fromString msg }
+    InvalidDir ->          err400 { errBody = fromString msg }
+    InvalidSession ->      err400 { errBody = fromString msg }
+    InvalidSelection ->    err400 { errBody = fromString msg }
+    FormatError ->         err400 { errBody = fromString msg }
+    InternalError ->       err500 { errBody = fromString msg }
+    TargetError ->         err500 { errBody = fromString msg }
     FailedToDecodeImage -> err500 { errBody = fromString msg }
     FailedToEncodeImage -> err500 { errBody = fromString msg }
-    MimeTypeMissing -> err400 { errBody = fromString msg }
-    S3Error -> err500 { errBody = fromString msg }
-    SelectError -> err500 { errBody = fromString msg }
-    CopyError -> err500 { errBody = fromString msg }
-    PasteError -> err500 { errBody = fromString msg }
-    LoginFailed -> err500 { errBody = fromString msg }
+    MimeTypeMissing ->     err400 { errBody = fromString msg }
+    S3Error ->             err500 { errBody = fromString msg }
+    SelectError ->         err500 { errBody = fromString msg }
+    CopyError ->           err500 { errBody = fromString msg }
+    PasteError ->          err500 { errBody = fromString msg }
+    LoginFailed ->         err500 { errBody = fromString msg }

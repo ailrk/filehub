@@ -8,9 +8,9 @@ import GHC.Generics (Generic)
 
 
 data TargetView = TargetView
-  { target :: Target
+  { target      :: Target
   , sessionData :: TargetSessionData
-  , index :: Int
+  , index       :: Int
   }
   deriving (Generic)
 

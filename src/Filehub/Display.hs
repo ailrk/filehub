@@ -9,7 +9,7 @@ import Text.Read (readMaybe)
 
 
 data Resolution = Resolution
-  { width :: Int
+  { width  :: Int
   , height :: Int
   }
   deriving (Show, Eq, Ord)
@@ -49,10 +49,10 @@ instance ToHttpApiData Display where
 
 
 instance FromHttpApiData Display where
-  parseUrlPiece "Mobile" = pure Mobile
-  parseUrlPiece "Desktop" = pure Desktop
+  parseUrlPiece "Mobile"    = pure Mobile
+  parseUrlPiece "Desktop"   = pure Desktop
   parseUrlPiece "NoDisplay" = pure NoDisplay
-  parseUrlPiece _ = Left "unknown display"
+  parseUrlPiece _           = Left "unknown display"
 
 
 

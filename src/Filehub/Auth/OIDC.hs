@@ -6,18 +6,18 @@ import Data.Text (Text)
 
 
 data Token = Token
-  { idToken :: Text
-  , accessToken :: Text
+  { idToken      :: Text
+  , accessToken  :: Text
   , refreshToken :: Text
-  , expiresIn :: Int
-  , tokenType :: Text
+  , expiresIn    :: Int
+  , tokenType    :: Text
   }
   deriving (Show, Eq)
 
 
 data User = User
-  { sub :: Text
-  , user :: Text
+  { sub   :: Text
+  , user  :: Text
   , email :: Maybe Text
   , token :: Token
   }
@@ -25,11 +25,11 @@ data User = User
 
 
 data Provider = Provider
-  { name :: Text
-  , issuer :: Text
-  , clientId :: Text
+  { name         :: Text
+  , issuer       :: Text
+  , clientId     :: Text
   , clientSecret :: Text
-  , grantType :: Text
+  , grantType    :: Text
   , allowedUsers :: [Text]
   , redirectURIs :: [Text]
   }

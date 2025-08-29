@@ -149,6 +149,7 @@ library
     Filehub.File
     Filehub.Layout
     Filehub.Links
+    Filehub.Locale
     Filehub.Log
     Filehub.Mime
     Filehub.Monad
