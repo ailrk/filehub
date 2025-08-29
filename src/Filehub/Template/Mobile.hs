@@ -44,16 +44,18 @@ index :: Bool
       -> Bool
       -> Html ()
       -> Html ()
+      -> Html ()
       -> Theme
       -> ControlPanelState
       -> Int
       -> Html ()
-index readOnly noLogin sideBar' view' theme controlPanelState selectedCount = do
+index readOnly noLogin sideBar' toolBar' view' theme controlPanelState selectedCount = do
   safeAreaShim
   div_ [ id_ "index" ] do
     overlay
     selectedCounter selectedCount
     sideBar'
+    toolBar'
     view'
     controlPanel theme readOnly noLogin controlPanelState
     controlPanelBtn
@@ -100,10 +102,9 @@ controlPanelBtn =
     i_ [ class_ "bx bx-plus" ] mempty
 
 
-view :: Html () -> Html () -> Html () -> Html ()
-view table' sortTool' pathBreadcrumb' = do
+view :: Html () -> Html ()
+view table' = do
   div_ [ id_ viewId ] do
-    toolBar sortTool' pathBreadcrumb'
     table'
 
 

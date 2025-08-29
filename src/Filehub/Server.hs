@@ -330,7 +330,13 @@ cd sessionId _ mClientPath = do
     root <- Session.getRoot sessionId
     storage <- getStorage sessionId
     storage.cd (ClientPath.fromClientPath root clientPath)
-  view sessionId <&> addHeader DirChanged
+  html <- do
+    toolBar' <- toolBar sessionId
+    view' <- view sessionId
+    pure do
+      toolBar' `with` [ term "hx-swap-oob" "true" ]
+      view'
+  pure $ addHeader DirChanged $ html
 
 
 newFile :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> NewFile -> Filehub (Html ())
@@ -725,6 +731,16 @@ sideBar sessionId = do
   display <- Session.getDisplay sessionId & withServerError
   case display of
     Desktop -> Server.Desktop.sideBar sessionId
+    Mobile -> Server.Mobile.sideBar sessionId
+    _ -> error "impossible"
+
+
+toolBar :: SessionId -> Filehub (Html ())
+toolBar sessionId = do
+  display <- Session.getDisplay sessionId & withServerError
+  case display of
+    Desktop -> Server.Desktop.toolBar sessionId
+    Mobile -> Server.Mobile.toolBar sessionId
     _ -> error "impossible"
 
 

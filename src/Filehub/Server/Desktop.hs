@@ -73,7 +73,10 @@ index sessionId = do
   layout <- Session.getLayout sessionId & withServerError
   theme <- Session.getSessionTheme sessionId & withServerError
   state <- ControlPanel.getControlPanelState sessionId & withServerError
-  pure $ Template.Desktop.index readOnly noLogin sideBar' view' layout theme state
+  toolBar' <- toolBar sessionId
+  pure $ Template.Desktop.index
+    readOnly noLogin sideBar' view' toolBar'
+    layout theme state
 
 
 sideBar :: SessionId -> Filehub (Html ())
@@ -101,7 +104,11 @@ view sessionId = do
     TargetView target _ _ <- Session.currentTarget sessionId
     selected <- Selected.getSelected sessionId
     pure $ Template.Desktop.table target root files selected order layout
-  Template.Desktop.view table <$> pathBreadcrumb sessionId
+  pure $ Template.Desktop.view table
+
+
+toolBar :: SessionId -> Filehub (Html ())
+toolBar sessionId = Template.Desktop.toolBar <$> pathBreadcrumb sessionId
 
 
 pathBreadcrumb :: SessionId -> Filehub (Html ())

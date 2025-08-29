@@ -68,21 +68,22 @@ index :: Bool
       -> Bool
       -> Html ()
       -> Html ()
+      -> Html ()
       -> Layout
       -> Theme
       -> ControlPanelState
       -> Html ()
-index readOnly noLogin sideBar' view' layout theme controlPanelState = do
+index readOnly noLogin sideBar' view' toolBar' layout theme controlPanelState = do
   div_ [ id_ "index" ] do
     sideBar'
     controlPanel layout theme readOnly noLogin controlPanelState
+    toolBar'
     view'
 
 
-view :: Html () -> Html () -> Html ()
-view table' pathBreadcrumb' = do
+view :: Html () -> Html ()
+view table' = do
   div_ [ id_ viewId ] do
-    toolBar pathBreadcrumb'
     table'
 
 

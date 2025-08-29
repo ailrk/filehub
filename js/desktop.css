@@ -16,6 +16,7 @@ body {
   background: var(--background1);
   font-family: system-ui, -apple-system, sans-serif;
   color: var(--frontground);
+  scrollbar-color: var(--background1) var(--background3); /* thumb color, track color */
 }
 
 
@@ -50,9 +51,10 @@ textarea {
   display: grid;
   grid-template-areas:
     "side-bar control-panel"
+    "side-bar tool-bar"
     "side-bar view";
   grid-template-columns: 210px 1fr;
-  grid-template-rows: auto 95vh;
+  grid-template-rows: auto auto 95vh;
   overflow: hidden;
 }
 
@@ -129,24 +131,16 @@ textarea {
   }
 }
 
+#tool-bar {
+  position: sticky;
+  top: 0;
+  background: var(--background2);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  overflow: hidden;
 
-#view {
-  grid-area: view;
-  overflow-y: scroll;
-  overflow-x: hidden;
-  scrollbar-color: var(--background1) var(--background3); /* thumb color, track color */
-
-  & #tool-bar {
-    position: sticky;
-    top: 0;
-    background: var(--background2);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    overflow: hidden;
-  }
-
-  & #tool-bar #path-breadcrumb {
+  & #path-breadcrumb {
     white-space: nowrap;
     scrollbar-width: none;
     overflow-y: auto;
@@ -154,13 +148,20 @@ textarea {
     padding-left: 1rem;
   }
 
-  & #tool-bar #tool-bar-right {
+  & #tool-bar-right {
     display: flex;
   }
 
-  & #tool-bar #search-bar {
+  & #search-bar {
     padding-right: 2rem;
   }
+}
+
+
+#view {
+  grid-area: view;
+  overflow-y: scroll;
+  overflow-x: hidden;
 
   & #table.list-view {
     padding: 1rem 1rem;

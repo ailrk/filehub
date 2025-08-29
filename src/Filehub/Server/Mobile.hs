@@ -38,7 +38,11 @@ index sessionId = do
   theme <- Session.getSessionTheme sessionId & withServerError
   state <- ControlPanel.getControlPanelState sessionId & withServerError
   selectedCount <- Selected.countSelected sessionId & withServerError
-  pure $ Template.Mobile.index readOnly noLogin sideBar' view' theme state selectedCount
+  toolBar' <- toolBar sessionId
+  pure $ Template.Mobile.index
+    readOnly noLogin
+    sideBar' toolBar' view'
+    theme state selectedCount
 
 
 sideBar :: SessionId -> Filehub (Html ())
@@ -46,6 +50,20 @@ sideBar sessionId = withServerError $
   Template.Mobile.sideBar
   <$> asks @Env (.targets)
   <*> Target.currentTarget sessionId
+
+
+toolBar :: SessionId -> Filehub (Html ())
+toolBar sessionId = do
+  sortTool' <- Template.Mobile.sortTool <$> Session.getSortFileBy sessionId & withServerError
+  pathBreadcrumb' <- pathBreadcrumb sessionId
+  pure $ Template.Mobile.toolBar sortTool' pathBreadcrumb'
+
+
+pathBreadcrumb :: SessionId -> Filehub (Html ())
+pathBreadcrumb sessionId =
+  Template.pathBreadcrumb
+    <$> (Session.getCurrentDir sessionId & withServerError)
+    <*> (Session.getRoot sessionId & withServerError)
 
 
 editorModal :: SessionId -> Maybe ClientPath -> Filehub (Html ())
@@ -64,7 +82,7 @@ editorModal sessionId mClientPath = withServerError do
 
 view :: SessionId -> Filehub (Html ())
 view sessionId = do
-  (table, toolBar) <- withServerError do
+  table <- withServerError do
     storage <- getStorage sessionId
     root <- Session.getRoot sessionId
     order <- Session.getSortFileBy sessionId
@@ -72,9 +90,5 @@ view sessionId = do
     TargetView target _ _ <- Session.currentTarget sessionId
     selected <- Selected.getSelected sessionId
     let table = Template.Mobile.table target root files selected
-    let toolBar = Template.Mobile.sortTool order
-    pure (table, toolBar)
-  pathBreadcrumb <- Template.pathBreadcrumb
-    <$> (Session.getCurrentDir sessionId & withServerError)
-    <*> (Session.getRoot sessionId & withServerError)
-  pure $ Template.Mobile.view table toolBar pathBreadcrumb
+    pure table
+  pure $ Template.Mobile.view table

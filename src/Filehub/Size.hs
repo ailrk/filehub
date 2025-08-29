@@ -11,7 +11,7 @@ import Text.Printf (printf)
 
 toReadableSize :: Integer -> String
 toReadableSize nbytes =
-  if | nB == 0 -> "0b"
+  if | nB == 0 -> "0 B"
      | nTb >= 1 -> printf "%.1f TB" (nTb :: Double)
      | nGb >= 1 -> printf "%.1f GB" (nGb :: Double)
      | nMb >= 1 -> printf "%.1f MB" (nMb :: Double)
