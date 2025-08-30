@@ -2,21 +2,19 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Filehub.Server.Mobile where
 
-import Effectful.Reader.Dynamic (ask, asks)
+import Effectful.Reader.Dynamic (asks)
 import Filehub.Monad ( Filehub )
 import Filehub.Types ( ClientPath)
 import Lens.Micro.Platform ()
 import Lucid
 import Prelude hiding (readFile)
 import Filehub.Template.Mobile qualified as Template.Mobile
-import Filehub.Template.Internal qualified as Template
+import Filehub.Template.Internal (runTemplate, TemplateContext(..))
 import Filehub.Target qualified as Target
-import Filehub.Target.Types.TargetView (TargetView(..))
 import Filehub.Error ( withServerError, withServerError )
 import Filehub.Selected qualified as Selected
 import Filehub.Sort (sortFiles)
-import Filehub.Server.Internal (withQueryParam)
-import Filehub.ControlPanel qualified as ControlPanel
+import Filehub.Server.Internal (withQueryParam, makeTemplateContext)
 import Filehub.ClientPath qualified as ClientPath
 import Filehub.Env (Env)
 import Filehub.Env qualified as Env
@@ -31,18 +29,12 @@ import System.FilePath (takeFileName)
 
 index :: SessionId -> Filehub (Html ())
 index sessionId = do
-  readOnly <- asks @Env (.readOnly)
-  noLogin <- Env.hasNoLogin <$> ask @Env
+  ctx <- makeTemplateContext sessionId
   sideBar' <- sideBar sessionId
   view' <- view sessionId
-  theme <- Session.getSessionTheme sessionId & withServerError
-  state <- ControlPanel.getControlPanelState sessionId & withServerError
   selectedCount <- Selected.countSelected sessionId & withServerError
   toolBar' <- toolBar sessionId
-  pure $ Template.Mobile.index
-    readOnly noLogin
-    sideBar' toolBar' view'
-    theme state selectedCount
+  pure $ runTemplate ctx $ Template.Mobile.index sideBar' toolBar' view' selectedCount
 
 
 sideBar :: SessionId -> Filehub (Html ())
@@ -54,16 +46,8 @@ sideBar sessionId = withServerError $
 
 toolBar :: SessionId -> Filehub (Html ())
 toolBar sessionId = do
-  sortTool' <- Template.Mobile.sortTool <$> Session.getSortFileBy sessionId & withServerError
-  pathBreadcrumb' <- pathBreadcrumb sessionId
-  pure $ Template.Mobile.toolBar sortTool' pathBreadcrumb'
-
-
-pathBreadcrumb :: SessionId -> Filehub (Html ())
-pathBreadcrumb sessionId =
-  Template.pathBreadcrumb
-    <$> (Session.getCurrentDir sessionId & withServerError)
-    <*> (Session.getRoot sessionId & withServerError)
+  ctx@TemplateContext { sortedBy = order } <- makeTemplateContext sessionId
+  pure $ runTemplate ctx $ Template.Mobile.toolBar (Template.Mobile.sortTool order )
 
 
 editorModal :: SessionId -> Maybe ClientPath -> Filehub (Html ())
@@ -82,13 +66,9 @@ editorModal sessionId mClientPath = withServerError do
 
 view :: SessionId -> Filehub (Html ())
 view sessionId = do
+  ctx@TemplateContext{ sortedBy = order } <- makeTemplateContext sessionId
   table <- withServerError do
     storage <- getStorage sessionId
-    root <- Session.getRoot sessionId
-    order <- Session.getSortFileBy sessionId
     files <- sortFiles order <$> storage.lsCwd
-    TargetView target _ _ <- Session.currentTarget sessionId
-    selected <- Selected.getSelected sessionId
-    let table = Template.Mobile.table target root files selected
-    pure table
+    pure $ runTemplate ctx $ Template.Mobile.table files
   pure $ Template.Mobile.view table

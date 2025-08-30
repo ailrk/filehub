@@ -13,6 +13,3 @@ data TargetView = TargetView
   , index       :: Int
   }
   deriving (Generic)
-
-
-

@@ -12,7 +12,6 @@ module Filehub.Template.Desktop
   , newFolderModal
   , fileDetailModal
   , editorModal
-  , search
   , contextMenu
   , table
   )
@@ -30,28 +29,23 @@ import Data.Time.Format (formatTime, defaultTimeLocale)
 import Filehub.Types
     ( File(..),
       FileContent(..),
-      SearchWord(..),
       SortFileBy(..),
       ClientPath(..),
-      Target(..),
-      Selected(..),
-      ControlPanelState(..))
+      Target(..))
 import Filehub.Routes (Api(..))
-import Filehub.Sort (sortFiles)
 import Filehub.Mime (isMime)
 import Filehub.Size (toReadableSize)
 import Filehub.Selected qualified as Selected
 import Filehub.ClientPath qualified as ClientPath
 import Filehub.Target (TargetView(..), handleTarget)
 import Filehub.Target qualified as Target
-import Filehub.Template.Internal (bold, toClientPath, viewId, tableId, sideBarId, searchBar)
-import Filehub.Template.Internal qualified as Template
+import Filehub.Template.Shared (bold, toClientPath, viewId, tableId, sideBarId, searchBar)
+import Filehub.Template.Shared qualified as Template
+import Filehub.Template.Internal
 import Filehub.Links ( apiLinks, linkToText )
-import Lens.Micro
 import Lens.Micro.Platform ()
 import Lucid
 import System.FilePath (takeFileName)
-import Text.Fuzzy (simpleFilter)
 import Filehub.Target.S3 (S3, Backend (..))
 import Filehub.Target.File (FileSys, Backend (..))
 import Filehub.Target.Types (targetHandler)
@@ -59,27 +53,25 @@ import Filehub.Layout (Layout (..))
 import Filehub.Theme (Theme (..))
 import Control.Monad (when)
 import Filehub.Locale (Locale(..))
+import Effectful.Reader.Dynamic (asks)
 
 ------------------------------------
 -- components
 ------------------------------------
 
 
-index :: Bool
-      -> Bool
+index :: Html ()
       -> Html ()
       -> Html ()
-      -> Html ()
-      -> Layout
-      -> Theme
-      -> ControlPanelState
-      -> Html ()
-index readOnly noLogin sideBar' view' toolBar' layout theme controlPanelState = do
-  div_ [ id_ "index" ] do
-    sideBar'
-    controlPanel layout theme readOnly noLogin controlPanelState
-    toolBar'
-    view'
+      -> Template (Html ())
+index sideBar' view' toolBar' = do
+  controlPanel' <- controlPanel
+  pure do
+    div_ [ id_ "index" ] do
+      sideBar'
+      controlPanel'
+      toolBar'
+      view'
 
 
 view :: Html () -> Html ()
@@ -88,11 +80,13 @@ view table' = do
     table'
 
 
-toolBar :: Html () -> Html ()
-toolBar pathBreadcrumb' = do
-  div_ [ id_ "tool-bar" ] do
-    pathBreadcrumb'
-    searchBar
+toolBar :: Template (Html ())
+toolBar = do
+  pathBreadcrumb' <- Template.pathBreadcrumb
+  pure do
+    div_ [ id_ "tool-bar" ] do
+      pathBreadcrumb'
+      searchBar
 
 
 sideBar :: [(Target, Int)] -> TargetView -> Html ()
@@ -135,8 +129,10 @@ sideBar targets (TargetView currentTarget _ _) = do
             ]
 
 
-controlPanel :: Layout -> Theme -> Bool -> Bool -> ControlPanelState -> Html ()
-controlPanel layout theme =
+controlPanel :: Template (Html ())
+controlPanel = do
+  themeBtn' <- themeBtn
+  layoutBtn' <- layoutBtn
   Template.controlPanel
     localeBtn
     newFolderBtn
@@ -146,9 +142,9 @@ controlPanel layout theme =
     pasteBtn
     deleteBtn
     cancelBtn
-    themeBtn
+    themeBtn'
     logoutBtn
-    (Just layoutBtn)
+    (Just layoutBtn')
     Nothing
   where
     localeBtn :: Html ()
@@ -159,17 +155,17 @@ controlPanel layout theme =
           span_ [ class_ "field " ] do
             i_ [ class_ "bx bx-world" ] mempty
         div_ [ class_ "dropdown-content " ] do
-          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just EN)), term "hx-target" "#index" , term "hx-swap" "outerHTML" ] $ span_ "English"
-          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ZH_CN)), term "hx-target" "#index" , term "hx-swap" "outerHTML" ] $ span_ "简体中文"
-          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ZH_TW)), term "hx-target" "#index" , term "hx-swap" "outerHTML" ] $ span_ "繁體中文"
-          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ZH_HK)), term "hx-target" "#index" , term "hx-swap" "outerHTML" ] $ span_ "繁體中文"
-          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ES)), term "hx-target" "#index" , term "hx-swap" "outerHTML" ] $ span_ "Español"
-          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just FR)), term "hx-target" "#index" , term "hx-swap" "outerHTML" ] $ span_ "Français"
-          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just DE)), term "hx-target" "#index" , term "hx-swap" "outerHTML" ] $ span_ "Deutsch"
-          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just KR)), term "hx-target" "#index" , term "hx-swap" "outerHTML" ] $ span_ "한국어"
-          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just RU)), term "hx-target" "#index" , term "hx-swap" "outerHTML" ] $ span_ "Русский"
-          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just PT)), term "hx-target" "#index" , term "hx-swap" "outerHTML" ] $ span_ "Português"
-          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just IT)), term "hx-target" "#index" , term "hx-swap" "outerHTML" ] $ span_ "Italiano"
+          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just EN)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "English"
+          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ZH_CN)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "简体中文"
+          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ZH_TW)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "繁體中文"
+          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ZH_HK)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "繁體中文"
+          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ES)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "Español"
+          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just FR)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "Français"
+          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just DE)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "Deutsch"
+          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just KR)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "한국어"
+          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just RU)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "Русский"
+          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just PT)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "Português"
+          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just IT)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "Italiano"
 
     newFolderBtn :: Html ()
     newFolderBtn =
@@ -284,63 +280,54 @@ controlPanel layout theme =
           i_ [ class_ "bx bx-power-off" ] mempty
 
 
-    themeBtn :: Html ()
+    themeBtn :: Template (Html ())
     themeBtn = do
-      case theme of
-        Light -> do
-          button_ [ class_ "btn btn-control"
-                  , type_ "submit"
-                  , term "hx-get" $ linkToText apiLinks.toggleTheme
-                  , term "hx-target" "#index"
-                  , term "hx-swap" "outerHTML"
-                  , term "data-btn-title" "Dark"
-                  ] do
-            i_ [ class_ "bx bxs-moon" ] mempty
-        Dark -> do
-          button_ [ class_ "btn btn-control"
-                  , type_ "submit"
-                  , term "hx-get" $ linkToText apiLinks.toggleTheme
-                  , term "hx-target" "#index"
-                  , term "hx-swap" "outerHTML"
-                  , term "data-btn-title" "Light"
-                  ] do
-            i_ [ class_ "bx bxs-sun" ] mempty
+      theme <- asks @TemplateContext (.theme)
+      pure do
+        case theme of
+          Light -> do
+            button_ [ class_ "btn btn-control"
+                    , type_ "submit"
+                    , term "hx-get" $ linkToText apiLinks.toggleTheme
+                    , term "hx-target" "#index"
+                    , term "hx-swap" "outerHTML"
+                    , term "data-btn-title" "Dark"
+                    ] do
+              i_ [ class_ "bx bxs-moon" ] mempty
+          Dark -> do
+            button_ [ class_ "btn btn-control"
+                    , type_ "submit"
+                    , term "hx-get" $ linkToText apiLinks.toggleTheme
+                    , term "hx-target" "#index"
+                    , term "hx-swap" "outerHTML"
+                    , term "data-btn-title" "Light"
+                    ] do
+              i_ [ class_ "bx bxs-sun" ] mempty
 
 
-    layoutBtn :: Html ()
-    layoutBtn = do
-      case layout of
-        ListLayout -> do
-          button_ [ class_ "btn btn-control"
-                  , type_ "submit"
-                  , term "hx-get" $ linkToText (apiLinks.selectLayout (Just ThumbnailLayout))
-                  , term "hx-target" "#index"
-                  , term "hx-swap" "outerHTML"
-                  , term "data-btn-title" "Grid"
-                  ] do
-            i_ [ class_ "bx bxs-grid-alt" ] mempty
-        ThumbnailLayout -> do
-          button_ [ class_ "btn btn-control"
-                  , type_ "submit"
-                  , term "hx-get" $ linkToText (apiLinks.selectLayout (Just ListLayout))
-                  , term "hx-target" "#index"
-                  , term "hx-swap" "outerHTML"
-                  , term "data-btn-title" "List"
-                  ] do
-            i_ [ class_ "bx bx-menu" ] mempty
-
-
-------------------------------------
--- search
-------------------------------------
-
-
-search :: SearchWord -> Target -> FilePath -> [File] -> Selected -> SortFileBy -> Layout -> Html ()
-search (SearchWord searchWord) target root files selected order layout = do
-  let matched = files <&> Text.pack . (.path) & simpleFilter searchWord
-  let isMatched file = Text.pack file.path `elem` matched
-  let filteredFiles = files ^.. each . filtered isMatched
-  table target root (sortFiles order filteredFiles) selected order layout
+    layoutBtn :: Template (Html ())
+    layoutBtn =  do
+      layout <- asks @TemplateContext (.layout)
+      pure do
+        case layout of
+          ListLayout -> do
+            button_ [ class_ "btn btn-control"
+                    , type_ "submit"
+                    , term "hx-get" $ linkToText (apiLinks.selectLayout (Just ThumbnailLayout))
+                    , term "hx-target" "#index"
+                    , term "hx-swap" "outerHTML"
+                    , term "data-btn-title" "Grid"
+                    ] do
+              i_ [ class_ "bx bxs-grid-alt" ] mempty
+          ThumbnailLayout -> do
+            button_ [ class_ "btn btn-control"
+                    , type_ "submit"
+                    , term "hx-get" $ linkToText (apiLinks.selectLayout (Just ListLayout))
+                    , term "hx-target" "#index"
+                    , term "hx-swap" "outerHTML"
+                    , term "data-btn-title" "List"
+                    ] do
+              i_ [ class_ "bx bx-menu" ] mempty
 
 
 ------------------------------------
@@ -515,260 +502,268 @@ modal attrs body = do
 ------------------------------------
 
 
-table :: Target -> FilePath -> [File] -> Selected -> SortFileBy -> Layout -> Html ()
-table target root files selected order layout =
+table :: [File] ->  Template (Html ())
+table files = do
+  layout <- asks @TemplateContext (.layout)
   case layout of
-    ListLayout -> listLayout
-    ThumbnailLayout -> thumbnailLayout
-  where
-    listLayout = do
-      table_ [ id_ tableId, class_ "list-view " ] do
-        thead_ do
-          tr_ do
-            th_ do
-              span_ [ class_ "field " ] do
-                "Name "
-                sortIconName
-              `with` sortControlName
-            th_ do
-              span_ [ class_ "field " ] do
-                "Modified"
-                sortIconMTime
-                `with` sortControlMTime
-            th_ do
-              span_ [ class_ "field " ] do
-                "Size"
-                sortIconSize
-                `with` sortControlSize
-        tbody_ $ traverse_ record ([0..] `zip` files)
-      where
-        record :: (Int, File) -> Html ()
-        record (idx, file) = do
-          let clientPath@(ClientPath path) = ClientPath.toClientPath root file.path
-          tr_ do
-            td_ $ fileNameElement file True
-                    `with` Template.open root file
-                    `with`  [ class_ "field "]
-            td_ $ modifiedDateElement file
-            td_ $ sizeElement file
+    ListLayout -> listLayout files
+    ThumbnailLayout -> thumbnailLayout files
+
+
+listLayout :: [File]  -> Template (Html ())
+listLayout files = do
+  root <- asks @TemplateContext (.root)
+  selected <- asks @TemplateContext (.selected)
+  order <- asks @TemplateContext (.sortedBy)
+  TargetView target _ _ <- asks @TemplateContext (.currentTarget)
+
+  let record :: (Int, File) -> Html ()
+      record (idx, file) = do
+        let clientPath@(ClientPath path) = ClientPath.toClientPath root file.path
+        tr_ do
+          td_ $ fileNameElement file target True
+                  `with` Template.open root file
+                  `with`  [ class_ "field "]
+          td_ $ modifiedDateElement file
+          td_ $ sizeElement file
+          `with`
+            mconcat
+              [ [ term "data-path" (Text.pack path) ]
+              , [ class_ "selected " | clientPath `Selected.elem` selected]
+              , [ id_ [i|tr-#{idx}|]
+                , class_ "table-item "
+                , draggable_ "true"
+                ]
+              , case file.content of Dir _ -> [ class_ "dir "]; _ -> mempty
+              ]
+  let sortIconName =
+        case order of
+          ByNameUp -> i_ [ class_ "bx bxs-up-arrow"] mempty
+          ByNameDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
+          _ -> i_ [ class_ "bx bx-sort"] mempty
+  let sortIconMTime =
+        case order of
+          ByModifiedUp -> i_ [ class_ "bx bxs-up-arrow"] mempty
+          ByModifiedDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
+          _ -> i_ [ class_ "bx bx-sort"] mempty
+  let sortIconSize =
+        case order of
+          BySizeUp -> i_ [ class_ "bx bxs-up-arrow"] mempty
+          BySizeDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
+          _ -> i_ [ class_ "bx bx-sort"] mempty
+  let sortControlName =
+        case order of
+          ByNameUp -> sortControl ByNameDown
+          ByNameDown -> sortControl ByNameUp
+          _ -> sortControl ByNameUp
+  let sortControlMTime =
+        case order of
+          ByModifiedUp -> sortControl ByModifiedDown
+          ByModifiedDown -> sortControl ByModifiedUp
+          _ -> sortControl ByModifiedUp
+  let sortControlSize =
+        case order of
+          BySizeUp -> sortControl BySizeDown
+          BySizeDown -> sortControl BySizeUp
+          _ -> sortControl BySizeUp
+  pure do
+    table_ [ id_ tableId, class_ "list-view " ] do
+      thead_ do
+        tr_ do
+          th_ do
+            span_ [ class_ "field " ] do
+              "Name "
+              sortIconName
+            `with` sortControlName
+          th_ do
+            span_ [ class_ "field " ] do
+              "Modified"
+              sortIconMTime
+              `with` sortControlMTime
+          th_ do
+            span_ [ class_ "field " ] do
+              "Size"
+              sortIconSize
+              `with` sortControlSize
+      tbody_ $ traverse_ record ([0..] `zip` files)
+
+
+thumbnailLayout :: [File] -> Template (Html ())
+thumbnailLayout files = do
+  root <- asks @TemplateContext (.root)
+  selected <- asks @TemplateContext (.selected)
+  TargetView target _ _ <- asks @TemplateContext (.currentTarget)
+  let thumbnail :: (Int, File) -> Html ()
+      thumbnail (idx, file) = card `with` Template.open root file
+        where
+          card = div_ do
+            previewElement root file
+            fileNameElement file target False `with` [ class_ "thumbnail-name" ]
             `with`
               mconcat
                 [ [ term "data-path" (Text.pack path) ]
-                , [ class_ "selected " | clientPath `Selected.elem` selected]
+                , [ class_ "selected " | clientPath `Selected.elem` selected ]
                 , [ id_ [i|tr-#{idx}|]
-                  , class_ "table-item "
+                  , class_ "thumbnail table-item "
                   , draggable_ "true"
                   ]
                 , case file.content of Dir _ -> [ class_ "dir "]; _ -> mempty
                 ]
+          clientPath@(ClientPath path) = ClientPath.toClientPath root file.path
+
+  pure do
+    div_ [ id_ tableId, class_ "thumbnail-view " ] do
+      tbody_ $ traverse_ thumbnail ([0..] `zip` files)
 
 
-        sortIconName =
-          case order of
-            ByNameUp -> i_ [ class_ "bx bxs-up-arrow"] mempty
-            ByNameDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
-            _ -> i_ [ class_ "bx bx-sort"] mempty
+previewElement :: FilePath -> File -> Html ()
+previewElement root file = do
+  div_ [ class_ "thumbnail-preview " ] do
+    div_ [  class_ "image-wrapper " ] do
+      if
+         | file.mimetype `isMime` "image" ->
+           img_ [ loading_ "lazy"
+                , src_ (linkToText $ apiLinks.thumbnail (Just $ ClientPath.toClientPath root file.path))
+                , draggable_ "false"
+                ]
+         | otherwise -> Template.icon file
 
 
-        sortIconMTime =
-          case order of
-            ByModifiedUp -> i_ [ class_ "bx bxs-up-arrow"] mempty
-            ByModifiedDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
-            _ -> i_ [ class_ "bx bx-sort"] mempty
+fileNameElement :: File -> Target -> Bool -> Html ()
+fileNameElement file target withIcon = do
+  span_ ((if withIcon then Template.icon file else mempty) >> name)
+    `with` [ title_ (Text.pack displayName) ]
+  where
+    name = span_ (toHtml displayName)
+
+    displayName =
+      fromMaybe "-" $ handleTarget target
+        [ targetHandler @S3 $ \_ -> file.path
+        , targetHandler @FileSys $ \_ -> takeFileName file.path
+        ]
 
 
-        sortIconSize =
-          case order of
-            BySizeUp -> i_ [ class_ "bx bxs-up-arrow"] mempty
-            BySizeDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
-            _ -> i_ [ class_ "bx bx-sort"] mempty
+sizeElement :: File -> Html ()
+sizeElement file =
+  span_ (toHtml displaySize)
+    `with` [ class_ "field file-meta"
+           , title_ (Text.pack displaySize)
+           ]
+  where
+    displaySize = toReadableSize $ fromMaybe 0 file.size
 
 
-        sortControlName =
-          case order of
-            ByNameUp -> sortControl ByNameDown
-            ByNameDown -> sortControl ByNameUp
-            _ -> sortControl ByNameUp
+modifiedDateElement :: File -> Html ()
+modifiedDateElement file =
+  span_ (toHtml displayTime)
+    `with` [ class_ "field file-meta"
+           , title_ (Text.pack displayTime)
+           ]
+  where
+    displayTime = maybe mempty (formatTime defaultTimeLocale "%Y/%m/%d") file.mtime
 
 
-        sortControlMTime =
-          case order of
-            ByModifiedUp -> sortControl ByModifiedDown
-            ByModifiedDown -> sortControl ByModifiedUp
-            _ -> sortControl ByModifiedUp
+sortControl :: SortFileBy -> [Attribute]
+sortControl o =
+    [ term "hx-get" $ linkToText (apiLinks.sortTable (Just o))
+    , term "hx-swap" "outerHTML"
+    , term "hx-target" "#view"
+    ]
 
 
-        sortControlSize =
-          case order of
-            BySizeUp -> sortControl BySizeDown
-            BySizeDown -> sortControl BySizeUp
-            _ -> sortControl BySizeUp
+------------------------------------
+-- context menu
+------------------------------------
 
 
-        sortControl o =
-          [ term "hx-get" $ linkToText (apiLinks.sortTable (Just o))
-          , term "hx-swap" "outerHTML"
-          , term "hx-target" "#view"
-          ]
+contextMenu :: [File] -> Template (Html ())
+contextMenu [file] = do
+  root <- asks @TemplateContext (.root)
+  readOnly <- asks @TemplateContext (.readOnly)
+  pure do
+    let textClientPath = toClientPath root file.path
+    let clientPath = ClientPath.toClientPath root file.path
+
+    div_ [ class_ "dropdown-content " , id_ contextMenuId ] do
+      case file.content of
+        Dir _ -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bxs-folder-open" ] mempty >> span_ "Open"
+        Content
+          | file.mimetype `isMime` "application/pdf" -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bx-show" ] mempty >> span_ "View"
+          | file.mimetype `isMime` "audio" -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bx-play" ] mempty >> span_ "Play"
+          | file.mimetype `isMime` "video" -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bx-play" ] mempty >> span_ "Play"
+          | file.mimetype `isMime` "image" -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bx-show" ] mempty >> span_ "View"
+          | file.mimetype `isMime` "text" -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bxs-edit" ] mempty >> span_ "Edit"
+          | otherwise -> mempty
+        `with` Template.open root file
+
+      a_ [ class_ "dropdown-item" ,  href_ (linkToText $ apiLinks.download [clientPath]) ] do
+        i_ [ class_ "bx bx-download" ] mempty
+        span_ "Download"
+
+      case readOnly of
+        True -> mempty
+        False -> do
+          div_ [ class_ "dropdown-item"
+               , term "hx-delete" $ linkToText (apiLinks.deleteFile [clientPath] False)
+               , term "hx-target" "#index"
+               , term "hx-swap" "outerHTML"
+               , term "hx-confirm" ("Are you sure about deleting " <> textClientPath <> "?")
+               ] do
+            i_ [ class_ "bx bxs-trash" ] mempty
+            span_ "Delete"
+
+      div_ [ class_ "dropdown-item"
+           , term "hx-get" $ linkToText (apiLinks.fileDetailModal (Just clientPath))
+           , term "hx-target" "#index"
+           , term "hx-swap" "beforeend"
+           ] do
+        i_ [ class_ "bx bx-detail" ] mempty
+        span_ "Details"
+contextMenu files = do
+  root <- asks @TemplateContext (.root)
+  readOnly <- asks @TemplateContext (.readOnly)
+  pure do
+    let clientPaths = fmap (ClientPath.toClientPath root . (.path)) files
+
+    div_ [ class_ "dropdown-content " , id_ contextMenuId ] do
+      div_ [ class_ "dropdown-item no-effect" ] do
+        i_ [ class_ "bx bx-select-multiple" ] mempty
+        span_ [i|#{length files} Selected|]
+
+      br_ []
+      case readOnly of
+        True -> mempty
+        False -> do
+          div_ [ class_ "dropdown-item"
+               , term "hx-delete" $ linkToText (apiLinks.deleteFile clientPaths False)
+               , term "hx-target" "#index"
+               , term "hx-swap" "outerHTML"
+               , term "hx-confirm" ("Are you sure about deleting " <> Text.pack (show (length clientPaths)) <> " files?\n\n (Only selected files in the current directory will be deleted)")
+               ] do
+            i_ [ class_ "bx bxs-trash" ] mempty
+            span_ "Delete (Local)"
+
+          div_ [ class_ "dropdown-item"
+               , term "hx-get" $ linkToText apiLinks.copy
+               , term "hx-target" "#control-panel"
+               , term "hx-swap" "outerHTML"
+               ] do
+            i_ [ class_ "bx bx-detail" ] mempty
+            span_ "Copy"
 
 
-    thumbnailLayout = do
-      div_ [ id_ tableId, class_ "thumbnail-view " ] do
-        tbody_ $ traverse_ thumbnail ([0..] `zip` files)
-      where
-        thumbnail :: (Int, File) -> Html ()
-        thumbnail (idx, file) = card `with` Template.open root file
-          where
-            card = div_ do
-              previewElement file
-              fileNameElement file False `with` [ class_ "thumbnail-name" ]
-              `with`
-                mconcat
-                  [ [ term "data-path" (Text.pack path) ]
-                  , [ class_ "selected " | clientPath `Selected.elem` selected ]
-                  , [ id_ [i|tr-#{idx}|]
-                    , class_ "thumbnail table-item "
-                    , draggable_ "true"
-                    ]
-                  , case file.content of Dir _ -> [ class_ "dir "]; _ -> mempty
-                  ]
-
-            clientPath@(ClientPath path) = clientPathOf file
+      a_ [ class_ "dropdown-item" ,  href_ (linkToText $ apiLinks.download clientPaths) ] do
+        i_ [ class_ "bx bx-download" ] mempty
+        span_ "Download"
 
 
-    previewElement :: File -> Html ()
-    previewElement file = do
-      div_ [ class_ "thumbnail-preview " ] do
-        div_ [  class_ "image-wrapper " ] do
-          if
-             | file.mimetype `isMime` "image" ->
-               img_ [ loading_ "lazy"
-                    , src_ (linkToText $ apiLinks.thumbnail (Just $ clientPathOf file))
-                    , draggable_ "false"
-                    ]
-             | otherwise -> Template.icon file
-
-
-    fileNameElement :: File -> Bool -> Html ()
-    fileNameElement file withIcon = do
-      span_ ((if withIcon then Template.icon file else mempty) >> name)
-        `with` [ title_ (Text.pack displayName) ]
-      where
-        name = span_ (toHtml displayName)
-
-        displayName =
-          fromMaybe "-" $ handleTarget target
-            [ targetHandler @S3 $ \_ -> file.path
-            , targetHandler @FileSys $ \_ -> takeFileName file.path
-            ]
-
-
-    sizeElement :: File -> Html ()
-    sizeElement file =
-      span_ (toHtml displaySize)
-        `with` [ class_ "field file-meta"
-               , title_ (Text.pack displaySize)
-               ]
-      where
-        displaySize = toReadableSize $ fromMaybe 0 file.size
-
-
-    modifiedDateElement :: File -> Html ()
-    modifiedDateElement file =
-      span_ (toHtml displayTime)
-        `with` [ class_ "field file-meta"
-               , title_ (Text.pack displayTime)
-               ]
-      where
-        displayTime = maybe mempty (formatTime defaultTimeLocale "%Y/%m/%d") file.mtime
-
-
-    clientPathOf :: File -> ClientPath
-    clientPathOf file = ClientPath.toClientPath root file.path
-
-
-contextMenu :: Bool -> FilePath -> [File] -> Html ()
-contextMenu readOnly root [file] = do
-  let textClientPath = toClientPath root file.path
-  let clientPath = ClientPath.toClientPath root file.path
-
-  div_ [ class_ "dropdown-content " , id_ contextMenuId ] do
-    case file.content of
-      Dir _ -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bxs-folder-open" ] mempty >> span_ "Open"
-      Content
-        | file.mimetype `isMime` "application/pdf" -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bx-show" ] mempty >> span_ "View"
-        | file.mimetype `isMime` "audio" -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bx-play" ] mempty >> span_ "Play"
-        | file.mimetype `isMime` "video" -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bx-play" ] mempty >> span_ "Play"
-        | file.mimetype `isMime` "image" -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bx-show" ] mempty >> span_ "View"
-        | file.mimetype `isMime` "text" -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bxs-edit" ] mempty >> span_ "Edit"
-        | otherwise -> mempty
-      `with` Template.open root file
-
-    a_ [ class_ "dropdown-item" ,  href_ (linkToText $ apiLinks.download [clientPath]) ] do
-      i_ [ class_ "bx bx-download" ] mempty
-      span_ "Download"
-
-    case readOnly of
-      True -> mempty
-      False -> do
-        div_ [ class_ "dropdown-item"
-             , term "hx-delete" $ linkToText (apiLinks.deleteFile [clientPath] False)
-             , term "hx-target" "#index"
-             , term "hx-swap" "outerHTML"
-             , term "hx-confirm" ("Are you sure about deleting " <> textClientPath <> "?")
-             ] do
-          i_ [ class_ "bx bxs-trash" ] mempty
-          span_ "Delete"
-
-    div_ [ class_ "dropdown-item"
-         , term "hx-get" $ linkToText (apiLinks.fileDetailModal (Just clientPath))
-         , term "hx-target" "#index"
-         , term "hx-swap" "beforeend"
-         ] do
-      i_ [ class_ "bx bx-detail" ] mempty
-      span_ "Details"
-contextMenu readOnly root files = do
-  let clientPaths = fmap (ClientPath.toClientPath root . (.path)) files
-
-  div_ [ class_ "dropdown-content " , id_ contextMenuId ] do
-    div_ [ class_ "dropdown-item no-effect" ] do
-      i_ [ class_ "bx bx-select-multiple" ] mempty
-      span_ [i|#{length files} Selected|]
-
-    br_ []
-    case readOnly of
-      True -> mempty
-      False -> do
-        div_ [ class_ "dropdown-item"
-             , term "hx-delete" $ linkToText (apiLinks.deleteFile clientPaths False)
-             , term "hx-target" "#index"
-             , term "hx-swap" "outerHTML"
-             , term "hx-confirm" ("Are you sure about deleting " <> Text.pack (show (length clientPaths)) <> " files?\n\n (Only selected files in the current directory will be deleted)")
-             ] do
-          i_ [ class_ "bx bxs-trash" ] mempty
-          span_ "Delete (Local)"
-
-        div_ [ class_ "dropdown-item"
-             , term "hx-get" $ linkToText apiLinks.copy
-             , term "hx-target" "#control-panel"
-             , term "hx-swap" "outerHTML"
-             ] do
-          i_ [ class_ "bx bx-detail" ] mempty
-          span_ "Copy"
-
-
-    a_ [ class_ "dropdown-item" ,  href_ (linkToText $ apiLinks.download clientPaths) ] do
-      i_ [ class_ "bx bx-download" ] mempty
-      span_ "Download"
-
-
-    div_ [ class_ "dropdown-item"
-         , term "hx-post" $ linkToText apiLinks.cancel
-         , term "hx-target" "#index"
-         , term "hx-swap" "outerHTML"
-         ] do
-      i_ [ class_ "bx bx-message-alt-x" ] mempty
-      span_ "Cancel"
+      div_ [ class_ "dropdown-item"
+           , term "hx-post" $ linkToText apiLinks.cancel
+           , term "hx-target" "#index"
+           , term "hx-swap" "outerHTML"
+           ] do
+        i_ [ class_ "bx bx-message-alt-x" ] mempty
+        span_ "Cancel"
 
 
 

@@ -184,6 +184,7 @@ library
     Filehub.Target.S3
     Filehub.Template
     Filehub.Template.Desktop
+    Filehub.Template.Shared
     Filehub.Template.Internal
     Filehub.Template.Login
     Filehub.Template.Mobile

@@ -62,11 +62,12 @@ import Filehub.Env (Env(..))
 import Filehub.Error ( withServerError, FilehubError(..), withServerError, Error' (..) )
 import Filehub.Routes (Api (..))
 import Filehub.Types ( Display (..))
-import Filehub.Template.Internal qualified as Template
+import Filehub.Template.Shared qualified as Template
 import Filehub.Template qualified as Template
 import Filehub.Template.Login qualified as Template.Login
 import Filehub.Template.Desktop qualified as Template.Desktop
 import Filehub.Template.Mobile qualified as Template.Mobile
+import Filehub.Template.Internal (runTemplate)
 import Filehub.ClientPath qualified as ClientPath
 import Filehub.Selected qualified as Selected
 import Filehub.Log qualified as Log
@@ -79,7 +80,7 @@ import Filehub.Server.Handler qualified as Server.Handler
 import Filehub.Server.Middleware qualified as Server.Middleware
 import Filehub.Server.Desktop qualified as Server.Desktop
 import Filehub.Server.Mobile qualified as Server.Mobile
-import Filehub.Server.Internal (withQueryParam, parseHeader')
+import Filehub.Server.Internal (withQueryParam, parseHeader', makeTemplateContext)
 import Filehub.Server.Internal qualified as Server.Internal
 import Filehub.Session.Pool qualified as SessionPool
 import Filehub.Types (Target(..))
@@ -98,7 +99,6 @@ import Filehub.Types
       Theme(..),
       Selected (..))
 import Filehub.Viewer qualified as Viewer
-import Filehub.ControlPanel qualified as ControlPanel
 import Filehub.Storage (getStorage, Storage(..))
 import Filehub.Cookie qualified as Cookie
 import Filehub.Server.Handler (ConfirmLogin, ConfirmReadOnly)
@@ -173,7 +173,7 @@ server = Api
   , fileDetailModal       = \sessionId _ -> Server.Desktop.fileDetailModal sessionId
   , editorModal           = editorModal
   , search                = search
-  , sortTable             = \sessionId _ order -> Session.setSortFileBy sessionId (fromMaybe ByNameUp order) >> addHeader TableSorted <$> view sessionId
+  , sortTable             = sortTable
   , selectLayout          = \sessionId _ layout -> Session.setLayout sessionId (fromMaybe ThumbnailLayout layout) >> addHeader LayoutChanged <$> index sessionId
   , selectRows            = selectRows
   , upload                = upload
@@ -411,20 +411,33 @@ editorModal sessionId _ mClientPath = do
     NoDisplay -> undefined
 
 
+sortTable :: SessionId ->  ConfirmLogin -> Maybe SortFileBy -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
+sortTable sessionId _ order = do
+  display <- Session.getDisplay sessionId & withServerError
+  Session.setSortFileBy sessionId (fromMaybe ByNameUp order)
+  html <- do
+    view' <- view sessionId
+    case display of
+      Mobile -> do
+        toolBar' <- Server.Mobile.toolBar sessionId
+        pure do
+          toolBar' `with` [ term "hx-swap-oob" "true" ]
+          view'
+      _ -> pure view'
+  pure $ addHeader TableSorted $ html
+
+
 search :: SessionId -> ConfirmLogin -> SearchWord -> Filehub (Html ())
-search sessionId _ searchWord = withServerError do
-  display <- Session.getDisplay sessionId
-  storage <- getStorage sessionId
-  TargetView target _ _ <- Session.currentTarget sessionId
-  root <- Session.getRoot sessionId
-  files <- storage.lsCwd
-  order <- Session.getSortFileBy sessionId
-  layout <- Session.getLayout sessionId
-  selected <- Selected.getSelected sessionId
-  case display of
-    Mobile -> pure $ Template.Mobile.search searchWord target root files selected order
-    Desktop -> pure $ Template.Desktop.search searchWord target root files selected order layout
-    NoDisplay -> undefined
+search sessionId _ searchWord = do
+  ctx <- makeTemplateContext sessionId
+  withServerError do
+    display <- Session.getDisplay sessionId
+    storage <- getStorage sessionId
+    files <- storage.lsCwd
+    case display of
+      Mobile -> pure $ runTemplate ctx $ Template.search searchWord files Template.Mobile.table
+      Desktop -> pure $ runTemplate ctx $ Template.search searchWord files Template.Desktop.table
+      NoDisplay -> undefined
 
 
 selectRows :: SessionId -> ConfirmLogin -> Selected -> Filehub (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))
@@ -722,18 +735,15 @@ view sessionId = do
 
 
 controlPanel :: SessionId -> Filehub (Html ())
-controlPanel sessionId = withServerError do
-  display <- Session.getDisplay sessionId
-  theme <- Session.getSessionTheme sessionId
-  layout <- Session.getLayout sessionId
-  readOnly <- asks @Env (.readOnly)
-  noLogin <- Env.hasNoLogin <$> ask @Env
-  state <- ControlPanel.getControlPanelState sessionId
-  pure $
-    case display of
-      Desktop -> Template.Desktop.controlPanel layout theme readOnly noLogin state
-      Mobile -> Template.Mobile.controlPanel theme readOnly noLogin state
-      NoDisplay -> Template.Mobile.controlPanel theme readOnly noLogin state
+controlPanel sessionId = do
+  ctx <- makeTemplateContext sessionId
+  withServerError do
+    display <- Session.getDisplay sessionId
+    pure $
+      case display of
+        Desktop -> runTemplate ctx $ Template.Desktop.controlPanel
+        Mobile -> runTemplate ctx $ Template.Mobile.controlPanel
+        _ -> runTemplate ctx $ Template.Mobile.controlPanel
 
 
 sideBar :: SessionId -> Filehub (Html ())

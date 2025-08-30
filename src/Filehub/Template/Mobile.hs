@@ -13,52 +13,47 @@ import Data.Text.Encoding qualified as Text
 import Data.Time.Format (formatTime, defaultTimeLocale)
 import Filehub.Types
     ( File(..),
-      SearchWord(..),
       SortFileBy(..),
       ClientPath(..),
       Target(..),
-      Selected,
-      ControlPanelState(..) )
-import Filehub.Sort (sortFiles)
+      Selected )
 import Filehub.Size (toReadableSize)
 import Filehub.Selected qualified as Selected
 import Filehub.ClientPath qualified as ClientPath
 import Filehub.Routes (Api(..))
 import Filehub.Target (TargetView(..), handleTarget)
 import Filehub.Target qualified as Target
-import Filehub.Template.Internal (viewId, sideBarId, controlPanelId, toolBarId, tableId, searchBar)
-import Filehub.Template.Internal qualified as Template
+import Filehub.Template.Shared (viewId, sideBarId, controlPanelId, toolBarId, tableId, searchBar)
+import Filehub.Template.Shared qualified as Template
+import Filehub.Template.Internal (Template, TemplateContext(..))
 import Filehub.Links ( apiLinks, linkToText )
-import Lens.Micro
 import Lens.Micro.Platform ()
 import Lucid
 import System.FilePath (takeFileName)
-import Text.Fuzzy (simpleFilter)
 import Filehub.Target.File (Backend (..), FileSys)
 import Filehub.Target.S3 (Backend (..), S3)
 import Filehub.Target.Types (targetHandler)
 import Filehub.Theme (Theme(..))
+import Effectful.Reader.Dynamic (asks)
 
 
-index :: Bool
-      -> Bool
+index :: Html ()
       -> Html ()
       -> Html ()
-      -> Html ()
-      -> Theme
-      -> ControlPanelState
       -> Int
-      -> Html ()
-index readOnly noLogin sideBar' toolBar' view' theme controlPanelState selectedCount = do
-  safeAreaShim
-  div_ [ id_ "index" ] do
-    overlay
-    selectedCounter selectedCount
-    sideBar'
-    toolBar'
-    view'
-    controlPanel theme readOnly noLogin controlPanelState
-    controlPanelBtn
+      -> Template (Html ())
+index sideBar' toolBar' view' selectedCount = do
+  controlPanel' <- controlPanel
+  pure do
+    safeAreaShim
+    div_ [ id_ "index" ] do
+      overlay
+      selectedCounter selectedCount
+      sideBar'
+      toolBar'
+      view'
+      controlPanel'
+      controlPanelBtn
 
 
 safeAreaShim :: Html ()
@@ -116,23 +111,17 @@ sidebarBtn =
     i_ [ class_ "bx bx-menu" ] mempty
 
 
-toolBar :: Html () -> Html () -> Html ()
-toolBar sortTool' pathBreadcrumb' = do
-  div_ [ id_ toolBarId ] do
-    div_ do
-      sidebarBtn
-      searchBar
-    div_ do
-      pathBreadcrumb'
-      sortTool'
-
-
-search :: SearchWord -> Target -> FilePath -> [File] -> Selected -> SortFileBy -> Html ()
-search (SearchWord searchWord) target root files selected order = do
-  let matched = files <&> Text.pack . (.path) & simpleFilter searchWord
-  let isMatched file = Text.pack file.path `elem` matched
-  let filteredFiles = files ^.. each . filtered isMatched
-  table target root (sortFiles order filteredFiles) selected
+toolBar :: Html () -> Template (Html ())
+toolBar sortTool' = do
+  pathBreadcrumb' <- Template.pathBreadcrumb
+  pure do
+    div_ [ id_ toolBarId ] do
+      div_ do
+        sidebarBtn
+        searchBar
+      div_ do
+        pathBreadcrumb'
+        sortTool'
 
 
 sortTool :: SortFileBy -> Html ()
@@ -156,42 +145,31 @@ sortTool order = do
       , term "hx-swap" "outerHTML"
       , term "hx-target" "#view"
       ]
-
     sortControlName =
       case order of
         ByNameUp -> sortControl ByNameDown
         ByNameDown -> sortControl ByNameUp
         _ -> sortControl ByNameUp
-
-
     sortControlMTime =
       case order of
         ByModifiedUp -> sortControl ByModifiedDown
         ByModifiedDown -> sortControl ByModifiedUp
         _ -> sortControl ByModifiedUp
-
-
     sortControlSize =
       case order of
         BySizeUp -> sortControl BySizeDown
         BySizeDown -> sortControl BySizeUp
         _ -> sortControl BySizeUp
-
-
     sortIconName =
       case order of
         ByNameUp -> i_ [ class_ "bx bxs-up-arrow"] mempty
         ByNameDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
         _ -> i_ [ class_ "bx bx-sort"] mempty
-
-
     sortIconMTime =
       case order of
         ByModifiedUp -> i_ [ class_ "bx bxs-up-arrow"] mempty
         ByModifiedDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
         _ -> i_ [ class_ "bx bx-sort"] mempty
-
-
     sortIconSize =
       case order of
         BySizeUp -> i_ [ class_ "bx bxs-up-arrow"] mempty
@@ -199,67 +177,74 @@ sortTool order = do
         _ -> i_ [ class_ "bx bx-sort"] mempty
 
 
-table :: Target -> FilePath -> [File] -> Selected -> Html ()
-table target root files selected = do
-  table_ [ id_ tableId, class_ "list-view " ] do
-    tbody_ $ traverse_ record ([0..] `zip` files)
+table :: [File] -> Template (Html ())
+table files = do
+  root <- asks @TemplateContext (.root)
+  TargetView { target } <- asks @TemplateContext (.currentTarget)
+  selected <- asks @TemplateContext (.selected)
+  pure do
+    table_ [ id_ tableId, class_ "list-view " ] do
+      tbody_ $ traverse_ (record root target selected) ([0..] `zip` files)
+
+
+record :: FilePath -> Target -> Selected -> (Int, File) -> Html ()
+record root target selected (idx, file) =
+  tr_ attrs do
+    td_ do
+      fileNameElement target file
+      span_ [class_ "file-meta"] do
+        modifiedDateElement file
+        i_ [ class_ "bx bx-wifi-0"] mempty
+        sizeElement file
+      `with` Template.open root file
   where
-    record :: (Int, File) -> Html ()
-    record (idx, file) =
-      tr_ attrs do
-        td_ do
-          fileNameElement file
-          span_ [class_ "file-meta"] do
-            modifiedDateElement file
-            i_ [ class_ "bx bx-wifi-0"] mempty
-            sizeElement file
-          `with` Template.open root file
-      where
-        attrs :: [Attribute]
-        attrs = mconcat
-          [ [ term "data-path" (Text.pack path) ]
-          , [class_ "selected " | clientPath `Selected.elem` selected]
-          , [id_ [i|tr-#{idx}|], class_ "table-item " ]
-          ]
-        clientPath@(ClientPath path) = ClientPath.toClientPath root file.path
-
-    sizeElement :: File -> Html ()
-    sizeElement file =
-      span_ (toHtml displaySize)
-        `with` [ class_ "field "
-               , title_ (Text.pack displaySize)
-               ]
-      where
-        displaySize = toReadableSize $ fromMaybe 0 file.size
+    attrs :: [Attribute]
+    attrs = mconcat
+      [ [ term "data-path" (Text.pack path) ]
+      , [class_ "selected " | clientPath `Selected.elem` selected]
+      , [id_ [i|tr-#{idx}|], class_ "table-item " ]
+      ]
+    clientPath@(ClientPath path) = ClientPath.toClientPath root file.path
 
 
-    modifiedDateElement :: File -> Html ()
-    modifiedDateElement file =
-      span_ (toHtml displayTime)
-        `with` [ class_ "field "
-               , title_ (Text.pack displayTime)
-               ]
-      where
-        displayTime = maybe mempty (formatTime defaultTimeLocale "%Y/%m/%d") file.mtime
-
-    fileNameElement :: File -> Html ()
-    fileNameElement file = do
-      span_ (Template.icon file >> name)
-        `with` [ class_ "field"
-               , title_ (Text.pack displayName)
-               ]
-      where
-        name = span_ (toHtml displayName)
-
-        displayName =
-          fromMaybe "-" $ handleTarget target
-            [ targetHandler @S3 $ \_ -> file.path
-            , targetHandler @FileSys $ \_ -> takeFileName file.path
-            ]
+sizeElement :: File -> Html ()
+sizeElement file =
+  span_ (toHtml displaySize)
+    `with` [ class_ "field "
+           , title_ (Text.pack displaySize)
+           ]
+  where
+    displaySize = toReadableSize $ fromMaybe 0 file.size
 
 
-controlPanel :: Theme -> Bool -> Bool -> ControlPanelState -> Html ()
-controlPanel theme =
+modifiedDateElement :: File -> Html ()
+modifiedDateElement file =
+  span_ (toHtml displayTime)
+    `with` [ class_ "field "
+           , title_ (Text.pack displayTime)
+           ]
+  where
+    displayTime = maybe mempty (formatTime defaultTimeLocale "%Y/%m/%d") file.mtime
+
+
+fileNameElement :: Target -> File -> Html ()
+fileNameElement target file = do
+  span_ (Template.icon file >> name)
+    `with` [ class_ "field"
+           , title_ (Text.pack displayName)
+           ]
+  where
+    name = span_ (toHtml displayName)
+    displayName =
+      fromMaybe "-" $ handleTarget target
+        [ targetHandler @S3 $ \_ -> file.path
+        , targetHandler @FileSys $ \_ -> takeFileName file.path
+        ]
+
+
+controlPanel :: Template (Html ())
+controlPanel = do
+  themeBtn' <- themeBtn
   Template.controlPanel
     localeBtn
     newFolderBtn
@@ -269,7 +254,7 @@ controlPanel theme =
     pasteBtn
     deleteBtn
     cancelBtn
-    themeBtn
+    themeBtn'
     logoutBtn
     Nothing
     (Just scroll2TopBtn)
@@ -412,27 +397,29 @@ controlPanel theme =
           span_ "Logout"
 
 
-    themeBtn :: Html ()
+    themeBtn :: Template (Html ())
     themeBtn = do
-      case theme of
-        Light -> do
-          button_ [ class_ "action-btn"
-                  , type_ "submit"
-                  , term "hx-get" $ linkToText apiLinks.toggleTheme
-                  , term "hx-target" "#index"
-                  , term "hx-swap" "outerHTML"
-                  ] do
-            i_ [ class_ "bx bxs-moon" ] mempty
-            span_ "Switch to dark mode"
-        Dark -> do
-          button_ [ class_ "action-btn"
-                  , type_ "submit"
-                  , term "hx-get" $ linkToText apiLinks.toggleTheme
-                  , term "hx-target" "#index"
-                  , term "hx-swap" "outerHTML"
-                  ] do
-            i_ [ class_ "bx bxs-sun" ] mempty
-            span_ "Switch to light mode"
+      theme <- asks @TemplateContext (.theme)
+      pure do
+        case theme of
+          Light -> do
+            button_ [ class_ "action-btn"
+                    , type_ "submit"
+                    , term "hx-get" $ linkToText apiLinks.toggleTheme
+                    , term "hx-target" "#index"
+                    , term "hx-swap" "outerHTML"
+                    ] do
+              i_ [ class_ "bx bxs-moon" ] mempty
+              span_ "Switch to dark mode"
+          Dark -> do
+            button_ [ class_ "action-btn"
+                    , type_ "submit"
+                    , term "hx-get" $ linkToText apiLinks.toggleTheme
+                    , term "hx-target" "#index"
+                    , term "hx-swap" "outerHTML"
+                    ] do
+              i_ [ class_ "bx bxs-sun" ] mempty
+              span_ "Switch to light mode"
 
 
     scroll2TopBtn :: Html ()

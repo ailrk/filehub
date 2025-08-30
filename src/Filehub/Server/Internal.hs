@@ -3,7 +3,7 @@ module Filehub.Server.Internal where
 
 import Effectful ( Eff, (:>), IOE, MonadUnliftIO (..) )
 import Effectful.Error.Dynamic (throwError, Error)
-import Effectful.Reader.Dynamic (Reader)
+import Effectful.Reader.Dynamic (Reader, asks, ask)
 import Filehub.Env (Env (..))
 import Filehub.Selected qualified as Selected
 import Filehub.Types
@@ -17,11 +17,43 @@ import Servant ( ServerError(..), ServerError, FromHttpApiData (..), err500 )
 import Servant.Server (err400)
 import Data.ByteString (ByteString)
 import Filehub.Monad (Filehub)
+import Filehub.Template.Internal (TemplateContext(..))
+import Filehub.Error (withServerError)
 import Control.Exception (SomeException, catch)
 import Data.String.Interpolate (i)
-import Filehub.Error (withServerError)
 import Lens.Micro ((&))
 import Effectful.Log (logAttention)
+import Filehub.Session qualified as Session
+import Filehub.Env qualified as Env
+import Filehub.ControlPanel qualified as ControlPanel
+
+
+makeTemplateContext :: SessionId -> Filehub TemplateContext
+makeTemplateContext sessionId = do
+  theme <- Session.getSessionTheme sessionId & withServerError
+  layout <- Session.getLayout sessionId & withServerError
+  readOnly <- asks @Env (.readOnly)
+  noLogin <- Env.hasNoLogin <$> ask @Env
+  display <- Session.getDisplay sessionId & withServerError
+  state <- ControlPanel.getControlPanelState sessionId & withServerError
+  root <- Session.getRoot sessionId & withServerError
+  sortedBy <- Session.getSortFileBy sessionId & withServerError
+  selected <- Selected.getSelected sessionId & withServerError
+  currentDir <- Session.getCurrentDir sessionId & withServerError
+  currentTarget <- Session.currentTarget sessionId & withServerError
+  pure TemplateContext
+    { readOnly      = readOnly
+    , noLogin       = noLogin
+    , display       = display
+    , layout        = layout
+    , theme         = theme
+    , sortedBy      = sortedBy
+    , selected      = selected
+    , state         = state
+    , root          = root
+    , currentDir    = currentDir
+    , currentTarget = currentTarget
+    }
 
 
 copy :: SessionId -> Filehub ()
