@@ -24,6 +24,11 @@ import Filehub.Routes (Api (..))
 import Text.Fuzzy (simpleFilter)
 import Filehub.Sort (sortFiles)
 import Filehub.Locale (Phrase(..), phrase)
+import Filehub.Target (TargetView(..), handleTarget)
+import Data.Maybe (fromMaybe)
+import Filehub.Target.S3 (S3)
+import Filehub.Target.File (FileSys)
+import Filehub.Target.Types (targetHandler)
 
 
 withDefault :: Display -> Text -> Html () -> Html ()
@@ -138,6 +143,7 @@ controlPanel
     readOnly <- asks @TemplateContext (.readOnly)
     noLogin <- asks @TemplateContext (.noLogin)
     state <- asks @TemplateContext (.state)
+    TargetView { target } <- asks  @TemplateContext (.currentTarget)
     pure do
       case readOnly of
         True ->
@@ -157,8 +163,7 @@ controlPanel
                 localeBtn
                 when (not noLogin) logoutBtn
                 sep
-                newFolderBtn
-                newFileBtn
+                newBtnGroup target
                 uploadBtn
                 maybe mempty id mScroll2TopBtn
             ControlPanelSelecting ->
@@ -168,8 +173,7 @@ controlPanel
                 localeBtn
                 when (not noLogin) logoutBtn
                 sep
-                newFolderBtn
-                newFileBtn
+                newBtnGroup target
                 uploadBtn
                 copyBtn
                 deleteBtn
@@ -182,14 +186,22 @@ controlPanel
                 localeBtn
                 when (not noLogin) logoutBtn
                 sep
-                newFolderBtn
-                newFileBtn
+                newBtnGroup target
                 uploadBtn
                 pasteBtn
                 cancelBtn
                 maybe mempty id mScroll2TopBtn
   where
     sep = span_ [ style_ "display:inline-block; width: 20px"]  mempty
+    newBtnGroup target = fromMaybe mempty do
+      handleTarget target
+        [ targetHandler @S3 $ \_ -> do
+            newFileBtn
+        , targetHandler @FileSys $ \_ -> do
+            newFolderBtn
+            newFileBtn
+        ]
+
 
 
 icon :: File -> Html ()
