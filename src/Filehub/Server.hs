@@ -101,7 +101,7 @@ import Filehub.Types
 import Filehub.Viewer qualified as Viewer
 import Filehub.Storage (getStorage, Storage(..))
 import Filehub.Cookie qualified as Cookie
-import Filehub.Server.Handler (ConfirmLogin, ConfirmReadOnly)
+import Filehub.Server.Handler (ConfirmLogin, ConfirmReadOnly, ConfirmDesktopOnly)
 import Filehub.Auth.Types qualified as Auth
 import Filehub.Auth.Simple qualified as Auth.Simple
 import Filehub.Cookie qualified as Cookies
@@ -168,13 +168,13 @@ server = Api
   , updateFile            = updateFile
   , deleteFile            = deleteFile
   , newFolder             = newFolder
-  , newFileModal          = \_ _ _ _ -> pure Template.Desktop.newFileModal
-  , newFolderModal        = \_ _ _ _ -> pure Template.Desktop.newFolderModal
-  , fileDetailModal       = \sessionId _ -> Server.Desktop.fileDetailModal sessionId
+  , newFileModal          = newFileModal
+  , newFolderModal        = newFolderModal
+  , fileDetailModal       = fileDetailModal
   , editorModal           = editorModal
   , search                = search
   , sortTable             = sortTable
-  , selectLayout          = \sessionId _ layout -> Session.setLayout sessionId (fromMaybe ThumbnailLayout layout) >> addHeader LayoutChanged <$> index sessionId
+  , selectLayout          = selectLayout
   , selectRows            = selectRows
   , upload                = upload
   , download              = download
@@ -182,7 +182,7 @@ server = Api
   , paste                 = paste
   , move                  = move
   , cancel                = cancel
-  , contextMenu           = \sessionId _ -> Server.Desktop.contextMenu sessionId
+  , contextMenu           = contextMenu
   , initViewer            = initViewer
   , open                  = open
   , changeTarget          = changeTarget
@@ -402,6 +402,23 @@ paste sessionId _ _ = do
   addHeader count <$> index sessionId
 
 
+newFileModal :: SessionId -> ConfirmLogin -> ConfirmDesktopOnly -> ConfirmReadOnly -> Filehub (Html ())
+newFileModal sessionId _ _ _ = do
+  ctx <- makeTemplateContext sessionId
+  pure $ runTemplate ctx $ Template.Desktop.newFileModal
+
+
+newFolderModal :: SessionId -> ConfirmLogin -> ConfirmDesktopOnly -> ConfirmReadOnly -> Filehub (Html ())
+newFolderModal sessionId  _ _ _ = do
+  ctx <- makeTemplateContext sessionId
+  pure $ runTemplate ctx $ Template.Desktop.newFolderModal
+
+
+fileDetailModal :: SessionId -> ConfirmLogin -> ConfirmDesktopOnly -> Maybe ClientPath -> Filehub (Html ())
+fileDetailModal sessionId _ _ mPath = do
+  Server.Desktop.fileDetailModal sessionId mPath
+
+
 editorModal :: SessionId -> ConfirmLogin -> Maybe ClientPath -> Filehub (Html ())
 editorModal sessionId _ mClientPath = do
   display <- Session.getDisplay sessionId & withServerError
@@ -409,6 +426,12 @@ editorModal sessionId _ mClientPath = do
     Mobile -> Server.Mobile.editorModal sessionId mClientPath
     Desktop -> Server.Desktop.editorModal sessionId mClientPath
     NoDisplay -> undefined
+
+
+selectLayout :: SessionId -> ConfirmLogin -> Maybe Layout -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
+selectLayout sessionId _ layout = do
+  Session.setLayout sessionId (fromMaybe ThumbnailLayout layout)
+  addHeader LayoutChanged <$> index sessionId
 
 
 sortTable :: SessionId ->  ConfirmLogin -> Maybe SortFileBy -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
@@ -522,6 +545,9 @@ move sessionId _ _ (MoveFile src tgt) = do
     storage.delete srcPath
   addHeader FileMoved <$> index sessionId
 
+
+contextMenu :: SessionId -> ConfirmLogin -> ConfirmDesktopOnly -> [ClientPath] -> Filehub (Html ())
+contextMenu sessionId _ _ paths = Server.Desktop.contextMenu sessionId paths
 
 cancel :: SessionId -> ConfirmLogin -> Filehub (Headers '[Header "X-Filehub-Selected-Count" Int] (Html ()))
 cancel sessionId _ = do

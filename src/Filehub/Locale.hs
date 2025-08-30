@@ -12,8 +12,44 @@ import Toml.Codec qualified as Toml
 import Web.HttpApiData (ToHttpApiData(..), FromHttpApiData(..))
 
 
-data Locale = EN | ZH_CN | ZH_TW | ZH_HK | ES | FR | DE | KR | RU | PT | IT
-  deriving (Show, Read, Eq)
+data Locale = EN | ZH_CN | ZH_TW | ZH_HK | JA | ES | FR | DE | KO | RU | PT | IT
+  deriving Eq
+
+
+instance Show Locale where
+  show = \case
+    EN    -> "en"
+    ZH_CN -> "zh_cn"
+    ZH_TW -> "zh_tw"
+    ZH_HK -> "zh_hk"
+    JA    -> "ja"
+    ES    -> "es"
+    FR    -> "fr"
+    DE    -> "de"
+    KO    -> "ko"
+    RU    -> "ru"
+    PT    -> "pt"
+    IT    -> "it"
+
+
+instance Read Locale where
+  readsPrec _ s = do
+    let locale =
+          case s of
+          "en"    -> EN
+          "zh_cn" -> ZH_CN
+          "zh_tw" -> ZH_TW
+          "zh_hk" -> ZH_HK
+          "ja"    -> JA
+          "es"    -> ES
+          "fr"    -> FR
+          "de"    -> DE
+          "ko"    -> KO
+          "ru"    -> RU
+          "pt"    -> PT
+          "it"    -> IT
+          _       -> EN
+    pure (locale, "")
 
 
 data Phrase = Phrase
@@ -22,6 +58,7 @@ data Phrase = Phrase
   , contextmenu_open         :: Text
   , contextmenu_play         :: Text
   , contextmenu_view         :: Text
+  , contextmenu_edit         :: Text
   , contextmenu_download     :: Text
   , contextmenu_delete       :: Text
   , contextmenu_delete_local :: Text
@@ -35,6 +72,10 @@ data Phrase = Phrase
   , control_panel_new_folder :: Text
   , control_panel_new_file   :: Text
   , control_panel_upload     :: Text
+  , control_panel_copy       :: Text
+  , control_panel_paste      :: Text
+  , control_panel_delete     :: Text
+  , control_panel_cancel     :: Text
   , sort_name                :: Text
   , sort_modified            :: Text
   , sort_size                :: Text
@@ -51,41 +92,44 @@ localeCodec EN    = Toml.table phraseCodec "en"
 localeCodec ZH_CN = Toml.table phraseCodec "zh_cn"
 localeCodec ZH_TW = Toml.table phraseCodec "zh_tw"
 localeCodec ZH_HK = Toml.table phraseCodec "zh_hk"
+localeCodec JA    = Toml.table phraseCodec "ja"
 localeCodec ES    = Toml.table phraseCodec "es"
 localeCodec FR    = Toml.table phraseCodec "fr"
 localeCodec DE    = Toml.table phraseCodec "de"
-localeCodec KR    = Toml.table phraseCodec "kr"
+localeCodec KO    = Toml.table phraseCodec "ko"
 localeCodec RU    = Toml.table phraseCodec "ru"
 localeCodec PT    = Toml.table phraseCodec "pt"
 localeCodec IT    = Toml.table phraseCodec "it"
 
 
 instance ToHttpApiData Locale where
-  toUrlPiece EN    = "EN"
-  toUrlPiece ZH_CN = "ZH_CN"
-  toUrlPiece ZH_TW = "ZH_TW"
-  toUrlPiece ZH_HK = "ZH_HK"
-  toUrlPiece ES    = "ES"
-  toUrlPiece FR    = "FR"
-  toUrlPiece DE    = "DE"
-  toUrlPiece KR    = "KR"
-  toUrlPiece RU    = "RU"
-  toUrlPiece PT    = "PT"
-  toUrlPiece IT    = "IT"
+  toUrlPiece EN    = "en"
+  toUrlPiece ZH_CN = "zh_cn"
+  toUrlPiece ZH_TW = "zh_tw"
+  toUrlPiece ZH_HK = "zh_hk"
+  toUrlPiece JA    = "ja"
+  toUrlPiece ES    = "es"
+  toUrlPiece FR    = "fr"
+  toUrlPiece DE    = "de"
+  toUrlPiece KO    = "ko"
+  toUrlPiece RU    = "ru"
+  toUrlPiece PT    = "pt"
+  toUrlPiece IT    = "it"
 
 
 instance FromHttpApiData Locale where
-  parseUrlPiece "EN"     = pure EN
-  parseUrlPiece "ZH_CN"  = pure ZH_CN
-  parseUrlPiece "ZH_TW"  = pure ZH_CN
-  parseUrlPiece "ZH_HK"  = pure ZH_CN
-  parseUrlPiece "ES"     = pure ZH_CN
-  parseUrlPiece "FR"     = pure ZH_CN
-  parseUrlPiece "DE"     = pure ZH_CN
-  parseUrlPiece "KR"     = pure ZH_CN
-  parseUrlPiece "RU"     = pure ZH_CN
-  parseUrlPiece "PT"     = pure ZH_CN
-  parseUrlPiece "IT"     = pure ZH_CN
+  parseUrlPiece "en"     = pure EN
+  parseUrlPiece "zh_cn"  = pure ZH_CN
+  parseUrlPiece "zh_tw"  = pure ZH_TW
+  parseUrlPiece "zh_hk"  = pure ZH_HK
+  parseUrlPiece "ja"     = pure JA
+  parseUrlPiece "es"     = pure ES
+  parseUrlPiece "fr"     = pure FR
+  parseUrlPiece "de"     = pure DE
+  parseUrlPiece "ko"     = pure KO
+  parseUrlPiece "ru"     = pure RU
+  parseUrlPiece "pt"     = pure PT
+  parseUrlPiece "it"     = pure IT
   parseUrlPiece _        = Left "unknown locale"
 
 
@@ -95,16 +139,17 @@ phraseEN = fromRight (error "error in en locale") $ Toml.decode (localeCodec EN)
 
 phrase :: Locale -> Phrase
 phrase EN    = phraseEN
-phrase ZH_CN = fromRight phraseEN $ Toml.decode (localeCodec EN) config
-phrase ZH_TW = fromRight phraseEN $ Toml.decode (localeCodec EN) config
-phrase ZH_HK = fromRight phraseEN $ Toml.decode (localeCodec EN) config
-phrase ES    = fromRight phraseEN $ Toml.decode (localeCodec EN) config
-phrase FR    = fromRight phraseEN $ Toml.decode (localeCodec EN) config
-phrase DE    = fromRight phraseEN $ Toml.decode (localeCodec EN) config
-phrase KR    = fromRight phraseEN $ Toml.decode (localeCodec EN) config
-phrase RU    = fromRight phraseEN $ Toml.decode (localeCodec EN) config
-phrase PT    = fromRight phraseEN $ Toml.decode (localeCodec EN) config
-phrase IT    = fromRight phraseEN $ Toml.decode (localeCodec EN) config
+phrase ZH_CN = fromRight phraseEN $ Toml.decode (localeCodec ZH_CN) config
+phrase ZH_TW = fromRight phraseEN $ Toml.decode (localeCodec ZH_TW) config
+phrase ZH_HK = fromRight phraseEN $ Toml.decode (localeCodec ZH_HK) config
+phrase JA    = fromRight phraseEN $ Toml.decode (localeCodec JA)    config
+phrase ES    = fromRight phraseEN $ Toml.decode (localeCodec ES)    config
+phrase FR    = fromRight phraseEN $ Toml.decode (localeCodec FR)    config
+phrase DE    = fromRight phraseEN $ Toml.decode (localeCodec DE)    config
+phrase KO    = fromRight phraseEN $ Toml.decode (localeCodec KO)    config
+phrase RU    = fromRight phraseEN $ Toml.decode (localeCodec RU)    config
+phrase PT    = fromRight phraseEN $ Toml.decode (localeCodec PT)    config
+phrase IT    = fromRight phraseEN $ Toml.decode (localeCodec IT)    config
 
 
 phraseCodec :: TomlCodec Phrase
@@ -115,6 +160,7 @@ phraseCodec =
   <*> Toml.text "CONTEXTMENU_OPEN"         .= (.contextmenu_open)
   <*> Toml.text "CONTEXTMENU_PLAY"         .= (.contextmenu_play)
   <*> Toml.text "CONTEXTMENU_VIEW"         .= (.contextmenu_view)
+  <*> Toml.text "CONTEXTMENU_EDIT"         .= (.contextmenu_edit)
   <*> Toml.text "CONTEXTMENU_DOWNLOAD"     .= (.contextmenu_download)
   <*> Toml.text "CONTEXTMENU_DELETE"       .= (.contextmenu_delete)
   <*> Toml.text "CONTEXTMENU_DELETE_LOCAL" .= (.contextmenu_delete_local)
@@ -128,6 +174,10 @@ phraseCodec =
   <*> Toml.text "CONTROL_PANEL_NEW_FOLDER" .= (.control_panel_new_folder)
   <*> Toml.text "CONTROL_PANEL_NEW_FILE"   .= (.control_panel_new_file)
   <*> Toml.text "CONTROL_PANEL_UPLOAD"     .= (.control_panel_upload)
+  <*> Toml.text "CONTROL_PANEL_COPY"       .= (.control_panel_copy)
+  <*> Toml.text "CONTROL_PANEL_PASTE"      .= (.control_panel_paste)
+  <*> Toml.text "CONTROL_PANEL_DELETE"     .= (.control_panel_delete)
+  <*> Toml.text "CONTROL_PANEL_CANCEL"     .= (.control_panel_cancel)
   <*> Toml.text "SORT_NAME"                .= (.sort_name)
   <*> Toml.text "SORT_MODIFIED"            .= (.sort_modified)
   <*> Toml.text "SORT_SIZE"                .= (.sort_size)

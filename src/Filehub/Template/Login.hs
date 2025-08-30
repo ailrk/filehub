@@ -22,21 +22,21 @@ login _ (OIDCAuthProviders providers) = do
   link_ [ rel_ "stylesheet", href_ "/theme.css" ]
   script_ [ src_ "/static/htmx2.0.3.js" ] ("" :: Text)
 
-  div_ [ id_ "login"  ] $ do
+  div_ [ id_ "login"  ] do
     form_ [ term "hx-post" "/login"
           , term "hx-target" "#login-error"
           , term "hx-swap" "outerHTML"
           , class_ "panel "
           , autocomplete_ "off"
-          ] $ do
-      div_ $ do
+          ] do
+      div_ do
         input_ [ type_ "text"
                , id_ "username"
                , name_ "username"
                , placeholder_ "Username"
                , autocomplete_ "new-password"
                ]
-      div_ $ do
+      div_ do
         input_ [ type_ "password"
                , id_ "password"
                , name_ "password"

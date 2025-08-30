@@ -41,6 +41,7 @@ makeTemplateContext sessionId = do
   selected <- Selected.getSelected sessionId & withServerError
   currentDir <- Session.getCurrentDir sessionId & withServerError
   currentTarget <- Session.currentTarget sessionId & withServerError
+  locale <- Session.getSessionLocale sessionId & withServerError
   pure TemplateContext
     { readOnly      = readOnly
     , noLogin       = noLogin
@@ -51,6 +52,7 @@ makeTemplateContext sessionId = do
     , selected      = selected
     , state         = state
     , root          = root
+    , locale        = locale
     , currentDir    = currentDir
     , currentTarget = currentTarget
     }

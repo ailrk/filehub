@@ -4,7 +4,6 @@ module Filehub.Server.Desktop where
 
 import Control.Monad (forM)
 import Filehub.ClientPath qualified as ClientPath
-import Filehub.Session qualified as Session
 import Filehub.Env qualified as Env
 import Filehub.Env (Env)
 import Filehub.Target qualified as Target
@@ -19,7 +18,6 @@ import Filehub.Template.Desktop qualified as Template.Desktop
 import Filehub.Template.Internal (runTemplate, TemplateContext(..))
 import Filehub.Server.Internal (withQueryParam, makeTemplateContext)
 import Filehub.Types ( SessionId(..), ClientPath, Selected(..))
-import Filehub.Server.Handler (ConfirmDesktopOnly)
 import Filehub.Storage (getStorage)
 import Filehub.Target.Class (IsTarget(..))
 import Lens.Micro
@@ -30,31 +28,32 @@ import System.FilePath (takeFileName)
 import Effectful.Reader.Dynamic (asks)
 
 
-fileDetailModal :: SessionId -> ConfirmDesktopOnly -> Maybe ClientPath -> Filehub (Html ())
-fileDetailModal sessionId _ mClientPath = withServerError do
-  clientPath <- withQueryParam mClientPath
-  storage <- getStorage sessionId
-  root <- Session.getRoot sessionId
-  file <- storage.get (ClientPath.fromClientPath root clientPath)
-  pure (Template.Desktop.fileDetailModal file)
+fileDetailModal :: SessionId -> Maybe ClientPath -> Filehub (Html ())
+fileDetailModal sessionId mClientPath = do
+  ctx@TemplateContext{ root } <- makeTemplateContext sessionId
+  withServerError do
+    clientPath <- withQueryParam mClientPath
+    storage <- getStorage sessionId
+    file <- storage.get (ClientPath.fromClientPath root clientPath)
+    pure $ runTemplate ctx $ Template.Desktop.fileDetailModal file
 
 
 editorModal :: SessionId -> Maybe ClientPath -> Filehub (Html ())
-editorModal sessionId mClientPath = withServerError do
-  clientPath <- withQueryParam mClientPath
-  storage <- getStorage sessionId
-  root <- Session.getRoot sessionId
-  let p = ClientPath.fromClientPath root clientPath
-  content <- do
-    f <- storage.get p
-    storage.read f
-  let filename = takeFileName p
-  readOnly <- asks @Env (.readOnly)
-  pure $ Template.Desktop.editorModal readOnly filename content
+editorModal sessionId mClientPath = do
+  ctx@TemplateContext{ root } <- makeTemplateContext sessionId
+  withServerError do
+    clientPath <- withQueryParam mClientPath
+    storage <- getStorage sessionId
+    let p = ClientPath.fromClientPath root clientPath
+    content <- do
+      f <- storage.get p
+      storage.read f
+    let filename = takeFileName p
+    pure $ runTemplate ctx $ Template.Desktop.editorModal filename content
 
 
-contextMenu :: SessionId -> ConfirmDesktopOnly -> [ClientPath] -> Filehub (Html ())
-contextMenu sessionId _ clientPaths = do
+contextMenu :: SessionId -> [ClientPath] -> Filehub (Html ())
+contextMenu sessionId clientPaths = do
   ctx@TemplateContext { root } <- makeTemplateContext sessionId
   withServerError do
     storage <- getStorage sessionId

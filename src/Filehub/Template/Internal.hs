@@ -10,20 +10,30 @@ import Effectful (Eff, runPureEff)
 import Filehub.Selected.Types (Selected)
 import Filehub.Sort (SortFileBy)
 import Filehub.Session (TargetView)
+import Filehub.Locale (Locale)
 
 
+-- | A Template context type that capture all useful information to render
+-- a HTML.
+--
+-- == On laziness
+--   All fields are lazy. Most of these fields are from a session which requires a
+--   Map lookup with a sessionId, if the record is strict, we need to perform lookup for
+--   every field even when we don't need them. Being lazy means we pay exactly what we
+--   need, which is pretty good.
 data TemplateContext = TemplateContext
-  { readOnly      :: Bool
-  , noLogin       :: Bool
-  , display       :: Display
-  , layout        :: Layout
-  , theme         :: Theme
-  , selected      :: Selected
-  , sortedBy      :: SortFileBy
-  , state         :: ControlPanelState
-  , currentDir    :: FilePath
-  , currentTarget :: TargetView
-  , root          :: FilePath
+  { readOnly      :: ~Bool
+  , noLogin       :: ~Bool
+  , display       :: ~Display
+  , layout        :: ~Layout
+  , theme         :: ~Theme
+  , selected      :: ~Selected
+  , sortedBy      :: ~SortFileBy
+  , locale        :: ~Locale
+  , state         :: ~ControlPanelState
+  , currentDir    :: ~FilePath
+  , currentTarget :: ~TargetView
+  , root          :: ~FilePath
   }
 
 

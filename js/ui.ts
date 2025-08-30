@@ -2,6 +2,7 @@
 
 declare var htmx: any;
 
+import * as DesktopLocale from './handlers/desktop/locale.js';
 import * as DesktopContextmenu from './handlers/desktop/contextmenu.js';
 import * as DesktopSelected from './handlers/desktop/selected.js';
 import * as DesktopDrag from './handlers/desktop/drag.js';
@@ -28,6 +29,7 @@ document.addEventListener("DOMContentLoaded", () => {
     DesktopSelected.register();
     DesktopDrag.register();
     DesktopScroll.register();
+    DesktopLocale.register();
   }
 
   if (display == 'Mobile') {

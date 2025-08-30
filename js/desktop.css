@@ -721,3 +721,8 @@ a.dropdown-item {
 #locale {
   display: inline-block;
 }
+
+
+#locale .dropdown-content {
+  display: none;
+}

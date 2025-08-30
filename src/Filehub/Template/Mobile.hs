@@ -35,6 +35,7 @@ import Filehub.Target.S3 (Backend (..), S3)
 import Filehub.Target.Types (targetHandler)
 import Filehub.Theme (Theme(..))
 import Effectful.Reader.Dynamic (asks)
+import Control.Monad (join)
 
 
 index :: Html ()
@@ -243,21 +244,20 @@ fileNameElement target file = do
 
 
 controlPanel :: Template (Html ())
-controlPanel = do
-  themeBtn' <- themeBtn
+controlPanel = join do
   Template.controlPanel
-    localeBtn
-    newFolderBtn
-    newFileBtn
-    uploadBtn
-    copyBtn
-    pasteBtn
-    deleteBtn
-    cancelBtn
-    themeBtn'
-    logoutBtn
-    Nothing
-    (Just scroll2TopBtn)
+    <$> pure localeBtn
+    <*> pure newFolderBtn
+    <*> pure newFileBtn
+    <*> pure uploadBtn
+    <*> pure copyBtn
+    <*> pure pasteBtn
+    <*> pure deleteBtn
+    <*> pure cancelBtn
+    <*> themeBtn
+    <*> pure logoutBtn
+    <*> pure Nothing
+    <*> pure (Just scroll2TopBtn)
   where
     localeBtn :: Html ()
     localeBtn = do

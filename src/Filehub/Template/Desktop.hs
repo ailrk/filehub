@@ -51,8 +51,8 @@ import Filehub.Target.File (FileSys, Backend (..))
 import Filehub.Target.Types (targetHandler)
 import Filehub.Layout (Layout (..))
 import Filehub.Theme (Theme (..))
-import Control.Monad (when)
-import Filehub.Locale (Locale(..))
+import Control.Monad (when, join)
+import Filehub.Locale (Locale(..), Phrase (..), phrase)
 import Effectful.Reader.Dynamic (asks)
 
 ------------------------------------
@@ -130,22 +130,20 @@ sideBar targets (TargetView currentTarget _ _) = do
 
 
 controlPanel :: Template (Html ())
-controlPanel = do
-  themeBtn' <- themeBtn
-  layoutBtn' <- layoutBtn
+controlPanel = join do
   Template.controlPanel
-    localeBtn
-    newFolderBtn
-    newFileBtn
-    uploadBtn
-    copyBtn
-    pasteBtn
-    deleteBtn
-    cancelBtn
-    themeBtn'
-    logoutBtn
-    (Just layoutBtn')
-    Nothing
+    <$> pure localeBtn
+    <*> newFolderBtn
+    <*> newFileBtn
+    <*> uploadBtn
+    <*> copyBtn
+    <*> pasteBtn
+    <*> deleteBtn
+    <*> cancelBtn
+    <*> themeBtn
+    <*> pure logoutBtn
+    <*> (Just <$> layoutBtn)
+    <*> pure Nothing
   where
     localeBtn :: Html ()
     localeBtn =
@@ -159,112 +157,129 @@ controlPanel = do
           div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ZH_CN)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "简体中文"
           div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ZH_TW)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "繁體中文"
           div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ZH_HK)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "繁體中文"
+          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just JA)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "日本語"
           div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ES)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "Español"
           div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just FR)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "Français"
           div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just DE)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "Deutsch"
-          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just KR)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "한국어"
+          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just KO)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "한국어"
           div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just RU)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "Русский"
           div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just PT)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "Português"
           div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just IT)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "Italiano"
 
-    newFolderBtn :: Html ()
-    newFolderBtn =
-      button_ [ class_ "btn btn-control "
-              , type_ "submit"
-              , term "hx-get" $ linkToText apiLinks.newFolderModal
-              , term "hx-target" "#index"
-              , term "hx-swap" "beforeend"
-              , term "data-btn-title" "New folder"
-              ] do
-        span_ [ class_ "field " ] do
-          i_ [ class_ "bx bx-folder-plus" ] mempty
+
+    newFolderBtn :: Template (Html ())
+    newFolderBtn = do
+      Phrase { control_panel_new_folder } <- phrase <$> asks @TemplateContext (.locale)
+      pure do
+        button_ [ class_ "btn btn-control "
+                , type_ "submit"
+                , term "hx-get" $ linkToText apiLinks.newFolderModal
+                , term "hx-target" "#index"
+                , term "hx-swap" "beforeend"
+                , term "data-btn-title" control_panel_new_folder
+                ] do
+          span_ [ class_ "field " ] do
+            i_ [ class_ "bx bx-folder-plus" ] mempty
 
 
-    newFileBtn :: Html ()
-    newFileBtn  =
-      button_ [ class_ "btn btn-control"
-              , type_ "submit"
-              , term "hx-get" $ linkToText apiLinks.newFileModal
-              , term "hx-target" "#index"
-              , term "hx-swap" "beforeend"
-              , term "data-btn-title" "New file"
-              ] do
-        span_ [ class_ "field " ] do
-          i_ [ class_ "bx bxs-file-plus" ] mempty
+    newFileBtn :: Template (Html ())
+    newFileBtn = do
+      Phrase { control_panel_new_file } <- phrase <$> asks @TemplateContext (.locale)
+      pure do
+        button_ [ class_ "btn btn-control"
+                , type_ "submit"
+                , term "hx-get" $ linkToText apiLinks.newFileModal
+                , term "hx-target" "#index"
+                , term "hx-swap" "beforeend"
+                , term "data-btn-title" control_panel_new_file
+                ] do
+          span_ [ class_ "field " ] do
+            i_ [ class_ "bx bxs-file-plus" ] mempty
 
 
-    uploadBtn :: Html ()
+    uploadBtn :: Template (Html ())
     uploadBtn = do
-      let fileInputId = "file-input"
-      input_ [ type_ "file"
-             , name_ "file"
-             , id_ fileInputId
-             , style_ "display:none"
-             , term "hx-encoding" "multipart/form-data"
-             , term "hx-post" $ linkToText apiLinks.upload
-             , term "hx-target" "#index"
-             , term "hx-swap" "outerHTML"
-             , term "hx-trigger" "change"
-             ]
+      Phrase { control_panel_upload } <- phrase <$> asks @TemplateContext (.locale)
+      pure do
+        let fileInputId = "file-input"
+        input_ [ type_ "file"
+               , name_ "file"
+               , id_ fileInputId
+               , style_ "display:none"
+               , term "hx-encoding" "multipart/form-data"
+               , term "hx-post" $ linkToText apiLinks.upload
+               , term "hx-target" "#index"
+               , term "hx-swap" "outerHTML"
+               , term "hx-trigger" "change"
+               ]
 
-      button_ [ class_ "btn btn-control"
-              , onclick_ [iii|document.querySelector('\##{fileInputId}').click()|]
-              , term "data-btn-title" "Upload"
-              ] do
-        span_ [ class_ "field " ] do
-          i_ [ class_ "bx bx-upload" ] mempty
+        button_ [ class_ "btn btn-control"
+                , onclick_ [iii|document.querySelector('\##{fileInputId}').click()|]
+                , term "data-btn-title" control_panel_upload
+                ] do
+          span_ [ class_ "field " ] do
+            i_ [ class_ "bx bx-upload" ] mempty
 
-    copyBtn :: Html ()
+
+    copyBtn :: Template (Html ())
     copyBtn = do
-      button_ [ class_ "btn btn-control"
-              , type_ "submit"
-              , term "hx-get" $ linkToText apiLinks.copy
-              , term "hx-target" "#control-panel"
-              , term "hx-swap" "outerHTML"
-              , term "data-btn-title" "Copy"
-              ] do
-        span_ [ class_ "field " ] do
-          i_ [ class_ "bx bxs-copy-alt" ] mempty
+      Phrase { control_panel_copy } <- phrase <$> asks @TemplateContext (.locale)
+      pure do
+        button_ [ class_ "btn btn-control"
+                , type_ "submit"
+                , term "hx-get" $ linkToText apiLinks.copy
+                , term "hx-target" "#control-panel"
+                , term "hx-swap" "outerHTML"
+                , term "data-btn-title" control_panel_copy
+                ] do
+          span_ [ class_ "field " ] do
+            i_ [ class_ "bx bxs-copy-alt" ] mempty
 
 
-    pasteBtn :: Html ()
+    pasteBtn :: Template (Html ())
     pasteBtn = do
-      button_ [ class_ "btn btn-control"
-              , type_ "submit"
-              , term "hx-post" $ linkToText apiLinks.paste
-              , term "hx-target" "#index"
-              , term "hx-swap" "outerHTML"
-              , term "data-btn-title" "Paste"
-              ] do
-        span_ [ class_ "field " ] do
-          i_ [ class_ "bx bxs-paste" ] mempty
+      Phrase { control_panel_paste } <- phrase <$> asks @TemplateContext (.locale)
+      pure do
+        button_ [ class_ "btn btn-control"
+                , type_ "submit"
+                , term "hx-post" $ linkToText apiLinks.paste
+                , term "hx-target" "#index"
+                , term "hx-swap" "outerHTML"
+                , term "data-btn-title" control_panel_paste
+                ] do
+          span_ [ class_ "field " ] do
+            i_ [ class_ "bx bxs-paste" ] mempty
 
 
-    deleteBtn :: Html ()
+    deleteBtn :: Template (Html ())
     deleteBtn = do
-      button_ [ class_ "btn btn-control urgent"
-              , type_ "submit"
-              , term "hx-delete" $ linkToText (apiLinks.deleteFile [] True)
-              , term "hx-target" "#index"
-              , term "hx-swap" "outerHTML"
-              , term "hx-confirm" "Are you sure about deleting selected files?\n\n (All selected files will be deleted)"
-              , term "data-btn-title" "Delete"
-              ] do
-        span_ [ class_ "field " ] do
-          i_ [ class_ "bx bxs-trash" ] mempty
+      Phrase { control_panel_delete } <- phrase <$> asks @TemplateContext (.locale)
+      pure do
+        button_ [ class_ "btn btn-control urgent"
+                , type_ "submit"
+                , term "hx-delete" $ linkToText (apiLinks.deleteFile [] True)
+                , term "hx-target" "#index"
+                , term "hx-swap" "outerHTML"
+                , term "hx-confirm" "Are you sure about deleting selected files?\n\n (All selected files will be deleted)"
+                , term "data-btn-title" control_panel_delete
+                ] do
+          span_ [ class_ "field " ] do
+            i_ [ class_ "bx bxs-trash" ] mempty
 
 
-    cancelBtn :: Html ()
+    cancelBtn :: Template (Html ())
     cancelBtn = do
-      button_ [ class_ "btn btn-control"
-              , type_ "submit"
-              , term "hx-post" $ linkToText apiLinks.cancel
-              , term "hx-target" "#index"
-              , term "hx-swap" "outerHTML"
-              , term "data-btn-title" "Cancel"
-              ] do
-        span_ [ class_ "field " ] do
-          i_ [ class_ "bx bxs-message-alt-x" ] mempty
+      Phrase { control_panel_cancel } <- phrase <$> asks @TemplateContext (.locale)
+      pure do
+        button_ [ class_ "btn btn-control"
+                , type_ "submit"
+                , term "hx-post" $ linkToText apiLinks.cancel
+                , term "hx-target" "#index"
+                , term "hx-swap" "outerHTML"
+                , term "data-btn-title" control_panel_cancel
+                ] do
+          span_ [ class_ "field " ] do
+            i_ [ class_ "bx bxs-message-alt-x" ] mempty
 
 
     logoutBtn :: Html ()
@@ -308,6 +323,7 @@ controlPanel = do
     layoutBtn :: Template (Html ())
     layoutBtn =  do
       layout <- asks @TemplateContext (.layout)
+      Phrase { control_panel_gird, control_panel_list } <- phrase <$> asks @TemplateContext (.locale)
       pure do
         case layout of
           ListLayout -> do
@@ -316,7 +332,7 @@ controlPanel = do
                     , term "hx-get" $ linkToText (apiLinks.selectLayout (Just ThumbnailLayout))
                     , term "hx-target" "#index"
                     , term "hx-swap" "outerHTML"
-                    , term "data-btn-title" "Grid"
+                    , term "data-btn-title" control_panel_gird
                     ] do
               i_ [ class_ "bx bxs-grid-alt" ] mempty
           ThumbnailLayout -> do
@@ -325,7 +341,7 @@ controlPanel = do
                     , term "hx-get" $ linkToText (apiLinks.selectLayout (Just ListLayout))
                     , term "hx-target" "#index"
                     , term "hx-swap" "outerHTML"
-                    , term "data-btn-title" "List"
+                    , term "data-btn-title" control_panel_list
                     ] do
               i_ [ class_ "bx bx-menu" ] mempty
 
@@ -335,133 +351,140 @@ controlPanel = do
 ------------------------------------
 
 
-newFileModal :: Html ()
+newFileModal :: Template (Html ())
 newFileModal = do
-  modal [ id_ newFileModalId ] do
-    span_ [ class_ "modal-title-bar " ] do
-      bold "Folder"
-      div_ [ class_ "title-bar-btn btn-modal-close "
-           , term "_" "on click trigger Close"
-           ] do
-        i_ [ class_ "bx bx-x"] mempty
-    br_ mempty
-    form_ [ term "hx-post" $ linkToText (apiLinks.newFile)
-          , term "hx-target" "#view"
-          , term "hx-swap" "outerHTML"
-          ] do
-      div_ [ style_ "display: flex" ] do
-        input_ [ class_ "form-control "
-               , type_ "text"
-               , name_ "new-file"
-               , placeholder_ "New file name"
-               ]
-        button_ [ class_ "btn btn-modal-confirm "
-                , type_ "submit"
-                , term "_" "on click trigger Close"
-                ] "CREATE"
+  Phrase { } <- phrase <$> asks @TemplateContext (.locale)
+  pure do
+    modal [ id_ newFileModalId ] do
+      span_ [ class_ "modal-title-bar " ] do
+        bold "Folder"
+        div_ [ class_ "title-bar-btn btn-modal-close "
+             , term "_" "on click trigger Close"
+             ] do
+          i_ [ class_ "bx bx-x"] mempty
+      br_ mempty
+      form_ [ term "hx-post" $ linkToText (apiLinks.newFile)
+            , term "hx-target" "#view"
+            , term "hx-swap" "outerHTML"
+            ] do
+        div_ [ style_ "display: flex" ] do
+          input_ [ class_ "form-control "
+                 , type_ "text"
+                 , name_ "new-file"
+                 , placeholder_ "New file name"
+                 ]
+          button_ [ class_ "btn btn-modal-confirm "
+                  , type_ "submit"
+                  , term "_" "on click trigger Close"
+                  ] "CREATE"
 
 
-newFolderModal :: Html ()
+newFolderModal :: Template (Html ())
 newFolderModal = do
-  modal [ id_ newFolderModalId ] do
-    span_ [ class_ "modal-title-bar " ] do
-      bold "Folder"
-      div_ [ class_ "title-bar-btn btn-modal-close "
-           , term "_" "on click trigger Close"
-           ] do
-        i_ [ class_ "bx bx-x"] mempty
-    br_ mempty
-    form_ [ term "hx-post" $ linkToText (apiLinks.newFolder)
-          , term "hx-target" "#view"
-          , term "hx-swap" "outerHTML"
-          ] do
-      div_ [ style_ "display: flex" ] do
-        input_ [ class_ "form-control "
-               , type_ "text"
-               , name_ "new-folder"
-               , placeholder_ "New folder name"
-               ]
-        button_ [ class_ "btn btn-modal-confirm "
-                , type_ "submit"
-                , term "_" "on click trigger Close"
-                ] "CREATE"
+  Phrase { } <- phrase <$> asks @TemplateContext (.locale)
+  pure do
+    modal [ id_ newFolderModalId ] do
+      span_ [ class_ "modal-title-bar " ] do
+        bold "Folder"
+        div_ [ class_ "title-bar-btn btn-modal-close "
+             , term "_" "on click trigger Close"
+             ] do
+          i_ [ class_ "bx bx-x"] mempty
+      br_ mempty
+      form_ [ term "hx-post" $ linkToText (apiLinks.newFolder)
+            , term "hx-target" "#view"
+            , term "hx-swap" "outerHTML"
+            ] do
+        div_ [ style_ "display: flex" ] do
+          input_ [ class_ "form-control "
+                 , type_ "text"
+                 , name_ "new-folder"
+                 , placeholder_ "New folder name"
+                 ]
+          button_ [ class_ "btn btn-modal-confirm "
+                  , type_ "submit"
+                  , term "_" "on click trigger Close"
+                  ] "CREATE"
 
 
-fileDetailModal :: File -> Html ()
+fileDetailModal :: File -> Template (Html ())
 fileDetailModal file = do
-  modal [ id_ fileDetailModalId ] do
-    bold "Detail"
-    br_ mempty
-    table_ do
-      tbody_ do
-        tr_ do
-          td_ "Filename"
-          td_ (toHtml $ takeFileName file.path)
-        tr_ do
-          td_ "Modified"
-          td_ (toHtml $ maybe mempty (formatTime defaultTimeLocale "%F %R") file.mtime)
-        tr_ do
-          td_ "Accessed"
-          td_ (toHtml $ maybe mempty (formatTime defaultTimeLocale "%F %R") file.atime)
-        tr_ do
-          td_ "Size"
-          td_ (toHtml . toReadableSize $ fromMaybe 0 file.size)
-        tr_ do
-          td_ "Content Type"
-          td_ (toHtml file.mimetype)
-
-
-editorModal :: Bool -> FilePath -> ByteString -> Html ()
-editorModal readOnly filename content = do
-  modal [ id_ editorModalId ] do
-
-    case readOnly of
-      True -> bold "Read-only"
-      False ->  do
-        span_ [ class_ "modal-title-bar " ] do
-          bold "Edit"
-          div_ [ class_ "title-bar-btn btn-modal-close "
-               , term "_" "on click trigger Close"
-               ] do
-            i_ [ class_ "bx bx-x"] mempty
-
-    br_ mempty
-
-    form_ [ term "hx-post" $ linkToText (apiLinks.updateFile)
-          , term "hx-confirm" ("Save the edit of " <> Text.pack filename <> "?")
-          ] do
-      input_ [ class_ "form-control "
-             , type_ "text"
-             , name_ "path"
-             , value_ (Text.pack filename)
-             , placeholder_ "Filename"
-             ]
-
+  pure do
+    modal [ id_ fileDetailModalId ] do
+      bold "Detail"
       br_ mempty
-      br_ mempty
+      table_ do
+        tbody_ do
+          tr_ do
+            td_ "Filename"
+            td_ (toHtml $ takeFileName file.path)
+          tr_ do
+            td_ "Modified"
+            td_ (toHtml $ maybe mempty (formatTime defaultTimeLocale "%F %R") file.mtime)
+          tr_ do
+            td_ "Accessed"
+            td_ (toHtml $ maybe mempty (formatTime defaultTimeLocale "%F %R") file.atime)
+          tr_ do
+            td_ "Size"
+            td_ (toHtml . toReadableSize $ fromMaybe 0 file.size)
+          tr_ do
+            td_ "Content Type"
+            td_ (toHtml file.mimetype)
 
-      textarea_
-        (mconcat
-          [
-            [ class_ "form-control "
-            , type_ "text"
-            , name_ "content"
-            , placeholder_ "Empty File"
-            ]
-          , if readOnly then [ readonly_ "readonly" ] else mempty
-          ]
-        )
-        (toHtml $ Text.decodeUtf8 content)
 
-      br_ mempty >> br_ mempty
+editorModal :: FilePath -> ByteString -> Template (Html ())
+editorModal filename content = do
+  readOnly <- asks @TemplateContext (.readOnly)
+  pure do
+    modal [ id_ editorModalId ] do
 
       case readOnly of
-        True -> do
-          mempty
-        False -> do
-          button_ [ class_ "btn btn-modal-confirm-1 "
-                  , term "_" "on click trigger Close"
-                  ] "EDIT"
+        True -> bold "Read-only"
+        False ->  do
+          span_ [ class_ "modal-title-bar " ] do
+            bold "Edit"
+            div_ [ class_ "title-bar-btn btn-modal-close "
+                 , term "_" "on click trigger Close"
+                 ] do
+              i_ [ class_ "bx bx-x"] mempty
+
+      br_ mempty
+
+      form_ [ term "hx-post" $ linkToText (apiLinks.updateFile)
+            , term "hx-confirm" ("Save the edit of " <> Text.pack filename <> "?")
+            ] do
+        input_ [ class_ "form-control "
+               , type_ "text"
+               , name_ "path"
+               , value_ (Text.pack filename)
+               , placeholder_ "Filename"
+               ]
+
+        br_ mempty
+        br_ mempty
+
+        textarea_
+          (mconcat
+            [
+              [ class_ "form-control "
+              , type_ "text"
+              , name_ "content"
+              , placeholder_ "Empty File"
+              ]
+            , if readOnly then [ readonly_ "readonly" ] else mempty
+            ]
+          )
+          (toHtml $ Text.decodeUtf8 content)
+
+        br_ mempty >> br_ mempty
+
+        case readOnly of
+          True -> do
+            mempty
+          False -> do
+            button_ [ class_ "btn btn-modal-confirm-1 "
+                    , term "_" "on click trigger Close"
+                    ] "EDIT"
 
 
 ------------------------------------
@@ -680,25 +703,34 @@ contextMenu :: [File] -> Template (Html ())
 contextMenu [file] = do
   root <- asks @TemplateContext (.root)
   readOnly <- asks @TemplateContext (.readOnly)
+  Phrase
+    { contextmenu_delete
+    , contextmenu_details
+    , contextmenu_open
+    , contextmenu_view
+    , contextmenu_play
+    , contextmenu_edit
+    , contextmenu_download
+    } <- phrase <$> asks @TemplateContext (.locale)
   pure do
     let textClientPath = toClientPath root file.path
     let clientPath = ClientPath.toClientPath root file.path
 
     div_ [ class_ "dropdown-content " , id_ contextMenuId ] do
       case file.content of
-        Dir _ -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bxs-folder-open" ] mempty >> span_ "Open"
+        Dir _ -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bxs-folder-open" ] mempty >> span_ (toHtml contextmenu_open)
         Content
-          | file.mimetype `isMime` "application/pdf" -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bx-show" ] mempty >> span_ "View"
-          | file.mimetype `isMime` "audio" -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bx-play" ] mempty >> span_ "Play"
-          | file.mimetype `isMime` "video" -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bx-play" ] mempty >> span_ "Play"
-          | file.mimetype `isMime` "image" -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bx-show" ] mempty >> span_ "View"
-          | file.mimetype `isMime` "text" -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bxs-edit" ] mempty >> span_ "Edit"
+          | file.mimetype `isMime` "application/pdf" -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bx-show" ] mempty >> span_ (toHtml contextmenu_view)
+          | file.mimetype `isMime` "audio" -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bx-play" ] mempty >> span_ (toHtml contextmenu_play)
+          | file.mimetype `isMime` "video" -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bx-play" ] mempty >> span_ (toHtml contextmenu_play)
+          | file.mimetype `isMime` "image" -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bx-show" ] mempty >> span_ (toHtml contextmenu_view)
+          | file.mimetype `isMime` "text" -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bxs-edit" ] mempty >> span_ (toHtml contextmenu_edit)
           | otherwise -> mempty
         `with` Template.open root file
 
       a_ [ class_ "dropdown-item" ,  href_ (linkToText $ apiLinks.download [clientPath]) ] do
         i_ [ class_ "bx bx-download" ] mempty
-        span_ "Download"
+        span_ (toHtml contextmenu_download)
 
       case readOnly of
         True -> mempty
@@ -710,7 +742,7 @@ contextMenu [file] = do
                , term "hx-confirm" ("Are you sure about deleting " <> textClientPath <> "?")
                ] do
             i_ [ class_ "bx bxs-trash" ] mempty
-            span_ "Delete"
+            span_ (toHtml contextmenu_delete)
 
       div_ [ class_ "dropdown-item"
            , term "hx-get" $ linkToText (apiLinks.fileDetailModal (Just clientPath))
@@ -718,18 +750,24 @@ contextMenu [file] = do
            , term "hx-swap" "beforeend"
            ] do
         i_ [ class_ "bx bx-detail" ] mempty
-        span_ "Details"
+        span_ (toHtml contextmenu_details)
 contextMenu files = do
   root <- asks @TemplateContext (.root)
   readOnly <- asks @TemplateContext (.readOnly)
+  Phrase
+    { contextmenu_delete_local
+    , contextmenu_selected
+    , contextmenu_copy
+    , contextmenu_cancel
+    , contextmenu_download
+    } <- phrase <$> asks @TemplateContext (.locale)
+
   pure do
     let clientPaths = fmap (ClientPath.toClientPath root . (.path)) files
-
     div_ [ class_ "dropdown-content " , id_ contextMenuId ] do
       div_ [ class_ "dropdown-item no-effect" ] do
         i_ [ class_ "bx bx-select-multiple" ] mempty
-        span_ [i|#{length files} Selected|]
-
+        span_ [i|#{length files} #{contextmenu_selected}|]
       br_ []
       case readOnly of
         True -> mempty
@@ -741,7 +779,7 @@ contextMenu files = do
                , term "hx-confirm" ("Are you sure about deleting " <> Text.pack (show (length clientPaths)) <> " files?\n\n (Only selected files in the current directory will be deleted)")
                ] do
             i_ [ class_ "bx bxs-trash" ] mempty
-            span_ "Delete (Local)"
+            span_ (toHtml contextmenu_delete_local)
 
           div_ [ class_ "dropdown-item"
                , term "hx-get" $ linkToText apiLinks.copy
@@ -749,13 +787,11 @@ contextMenu files = do
                , term "hx-swap" "outerHTML"
                ] do
             i_ [ class_ "bx bx-detail" ] mempty
-            span_ "Copy"
-
+            span_ (toHtml contextmenu_copy)
 
       a_ [ class_ "dropdown-item" ,  href_ (linkToText $ apiLinks.download clientPaths) ] do
         i_ [ class_ "bx bx-download" ] mempty
-        span_ "Download"
-
+        span_ (toHtml contextmenu_download)
 
       div_ [ class_ "dropdown-item"
            , term "hx-post" $ linkToText apiLinks.cancel
@@ -763,7 +799,7 @@ contextMenu files = do
            , term "hx-swap" "outerHTML"
            ] do
         i_ [ class_ "bx bx-message-alt-x" ] mempty
-        span_ "Cancel"
+        span_ (toHtml contextmenu_cancel)
 
 
 

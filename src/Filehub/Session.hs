@@ -97,7 +97,6 @@ getRoot sessionId = do
       , cast t <&> \(_ :: Backend S3) -> ""
       ]
 
-
 -- | Get the current working directory of the session.
 getCurrentDir :: (Reader Env  :> es,  Error FilehubError :> es,  IOE :> es, Log :> es) => SessionId -> Eff es FilePath
 getCurrentDir sessionId = (^. #sessionData . #currentDir) <$> Target.currentTarget sessionId
