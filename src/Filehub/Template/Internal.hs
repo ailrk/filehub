@@ -36,7 +36,7 @@ data TemplateContext = TemplateContext
   , currentDir           :: ~FilePath
   , currentTarget        :: ~TargetView
   , root                 :: ~FilePath
-  , simpleAuthUserDB :: ~SimpleAuthUserDB
+  , simpleAuthUserDB     :: ~SimpleAuthUserDB
   , oidcAuthProviders    :: ~OIDCAuthProviders
   }
 

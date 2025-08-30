@@ -1,3 +1,5 @@
+@import "common.css";
+
 /* Make the whole page take full height */
 html, body {
   height: 100%;
@@ -7,7 +9,7 @@ html, body {
 }
 
 /* Center the login form in the middle of the page */
-#login {
+#login-form {
   display: flex;
   justify-content: center; /* horizontal center */
   align-items: center;     /* vertical center */
@@ -18,13 +20,8 @@ html, body {
   animation-timing-function: ease;
 }
 
-#login img {
-  width: 100px;
-  align-items: center;     /* vertical center */
-}
-
 /* Style the form container */
-#login .panel {
+#login-form .panel {
   user-select: none;
   width: 60%;
   max-width: 400px;
@@ -33,19 +30,19 @@ html, body {
 }
 
 
-#login .oidc button {
+#login-form .oidc button {
   margin-bottom: 1rem;
   color: var(--background1);
   background: var(--primary);
 }
 
 
-#login .oidc button:hover {
+#login-form .oidc button:hover {
   background: color-mix(in srgb, var(--primary) 85%, black);
 }
 
 
-#login .or-sep {
+#login-form .or-sep {
   color: var(--frontground);
   padding: 4px;
   margin-bottom: 15px;
@@ -53,7 +50,7 @@ html, body {
 
 
 /* Inputs full width */
-#login input {
+#login-form input {
   user-select: none;
   background: var(--background3);
   color: var(--frontground);
@@ -66,13 +63,13 @@ html, body {
   box-sizing: border-box;
 }
 
-#login input:focus {
+#login-form input:focus {
   outline: none;
   box-shadow: 0 0 0 2px var(--secondary);
 }
 
 /* Buttons full width */
-#login button {
+#login-form button {
   user-select: none;
   padding: 0.5rem;
   background: var(--secondary);
@@ -84,7 +81,7 @@ html, body {
   width: 100%;
 }
 
-#login button:hover {
+#login-form button:hover {
   background: color-mix(in srgb, var(--secondary) 85%, black);
 }
 
@@ -99,3 +96,76 @@ html, body {
 @keyframes fadeIn {
   from { opacity: 0; } to { opacity: 1; }
 }
+
+
+.btn {
+  cursor: pointer;
+  padding: 0.5rem 0.5rem;
+  border: none;
+  font-weight: bold;
+  border-radius: 8px;
+  color: var(--frontground);
+
+  &:active {
+    transform: translateY(2px);
+  }
+
+  & i {
+    font-size: 1.2em;
+  }
+
+  &:hover {
+    background: var(--background3);
+    cursor: pointer;
+  }
+
+  &:hover::after {
+    cursor: pointer;
+    opacity: 1;
+  }
+
+  &::after {
+    position: absolute;
+    translate: -5px 28px;
+    content: attr(data-btn-title);
+    background-color: var(--frontground);
+    color: var(--background3);
+    white-space: nowrap;
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-size: 10px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 10;
+  }
+}
+
+
+.btn-control {
+  background: var(--background);
+  color: var(--frontground);
+  text-transform: uppercase;
+  font-size: 1.2em;
+  padding: 13px;
+}
+
+
+#locale {
+  display: inline-block;
+}
+
+
+#locale .dropdown-content {
+  display: none;
+}
+
+
+#top-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+}
+
+
+

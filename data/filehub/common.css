@@ -27,6 +27,73 @@
 }
 
 
+.dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+
+.dropdown-content {
+  position: absolute;
+  background: var(--background2);
+  padding: 0.5rem 0;
+  border-radius: 0.5rem;
+  text-align: left;
+  z-index: 1;
+
+  animation-name: fadeIn;
+  animation-duration: 150ms;
+  animation-timing-function: ease;
+
+  &.closing {
+    animation-name: fadeOut;
+    animation-duration: 150ms;
+    animation-timing-function: ease;
+  }
+}
+
+
+.dropdown-item {
+  cursor: pointer;
+  padding: 0.7em;
+
+  &:active {
+    transform: translateY(2px);
+  }
+
+  & span {
+    color: var(--frontground);
+    display: inline-block;
+    text-decoration: none;
+    padding: 0 2rem 0 1rem;
+  }
+
+  &:hover {
+    background: var(--background3);
+  }
+
+  .no-effect {
+    cursor: initial;
+  }
+
+  &.no-effect:hover {
+    background: initial;
+  }
+
+  &.no-effect:active {
+    transform: initial;
+  }
+}
+
+a.dropdown-item {
+  color: var(--frontground);
+  display: block;
+  text-decoration: none;
+}
+
+
+
+
 .balloon {
   background: var(--secondary);
   color: var(--frontground);

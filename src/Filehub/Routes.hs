@@ -103,6 +103,18 @@ data Api mode = Api
                           :> Get '[HTML] (Html ())
 
 
+  , loginToggleTheme      :: mode
+                          :- "login" :> "theme" :> "toggle"
+                          :> AuthProtect "session"
+                          :> Get '[HTML] (Headers '[ Header "HX-Trigger-After-Settle" FilehubEvent ] (Html ()))
+
+  , loginChangeLocale     :: mode
+                          :- "login" :> "locale" :> "change"
+                          :> AuthProtect "session"
+                          :> QueryParam "locale" Locale
+                          :> Get '[HTML] (Headers '[ Header "HX-Trigger-After-Settle" FilehubEvent ] (Html ()))
+
+
   , loginAuthSimple       :: mode
                           :- "login"
                           :> AuthProtect "session"

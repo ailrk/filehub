@@ -57,7 +57,6 @@ import Filehub.Target.Types.TargetView (TargetView(..))
 import Filehub.Types ( FilehubEvent (..), LoginForm(..), MoveFile (..), UIComponent (..), FileContent (..), TargetId, SearchWord, OpenTarget, Resolution)
 import Filehub.Session qualified as Session
 import Filehub.Session (SessionId(..))
-import Filehub.Env qualified as Env
 import Filehub.Env (Env(..))
 import Filehub.Error ( withServerError, FilehubError(..), withServerError, Error' (..) )
 import Filehub.Routes (Api (..))
@@ -116,7 +115,6 @@ import UnliftIO (hFlush, stdout)
 import Network.Mime qualified as Mime
 import Web.Cookie (SetCookie (..))
 import Network.HTTP.Types.Header (hLocation)
-import Effectful.Reader.Dynamic (ask, asks)
 import System.Directory (removeFile)
 import System.Random (randomRIO)
 import Data.Functor.Identity (Identity(..))
@@ -125,6 +123,7 @@ import Filehub.Auth.OIDC (OIDCAuthProviders(..))
 import Filehub.Auth.Types (ActiveUsers(..))
 import Servant.Multipart (MultipartData, Mem)
 import Filehub.Locale (Locale)
+import Debug.Trace
 
 
 #ifdef DEBUG
@@ -159,6 +158,8 @@ server = Api
   , home                  = home
   , refresh               = refresh
   , loginPage             = loginPage
+  , loginToggleTheme      = loginToggleTheme
+  , loginChangeLocale     = loginChangeLocale
   , loginAuthSimple       = loginAuthSimple
   , loginAuthOIDCRedirect = loginAuthOIDCRedirect
   , loginAuthOIDCCallback = loginAuthOIDCCallback
@@ -267,8 +268,6 @@ refresh sessionId _ mUIComponent = do
 loginPage :: SessionId -> Maybe Text -> Filehub (Html ())
 loginPage sessionId cookie = do
   ctx@TemplateContext { noLogin } <- makeTemplateContext sessionId
-  simpleAuthUserDB <- asks @Env (.simpleAuthUserDB)
-  oidcAuthProviders <- asks @Env (.oidcAuthProviders)
   if noLogin
      then go
      else do
@@ -277,10 +276,30 @@ loginPage sessionId cookie = do
            authId <- Session.getAuthId sessionId & withServerError
            if authId == Just authId'
               then go
-              else pure $ runTemplate ctx $ Template.Login.login simpleAuthUserDB oidcAuthProviders
-         Nothing -> pure $ runTemplate ctx $ Template.Login.login simpleAuthUserDB oidcAuthProviders
+              else pure $ runTemplate ctx $ Template.Login.login
+         Nothing -> pure $ runTemplate ctx $ Template.Login.login
   where
     go = throwError (err301 { errHeaders = [(hLocation, "/")] })
+
+
+loginToggleTheme :: SessionId -> Filehub (Headers '[ Header "HX-Trigger-After-Settle" FilehubEvent ] (Html ()))
+loginToggleTheme sessionId = do
+  theme <- Session.getSessionTheme sessionId & withServerError
+  case theme of
+    Theme.Light -> Session.setSessionTheme sessionId Theme.Dark
+    Theme.Dark -> Session.setSessionTheme sessionId Theme.Light
+  ctx <- makeTemplateContext sessionId
+  let html = runTemplate ctx Template.Login.login'
+  pure $ addHeader ThemeChanged $ html
+
+
+loginChangeLocale :: SessionId -> Maybe Locale -> Filehub (Headers '[ Header "HX-Trigger-After-Settle" FilehubEvent ] (Html ()))
+loginChangeLocale _ Nothing = withServerError . throwError $ FilehubError LocaleError "Invalid locale"
+loginChangeLocale sessionId (Just locale) = do
+  Session.setSessionLocale sessionId locale
+  ctx <- makeTemplateContext sessionId
+  let html = runTemplate ctx Template.Login.login'
+  pure $ addHeader LocaleChanged $ html
 
 
 -- | Handle the simple authetication login.
@@ -296,6 +315,7 @@ loginAuthSimple sessionId (LoginForm username password) =  do
     case Cookie.setAuthId session of
       Just setCookie -> do
         logInfo_ [i|User #{username} logged in|]
+        traceM (show setCookie)
         addHeader setCookie . addHeader "/" <$> pure mempty
       Nothing -> do noHeader . noHeader <$> (pure $ runTemplate ctx $ Template.Login.loginFailed)
   else do noHeader . noHeader <$> (pure $ runTemplate ctx $ Template.Login.loginFailed)
@@ -320,7 +340,6 @@ logout sessionId _ = do
           { setCookieExpires = Just (UTCTime (fromGregorian 1970 1 1) 0) })
         . addHeader "/login"
         <$> pure mempty
-
     Nothing -> noHeader . noHeader <$> pure mempty
 
 

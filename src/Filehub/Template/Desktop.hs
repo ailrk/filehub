@@ -14,6 +14,8 @@ module Filehub.Template.Desktop
   , editorModal
   , contextMenu
   , table
+  , themeBtn
+  , localeBtn
   )
   where
 
@@ -145,211 +147,213 @@ controlPanel = join do
     <*> logoutBtn
     <*> (Just <$> layoutBtn)
     <*> pure Nothing
-  where
-    localeBtn :: Html ()
-    localeBtn =
-      div_ [ id_ "locale" ] do
-        button_ [ class_ "btn btn-control "
-                ] do
-          span_ [ class_ "field " ] do
-            i_ [ class_ "bx bx-world" ] mempty
-        div_ [ class_ "dropdown-content " ] do
-          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just EN)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "English"
-          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ZH_CN)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "简体中文"
-          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ZH_TW)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "繁體中文"
-          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ZH_HK)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "繁體中文"
-          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just JA)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "日本語"
-          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ES)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "Español"
-          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just FR)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "Français"
-          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just DE)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "Deutsch"
-          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just KO)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "한국어"
-          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just RU)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "Русский"
-          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just PT)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "Português"
-          div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just IT)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "Italiano"
 
 
-    newFolderBtn :: Template (Html ())
-    newFolderBtn = do
-      Phrase { control_panel_new_folder } <- phrase <$> asks @TemplateContext (.locale)
-      pure do
-        button_ [ class_ "btn btn-control "
-                , type_ "submit"
-                , term "hx-get" $ linkToText apiLinks.newFolderModal
-                , term "hx-target" "#index"
-                , term "hx-swap" "beforeend"
-                , term "data-btn-title" control_panel_new_folder
-                ] do
-          span_ [ class_ "field " ] do
-            i_ [ class_ "bx bx-folder-plus" ] mempty
+newFolderBtn :: Template (Html ())
+newFolderBtn = do
+  Phrase { control_panel_new_folder } <- phrase <$> asks @TemplateContext (.locale)
+  pure do
+    button_ [ class_ "btn btn-control "
+            , type_ "submit"
+            , term "hx-get" $ linkToText apiLinks.newFolderModal
+            , term "hx-target" "#index"
+            , term "hx-swap" "beforeend"
+            , term "data-btn-title" control_panel_new_folder
+            ] do
+      span_ [ class_ "field " ] do
+        i_ [ class_ "bx bx-folder-plus" ] mempty
 
 
-    newFileBtn :: Template (Html ())
-    newFileBtn = do
-      Phrase { control_panel_new_file } <- phrase <$> asks @TemplateContext (.locale)
-      pure do
+newFileBtn :: Template (Html ())
+newFileBtn = do
+  Phrase { control_panel_new_file } <- phrase <$> asks @TemplateContext (.locale)
+  pure do
+    button_ [ class_ "btn btn-control"
+            , type_ "submit"
+            , term "hx-get" $ linkToText apiLinks.newFileModal
+            , term "hx-target" "#index"
+            , term "hx-swap" "beforeend"
+            , term "data-btn-title" control_panel_new_file
+            ] do
+      span_ [ class_ "field " ] do
+        i_ [ class_ "bx bxs-file-plus" ] mempty
+
+
+uploadBtn :: Template (Html ())
+uploadBtn = do
+  Phrase { control_panel_upload } <- phrase <$> asks @TemplateContext (.locale)
+  pure do
+    let fileInputId = "file-input"
+    input_ [ type_ "file"
+           , name_ "file"
+           , id_ fileInputId
+           , style_ "display:none"
+           , term "hx-encoding" "multipart/form-data"
+           , term "hx-post" $ linkToText apiLinks.upload
+           , term "hx-target" "#index"
+           , term "hx-swap" "outerHTML"
+           , term "hx-trigger" "change"
+           ]
+
+    button_ [ class_ "btn btn-control"
+            , onclick_ [iii|document.querySelector('\##{fileInputId}').click()|]
+            , term "data-btn-title" control_panel_upload
+            ] do
+      span_ [ class_ "field " ] do
+        i_ [ class_ "bx bx-upload" ] mempty
+
+
+copyBtn :: Template (Html ())
+copyBtn = do
+  Phrase { control_panel_copy } <- phrase <$> asks @TemplateContext (.locale)
+  pure do
+    button_ [ class_ "btn btn-control"
+            , type_ "submit"
+            , term "hx-get" $ linkToText apiLinks.copy
+            , term "hx-target" "#control-panel"
+            , term "hx-swap" "outerHTML"
+            , term "data-btn-title" control_panel_copy
+            ] do
+      span_ [ class_ "field " ] do
+        i_ [ class_ "bx bxs-copy-alt" ] mempty
+
+
+pasteBtn :: Template (Html ())
+pasteBtn = do
+  Phrase { control_panel_paste } <- phrase <$> asks @TemplateContext (.locale)
+  pure do
+    button_ [ class_ "btn btn-control"
+            , type_ "submit"
+            , term "hx-post" $ linkToText apiLinks.paste
+            , term "hx-target" "#index"
+            , term "hx-swap" "outerHTML"
+            , term "data-btn-title" control_panel_paste
+            ] do
+      span_ [ class_ "field " ] do
+        i_ [ class_ "bx bxs-paste" ] mempty
+
+
+deleteBtn :: Template (Html ())
+deleteBtn = do
+  Phrase
+    { control_panel_delete
+    , confirm_delete_all
+    } <- phrase <$> asks @TemplateContext (.locale)
+  pure do
+    button_ [ class_ "btn btn-control urgent"
+            , type_ "submit"
+            , term "hx-delete" $ linkToText (apiLinks.deleteFile [] True)
+            , term "hx-target" "#index"
+            , term "hx-swap" "outerHTML"
+            , term "hx-confirm" confirm_delete_all
+            , term "data-btn-title" control_panel_delete
+            ] do
+      span_ [ class_ "field " ] do
+        i_ [ class_ "bx bxs-trash" ] mempty
+
+
+cancelBtn :: Template (Html ())
+cancelBtn = do
+  Phrase { control_panel_cancel } <- phrase <$> asks @TemplateContext (.locale)
+  pure do
+    button_ [ class_ "btn btn-control"
+            , type_ "submit"
+            , term "hx-post" $ linkToText apiLinks.cancel
+            , term "hx-target" "#index"
+            , term "hx-swap" "outerHTML"
+            , term "data-btn-title" control_panel_cancel
+            ] do
+      span_ [ class_ "field " ] do
+        i_ [ class_ "bx bxs-message-alt-x" ] mempty
+
+
+logoutBtn :: Template (Html ())
+logoutBtn = do
+  Phrase { confirm_logout } <- phrase <$> asks @TemplateContext (.locale)
+  pure do
+    button_ [ class_ "btn btn-control urgent "
+            , type_ "submit"
+            , term "hx-post" $ linkToText apiLinks.logout
+            , term "hx-target" "#index"
+            , term "hx-swap" "outerHTML"
+            , term "hx-confirm" confirm_logout
+            ] do
+      span_ [ class_ "field " ] do
+        i_ [ class_ "bx bx-power-off" ] mempty
+
+
+themeBtn :: Template (Html ())
+themeBtn = do
+  Phrase { control_panel_dark, control_panel_light } <- phrase <$> asks @TemplateContext (.locale)
+  theme <- asks @TemplateContext (.theme)
+  pure do
+    case theme of
+      Light -> do
         button_ [ class_ "btn btn-control"
                 , type_ "submit"
-                , term "hx-get" $ linkToText apiLinks.newFileModal
+                , term "hx-get" $ linkToText apiLinks.toggleTheme
                 , term "hx-target" "#index"
-                , term "hx-swap" "beforeend"
-                , term "data-btn-title" control_panel_new_file
+                , term "hx-swap" "outerHTML"
+                , term "data-btn-title" control_panel_dark
                 ] do
-          span_ [ class_ "field " ] do
-            i_ [ class_ "bx bxs-file-plus" ] mempty
-
-
-    uploadBtn :: Template (Html ())
-    uploadBtn = do
-      Phrase { control_panel_upload } <- phrase <$> asks @TemplateContext (.locale)
-      pure do
-        let fileInputId = "file-input"
-        input_ [ type_ "file"
-               , name_ "file"
-               , id_ fileInputId
-               , style_ "display:none"
-               , term "hx-encoding" "multipart/form-data"
-               , term "hx-post" $ linkToText apiLinks.upload
-               , term "hx-target" "#index"
-               , term "hx-swap" "outerHTML"
-               , term "hx-trigger" "change"
-               ]
-
-        button_ [ class_ "btn btn-control"
-                , onclick_ [iii|document.querySelector('\##{fileInputId}').click()|]
-                , term "data-btn-title" control_panel_upload
-                ] do
-          span_ [ class_ "field " ] do
-            i_ [ class_ "bx bx-upload" ] mempty
-
-
-    copyBtn :: Template (Html ())
-    copyBtn = do
-      Phrase { control_panel_copy } <- phrase <$> asks @TemplateContext (.locale)
-      pure do
+          i_ [ class_ "bx bxs-moon" ] mempty
+      Dark -> do
         button_ [ class_ "btn btn-control"
                 , type_ "submit"
-                , term "hx-get" $ linkToText apiLinks.copy
-                , term "hx-target" "#control-panel"
+                , term "hx-get" $ linkToText apiLinks.toggleTheme
+                , term "hx-target" "#index"
                 , term "hx-swap" "outerHTML"
-                , term "data-btn-title" control_panel_copy
+                , term "data-btn-title" control_panel_light
                 ] do
-          span_ [ class_ "field " ] do
-            i_ [ class_ "bx bxs-copy-alt" ] mempty
+          i_ [ class_ "bx bxs-sun" ] mempty
 
 
-    pasteBtn :: Template (Html ())
-    pasteBtn = do
-      Phrase { control_panel_paste } <- phrase <$> asks @TemplateContext (.locale)
-      pure do
+layoutBtn :: Template (Html ())
+layoutBtn =  do
+  layout <- asks @TemplateContext (.layout)
+  Phrase { control_panel_grid, control_panel_list } <- phrase <$> asks @TemplateContext (.locale)
+  pure do
+    case layout of
+      ListLayout -> do
         button_ [ class_ "btn btn-control"
                 , type_ "submit"
-                , term "hx-post" $ linkToText apiLinks.paste
+                , term "hx-get" $ linkToText (apiLinks.selectLayout (Just ThumbnailLayout))
                 , term "hx-target" "#index"
                 , term "hx-swap" "outerHTML"
-                , term "data-btn-title" control_panel_paste
+                , term "data-btn-title" control_panel_grid
                 ] do
-          span_ [ class_ "field " ] do
-            i_ [ class_ "bx bxs-paste" ] mempty
-
-
-    deleteBtn :: Template (Html ())
-    deleteBtn = do
-      Phrase
-        { control_panel_delete
-        , confirm_delete_all
-        } <- phrase <$> asks @TemplateContext (.locale)
-      pure do
-        button_ [ class_ "btn btn-control urgent"
-                , type_ "submit"
-                , term "hx-delete" $ linkToText (apiLinks.deleteFile [] True)
-                , term "hx-target" "#index"
-                , term "hx-swap" "outerHTML"
-                , term "hx-confirm" confirm_delete_all
-                , term "data-btn-title" control_panel_delete
-                ] do
-          span_ [ class_ "field " ] do
-            i_ [ class_ "bx bxs-trash" ] mempty
-
-
-    cancelBtn :: Template (Html ())
-    cancelBtn = do
-      Phrase { control_panel_cancel } <- phrase <$> asks @TemplateContext (.locale)
-      pure do
+          i_ [ class_ "bx bxs-grid-alt" ] mempty
+      ThumbnailLayout -> do
         button_ [ class_ "btn btn-control"
                 , type_ "submit"
-                , term "hx-post" $ linkToText apiLinks.cancel
+                , term "hx-get" $ linkToText (apiLinks.selectLayout (Just ListLayout))
                 , term "hx-target" "#index"
                 , term "hx-swap" "outerHTML"
-                , term "data-btn-title" control_panel_cancel
+                , term "data-btn-title" control_panel_list
                 ] do
-          span_ [ class_ "field " ] do
-            i_ [ class_ "bx bxs-message-alt-x" ] mempty
+          i_ [ class_ "bx bx-menu" ] mempty
 
 
-    logoutBtn :: Template (Html ())
-    logoutBtn = do
-      Phrase { confirm_logout } <- phrase <$> asks @TemplateContext (.locale)
-      pure do
-        button_ [ class_ "btn btn-control urgent "
-                , type_ "submit"
-                , term "hx-post" $ linkToText apiLinks.logout
-                , term "hx-target" "#index"
-                , term "hx-swap" "outerHTML"
-                , term "hx-confirm" confirm_logout
-                ] do
-          span_ [ class_ "field " ] do
-            i_ [ class_ "bx bx-power-off" ] mempty
-
-
-    themeBtn :: Template (Html ())
-    themeBtn = do
-      theme <- asks @TemplateContext (.theme)
-      pure do
-        case theme of
-          Light -> do
-            button_ [ class_ "btn btn-control"
-                    , type_ "submit"
-                    , term "hx-get" $ linkToText apiLinks.toggleTheme
-                    , term "hx-target" "#index"
-                    , term "hx-swap" "outerHTML"
-                    , term "data-btn-title" "Dark"
-                    ] do
-              i_ [ class_ "bx bxs-moon" ] mempty
-          Dark -> do
-            button_ [ class_ "btn btn-control"
-                    , type_ "submit"
-                    , term "hx-get" $ linkToText apiLinks.toggleTheme
-                    , term "hx-target" "#index"
-                    , term "hx-swap" "outerHTML"
-                    , term "data-btn-title" "Light"
-                    ] do
-              i_ [ class_ "bx bxs-sun" ] mempty
-
-
-    layoutBtn :: Template (Html ())
-    layoutBtn =  do
-      layout <- asks @TemplateContext (.layout)
-      Phrase { control_panel_gird, control_panel_list } <- phrase <$> asks @TemplateContext (.locale)
-      pure do
-        case layout of
-          ListLayout -> do
-            button_ [ class_ "btn btn-control"
-                    , type_ "submit"
-                    , term "hx-get" $ linkToText (apiLinks.selectLayout (Just ThumbnailLayout))
-                    , term "hx-target" "#index"
-                    , term "hx-swap" "outerHTML"
-                    , term "data-btn-title" control_panel_gird
-                    ] do
-              i_ [ class_ "bx bxs-grid-alt" ] mempty
-          ThumbnailLayout -> do
-            button_ [ class_ "btn btn-control"
-                    , type_ "submit"
-                    , term "hx-get" $ linkToText (apiLinks.selectLayout (Just ListLayout))
-                    , term "hx-target" "#index"
-                    , term "hx-swap" "outerHTML"
-                    , term "data-btn-title" control_panel_list
-                    ] do
-              i_ [ class_ "bx bx-menu" ] mempty
+localeBtn :: Html ()
+localeBtn =
+  div_ [ id_ "locale" ] do
+    button_ [ class_ "btn btn-control "
+            ] do
+      span_ [ class_ "field " ] do
+        i_ [ class_ "bx bx-world" ] mempty
+    div_ [ class_ "dropdown-content " ] do
+      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just EN)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "English"
+      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ZH_CN)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "简体中文"
+      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ZH_TW)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "繁體中文"
+      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ZH_HK)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "繁體中文"
+      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just JA)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "日本語"
+      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ES)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "Español"
+      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just FR)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "Français"
+      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just DE)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "Deutsch"
+      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just KO)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "한국어"
+      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just RU)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "Русский"
+      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just PT)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "Português"
+      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just IT)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "Italiano"
 
 
 ------------------------------------

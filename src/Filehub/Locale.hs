@@ -68,7 +68,9 @@ data Phrase = Phrase
   , contextmenu_cancel       :: Text
   , search_as_you_type       :: Text
   , control_panel_list       :: Text
-  , control_panel_gird       :: Text
+  , control_panel_grid       :: Text
+  , control_panel_light      :: Text
+  , control_panel_dark       :: Text
   , control_panel_new_folder :: Text
   , control_panel_new_file   :: Text
   , control_panel_upload     :: Text
@@ -191,7 +193,9 @@ phraseCodec =
   <*> Toml.text "CONTEXTMENU_CANCEL"       .= (.contextmenu_cancel)
   <*> Toml.text "SEARCH_AS_YOU_TYPE"       .= (.search_as_you_type)
   <*> Toml.text "CONTROL_PANEL_LIST"       .= (.control_panel_list)
-  <*> Toml.text "CONTROL_PANEL_GIRD"       .= (.control_panel_gird)
+  <*> Toml.text "CONTROL_PANEL_GIRD"       .= (.control_panel_grid)
+  <*> Toml.text "CONTROL_PANEL_LIGHT"      .= (.control_panel_light)
+  <*> Toml.text "CONTROL_PANEL_DARK"       .= (.control_panel_dark)
   <*> Toml.text "CONTROL_PANEL_NEW_FOLDER" .= (.control_panel_new_folder)
   <*> Toml.text "CONTROL_PANEL_NEW_FILE"   .= (.control_panel_new_file)
   <*> Toml.text "CONTROL_PANEL_UPLOAD"     .= (.control_panel_upload)
