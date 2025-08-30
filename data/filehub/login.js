@@ -12,16 +12,6 @@ function reloadTheme() {
     newLink.href = '/theme.css?v=' + Date.now(); // cache-busting
     newLink.onload = () => {
         oldLink.remove(); // remove old stylesheet after new one loads
-        removeClass();
     };
     oldLink.parentNode.insertBefore(newLink, oldLink.nextSibling);
-}
-/* Remove all class on #login */
-function removeClass() {
-    const el = document.querySelector("#login");
-    if (el) {
-        el.addEventListener("animationend", () => {
-            el.classList = "";
-        });
-    }
 }

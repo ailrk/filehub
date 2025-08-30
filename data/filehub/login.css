@@ -46,6 +46,7 @@ html, body {
   color: var(--frontground);
   padding: 4px;
   margin-bottom: 15px;
+  user-select: none;
 }
 
 

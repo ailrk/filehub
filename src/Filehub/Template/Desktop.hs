@@ -92,13 +92,15 @@ toolBar = do
       searchBar'
 
 
-sideBar :: [(Target, Int)] -> TargetView -> Html ()
+sideBar :: [(Target, Int)] -> TargetView -> Template (Html ())
 sideBar targets (TargetView currentTarget _ _) = do
-  div_ [ id_ sideBarId ] do
-    traverse_ targetTab targets
+  p <- phrase <$> asks @TemplateContext (.locale)
+  pure do
+    div_ [ id_ sideBarId ] do
+      traverse_ (targetTab p) targets
   where
-    targetTab :: (Target, Int) -> Html ()
-    targetTab (target, selectedCount) = do
+    targetTab :: Phrase -> (Target, Int) -> Html ()
+    targetTab Phrase { target_filesystem, target_s3 } (target, selectedCount) = do
       div_ [ class_ "target-tab"
            , term "hx-get" $ linkToText (apiLinks.changeTarget (Just (Target.getTargetId target)))
            , term "hx-target" "#index"
@@ -126,9 +128,9 @@ sideBar targets (TargetView currentTarget _ _) = do
         tooltipInfo =
           fromMaybe [] $ handleTarget target
             [ targetHandler @S3 $ \(S3Backend { bucket }) ->
-                [ term "data-target-info" [iii| [S3] #{bucket} |] ]
+                [ term "data-target-info" [iii| [#{target_s3}] #{bucket} |] ]
             , targetHandler @FileSys $ \(FileBackend { root }) ->
-                [ term "data-target-info" [iii| [FileSystem] #{takeFileName root} |] ]
+                [ term "data-target-info" [iii| [#{target_filesystem}] #{takeFileName root} |] ]
             ]
 
 

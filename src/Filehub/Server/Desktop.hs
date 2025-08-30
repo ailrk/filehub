@@ -72,6 +72,7 @@ index sessionId = do
 
 sideBar :: SessionId -> Filehub (Html ())
 sideBar sessionId = do
+  ctx <- makeTemplateContext sessionId
   targets <- asks @Env (.targets)
   targets' <- forM targets $ \(Target backend) -> withServerError do
     let targetId = getTargetIdFromBackend backend
@@ -80,7 +81,7 @@ sideBar sessionId = do
         Selected _ sels -> pure (target, length sels + 1)
         NoSelection -> pure (target, 0)
   currentTargetView <- Target.currentTarget sessionId & withServerError
-  pure $ Template.Desktop.sideBar targets' currentTargetView
+  pure $ runTemplate ctx $ Template.Desktop.sideBar targets' currentTargetView
 
 
 view :: SessionId -> Filehub (Html ())
