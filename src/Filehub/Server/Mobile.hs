@@ -46,8 +46,8 @@ sideBar sessionId = withServerError $
 
 toolBar :: SessionId -> Filehub (Html ())
 toolBar sessionId = do
-  ctx@TemplateContext { sortedBy = order } <- makeTemplateContext sessionId
-  pure $ runTemplate ctx $ Template.Mobile.toolBar (Template.Mobile.sortTool order )
+  ctx <- makeTemplateContext sessionId
+  pure $ runTemplate ctx $ Template.Mobile.toolBar
 
 
 editorModal :: SessionId -> Maybe ClientPath -> Filehub (Html ())

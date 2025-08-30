@@ -78,6 +78,9 @@ data Phrase = Phrase
   , control_panel_paste      :: Text
   , control_panel_delete     :: Text
   , control_panel_cancel     :: Text
+  , control_panel_logout     :: Text
+  , control_panel_scroll2top :: Text
+  , control_panel_language   :: Text
   , sort_name                :: Text
   , sort_modified            :: Text
   , sort_size                :: Text
@@ -203,6 +206,9 @@ phraseCodec =
   <*> Toml.text "CONTROL_PANEL_PASTE"      .= (.control_panel_paste)
   <*> Toml.text "CONTROL_PANEL_DELETE"     .= (.control_panel_delete)
   <*> Toml.text "CONTROL_PANEL_CANCEL"     .= (.control_panel_cancel)
+  <*> Toml.text "CONTROL_PANEL_LOGOUT"     .= (.control_panel_logout)
+  <*> Toml.text "CONTROL_PANEL_SCROLL2TOP" .= (.control_panel_scroll2top)
+  <*> Toml.text "CONTROL_PANEL_LANGUAGE"   .= (.control_panel_language)
   <*> Toml.text "SORT_NAME"                .= (.sort_name)
   <*> Toml.text "SORT_MODIFIED"            .= (.sort_modified)
   <*> Toml.text "SORT_SIZE"                .= (.sort_size)

@@ -36,6 +36,7 @@ import Filehub.Target.Types (targetHandler)
 import Filehub.Theme (Theme(..))
 import Effectful.Reader.Dynamic (asks)
 import Control.Monad (join)
+import Filehub.Locale (Phrase(..), phrase)
 
 
 index :: Html ()
@@ -112,8 +113,9 @@ sidebarBtn =
     i_ [ class_ "bx bx-menu" ] mempty
 
 
-toolBar :: Html () -> Template (Html ())
-toolBar sortTool' = do
+toolBar :: Template (Html ())
+toolBar = do
+  sortTool' <- sortTool
   pathBreadcrumb' <- Template.pathBreadcrumb
   searchBar' <- searchBar
   pure do
@@ -126,54 +128,57 @@ toolBar sortTool' = do
         sortTool'
 
 
-sortTool :: SortFileBy -> Html ()
-sortTool order = do
-  div_ [ id_ sortControlId ] do
-    span_ [ class_ "field " ] do
-      "Name"
-      sortIconName
-      `with` sortControlName
-    span_ [ class_ "field " ] do
-      "Time"
-      sortIconMTime
-      `with` sortControlMTime
-    span_ [ class_ "field " ] do
-      "Size"
-      sortIconSize
-      `with` sortControlSize
+sortTool :: Template (Html ())
+sortTool = do
+  order <- asks @TemplateContext (.sortedBy)
+  Phrase
+    { detail_filename
+    , detail_modified
+    , detail_size
+    } <- phrase <$> asks @TemplateContext (.locale)
+
+
+  pure do
+    div_ [ id_ sortControlId ] do
+      span_ [ class_ "field " ] do
+        (toHtml detail_filename)
+        sortIconName order
+        `with` sortControlName order
+      span_ [ class_ "field " ] do
+        (toHtml detail_modified)
+        sortIconMTime order
+        `with` sortControlMTime order
+      span_ [ class_ "field " ] do
+        (toHtml detail_size)
+        sortIconSize order
+        `with` sortControlSize order
   where
     sortControl o =
       [ term "hx-get" $ linkToText (apiLinks.sortTable (Just o))
       , term "hx-swap" "outerHTML"
       , term "hx-target" "#view"
       ]
-    sortControlName =
-      case order of
+    sortControlName = \case
         ByNameUp -> sortControl ByNameDown
         ByNameDown -> sortControl ByNameUp
         _ -> sortControl ByNameUp
-    sortControlMTime =
-      case order of
+    sortControlMTime = \case
         ByModifiedUp -> sortControl ByModifiedDown
         ByModifiedDown -> sortControl ByModifiedUp
         _ -> sortControl ByModifiedUp
-    sortControlSize =
-      case order of
+    sortControlSize = \case
         BySizeUp -> sortControl BySizeDown
         BySizeDown -> sortControl BySizeUp
         _ -> sortControl BySizeUp
-    sortIconName =
-      case order of
+    sortIconName = \case
         ByNameUp -> i_ [ class_ "bx bxs-up-arrow"] mempty
         ByNameDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
         _ -> i_ [ class_ "bx bx-sort"] mempty
-    sortIconMTime =
-      case order of
+    sortIconMTime = \case
         ByModifiedUp -> i_ [ class_ "bx bxs-up-arrow"] mempty
         ByModifiedDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
         _ -> i_ [ class_ "bx bx-sort"] mempty
-    sortIconSize =
-      case order of
+    sortIconSize = \case
         BySizeUp -> i_ [ class_ "bx bxs-up-arrow"] mempty
         BySizeDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
         _ -> i_ [ class_ "bx bx-sort"] mempty
@@ -247,160 +252,181 @@ fileNameElement target file = do
 controlPanel :: Template (Html ())
 controlPanel = join do
   Template.controlPanel
-    <$> pure localeBtn
-    <*> pure newFolderBtn
-    <*> pure newFileBtn
-    <*> pure uploadBtn
-    <*> pure copyBtn
-    <*> pure pasteBtn
-    <*> pure deleteBtn
-    <*> pure cancelBtn
+    <$> localeBtn
+    <*> newFolderBtn
+    <*> newFileBtn
+    <*> uploadBtn
+    <*> copyBtn
+    <*> pasteBtn
+    <*> deleteBtn
+    <*> cancelBtn
     <*> themeBtn
-    <*> pure logoutBtn
+    <*> logoutBtn
     <*> pure Nothing
-    <*> pure (Just scroll2TopBtn)
+    <*> (Just <$> scroll2TopBtn)
   where
-    localeBtn :: Html ()
+    localeBtn :: Template (Html ())
     localeBtn = do
-      button_ [ class_ "action-btn"
-              ] do
-        span_ [ class_ "field " ] do
-          i_ [ class_ "bx bx-world" ] mempty
-          span_ "Language"
+      Phrase { control_panel_language } <- phrase <$> asks @TemplateContext (.locale)
+      pure do
+        button_ [ class_ "action-btn"
+                ] do
+          span_ [ class_ "field " ] do
+            i_ [ class_ "bx bx-world" ] mempty
+            span_ (toHtml control_panel_language)
 
 
-    newFolderBtn :: Html ()
-    newFolderBtn =
-      button_ [ class_ "action-btn"
-              , term "_"
-                  [iii|
-                    on click
-                      set name to prompt('New folder')
-                      if name is not null
-                      then call
-                        htmx.ajax('POST',
-                                  '/folders/new',
-                                  { target: '\##{viewId}',
-                                    values: {'new-folder': name},
-                                    swap: 'outerHTML'
-                                  })
-                    |]
-              ] do
-        span_ [ class_ "field " ] do
-          i_ [ class_ "bx bx-folder-plus" ] mempty
-          span_ "New Folder"
+    newFolderBtn :: Template (Html ())
+    newFolderBtn = do
+      Phrase { control_panel_new_folder } <- phrase <$> asks @TemplateContext (.locale)
+      pure do
+        button_ [ class_ "action-btn"
+                , term "_"
+                    [iii|
+                      on click
+                        set name to prompt('New folder')
+                        if name is not null
+                        then call
+                          htmx.ajax('POST',
+                                    '/folders/new',
+                                    { target: '\##{viewId}',
+                                      values: {'new-folder': name},
+                                      swap: 'outerHTML'
+                                    })
+                      |]
+                ] do
+          span_ [ class_ "field " ] do
+            i_ [ class_ "bx bx-folder-plus" ] mempty
+            span_ (toHtml control_panel_new_folder)
 
 
-    newFileBtn :: Html ()
-    newFileBtn  =
-      button_ [ class_ "action-btn"
-              , term "_"
-                  [iii|
-                    on click
-                      set name to prompt('New file')
-                      if name is not null
-                      then call
-                        htmx.ajax('POST',
-                                  '/files/new',
-                                  { target: '\##{viewId}',
-                                    values: {'new-file': name},
-                                    swap: 'outerHTML'
-                                  })
-                    |]
-              ] do
-        span_ [ class_ "field " ] do
-          i_ [ class_ "bx bxs-file-plus" ] mempty
-          span_ "New File"
+    newFileBtn :: Template (Html ())
+    newFileBtn  = do
+      Phrase { control_panel_new_file } <- phrase <$> asks @TemplateContext (.locale)
+      pure do
+        button_ [ class_ "action-btn"
+                , term "_"
+                    [iii|
+                      on click
+                        set name to prompt('New file')
+                        if name is not null
+                        then call
+                          htmx.ajax('POST',
+                                    '/files/new',
+                                    { target: '\##{viewId}',
+                                      values: {'new-file': name},
+                                      swap: 'outerHTML'
+                                    })
+                      |]
+                ] do
+          span_ [ class_ "field " ] do
+            i_ [ class_ "bx bxs-file-plus" ] mempty
+            span_ (toHtml control_panel_new_file)
 
 
-    uploadBtn :: Html ()
+    uploadBtn :: Template (Html ())
     uploadBtn = do
+      Phrase { control_panel_upload } <- phrase <$> asks @TemplateContext (.locale)
       let fileInputId = "file-input"
-      input_ [ type_ "file"
-             , name_ "file"
-             , id_ fileInputId
-             , style_ "display:none"
-             , term "hx-encoding" "multipart/form-data"
-             , term "hx-post" $ linkToText apiLinks.upload
-             , term "hx-target" "#index"
-             , term "hx-swap" "outerHTML"
-             , term "hx-trigger" "change"
-             ]
+      pure do
+        input_ [ type_ "file"
+               , name_ "file"
+               , id_ fileInputId
+               , style_ "display:none"
+               , term "hx-encoding" "multipart/form-data"
+               , term "hx-post" $ linkToText apiLinks.upload
+               , term "hx-target" "#index"
+               , term "hx-swap" "outerHTML"
+               , term "hx-trigger" "change"
+               ]
 
-      button_ [ class_ "action-btn"
-              , onclick_ [iii|document.querySelector('\##{fileInputId}').click()|]
-              ] do
-        span_ [ class_ "field " ] do
-          i_ [ class_ "bx bx-upload" ] mempty
-          span_ "Upload"
+        button_ [ class_ "action-btn"
+                , onclick_ [iii|document.querySelector('\##{fileInputId}').click()|]
+                ] do
+          span_ [ class_ "field " ] do
+            i_ [ class_ "bx bx-upload" ] mempty
+            span_ (toHtml control_panel_upload)
 
 
-    copyBtn :: Html ()
+    copyBtn :: Template (Html ())
     copyBtn = do
-      button_ [ class_ "action-btn"
-              , term "hx-get" $ linkToText apiLinks.copy
-              , term "hx-target" "#control-panel"
-              , term "hx-swap" "outerHTML"
-              ] do
-        span_ [ class_ "field " ] do
-          i_ [ class_ "bx bxs-copy-alt" ] mempty
-          span_ "Copy"
+      Phrase { control_panel_copy } <- phrase <$> asks @TemplateContext (.locale)
+      pure do
+        button_ [ class_ "action-btn"
+                , term "hx-get" $ linkToText apiLinks.copy
+                , term "hx-target" "#control-panel"
+                , term "hx-swap" "outerHTML"
+                ] do
+          span_ [ class_ "field " ] do
+            i_ [ class_ "bx bxs-copy-alt" ] mempty
+            span_ (toHtml control_panel_copy)
 
 
-    pasteBtn :: Html ()
+    pasteBtn :: Template (Html ())
     pasteBtn = do
-      button_ [ class_ "action-btn"
-              , term "hx-post" $ linkToText apiLinks.paste
-              , term "hx-target" "#index"
-              , term "hx-swap" "outerHTML"
-              ] do
-        span_ [ class_ "field " ] do
-          i_ [ class_ "bx bxs-paste" ] mempty
-          span_ "Paste"
+      Phrase { control_panel_paste } <- phrase <$> asks @TemplateContext (.locale)
+      pure do
+        button_ [ class_ "action-btn"
+                , term "hx-post" $ linkToText apiLinks.paste
+                , term "hx-target" "#index"
+                , term "hx-swap" "outerHTML"
+                ] do
+          span_ [ class_ "field " ] do
+            i_ [ class_ "bx bxs-paste" ] mempty
+            span_ (toHtml control_panel_paste)
 
 
-    deleteBtn :: Html ()
+    deleteBtn :: Template (Html ())
     deleteBtn = do
-      button_ [ class_ "action-btn urgent "
-              , term "hx-delete" $ linkToText (apiLinks.deleteFile [] True)
-              , term "hx-target" "#index"
-              , term "hx-swap" "outerHTML"
-              , term "hx-confirm" ("Are you sure about deleting selected files?")
-              ] do
-        span_ [ class_ "field " ] do
-          i_ [ class_ "bx bxs-trash" ] mempty
-          span_ "Delete"
+      Phrase { control_panel_delete } <- phrase <$> asks @TemplateContext (.locale)
+      pure do
+        button_ [ class_ "action-btn urgent "
+                , term "hx-delete" $ linkToText (apiLinks.deleteFile [] True)
+                , term "hx-target" "#index"
+                , term "hx-swap" "outerHTML"
+                , term "hx-confirm" ("Are you sure about deleting selected files?")
+                ] do
+          span_ [ class_ "field " ] do
+            i_ [ class_ "bx bxs-trash" ] mempty
+            span_ (toHtml control_panel_delete)
 
 
-    cancelBtn :: Html ()
+    cancelBtn :: Template (Html ())
     cancelBtn = do
-      button_ [ class_ "action-btn"
-              , term "hx-post" $ linkToText apiLinks.cancel
-              , term "hx-target" "#index"
-              , term "hx-swap" "outerHTML"
-              ] do
-        span_ [ class_ "field " ] do
-          i_ [ class_ "bx bxs-message-alt-x" ] mempty
-          span_ "Cancel"
+      Phrase { control_panel_cancel } <- phrase <$> asks @TemplateContext (.locale)
+      pure do
+        button_ [ class_ "action-btn"
+                , term "hx-post" $ linkToText apiLinks.cancel
+                , term "hx-target" "#index"
+                , term "hx-swap" "outerHTML"
+                ] do
+          span_ [ class_ "field " ] do
+            i_ [ class_ "bx bxs-message-alt-x" ] mempty
+            span_ (toHtml control_panel_cancel)
 
 
-    logoutBtn :: Html ()
+    logoutBtn :: Template (Html ())
     logoutBtn = do
-      button_ [ class_ "action-btn urgent "
-              , type_ "submit"
-              , term "hx-post" $ linkToText apiLinks.logout
-              , term "hx-target" "#index"
-              , term "hx-swap" "outerHTML"
-              , term "hx-confirm" "Logout?"
-              ] do
-        span_ [ class_ "field " ] do
-          i_ [ class_ "bx bx-power-off" ] mempty
-          span_ "Logout"
+      Phrase { control_panel_logout } <- phrase <$> asks @TemplateContext (.locale)
+      pure do
+        button_ [ class_ "action-btn urgent "
+                , type_ "submit"
+                , term "hx-post" $ linkToText apiLinks.logout
+                , term "hx-target" "#index"
+                , term "hx-swap" "outerHTML"
+                , term "hx-confirm" "Logout?"
+                ] do
+          span_ [ class_ "field " ] do
+            i_ [ class_ "bx bx-power-off" ] mempty
+            span_ (toHtml control_panel_logout)
 
 
     themeBtn :: Template (Html ())
     themeBtn = do
       theme <- asks @TemplateContext (.theme)
+      Phrase
+        { control_panel_light
+        , control_panel_dark } <- phrase <$> asks @TemplateContext (.locale)
       pure do
         case theme of
           Light -> do
@@ -411,7 +437,7 @@ controlPanel = join do
                     , term "hx-swap" "outerHTML"
                     ] do
               i_ [ class_ "bx bxs-moon" ] mempty
-              span_ "Switch to dark mode"
+              span_ (toHtml control_panel_dark )
           Dark -> do
             button_ [ class_ "action-btn"
                     , type_ "submit"
@@ -420,17 +446,19 @@ controlPanel = join do
                     , term "hx-swap" "outerHTML"
                     ] do
               i_ [ class_ "bx bxs-sun" ] mempty
-              span_ "Switch to light mode"
+              span_ (toHtml control_panel_light )
 
 
-    scroll2TopBtn :: Html ()
+    scroll2TopBtn :: Template (Html ())
     scroll2TopBtn = do
-      button_ [ class_ "action-btn"
-              , term "_" "on click call window.scroll(0, 0)"
-              ] do
-        span_ [ class_ "field " ] do
-          i_ [ class_ "bx bx-vertical-top" ] mempty
-          span_ "Back to top"
+      Phrase { control_panel_scroll2top } <- phrase <$> asks @TemplateContext (.locale)
+      pure do
+        button_ [ class_ "action-btn"
+                , term "_" "on click call window.scroll(0, 0)"
+                ] do
+          span_ [ class_ "field " ] do
+            i_ [ class_ "bx bx-vertical-top" ] mempty
+            span_ (toHtml control_panel_scroll2top)
 
 
 selectedCounter :: Int -> Html ()

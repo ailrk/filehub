@@ -108,6 +108,7 @@ data Api mode = Api
                           :> AuthProtect "session"
                           :> Get '[HTML] (Headers '[ Header "HX-Trigger-After-Settle" FilehubEvent ] (Html ()))
 
+
   , loginChangeLocale     :: mode
                           :- "login" :> "locale" :> "change"
                           :> AuthProtect "session"
