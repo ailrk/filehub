@@ -6,7 +6,6 @@ import Filehub.Session.Types (TargetSessionData)
 import GHC.Generics (Generic)
 
 
-
 data TargetView = TargetView
   { target      :: Target
   , sessionData :: TargetSessionData

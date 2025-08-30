@@ -11,6 +11,8 @@ import Filehub.Selected.Types (Selected)
 import Filehub.Sort (SortFileBy)
 import Filehub.Session (TargetView)
 import Filehub.Locale (Locale)
+import Filehub.Auth.Simple (SimpleAuthUserDB)
+import Filehub.Auth.OIDC (OIDCAuthProviders)
 
 
 -- | A Template context type that capture all useful information to render
@@ -22,18 +24,20 @@ import Filehub.Locale (Locale)
 --   every field even when we don't need them. Being lazy means we pay exactly what we
 --   need, which is pretty good.
 data TemplateContext = TemplateContext
-  { readOnly      :: ~Bool
-  , noLogin       :: ~Bool
-  , display       :: ~Display
-  , layout        :: ~Layout
-  , theme         :: ~Theme
-  , selected      :: ~Selected
-  , sortedBy      :: ~SortFileBy
-  , locale        :: ~Locale
-  , state         :: ~ControlPanelState
-  , currentDir    :: ~FilePath
-  , currentTarget :: ~TargetView
-  , root          :: ~FilePath
+  { readOnly             :: ~Bool
+  , noLogin              :: ~Bool
+  , display              :: ~Display
+  , layout               :: ~Layout
+  , theme                :: ~Theme
+  , selected             :: ~Selected
+  , sortedBy             :: ~SortFileBy
+  , locale               :: ~Locale
+  , state                :: ~ControlPanelState
+  , currentDir           :: ~FilePath
+  , currentTarget        :: ~TargetView
+  , root                 :: ~FilePath
+  , simpleAuthUserDB :: ~SimpleAuthUserDB
+  , oidcAuthProviders    :: ~OIDCAuthProviders
   }
 
 

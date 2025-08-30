@@ -67,7 +67,7 @@ import Filehub.Template qualified as Template
 import Filehub.Template.Login qualified as Template.Login
 import Filehub.Template.Desktop qualified as Template.Desktop
 import Filehub.Template.Mobile qualified as Template.Mobile
-import Filehub.Template.Internal (runTemplate)
+import Filehub.Template.Internal (runTemplate, TemplateContext(..))
 import Filehub.ClientPath qualified as ClientPath
 import Filehub.Selected qualified as Selected
 import Filehub.Log qualified as Log
@@ -266,8 +266,8 @@ refresh sessionId _ mUIComponent = do
 -- | Return the login page
 loginPage :: SessionId -> Maybe Text -> Filehub (Html ())
 loginPage sessionId cookie = do
-  noLogin <- Env.hasNoLogin <$> ask @Env
-  simpleAuthLoginUsers <- asks @Env (.simpleAuthUserDB)
+  ctx@TemplateContext { noLogin } <- makeTemplateContext sessionId
+  simpleAuthUserDB <- asks @Env (.simpleAuthUserDB)
   oidcAuthProviders <- asks @Env (.oidcAuthProviders)
   if noLogin
      then go
@@ -277,8 +277,8 @@ loginPage sessionId cookie = do
            authId <- Session.getAuthId sessionId & withServerError
            if authId == Just authId'
               then go
-              else pure $ Template.Login.login simpleAuthLoginUsers oidcAuthProviders
-         Nothing -> pure $ Template.Login.login simpleAuthLoginUsers oidcAuthProviders
+              else pure $ runTemplate ctx $ Template.Login.login simpleAuthUserDB oidcAuthProviders
+         Nothing -> pure $ runTemplate ctx $ Template.Login.login simpleAuthUserDB oidcAuthProviders
   where
     go = throwError (err301 { errHeaders = [(hLocation, "/")] })
 
@@ -289,7 +289,7 @@ loginAuthSimple :: SessionId -> LoginForm
                                      , Header "HX-Redirect" Text
                                      ] (Html ()))
 loginAuthSimple sessionId (LoginForm username password) =  do
-  db <- asks @Env (.simpleAuthUserDB)
+  ctx@TemplateContext { simpleAuthUserDB = db } <- makeTemplateContext sessionId
   if Auth.Simple.validate (Auth.Simple.Username username) (Text.encodeUtf8 password) db then do
     Auth.createAuthId >>= Session.setAuthId sessionId . Just
     session <- Session.getSession sessionId & withServerError
@@ -297,8 +297,8 @@ loginAuthSimple sessionId (LoginForm username password) =  do
       Just setCookie -> do
         logInfo_ [i|User #{username} logged in|]
         addHeader setCookie . addHeader "/" <$> pure mempty
-      Nothing -> do noHeader . noHeader <$> pure Template.Login.loginFailed
-  else do noHeader . noHeader <$> pure Template.Login.loginFailed
+      Nothing -> do noHeader . noHeader <$> (pure $ runTemplate ctx $ Template.Login.loginFailed)
+  else do noHeader . noHeader <$> (pure $ runTemplate ctx $ Template.Login.loginFailed)
 
 
 loginAuthOIDCRedirect sessionId = undefined

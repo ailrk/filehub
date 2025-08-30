@@ -115,11 +115,12 @@ sidebarBtn =
 toolBar :: Html () -> Template (Html ())
 toolBar sortTool' = do
   pathBreadcrumb' <- Template.pathBreadcrumb
+  searchBar' <- searchBar
   pure do
     div_ [ id_ toolBarId ] do
       div_ do
         sidebarBtn
-        searchBar
+        searchBar'
       div_ do
         pathBreadcrumb'
         sortTool'

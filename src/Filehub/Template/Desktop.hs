@@ -83,10 +83,11 @@ view table' = do
 toolBar :: Template (Html ())
 toolBar = do
   pathBreadcrumb' <- Template.pathBreadcrumb
+  searchBar' <- searchBar
   pure do
     div_ [ id_ "tool-bar" ] do
       pathBreadcrumb'
-      searchBar
+      searchBar'
 
 
 sideBar :: [(Target, Int)] -> TargetView -> Html ()
@@ -141,7 +142,7 @@ controlPanel = join do
     <*> deleteBtn
     <*> cancelBtn
     <*> themeBtn
-    <*> pure logoutBtn
+    <*> logoutBtn
     <*> (Just <$> layoutBtn)
     <*> pure Nothing
   where
@@ -253,14 +254,17 @@ controlPanel = join do
 
     deleteBtn :: Template (Html ())
     deleteBtn = do
-      Phrase { control_panel_delete } <- phrase <$> asks @TemplateContext (.locale)
+      Phrase
+        { control_panel_delete
+        , confirm_delete_all
+        } <- phrase <$> asks @TemplateContext (.locale)
       pure do
         button_ [ class_ "btn btn-control urgent"
                 , type_ "submit"
                 , term "hx-delete" $ linkToText (apiLinks.deleteFile [] True)
                 , term "hx-target" "#index"
                 , term "hx-swap" "outerHTML"
-                , term "hx-confirm" "Are you sure about deleting selected files?\n\n (All selected files will be deleted)"
+                , term "hx-confirm" confirm_delete_all
                 , term "data-btn-title" control_panel_delete
                 ] do
           span_ [ class_ "field " ] do
@@ -282,17 +286,19 @@ controlPanel = join do
             i_ [ class_ "bx bxs-message-alt-x" ] mempty
 
 
-    logoutBtn :: Html ()
+    logoutBtn :: Template (Html ())
     logoutBtn = do
-      button_ [ class_ "btn btn-control urgent "
-              , type_ "submit"
-              , term "hx-post" $ linkToText apiLinks.logout
-              , term "hx-target" "#index"
-              , term "hx-swap" "outerHTML"
-              , term "hx-confirm" "Logout?"
-              ] do
-        span_ [ class_ "field " ] do
-          i_ [ class_ "bx bx-power-off" ] mempty
+      Phrase { confirm_logout } <- phrase <$> asks @TemplateContext (.locale)
+      pure do
+        button_ [ class_ "btn btn-control urgent "
+                , type_ "submit"
+                , term "hx-post" $ linkToText apiLinks.logout
+                , term "hx-target" "#index"
+                , term "hx-swap" "outerHTML"
+                , term "hx-confirm" confirm_logout
+                ] do
+          span_ [ class_ "field " ] do
+            i_ [ class_ "bx bx-power-off" ] mempty
 
 
     themeBtn :: Template (Html ())
@@ -353,11 +359,15 @@ controlPanel = join do
 
 newFileModal :: Template (Html ())
 newFileModal = do
-  Phrase { } <- phrase <$> asks @TemplateContext (.locale)
+  Phrase
+    { modal_file
+    , modal_create
+    , placeholder_newfile
+    } <- phrase <$> asks @TemplateContext (.locale)
   pure do
     modal [ id_ newFileModalId ] do
       span_ [ class_ "modal-title-bar " ] do
-        bold "Folder"
+        bold (toHtml modal_file)
         div_ [ class_ "title-bar-btn btn-modal-close "
              , term "_" "on click trigger Close"
              ] do
@@ -371,21 +381,25 @@ newFileModal = do
           input_ [ class_ "form-control "
                  , type_ "text"
                  , name_ "new-file"
-                 , placeholder_ "New file name"
+                 , placeholder_ placeholder_newfile
                  ]
           button_ [ class_ "btn btn-modal-confirm "
                   , type_ "submit"
                   , term "_" "on click trigger Close"
-                  ] "CREATE"
+                  ] (toHtml modal_create)
 
 
 newFolderModal :: Template (Html ())
 newFolderModal = do
-  Phrase { } <- phrase <$> asks @TemplateContext (.locale)
+  Phrase
+    { modal_create
+    , modal_folder
+    , placeholder_newfoler
+    } <- phrase <$> asks @TemplateContext (.locale)
   pure do
     modal [ id_ newFolderModalId ] do
       span_ [ class_ "modal-title-bar " ] do
-        bold "Folder"
+        bold (toHtml modal_folder)
         div_ [ class_ "title-bar-btn btn-modal-close "
              , term "_" "on click trigger Close"
              ] do
@@ -399,50 +413,67 @@ newFolderModal = do
           input_ [ class_ "form-control "
                  , type_ "text"
                  , name_ "new-folder"
-                 , placeholder_ "New folder name"
+                 , placeholder_ placeholder_newfoler
                  ]
           button_ [ class_ "btn btn-modal-confirm "
                   , type_ "submit"
                   , term "_" "on click trigger Close"
-                  ] "CREATE"
+                  ] (toHtml modal_create)
 
 
 fileDetailModal :: File -> Template (Html ())
 fileDetailModal file = do
+  Phrase
+    { modal_detail
+    , detail_filename
+    , detail_modified
+    , detail_accessed
+    , detail_size
+    , detail_content_type
+    } <- phrase <$> asks @TemplateContext (.locale)
+
   pure do
     modal [ id_ fileDetailModalId ] do
-      bold "Detail"
+      bold (toHtml modal_detail)
       br_ mempty
       table_ do
         tbody_ do
           tr_ do
-            td_ "Filename"
+            td_ (toHtml detail_filename)
             td_ (toHtml $ takeFileName file.path)
           tr_ do
-            td_ "Modified"
+            td_ (toHtml detail_modified)
             td_ (toHtml $ maybe mempty (formatTime defaultTimeLocale "%F %R") file.mtime)
           tr_ do
-            td_ "Accessed"
+            td_ (toHtml detail_accessed)
             td_ (toHtml $ maybe mempty (formatTime defaultTimeLocale "%F %R") file.atime)
           tr_ do
-            td_ "Size"
+            td_ (toHtml detail_size)
             td_ (toHtml . toReadableSize $ fromMaybe 0 file.size)
           tr_ do
-            td_ "Content Type"
+            td_ (toHtml detail_content_type)
             td_ (toHtml file.mimetype)
 
 
 editorModal :: FilePath -> ByteString -> Template (Html ())
 editorModal filename content = do
   readOnly <- asks @TemplateContext (.readOnly)
+  Phrase
+    { modal_edit
+    , modal_readonly
+    , placeholder_empty_file
+    , placeholder_filename
+    , confirm_save_edit
+    } <- phrase <$> asks @TemplateContext (.locale)
+
   pure do
     modal [ id_ editorModalId ] do
 
       case readOnly of
-        True -> bold "Read-only"
+        True -> bold (toHtml modal_readonly)
         False ->  do
           span_ [ class_ "modal-title-bar " ] do
-            bold "Edit"
+            bold  (toHtml modal_edit)
             div_ [ class_ "title-bar-btn btn-modal-close "
                  , term "_" "on click trigger Close"
                  ] do
@@ -451,13 +482,13 @@ editorModal filename content = do
       br_ mempty
 
       form_ [ term "hx-post" $ linkToText (apiLinks.updateFile)
-            , term "hx-confirm" ("Save the edit of " <> Text.pack filename <> "?")
+            , term "hx-confirm" $ Text.replace "{}" (Text.pack filename) confirm_save_edit
             ] do
         input_ [ class_ "form-control "
                , type_ "text"
                , name_ "path"
                , value_ (Text.pack filename)
-               , placeholder_ "Filename"
+               , placeholder_ placeholder_filename
                ]
 
         br_ mempty
@@ -469,7 +500,7 @@ editorModal filename content = do
               [ class_ "form-control "
               , type_ "text"
               , name_ "content"
-              , placeholder_ "Empty File"
+              , placeholder_ placeholder_empty_file
               ]
             , if readOnly then [ readonly_ "readonly" ] else mempty
             ]
@@ -484,7 +515,7 @@ editorModal filename content = do
           False -> do
             button_ [ class_ "btn btn-modal-confirm-1 "
                     , term "_" "on click trigger Close"
-                    ] "EDIT"
+                    ] (toHtml modal_edit)
 
 
 ------------------------------------
@@ -539,6 +570,11 @@ listLayout files = do
   selected <- asks @TemplateContext (.selected)
   order <- asks @TemplateContext (.sortedBy)
   TargetView target _ _ <- asks @TemplateContext (.currentTarget)
+  Phrase
+    { detail_filename
+    , detail_modified
+    , detail_size
+    } <- phrase <$> asks @TemplateContext (.locale)
 
   let record :: (Int, File) -> Html ()
       record (idx, file) = do
@@ -595,17 +631,17 @@ listLayout files = do
         tr_ do
           th_ do
             span_ [ class_ "field " ] do
-              "Name "
+              (toHtml detail_filename)
               sortIconName
             `with` sortControlName
           th_ do
             span_ [ class_ "field " ] do
-              "Modified"
+              (toHtml detail_modified)
               sortIconMTime
               `with` sortControlMTime
           th_ do
             span_ [ class_ "field " ] do
-              "Size"
+              (toHtml detail_size)
               sortIconSize
               `with` sortControlSize
       tbody_ $ traverse_ record ([0..] `zip` files)
@@ -711,6 +747,7 @@ contextMenu [file] = do
     , contextmenu_play
     , contextmenu_edit
     , contextmenu_download
+    , confirm_delete1
     } <- phrase <$> asks @TemplateContext (.locale)
   pure do
     let textClientPath = toClientPath root file.path
@@ -739,7 +776,7 @@ contextMenu [file] = do
                , term "hx-delete" $ linkToText (apiLinks.deleteFile [clientPath] False)
                , term "hx-target" "#index"
                , term "hx-swap" "outerHTML"
-               , term "hx-confirm" ("Are you sure about deleting " <> textClientPath <> "?")
+               , term "hx-confirm" $ Text.replace "{}" textClientPath confirm_delete1
                ] do
             i_ [ class_ "bx bxs-trash" ] mempty
             span_ (toHtml contextmenu_delete)
@@ -760,6 +797,7 @@ contextMenu files = do
     , contextmenu_copy
     , contextmenu_cancel
     , contextmenu_download
+    , confirm_delete_local
     } <- phrase <$> asks @TemplateContext (.locale)
 
   pure do
@@ -776,7 +814,7 @@ contextMenu files = do
                , term "hx-delete" $ linkToText (apiLinks.deleteFile clientPaths False)
                , term "hx-target" "#index"
                , term "hx-swap" "outerHTML"
-               , term "hx-confirm" ("Are you sure about deleting " <> Text.pack (show (length clientPaths)) <> " files?\n\n (Only selected files in the current directory will be deleted)")
+               , term "hx-confirm" $ Text.replace "{}" (Text.pack (show (length clientPaths))) confirm_delete_local
                ] do
             i_ [ class_ "bx bxs-trash" ] mempty
             span_ (toHtml contextmenu_delete_local)

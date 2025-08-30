@@ -33,7 +33,6 @@ instance IsTarget S3 where
   getTargetIdFromBackend f = f.targetId
 
 
-
 -- | The default `discover` method only discover `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`,
 --   and `AWS_SESSION_TOKEN`. To set custom endpoint url, we also need to hand `AWS_ENDPOINT_URL`.
 initialize :: (IOE :> es, Log :> es) => S3TargetConfig -> Eff es (Backend S3)

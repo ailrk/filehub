@@ -24,7 +24,6 @@ instance IsTarget FileSys where
   getTargetIdFromBackend f = f.targetId
 
 
-
 initialize :: (IOE :> es, Log :> es, FileSystem :> es) => FSTargetConfig -> Eff es (Backend FileSys)
 initialize opt = do
   targetId <- liftIO $ TargetId <$> UUID.nextRandom

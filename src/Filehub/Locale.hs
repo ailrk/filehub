@@ -83,6 +83,27 @@ data Phrase = Phrase
   , login_or                 :: Text
   , login_username           :: Text
   , login_password           :: Text
+  , login_error              :: Text
+  , detail_filename          :: Text
+  , detail_modified          :: Text
+  , detail_accessed          :: Text
+  , detail_size              :: Text
+  , detail_content_type      :: Text
+  , modal_detail             :: Text
+  , modal_file               :: Text
+  , modal_folder             :: Text
+  , modal_create             :: Text
+  , modal_edit               :: Text
+  , modal_readonly           :: Text
+  , placeholder_newfile      :: Text
+  , placeholder_newfoler     :: Text
+  , placeholder_empty_file   :: Text
+  , placeholder_filename     :: Text
+  , confirm_logout           :: Text
+  , confirm_save_edit        :: Text
+  , confirm_delete1          :: Text
+  , confirm_delete_local     :: Text
+  , confirm_delete_all       :: Text
   }
   deriving (Show)
 
@@ -185,6 +206,27 @@ phraseCodec =
   <*> Toml.text "LOGIN_OR"                 .= (.login_or)
   <*> Toml.text "LOGIN_USERNAME"           .= (.login_username)
   <*> Toml.text "LOGIN_PASSWORD"           .= (.login_password)
+  <*> Toml.text "LOGIN_ERROR"              .= (.login_error)
+  <*> Toml.text "DETAIL_FILENAME"          .= (.detail_filename)
+  <*> Toml.text "DETAIL_MODIFIED"          .= (.detail_modified)
+  <*> Toml.text "DETAIL_ACCESSED"          .= (.detail_accessed)
+  <*> Toml.text "DETAIL_SIZE"              .= (.detail_size)
+  <*> Toml.text "DETAIL_CONTENT_TYPE"      .= (.detail_content_type)
+  <*> Toml.text "MODAL_DETAIL"             .= (.modal_detail)
+  <*> Toml.text "MODAL_FILE"               .= (.modal_file)
+  <*> Toml.text "MODAL_FOLDER"             .= (.modal_folder)
+  <*> Toml.text "MODAL_CREATE"             .= (.modal_create)
+  <*> Toml.text "MODAL_EDIT"               .= (.modal_edit)
+  <*> Toml.text "MODAL_READONLY"           .= (.modal_readonly)
+  <*> Toml.text "PLACEHOLDER_NEWFILE"      .= (.placeholder_newfile)
+  <*> Toml.text "PLACEHOLDER_NEWFOLER"     .= (.placeholder_newfoler)
+  <*> Toml.text "PLACEHOLDER_EMPTY_FILE"   .= (.placeholder_empty_file)
+  <*> Toml.text "PLACEHOLDER_FILENAME"     .= (.placeholder_filename)
+  <*> Toml.text "CONFIRM_LOGOUT"           .= (.confirm_logout)
+  <*> Toml.text "CONFIRM_SAVE_EDIT"        .= (.confirm_save_edit)
+  <*> Toml.text "CONFIRM_DELETE1"          .= (.confirm_delete1)
+  <*> Toml.text "CONFIRM_DELETE_LOCAL"     .= (.confirm_delete_local)
+  <*> Toml.text "CONFIRM_DELETE_ALL"       .= (.confirm_delete_all)
 
 
 config :: Text

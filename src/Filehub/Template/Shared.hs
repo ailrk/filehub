@@ -1,3 +1,4 @@
+{-# LANGUAGE NamedFieldPuns #-}
 module Filehub.Template.Shared where
 
 import Data.Aeson qualified as Aeson
@@ -22,6 +23,7 @@ import Filehub.Links (linkToText, apiLinks)
 import Filehub.Routes (Api (..))
 import Text.Fuzzy (simpleFilter)
 import Filehub.Sort (sortFiles)
+import Filehub.Locale (Phrase(..), phrase)
 
 
 withDefault :: Display -> Text -> Html () -> Html ()
@@ -101,18 +103,20 @@ search (SearchWord searchWord) files table = do
 
 
 
-searchBar :: Html ()
+searchBar :: Template (Html ())
 searchBar = do
-  div_ [ id_ searchBarId ] do
-    input_ [ class_ "form-control "
-           , type_ "input"
-           , name_ "search"
-           , placeholder_ "Search as you type"
-           , term "hx-post" $ linkToText apiLinks.search
-           , term "hx-trigger" "input changed delay:200ms, search"
-           , term "hx-target" "#table"
-           , term "hx-swap" "outerHTML"
-           ]
+  Phrase { search_as_you_type } <- phrase <$> asks @TemplateContext (.locale)
+  pure do
+    div_ [ id_ searchBarId ] do
+      input_ [ class_ "form-control "
+             , type_ "input"
+             , name_ "search"
+             , placeholder_ search_as_you_type
+             , term "hx-post" $ linkToText apiLinks.search
+             , term "hx-trigger" "input changed delay:200ms, search"
+             , term "hx-target" "#table"
+             , term "hx-swap" "outerHTML"
+             ]
 
 
 controlPanel

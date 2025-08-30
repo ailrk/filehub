@@ -42,19 +42,23 @@ makeTemplateContext sessionId = do
   currentDir <- Session.getCurrentDir sessionId & withServerError
   currentTarget <- Session.currentTarget sessionId & withServerError
   locale <- Session.getSessionLocale sessionId & withServerError
+  simpleAuthUserDB <- asks @Env (.simpleAuthUserDB)
+  oidcAuthProviders <- asks @Env (.oidcAuthProviders)
   pure TemplateContext
-    { readOnly      = readOnly
-    , noLogin       = noLogin
-    , display       = display
-    , layout        = layout
-    , theme         = theme
-    , sortedBy      = sortedBy
-    , selected      = selected
-    , state         = state
-    , root          = root
-    , locale        = locale
-    , currentDir    = currentDir
-    , currentTarget = currentTarget
+    { readOnly           = readOnly
+    , noLogin            = noLogin
+    , display            = display
+    , layout             = layout
+    , theme              = theme
+    , sortedBy           = sortedBy
+    , selected           = selected
+    , state              = state
+    , root               = root
+    , locale             = locale
+    , currentDir         = currentDir
+    , currentTarget      = currentTarget
+    , simpleAuthUserDB   = simpleAuthUserDB
+    , oidcAuthProviders  = oidcAuthProviders
     }
 
 
