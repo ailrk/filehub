@@ -36,7 +36,7 @@ import Filehub.Target.Types (targetHandler)
 import Filehub.Theme (Theme(..))
 import Effectful.Reader.Dynamic (asks)
 import Control.Monad (join)
-import Filehub.Locale (Phrase(..), phrase)
+import Filehub.Locale (Phrase(..), phrase, Locale (..))
 
 
 index :: Html ()
@@ -55,6 +55,7 @@ index sideBar' toolBar' view' selectedCount = do
       toolBar'
       view'
       controlPanel'
+      languagePanel
       controlPanelBtn
 
 
@@ -69,7 +70,6 @@ overlay = div_ [ id_ overlayId ] mempty
 sideBar :: [Target] -> TargetView -> Html ()
 sideBar targets (TargetView currentTarget _ _) = do
   div_ [ id_ sideBarId ] do traverse_ targetIcon targets
-
   where
     targetIcon :: Target -> Html ()
     targetIcon target = do
@@ -249,8 +249,25 @@ fileNameElement target file = do
         ]
 
 
+languagePanel :: (Html ())
+languagePanel =
+  div_ [ id_ "locale", class_ "panel " ] do
+    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just EN)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "English"
+    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ZH_CN)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "简体中文"
+    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ZH_TW)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "繁體中文"
+    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ZH_HK)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "繁體中文"
+    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just JA)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "日本語"
+    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ES)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "Español"
+    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just FR)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "Français"
+    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just DE)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "Deutsch"
+    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just KO)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "한국어"
+    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just RU)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "Русский"
+    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just PT)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "Português"
+    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just IT)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "Italiano"
+
+
 controlPanel :: Template (Html ())
-controlPanel = join do
+controlPanel = fmap (`with` [ class_ "panel "]) $ join do
   Template.controlPanel
     <$> localeBtn
     <*> newFolderBtn
@@ -270,6 +287,8 @@ controlPanel = join do
       Phrase { control_panel_language } <- phrase <$> asks @TemplateContext (.locale)
       pure do
         button_ [ class_ "action-btn"
+                , id_ "locale-langauge-btn"
+                , term "_" [i|on click toggle .show on \#locale|]
                 ] do
           span_ [ class_ "field " ] do
             i_ [ class_ "bx bx-world" ] mempty

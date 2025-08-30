@@ -188,15 +188,18 @@ function closeDropdowns(e) {
     table.style.pointerEvents = "auto"; // restore click event on table.
 }
 function closePanel(e) {
-    if (e.target.closest('#control-panel-btn')) {
+    if (e.target.closest('#control-panel-btn'))
         return;
-    }
-    let controlPanel = document.getElementById('control-panel');
+    if (e.target.closest('#locale-langauge-btn'))
+        return;
+    let panels = document.querySelectorAll('.panel');
     let overlay = document.getElementById('overlay');
-    if (controlPanel && controlPanel.classList.contains('show')) {
-        controlPanel.classList.remove('show');
-        overlay.classList.remove('show');
-    }
+    panels.forEach(panel => {
+        if (panel && panel.classList.contains('show')) {
+            panel.classList.remove('show');
+            overlay.classList.remove('show');
+        }
+    });
 }
 /* Remove all class on #index */
 function removeClassOnIndex() {
