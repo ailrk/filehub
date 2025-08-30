@@ -56,9 +56,9 @@ textarea {
 #index {
   display: grid;
   grid-template-areas:
-    "side-bar control-panel"
-    "side-bar tool-bar"
-    "side-bar view";
+  "side-bar control-panel"
+  "side-bar tool-bar"
+  "side-bar view";
   grid-template-columns: 210px 1fr;
   grid-template-rows: auto auto 95vh;
   overflow: hidden;
@@ -169,43 +169,7 @@ textarea {
   grid-area: view;
   overflow-y: scroll;
   overflow-x: hidden;
-
-  & #table.list-view {
-    padding: 1rem 1rem;
-    border-collapse: separate;
-    border-spacing: 0 5px;
-    width: 100%;
-    table-layout: fixed;
-
-    & td, th {
-      overflow-y: auto;
-      scrollbar-width: none;
-      white-space: nowrap;
-    }
-
-    & td:nth-child(1), th:nth-child(1) {
-      width: 40%;
-      text-align: left;
-    }
-
-    & td:nth-child(2), th:nth-child(2) {
-      width: 10%;
-      text-align: left;
-    }
-
-    & td:nth-child(3), th:nth-child(3) {
-      width: 10%;
-      text-align: left;
-    }
-  }
-
-  & #table.thumbnail-view {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 16px;
-    padding: 16px;
-    box-sizing: border-box;
-  }
+  padding-bottom: 100px;
 }
 
 
@@ -419,6 +383,50 @@ textarea.form-control {
   }
 }
 
+
+#table.list-view {
+  padding: 1rem 1rem;
+  border-collapse: separate;
+  border-spacing: 0 5px;
+  width: 100%;
+  table-layout: fixed;
+
+  & td, th {
+    overflow-y: auto;
+    scrollbar-width: none;
+    white-space: nowrap;
+    padding: 8px 16px;
+    line-height: 1;
+  }
+
+  & td:nth-child(1), th:nth-child(1) {
+    width: 40%;
+    text-align: left;
+    border-radius: 8px 0 0 8px;
+  }
+
+  & td:nth-child(2), th:nth-child(2) {
+    width: 10%;
+    text-align: left;
+  }
+
+  & td:nth-child(3), th:nth-child(3) {
+    width: 10%;
+    text-align: left;
+    border-radius: 0 8px 8px 0;
+  }
+}
+
+
+#table.thumbnail-view {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 16px;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+
 .file-meta {
   color: #777; /* dimmer color */
 }
@@ -470,6 +478,7 @@ textarea.form-control {
   & > .modal-content {
     /* Position visible dialog near the top of the window */
     margin-top: 5vh;
+    border: var(--background3) solid;
 
     /* Sizing for visible dialog */
 
@@ -660,3 +669,4 @@ textarea.form-control {
 #locale .dropdown-content {
   display: none;
 }
+

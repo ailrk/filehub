@@ -36,10 +36,10 @@
 .dropdown-content {
   position: absolute;
   background: var(--background2);
-  padding: 0.5rem 0;
   border-radius: 0.5rem;
   text-align: left;
   z-index: 1;
+  border: var(--background3) solid;
 
   animation-name: fadeIn;
   animation-duration: 150ms;
