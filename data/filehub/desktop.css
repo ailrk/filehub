@@ -626,6 +626,7 @@ textarea.form-control {
   pointer-events: none;
 }
 
+
 .drag-icon .image-wrapper {
   position: absolute;
   top: 0;
@@ -635,25 +636,30 @@ textarea.form-control {
   object-fit: contain;
 }
 
+
 .drag-icon .image-wrapper:nth-child(1) {
   transform: translateX(0px) rotate(3deg);
   z-index: 5;
 }
+
 
 .drag-icon .image-wrapper:nth-child(2) {
   transform: translateX(8px) rotate(6deg);
   z-index: 4;
 }
 
+
 .drag-icon .image-wrapper:nth-child(3) {
   transform: translateX(16px) rotate(9deg);
   z-index: 3;
 }
 
+
 .drag-icon .image-wrapper:nth-child(4) {
   transform: translateX(24px) rotate(12deg);
   z-index: 2;
 }
+
 
 .drag-icon .image-wrapper:nth-child(5) {
   transform: translateX(32px) rotate(15deg);

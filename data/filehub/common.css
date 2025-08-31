@@ -85,13 +85,12 @@
   }
 }
 
+
 a.dropdown-item {
   color: var(--frontground);
   display: block;
   text-decoration: none;
 }
-
-
 
 
 .balloon {

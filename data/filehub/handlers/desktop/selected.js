@@ -35,7 +35,11 @@ function unregisterAll() {
     view.removeEventListener('mouseup', handleMouseUp);
     view.removeEventListener('click', cancel);
 }
-function cancel() {
+function cancel(e) {
+    if (e.target.closest('.dir'))
+        return;
+    if (e.target.closest('.dropdown-item'))
+        return;
     if (selectedIds.size > 0 && !dragging) {
         htmx.ajax('POST', '/cancel', { target: '#index', swap: 'outerHTML' });
     }
@@ -89,7 +93,7 @@ function handleMouseMove(e) {
     const width = Math.abs(x - selectionScreen.x);
     const height = Math.abs(y - selectionScreen.y);
     // ignore small mouse movement
-    if (width < 50 || height < 50)
+    if (width < 100 || height < 100)
         return;
     dragging = true;
     selectionScreen.elt.style.top = top.toString();

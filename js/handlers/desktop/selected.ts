@@ -47,7 +47,9 @@ function unregisterAll() {
 }
 
 
-function cancel() {
+function cancel(e: Event) {
+  if ((e.target as Element).closest('.dir')) return;
+  if ((e.target as Element).closest('.dropdown-item')) return;
   if (selectedIds.size > 0 && !dragging) {
     htmx.ajax('POST', '/cancel', { target: '#index', swap: 'outerHTML'});
   }
@@ -108,7 +110,7 @@ function handleMouseMove(e: Event) {
   const height = Math.abs(y - selectionScreen.y);
 
   // ignore small mouse movement
-  if (width < 50 || height < 50) return;
+  if (width < 100 || height < 100) return;
 
   dragging = true;
   selectionScreen.elt.style.top = top.toString();
