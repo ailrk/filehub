@@ -130,6 +130,7 @@
   }
 }
 
+
 .viewer-tooltip {
   background-color: rgba(0, 0, 0, 0.8);
   border-radius: 10px;
@@ -146,6 +147,7 @@
   top: 50%;
   width: 50px;
 }
+
 
 .viewer-title {
   color: #ccc;
@@ -165,6 +167,7 @@
     opacity: 1;
   }
 }
+
 
 .viewer-button {
   background-color: rgba(0, 0, 0, 0.5);
@@ -203,29 +206,36 @@
   }
 }
 
+
 .viewer-open {
   overflow: hidden;
 }
+
 
 .viewer-show {
   display: block;
 }
 
+
 .viewer-hide {
   display: none;
 }
+
 
 .viewer-backdrop {
   background-color: rgba(0, 0, 0, 0.5);
 }
 
+
 .viewer-invisible {
   visibility: hidden;
 }
 
+
 .viewer-fade {
   opacity: 0;
 }
+
 
 .viewer-in {
   opacity: 1;
