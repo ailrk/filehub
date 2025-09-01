@@ -7,7 +7,6 @@ module Filehub.Server.Middleware
   , stripCookiesForStatic
   ) where
 
-
 import Control.Monad (when)
 import Data.ByteString (ByteString)
 import Data.ByteString.Char8 qualified as ByteString

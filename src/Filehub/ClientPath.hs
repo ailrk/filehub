@@ -13,8 +13,6 @@
 --
 -- Note: S3 path is already absolute and fully qualified. Because root of S3 bucket is always "",
 -- client path acts like a noop.
-
-
 module Filehub.ClientPath
   ( ClientPath(..)
   , RawClientPath(..)
@@ -25,12 +23,12 @@ module Filehub.ClientPath
   )
   where
 
-
 import System.FilePath ((</>), normalise)
 import Network.URI.Encode qualified as URI.Encode
 import Data.List (stripPrefix)
 import Servant (FromHttpApiData (..), ToHttpApiData (..))
 import Data.Aeson (ToJSON(..))
+
 
 -- | Filepath without the root part. The path is percent encoded safe to show in the frontend.
 newtype ClientPath = ClientPath { unClientPath :: FilePath }

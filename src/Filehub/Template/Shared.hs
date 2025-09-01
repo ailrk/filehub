@@ -33,11 +33,10 @@ import Filehub.Target.Types (targetHandler)
 
 withDefault :: Display -> Text -> Html () -> Html ()
 withDefault display background html = do
-
   script_ [ src_ "/static/_hyperscript0.9.13.js" ] ("" :: Text)
   script_ [ src_ "/static/htmx2.0.3.js" ] ("" :: Text)
   script_ [ src_ "/static/viewer.js", type_ "module" ] ("" :: Text)
-  script_ [ src_ "/static/ui.js", type_ "module" ] ("" :: Text)
+  script_ [ src_ "/static/main.js", type_ "module" ] ("" :: Text)
 
   meta_ [ name_ "viewport", content_ "width=device-width, initial-scale=1.0, viewport-fit=cover" ]
   link_ [ rel_ "stylesheet", href_ "/static/boxicons2.1.4.css" ]
@@ -105,7 +104,6 @@ search (SearchWord searchWord) files table = do
   let filteredFiles = files ^.. each . filtered isMatched
   order <- asks @TemplateContext (.sortedBy)
   table (sortFiles order filteredFiles)
-
 
 
 searchBar :: Template (Html ())
@@ -201,7 +199,6 @@ controlPanel
             newFolderBtn
             newFileBtn
         ]
-
 
 
 icon :: File -> Html ()

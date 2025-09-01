@@ -1,7 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 module Filehub.Locale (Locale(..), Phrase(..), phrase) where
 
-
 import Data.Either (fromRight)
 import Data.FileEmbed qualified as FileEmbed
 import Data.Text (Text)

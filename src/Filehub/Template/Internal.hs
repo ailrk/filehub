@@ -1,6 +1,5 @@
 module Filehub.Template.Internal where
 
-
 import Filehub.Types ( Display(..), ControlPanelState (..))
 import Lens.Micro.Platform ()
 import Filehub.Layout (Layout)

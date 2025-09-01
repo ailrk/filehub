@@ -5,6 +5,12 @@ module Filehub.Theme
   , parse
   ) where
 
+import Text.ParserCombinators.ReadP
+import Data.Char (isAlphaNum, isSpace)
+import Data.ByteString (ByteString)
+import Data.ByteString.Char8 qualified as ByteString
+
+
 -- An example theme file
 --  :root {
 --      --frontground: #DCD7BA;
@@ -17,11 +23,6 @@ module Filehub.Theme
 --  }
 --
 -- All theme files should have the same format.
-
-import Text.ParserCombinators.ReadP
-import Data.Char (isAlphaNum, isSpace)
-import Data.ByteString (ByteString)
-import Data.ByteString.Char8 qualified as ByteString
 
 
 data Theme = Dark | Light deriving (Eq)

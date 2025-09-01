@@ -1,5 +1,4 @@
 {-# LANGUAGE ConstraintKinds #-}
-
 module Filehub.Storage.S3 (storage) where
 
 import Amazonka (send, runResourceT, toBody, ResponseBody (..))
@@ -204,7 +203,6 @@ download sessionId clientPath = do
           (pure ())
           (\_ -> runEff . runFileSystem $ removeFile zipPath)
           (\_ -> Conduit.sourceFile zipPath)
-
 
 
 storage :: Storage.Context es => SessionId -> (Storage (Eff es))

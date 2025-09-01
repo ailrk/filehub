@@ -2,7 +2,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE CPP #-}
-
 module Filehub.Routes
   ( Api(..)
   , API
@@ -31,7 +30,7 @@ import Servant
       StreamGet,
       NoFraming,
       NoContent,
-      CaptureAll, QueryParams,
+      CaptureAll, QueryParams, Capture,
     )
 import Lucid
 import Lens.Micro.Platform ()
@@ -61,13 +60,15 @@ import Conduit (ConduitT, ResourceT)
 import Amazonka.Data (Value)
 import Web.Cookie (SetCookie)
 import Filehub.Locale (Locale)
+import Network.URI (URI)
 
 
-type instance AuthServerData (AuthProtect "session") = SessionId
-type instance AuthServerData (AuthProtect "readonly") = ConfirmReadOnly
+type instance AuthServerData (AuthProtect "session")      = SessionId
+type instance AuthServerData (AuthProtect "readonly")     = ConfirmReadOnly
 type instance AuthServerData (AuthProtect "desktop-only") = ConfirmDesktopOnly
-type instance AuthServerData (AuthProtect "mobile-only") = ConfirmMobilOnly
-type instance AuthServerData (AuthProtect "login") = ConfirmLogin
+type instance AuthServerData (AuthProtect "mobile-only")  = ConfirmMobilOnly
+type instance AuthServerData (AuthProtect "login")        = ConfirmLogin
+
 
 -- | Filehub custom headers are in format `X-Filehub-*`. They are usually used to report the server state
 --   change to the frontend. E.g when /cancel is called, the server will clear the selection and copy state.
@@ -128,6 +129,7 @@ data Api mode = Api
   , loginAuthOIDCRedirect :: mode
                           :- "login" :> "oidc" :> "redirect"
                           :> AuthProtect "session"
+                          :> Capture "provider_name" Text
                           :> Get '[HTML] NoContent
 
 

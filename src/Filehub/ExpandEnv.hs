@@ -1,6 +1,5 @@
 module Filehub.ExpandEnv where
 
-
 import System.Environment (lookupEnv)
 import Data.Char (isAlphaNum)
 import Data.Maybe (fromMaybe)

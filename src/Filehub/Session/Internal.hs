@@ -4,7 +4,6 @@ module Filehub.Session.Internal
   )
   where
 
-
 import Effectful.Reader.Dynamic (Reader, asks)
 import Effectful ((:>), Eff, IOE, MonadIO (liftIO))
 import Data.UUID.V4 qualified as UUID
@@ -51,6 +50,7 @@ createSession = do
     , layout     = ThumbnailLayout
     , theme      = theme
     , locale     = locale
+    , oidcState  = Nothing
     }
 
 

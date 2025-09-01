@@ -1,6 +1,5 @@
 module Filehub.Mime (isMime) where
 
-
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Network.Mime (MimeType)

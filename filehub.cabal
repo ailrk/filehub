@@ -70,6 +70,7 @@ library
   hs-source-dirs: src
   build-depends:
       base >=4.16.1.0
+    , base64-bytestring
     , JuicyPixels
     , JuicyPixels-stbir
     , aeson
@@ -93,6 +94,7 @@ library
     , generic-lens
     , hashable
     , hashtables
+    , http-client
     , http-api-data
     , http-types
     , jwt
@@ -106,6 +108,7 @@ library
     , optparse-applicative
     , random
     , servant
+    , servant-client
     , servant-conduit
     , servant-lucid
     , servant-multipart
@@ -154,6 +157,7 @@ library
     Filehub.Mime
     Filehub.Monad
     Filehub.Options
+    Filehub.Orphan
     Filehub.Routes
     Filehub.Selected
     Filehub.Selected.Types

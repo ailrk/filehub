@@ -1,6 +1,5 @@
 module Filehub.Template where
 
-
 import Lucid
 import Data.Text (Text)
 import Data.String.Interpolate (iii)

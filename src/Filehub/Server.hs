@@ -10,120 +10,116 @@
 -- This module implements the filehub server. Most of the server is
 -- implemented with servant handlers. Some features that are hard to
 -- implement with servant are provided through wai middleware.
-
 module Filehub.Server (application, main, mainDev) where
 
 import Codec.Archive.Zip qualified as Zip
-import System.IO.Temp qualified as Temp
-import Data.String.Interpolate (i)
-import Data.Maybe (fromMaybe)
-import Data.Foldable (forM_)
+import Conduit (ConduitT, ResourceT)
+import Conduit qualified
+import Control.Exception (SomeException)
+import Control.Exception (throwIO)
+import Control.Monad (when, forM, replicateM)
+import Crypto.Hash.SHA256 qualified as SHA256
+import Data.Aeson (object, KeyValue (..), (.:), withObject, Value)
+import Data.Aeson.Types (parseMaybe)
+import Data.ByteString (ByteString)
+import Data.ByteString.Base64 qualified as Base64
+import Data.ByteString.Char8 qualified as ByteString
+import Data.FileEmbed qualified as FileEmbed
+import Data.Foldable (forM_, find)
+import Data.Functor.Identity (Identity(..))
 import Data.List qualified as List
+import Data.Map.Strict (Map)
+import Data.Map.Strict qualified as Map
+import Data.Maybe (fromMaybe)
+import Data.String.Interpolate (i)
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
-import Data.ByteString (ByteString)
-import Data.ByteString.Char8 qualified as ByteString
-import Data.Aeson (object, KeyValue (..), (.:), withObject, Value)
-import Data.Aeson.Types (parseMaybe)
-import Data.FileEmbed qualified as FileEmbed
 import Data.Time (secondsToNominalDiffTime, UTCTime (..), fromGregorian)
-import Data.Map.Strict qualified as Map
-import Data.Map.Strict (Map)
-import Effectful.Log (logAttention_, logInfo_)
 import Effectful ( withRunInIO, MonadIO (liftIO) )
-import Effectful.Error.Dynamic (throwError)
 import Effectful (runEff)
+import Effectful.Error.Dynamic (throwError)
 import Effectful.FileSystem (runFileSystem)
+import Effectful.Log (logAttention_, logInfo_)
 import Effectful.Log (runLog)
+import Effectful.Reader.Dynamic (asks)
+import Filehub.Auth.OIDC (OIDCAuthProviders(..))
+import Filehub.Auth.OIDC qualified as Auth.OIDC
+import Filehub.Auth.Simple qualified as Auth.Simple
+import Filehub.Auth.Types (ActiveUsers(..))
+import Filehub.Auth.Types qualified as Auth
+import Filehub.ClientPath qualified as ClientPath
+import Filehub.Config (Config(..), TargetConfig (..))
+import Filehub.Config qualified as Config
+import Filehub.Cookie qualified as Cookie
+import Filehub.Cookie qualified as Cookies
+import Filehub.Env (Env(..))
+import Filehub.Error ( withServerError, FilehubError(..), withServerError, Error' (..) )
+import Filehub.Layout (Layout(..))
+import Filehub.Locale (Locale)
+import Filehub.Log qualified as Log
+import Filehub.Mime (isMime)
+import Filehub.Monad
+import Filehub.Options (parseOptions, Options(..))
+import Filehub.Orphan ()
+import Filehub.Routes (Api (..))
+import Filehub.Routes qualified as Routes
+import Filehub.Selected qualified as Selected
+import Filehub.Server.Desktop qualified as Server.Desktop
+import Filehub.Server.Handler (ConfirmLogin, ConfirmReadOnly, ConfirmDesktopOnly)
+import Filehub.Server.Handler qualified as Server.Handler
+import Filehub.Server.Internal (withQueryParam, parseHeader', makeTemplateContext)
+import Filehub.Server.Internal qualified as Server.Internal
+import Filehub.Server.Middleware qualified as Server.Middleware
+import Filehub.Server.Mobile qualified as Server.Mobile
+import Filehub.Session (SessionId(..))
+import Filehub.Session qualified as Session
+import Filehub.Session.Pool qualified as SessionPool
+import Filehub.Storage (getStorage, Storage(..))
+import Filehub.Target qualified as Target
+import Filehub.Target.File qualified as FS
+import Filehub.Target.S3 qualified as S3
+import Filehub.Target.Types.TargetView (TargetView(..))
+import Filehub.Template qualified as Template
+import Filehub.Template.Desktop qualified as Template.Desktop
+import Filehub.Template.Internal (runTemplate, TemplateContext(..))
+import Filehub.Template.Login qualified as Template.Login
+import Filehub.Template.Mobile qualified as Template.Mobile
+import Filehub.Template.Shared qualified as Template
+import Filehub.Theme qualified as Theme
+import Filehub.Toml qualified as Toml
+import Filehub.Types ( Display (..))
+import Filehub.Types ( FilehubEvent (..), LoginForm(..), MoveFile (..), UIComponent (..), FileContent (..), TargetId, SearchWord, OpenTarget, Resolution)
+import Filehub.Types (File(..), ClientPath(..), UpdatedFile(..), NewFile(..), NewFolder(..), SortFileBy(..), UpdatedFile(..), Theme(..), Selected (..))
+import Filehub.Types (Target(..))
+import Filehub.Viewer qualified as Viewer
 import Lens.Micro
 import Lens.Micro.Platform ()
 import Lucid
+import Network.HTTP.Types.Header (hLocation)
+import Network.Mime qualified as Mime
+import Network.Wai.Handler.Warp (setPort, defaultSettings, runSettings)
+import Network.Wai.Middleware.Gzip qualified as Wai.Middleware
+import Network.Wai.Middleware.RequestLogger qualified as Wai.Middleware (logStdout)
 import Prelude hiding (init, readFile)
-import Servant.Server.Generic (AsServerT)
+import Servant (addHeader, err500, linkURI, err303)
 import Servant (errBody, Headers, Header, NoContent (..), err404, errHeaders, err301, noHeader, err400)
-import Servant (addHeader, err500)
 import Servant (serveWithContextT, Context (..), Application)
 import Servant.Conduit ()
-import System.FilePath (takeFileName, (</>), takeDirectory, makeRelative)
-import Control.Exception (SomeException)
-import Control.Monad (when, forM, replicateM)
-import UnliftIO (catch)
-import Text.Printf (printf)
-import Filehub.Layout (Layout(..))
-import Filehub.Mime (isMime)
-import Filehub.Target qualified as Target
-import Filehub.Target.Types.TargetView (TargetView(..))
-import Filehub.Types ( FilehubEvent (..), LoginForm(..), MoveFile (..), UIComponent (..), FileContent (..), TargetId, SearchWord, OpenTarget, Resolution)
-import Filehub.Session qualified as Session
-import Filehub.Session (SessionId(..))
-import Filehub.Env (Env(..))
-import Filehub.Error ( withServerError, FilehubError(..), withServerError, Error' (..) )
-import Filehub.Routes (Api (..))
-import Filehub.Types ( Display (..))
-import Filehub.Template.Shared qualified as Template
-import Filehub.Template qualified as Template
-import Filehub.Template.Login qualified as Template.Login
-import Filehub.Template.Desktop qualified as Template.Desktop
-import Filehub.Template.Mobile qualified as Template.Mobile
-import Filehub.Template.Internal (runTemplate, TemplateContext(..))
-import Filehub.ClientPath qualified as ClientPath
-import Filehub.Selected qualified as Selected
-import Filehub.Log qualified as Log
-import Filehub.Monad
-import Filehub.Options (parseOptions, Options(..))
-import Filehub.Config (Config(..), TargetConfig (..))
-import Filehub.Config qualified as Config
-import Filehub.Routes qualified as Routes
-import Filehub.Server.Handler qualified as Server.Handler
-import Filehub.Server.Middleware qualified as Server.Middleware
-import Filehub.Server.Desktop qualified as Server.Desktop
-import Filehub.Server.Mobile qualified as Server.Mobile
-import Filehub.Server.Internal (withQueryParam, parseHeader', makeTemplateContext)
-import Filehub.Server.Internal qualified as Server.Internal
-import Filehub.Session.Pool qualified as SessionPool
-import Filehub.Types (Target(..))
-import Filehub.Target.File qualified as FS
-import Filehub.Target.S3 qualified as S3
-import Filehub.Theme qualified as Theme
-import Filehub.Types
-    ( File(..),
-      ClientPath(..),
-      UpdatedFile(..),
-      ClientPath(..),
-      NewFile(..),
-      NewFolder(..),
-      SortFileBy(..),
-      UpdatedFile(..),
-      Theme(..),
-      Selected (..))
-import Filehub.Viewer qualified as Viewer
-import Filehub.Storage (getStorage, Storage(..))
-import Filehub.Cookie qualified as Cookie
-import Filehub.Server.Handler (ConfirmLogin, ConfirmReadOnly, ConfirmDesktopOnly)
-import Filehub.Auth.Types qualified as Auth
-import Filehub.Auth.Simple qualified as Auth.Simple
-import Filehub.Cookie qualified as Cookies
-import Filehub.Toml qualified as Toml
-import Conduit (ConduitT, ResourceT)
-import Conduit qualified
-import Network.Wai.Handler.Warp (setPort, defaultSettings, runSettings)
-import Network.Wai.Middleware.RequestLogger qualified as Wai.Middleware (logStdout)
-import Network.Wai.Middleware.Gzip qualified as Wai.Middleware
-import System.Environment (withArgs)
-import UnliftIO (hFlush, stdout)
-import Network.Mime qualified as Mime
-import Web.Cookie (SetCookie (..))
-import Network.HTTP.Types.Header (hLocation)
-import System.Directory (removeFile)
-import System.Random (randomRIO)
-import Data.Functor.Identity (Identity(..))
-import Control.Exception (throwIO)
-import Filehub.Auth.OIDC (OIDCAuthProviders(..))
-import Filehub.Auth.Types (ActiveUsers(..))
 import Servant.Multipart (MultipartData, Mem)
-import Filehub.Locale (Locale)
-import Debug.Trace
+import Servant.Server.Generic (AsServerT)
+import System.Directory (removeFile)
+import System.Environment (withArgs)
+import System.FilePath (takeFileName, (</>), takeDirectory, makeRelative)
+import System.IO.Temp qualified as Temp
+import System.Random (randomRIO)
+import Text.Printf (printf)
+import UnliftIO (catch)
+import UnliftIO (hFlush, stdout)
+import Web.Cookie (SetCookie (..))
+import Network.URI (relativeTo)
+import Network.URI qualified as URI
+import Network.URI (URI)
 
 
 #ifdef DEBUG
@@ -141,7 +137,7 @@ import Data.ByteString (readFile)
 
 
 -- | Static files are embeded into the final excutable. The key is the path of the file.
---   e.g ui.js -> (data/filehub/ui.js)
+--   e.g main.js -> (data/filehub/main.js)
 staticFiles :: Map FilePath ByteString
 staticFiles = Map.fromList
   $(FileEmbed.embedDir "data/filehub")
@@ -315,16 +311,52 @@ loginAuthSimple sessionId (LoginForm username password) =  do
     case Cookie.setAuthId session of
       Just setCookie -> do
         logInfo_ [i|User #{username} logged in|]
-        traceM (show setCookie)
         addHeader setCookie . addHeader "/" <$> pure mempty
       Nothing -> do noHeader . noHeader <$> (pure $ runTemplate ctx $ Template.Login.loginFailed)
   else do noHeader . noHeader <$> (pure $ runTemplate ctx $ Template.Login.loginFailed)
 
 
-loginAuthOIDCRedirect sessionId = undefined
+loginAuthOIDCRedirect :: SessionId -> Text -> Filehub NoContent
+loginAuthOIDCRedirect sessionId providerName = do
+  OIDCAuthProviders providers <- asks @Env (.oidcAuthProviders)
+  provider <- maybe
+    (throwError err400 { errBody = "Invalid provider"})
+    pure
+    (find ((providerName ==) . (.name)) providers)
+  state <- Text.pack <$> replicateM 32 (randomRIO ('a', 'z'))
+  Session.setOIDCState sessionId (Just state)
+  codeVerifier <- Text.pack <$> replicateM 43 (randomRIO ('0', 'z'))
+  let codeChallenge
+        = Text.decodeUtf8
+        $ Base64.encode
+        $ SHA256.finalize
+        $ SHA256.update SHA256.init
+        $ Text.encodeUtf8
+        $ codeVerifier
+  let uri = flip relativeTo provider.issuer
+          $ linkURI
+          $ Auth.OIDC.authorizeLink
+              Auth.OIDC.Authorization
+                { responseType         = "code"
+                , clientId             = provider.clientId
+                , redirectUri          = Text.pack $ URI.uriToString id provider.redirectURI ""
+                , scope                = "openid profile email"
+                , state                = state
+                , codeChallenge        = Just codeChallenge
+                , codeChallengeMethod  = Just "S256"
+                }
+  throwError err303
+    { errHeaders =
+        [( "Location"
+         , ByteString.pack $ URI.uriToString id uri ""
+         )]
+    }
 
 
-loginAuthOIDCCallback sessionId mCode mState = undefined
+loginAuthOIDCCallback :: SessionId -> Maybe Text -> Maybe Text -> Filehub NoContent
+loginAuthOIDCCallback sessionId mCode mState = do
+  liftIO $ print "callback is called!"
+  pure NoContent
 
 
 logout :: SessionId -> ConfirmLogin -> Filehub (Headers '[ Header "Set-Cookie" SetCookie
@@ -849,10 +881,10 @@ main = Log.withColoredStdoutLogger \logger -> do
     , theme                = Identity theme
     , verbosity            = Identity verbosity
     , readOnly             = Identity readOnly
-    , targets              = Identity targetConfigs
     , locale               = Identity locale
-    , simpleAuthLoginUsers = Identity simpleAuthLoginUsers
-    , oidcAuthProviders    = Identity oidcAuthProviders
+    , targets              = targetConfigs
+    , simpleAuthLoginUsers = simpleAuthLoginUsers
+    , oidcAuthProviders    = oidcAuthProviders
     } <-
       either
         (\err -> throwIO (userError err))

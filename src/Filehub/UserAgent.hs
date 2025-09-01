@@ -16,11 +16,11 @@ data DeviceType
 
 detectDeviceType :: ByteString -> DeviceType
 detectDeviceType ua
-  | hasAny ["bot", "crawl", "spider", "slurp", "facebookexternalhit"] = Bot
+  | hasAny ["bot", "crawl", "spider", "slurp", "facebookexternalhit"]         = Bot
   | hasAny ["mobile", "iphone", "android"] && not (hasAny ["ipad", "tablet"]) = Mobile
-  | hasAny ["ipad", "tablet"] = Tablet
-  | hasAny ["windows", "macintosh", "x11", "linux"] = Desktop
-  | otherwise = Unknown
+  | hasAny ["ipad", "tablet"]                                                 = Tablet
+  | hasAny ["windows", "macintosh", "x11", "linux"]                           = Desktop
+  | otherwise                                                                 = Unknown
   where
     t = Text.toLower (Text.decodeUtf8 ua)
     hasAny keywords = any (`Text.isInfixOf` t) keywords

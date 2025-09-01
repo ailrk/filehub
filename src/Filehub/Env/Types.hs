@@ -9,7 +9,6 @@
 
 module Filehub.Env.Types (Env(..)) where
 
-
 import Data.Time (NominalDiffTime)
 import Filehub.Theme (Theme)
 import Filehub.Session.Types qualified as Session

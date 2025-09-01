@@ -1,13 +1,11 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ConstraintKinds #-}
-
 module Filehub.Storage
   ( Storage(..)
   , getStorage
   )
   where
-
 
 import Data.Generics.Labels ()
 import Effectful ( Eff, Eff )

@@ -2,13 +2,11 @@
 {-# LANGUAGE DeriveGeneric #-}
 module Filehub.Auth.Types where
 
-
 import Data.UUID (UUID)
 import Data.UUID.V4 qualified as UUID
 import Data.Hashable (Hashable)
 import Effectful (Eff, (:>), MonadIO (..), IOE)
 import Prelude hiding (readFile)
-
 import Data.Time (UTCTime)
 import Data.Map.Strict (Map)
 import Filehub.Session.Types.SessionId (SessionId)
@@ -32,6 +30,7 @@ data Auth
 
 
 newtype AuthId = AuthId UUID deriving (Show, Eq, Ord, Hashable)
+
 
 newtype ActiveUsers = ActiveUsers (Map AuthId ActiveUser)
   deriving (Show, Eq)

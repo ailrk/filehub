@@ -1,6 +1,5 @@
 module Filehub.Storage.Types where
 
-
 import Filehub.File (File)
 import Filehub.ClientPath (ClientPath)
 import Lens.Micro.Platform ()

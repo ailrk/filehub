@@ -1,6 +1,5 @@
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE ConstraintKinds #-}
-
 module Filehub.Storage.File (storage) where
 
 import Codec.Archive.Zip qualified as Zip

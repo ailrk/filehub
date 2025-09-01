@@ -32,8 +32,6 @@
 -- `Session` itself has no concept of user identity, it handles user login through the
 -- `authId` field. if a user logged in to the system, the authId field will be set, and
 -- the user information can be found by lookuping up `ActiveUsers`.
-
-
 module Filehub.Session
   ( Session(..)
   , SessionId(..)
@@ -55,10 +53,13 @@ module Filehub.Session
   , newSession
   , getSession
   , updateSession
+  , getOIDCState
+  , setOIDCState
   , currentTarget
   , changeCurrentTarget
   )
   where
+
 
 import Lens.Micro
 import Lens.Micro.Platform ()
@@ -83,7 +84,7 @@ import Effectful.Error.Dynamic (Error)
 import Filehub.Layout (Layout)
 import Filehub.Auth.Types (AuthId)
 import Filehub.Locale (Locale)
-
+import Data.Text (Text)
 
 
 -- | Get the current target root. The meaning of the root depends on the target. e.g for
@@ -162,6 +163,16 @@ setSessionLocale :: (Reader Env :> es, IOE :> es) => SessionId -> Locale -> Eff 
 setSessionLocale sessionId locale = do
   updateSession sessionId (\s -> s & #locale .~ locale)
 
+
+-- | Get the current session theme.
+getOIDCState :: (Reader Env :> es, Error FilehubError :> es, IOE :> es,  Log :> es) => SessionId -> Eff es (Maybe Text)
+getOIDCState sessionId = (^. #oidcState) <$> getSession sessionId
+
+
+-- | Set the current session theme.
+setOIDCState :: (Reader Env :> es, IOE :> es) => SessionId -> Maybe Text -> Eff es ()
+setOIDCState sessionId theme = do
+  updateSession sessionId (\s -> s & #oidcState .~ theme)
 
 
 -- | Get the current session display. The display is calculated base on the client screen resolution.

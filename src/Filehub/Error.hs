@@ -14,6 +14,7 @@ import Effectful.Error.Dynamic (runErrorNoCallStack, throwError, Error)
 import Data.String (IsString(..))
 import Servant.Server (err500, err400)
 
+
 data FilehubError = FilehubError Error' String deriving (Show, Eq)
 
 data Error'

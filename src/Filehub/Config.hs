@@ -1,12 +1,10 @@
 module Filehub.Config where
 
-
 import Filehub.Theme (Theme (..))
 import Filehub.Auth.Simple (LoginUser)
 import Effectful.Log (LogLevel (..))
 import Data.Functor.Identity
 import Control.Applicative ((<|>))
-import Data.Maybe (fromMaybe)
 import Data.List (nub)
 import Filehub.Auth.OIDC qualified as Auth.OIDC
 import Filehub.Locale (Locale (..))
@@ -18,9 +16,9 @@ data Config f = Config
   , verbosity            :: f LogLevel
   , readOnly             :: f Bool
   , locale               :: f Locale
-  , targets              :: f [TargetConfig]
-  , simpleAuthLoginUsers :: f [LoginUser]
-  , oidcAuthProviders    :: f [Auth.OIDC.Provider]
+  , targets              :: [TargetConfig]
+  , simpleAuthLoginUsers :: [LoginUser]
+  , oidcAuthProviders    :: [Auth.OIDC.Provider]
   }
 
 
@@ -50,9 +48,9 @@ merge cfg1 cfg2 = do
   verbosity <-  maybe (Right LogInfo)          Right $ cfg1.verbosity <|> cfg2.verbosity
   readOnly  <-  maybe (Right True)             Right $ cfg1.readOnly <|> cfg2.readOnly
   locale    <-  maybe (Right EN)               Right $ cfg1.locale <|> cfg2.locale
-  let targets              = nub . mconcat . fmap (fromMaybe []) $ [cfg1.targets, cfg2.targets]
-  let simpleAuthLoginUsers = nub . mconcat . fmap (fromMaybe []) $ [cfg1.simpleAuthLoginUsers , cfg2.simpleAuthLoginUsers]
-  let oidcAuthProviders    = nub . mconcat . fmap (fromMaybe []) $ [cfg1.oidcAuthProviders , cfg2.oidcAuthProviders]
+  let targets              = nub . mconcat $ [cfg1.targets, cfg2.targets]
+  let simpleAuthLoginUsers = nub . mconcat $ [cfg1.simpleAuthLoginUsers , cfg2.simpleAuthLoginUsers]
+  let oidcAuthProviders    = nub . mconcat $ [cfg1.oidcAuthProviders , cfg2.oidcAuthProviders]
   pure
     Config
       { port                 = Identity port
@@ -60,7 +58,7 @@ merge cfg1 cfg2 = do
       , verbosity            = Identity verbosity
       , readOnly             = Identity readOnly
       , locale               = Identity locale
-      , targets              = Identity targets
-      , simpleAuthLoginUsers = Identity simpleAuthLoginUsers
-      , oidcAuthProviders    = Identity oidcAuthProviders
+      , targets              = targets
+      , simpleAuthLoginUsers = simpleAuthLoginUsers
+      , oidcAuthProviders    = oidcAuthProviders
       }

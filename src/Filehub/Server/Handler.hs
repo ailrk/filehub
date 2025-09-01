@@ -13,7 +13,6 @@ module Filehub.Server.Handler
   )
   where
 
-
 import Data.Bifunctor (Bifunctor(..))
 import Data.Text.Lazy qualified as Text
 import Data.Text.Lazy.Encoding qualified as Text
@@ -50,7 +49,7 @@ toServantHandler env eff
   $ eff
 
 
--- | withness
+-- | Withness
 data ConfirmReadOnly = ConfirmReadOnly
 
 

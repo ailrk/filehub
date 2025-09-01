@@ -1,5 +1,4 @@
 {-# LANGUAGE DeriveGeneric #-}
-
 module Filehub.File where
 
 import GHC.Generics (Generic)

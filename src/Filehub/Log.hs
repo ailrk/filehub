@@ -1,6 +1,5 @@
 module Filehub.Log (withColoredStdoutLogger) where
 
-
 import Effectful
 import Effectful.Log (Logger, LogLevel (..), mkLogger, UTCTime, LogMessage (..), showLogLevel)
 import System.IO (stdout, hFlush)

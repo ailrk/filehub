@@ -22,6 +22,7 @@ import Filehub.Auth.Types (AuthId)
 import Control.Concurrent.Timer qualified as Timer
 import Data.HashTable.IO (BasicHashTable)
 import Filehub.Locale (Locale)
+import Data.Text (Text)
 
 
 data Session = Session
@@ -36,6 +37,7 @@ data Session = Session
   , layout     :: Layout
   , theme      :: Theme
   , locale     :: Locale
+  , oidcState  :: Maybe Text
   }
   deriving (Generic)
 

@@ -2,7 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-
+{-# OPTIONS_GHC -Wno-orphans #-}
 module Filehub.Types
   ( LoginForm(..)
   , Session(..)
@@ -34,7 +34,6 @@ module Filehub.Types
   , Manifest
   )
   where
-
 
 import Data.Text (Text)
 import Data.Text.Lazy.Encoding qualified as LText
@@ -246,3 +245,4 @@ instance Accept Manifest where
 
 instance MimeRender Manifest Value where
   mimeRender _ = Aeson.encode
+

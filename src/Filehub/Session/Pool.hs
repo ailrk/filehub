@@ -9,7 +9,6 @@ module Filehub.Session.Pool
   )
   where
 
-
 import Effectful.Reader.Dynamic (Reader, asks)
 import Effectful ((:>), Eff, IOE, MonadIO (liftIO))
 import Effectful.Error.Dynamic (Error, throwError)

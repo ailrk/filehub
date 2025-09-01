@@ -1,7 +1,6 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Filehub.Template.Login where
 
-
 import Lucid
 import Data.Text (Text)
 import Filehub.Auth.OIDC (OIDCAuthProviders(..))
@@ -78,7 +77,8 @@ login' = do
           div_ [ class_ "or-sep "] (toHtml login_or)
           div_ [ class_ "panel oidc " ] do
             forM_ providers $ \provider -> do
-              button_ (toHtml provider.name)
+              button_ [ onclick_  (mconcat $ ["window.location.href='", (linkToText $ apiLinks.loginAuthOIDCRedirect provider.name), "'"]) ]
+                (toHtml provider.name)
 
 
 localeBtn :: Html ()

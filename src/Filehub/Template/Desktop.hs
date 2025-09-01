@@ -237,6 +237,7 @@ pasteBtn = do
 
 deleteBtn :: Template (Html ())
 deleteBtn = do
+  selected <- asks @TemplateContext (.selected)
   Phrase
     { control_panel_delete
     , confirm_delete_all
@@ -244,7 +245,7 @@ deleteBtn = do
   pure do
     button_ [ class_ "btn btn-control urgent"
             , type_ "submit"
-            , term "hx-delete" $ linkToText (apiLinks.deleteFile [] True)
+            , term "hx-delete" $ linkToText (apiLinks.deleteFile (Selected.toList selected) True)
             , term "hx-target" "#index"
             , term "hx-swap" "outerHTML"
             , term "hx-confirm" confirm_delete_all

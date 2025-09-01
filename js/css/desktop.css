@@ -387,7 +387,7 @@ textarea.form-control {
 #table.list-view {
   padding: 1rem 1rem;
   border-collapse: separate;
-  border-spacing: 0 5px;
+  border-spacing: 0;
   width: 100%;
   table-layout: fixed;
 

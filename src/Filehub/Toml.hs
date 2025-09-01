@@ -6,10 +6,7 @@
 -- from the config file will be combined with options to create the final `Config`.
 -- Note, there are some configurations only available in the config file. e.g
 -- OIDC doesn't have an cli option.
-
-
 module Filehub.Toml where
-
 
 import Toml qualified as Toml
 import Toml (TomlCodec, (.=), Key)
@@ -22,8 +19,13 @@ import Effectful.Log (LogLevel (..))
 import Control.Applicative ((<|>))
 import Control.Exception (throwIO)
 import Control.Monad (when)
-import Data.Maybe (fromMaybe)
 import Filehub.Locale (Locale(..))
+import Toml.Codec (TomlBiMap)
+import Network.URI (URI)
+import Data.Text qualified as Text
+import Network.URI qualified as URI
+import Control.Category ((>>>))
+import Data.Text (Text)
 
 
 simpleAuthLoginUser :: TomlCodec LoginUser
@@ -36,13 +38,13 @@ simpleAuthLoginUser =
 oidcAuthProvider :: TomlCodec Auth.OIDC.Provider
 oidcAuthProvider =
   Auth.OIDC.Provider
-  <$> Toml.text "name" .= (.name)
-  <*> Toml.text "issuer" .= (.issuer)
-  <*> Toml.text "client_id" .= (.clientId)
-  <*> Toml.text "client_secret" .= (.clientSecret)
-  <*> Toml.text "grant_type" .= (.grantType)
+  <$> Toml.text "name"                        .= (.name)
+  <*> Toml.match _URI "issuer"                .= (.issuer)
+  <*> Toml.text "client_id"                   .= (.clientId)
+  <*> Toml.text "client_secret"               .= (.clientSecret)
+  <*> Toml.text "grant_type"                  .= (.grantType)
   <*> Toml.arrayOf Toml._Text "allowed_users" .= (.allowedUsers)
-  <*> Toml.arrayOf Toml._Text "redirect_uris" .= (.redirectURIs)
+  <*> Toml.match _URI "redirect_uri"          .= (.redirectURI)
 
 
 targetConfig :: TomlCodec TargetConfig
@@ -102,14 +104,14 @@ locale key
 
 config :: TomlCodec (Config Maybe)
 config = Config
-  <$> Toml.dioptional (Toml.int                      "port")      .= (.port)
-  <*> Toml.dioptional (theme                         "theme")     .= (.theme)
-  <*> Toml.dioptional (verbosity                     "verbosity") .= (.verbosity)
-  <*> Toml.dioptional (Toml.bool                     "readonly")  .= (.readOnly)
-  <*> Toml.dioptional (locale                        "locale")    .= (.locale)
-  <*> Toml.dioptional (Toml.list targetConfig        "target")    .= (.targets)
-  <*> Toml.dioptional (Toml.list simpleAuthLoginUser "login")     .= (.simpleAuthLoginUsers)
-  <*> Toml.dioptional (Toml.list oidcAuthProvider    "oidc")      .= (.oidcAuthProviders)
+  <$> Toml.dioptional (Toml.int     "port")      .= (.port)
+  <*> Toml.dioptional (theme        "theme")     .= (.theme)
+  <*> Toml.dioptional (verbosity    "verbosity") .= (.verbosity)
+  <*> Toml.dioptional (Toml.bool    "readonly")  .= (.readOnly)
+  <*> Toml.dioptional (locale       "locale")    .= (.locale)
+  <*> Toml.list targetConfig        "target"     .= (.targets)
+  <*> Toml.list simpleAuthLoginUser "login"      .= (.simpleAuthLoginUsers)
+  <*> Toml.list oidcAuthProvider    "oidc"       .= (.oidcAuthProviders)
 
 
 -- | It should be called at the top level, let it throw if we failed to decode.
@@ -125,10 +127,28 @@ parseConfigFile (Just filePath) = do
             root' <- expandVars t.root
             pure $ FSTargetConfig (t { root = root' })
           expand x = pure x
-      targets' <- maybe (pure []) (traverse expand) c.targets
-      pure $ c { targets = Just targets' }
+      targets' <- traverse expand c.targets
+      pure $ c { targets = targets' }
     targetCheck c = do
-      when (null $ fromMaybe [] c.targets) do
+      when (null c.targets) do
         throwIO (userError "No target specified")
       pure c
-parseConfigFile _ = pure (Config Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing)
+parseConfigFile _ = pure (Config Nothing Nothing Nothing Nothing Nothing [] [] [])
+
+
+------------------------------
+-- Extra
+------------------------------
+
+
+_URI :: TomlBiMap URI Toml.AnyValue
+_URI = uriText >>> Toml._Text
+  where
+    uriText :: TomlBiMap URI Text
+    uriText = Toml.BiMap forward backward
+
+    forward uri = Right . Text.pack . URI.uriToString id uri $ ""
+    backward t = maybe
+      (Left $ Toml.ArbitraryError "invalid uri")
+      Right
+      (URI.parseURI (Text.unpack t))

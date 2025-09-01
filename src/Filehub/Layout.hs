@@ -2,6 +2,7 @@ module Filehub.Layout where
 
 import Servant (ToHttpApiData(..), FromHttpApiData(..))
 
+
 data Layout
   = ThumbnailLayout
   | ListLayout
