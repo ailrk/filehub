@@ -62,6 +62,7 @@
 .dropdown-item {
   cursor: pointer;
   padding: 0.7em;
+  white-space: nowrap;
 
   &:active {
     transform: translateY(2px);
