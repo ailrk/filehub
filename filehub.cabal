@@ -150,7 +150,6 @@ library
     Filehub.ExpandEnv
     Filehub.Error
     Filehub.File
-    Filehub.Layout
     Filehub.Links
     Filehub.Locale
     Filehub.Log

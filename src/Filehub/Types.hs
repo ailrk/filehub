@@ -10,6 +10,7 @@ module Filehub.Types
   , Selected(..)
   , CopyState(..)
   , ControlPanelState(..)
+  , Layout(..)
   , SessionId(..)
   , Env(..)
   , Resolution(..)
@@ -88,6 +89,23 @@ data ControlPanelState
   | ControlPanelSelecting
   | ControlPanelCopied
   deriving (Show, Eq)
+
+
+data Layout
+  = ThumbnailLayout
+  | ListLayout
+  deriving (Show, Eq)
+
+
+instance ToHttpApiData Layout where
+  toUrlPiece ThumbnailLayout = "ThumbnailLayout"
+  toUrlPiece ListLayout      = "ListLayout"
+
+
+instance FromHttpApiData Layout where
+  parseUrlPiece "ThumbnailLayout" = pure ThumbnailLayout
+  parseUrlPiece "ListLayout"      = pure ListLayout
+  parseUrlPiece _                 = Left "Unknown layout"
 
 
 newtype SearchWord = SearchWord Text deriving (Show, Eq, Generic)

@@ -11,7 +11,7 @@ module Filehub.Links
   where
 
 import Filehub.Routes (Api(..))
-import Filehub.Types (ClientPath (..), SortFileBy (..), TargetId (..), OpenTarget (..))
+import Filehub.Types (ClientPath (..), SortFileBy (..), TargetId (..), OpenTarget (..), Layout(..))
 import Servant.Links ( AsLink, allFieldLinks, linkURI )
 import Servant (Link)
 import Network.URI qualified as URI
@@ -20,7 +20,6 @@ import Data.Function ((&))
 import Data.Maybe (fromJust)
 import Data.Text (Text)
 import Data.Text qualified as Text
-import Filehub.Layout (Layout(..))
 import Filehub.Locale (Locale(..))
 
 

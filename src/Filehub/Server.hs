@@ -55,7 +55,6 @@ import Filehub.Cookie qualified as Cookie
 import Filehub.Cookie qualified as Cookies
 import Filehub.Env (Env(..))
 import Filehub.Error ( withServerError, FilehubError(..), withServerError, Error' (..) )
-import Filehub.Layout (Layout(..))
 import Filehub.Locale (Locale)
 import Filehub.Log qualified as Log
 import Filehub.Mime (isMime)
@@ -88,7 +87,7 @@ import Filehub.Template.Mobile qualified as Template.Mobile
 import Filehub.Template.Shared qualified as Template
 import Filehub.Theme qualified as Theme
 import Filehub.Toml qualified as Toml
-import Filehub.Types ( Display (..))
+import Filehub.Types ( Display (..), Layout (..))
 import Filehub.Types ( FilehubEvent (..), LoginForm(..), MoveFile (..), UIComponent (..), FileContent (..), TargetId, SearchWord, OpenTarget, Resolution)
 import Filehub.Types (File(..), ClientPath(..), UpdatedFile(..), NewFile(..), NewFolder(..), SortFileBy(..), UpdatedFile(..), Theme(..), Selected (..))
 import Filehub.Types (Target(..))

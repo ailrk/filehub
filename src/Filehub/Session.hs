@@ -65,7 +65,7 @@ module Filehub.Session
 import Lens.Micro
 import Lens.Micro.Platform ()
 import Data.Generics.Labels ()
-import Filehub.Types ( Env(..), Session(..), Target(..), Display (..), SessionId(..), Theme, SortFileBy)
+import Filehub.Types ( Env(..), Session(..), Target(..), Display (..), SessionId(..), Theme, SortFileBy, Layout)
 import Filehub.Session.Pool (getSession, updateSession, newSession)
 import Filehub.Display qualified as Display
 import Filehub.Target.File (Backend(..), FileSys)
@@ -80,7 +80,6 @@ import Effectful.Log (Log, logAttention, logTrace_)
 import Effectful.Reader.Dynamic (Reader, asks)
 import Filehub.Error (FilehubError (..), Error' (..))
 import Effectful.Error.Dynamic (Error, throwError)
-import Filehub.Layout (Layout)
 import Filehub.Auth.Types (AuthId)
 import Filehub.Locale (Locale)
 import Data.Text (Text)

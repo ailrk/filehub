@@ -31,6 +31,7 @@ import Data.Time.Format (formatTime, defaultTimeLocale)
 import Filehub.Types
     ( File(..),
       FileContent(..),
+      Layout(..),
       SortFileBy(..),
       ClientPath(..),
       Target(..))
@@ -51,7 +52,6 @@ import System.FilePath (takeFileName)
 import Filehub.Target.S3 (S3, Backend (..))
 import Filehub.Target.File (FileSys, Backend (..))
 import Filehub.Target.Types (targetHandler)
-import Filehub.Layout (Layout (..))
 import Filehub.Theme (Theme (..))
 import Control.Monad (when, join)
 import Filehub.Locale (Locale(..), Phrase (..), phrase)

@@ -40,21 +40,26 @@ import Servant.API.Experimental.Auth (AuthProtect)
 import Servant.Server.Experimental.Auth (AuthServerData)
 import Prelude hiding (readFile)
 import Filehub.Types
-    ( ClientPath(..),
-      NewFile(..),
-      NewFolder(..),
-      SearchWord(..),
-      SortFileBy(..),
-      UpdatedFile(..),
-      TargetId,
-      Selected(..),
-      FilehubEvent(..),
-      SessionId,
-      Resolution(..), Manifest, LoginForm, OpenTarget, MoveFile, UIComponent
+    ( ClientPath(..)
+    , Layout(..)
+    , NewFile(..)
+    , NewFolder(..)
+    , SearchWord(..)
+    , SortFileBy(..)
+    , UpdatedFile(..)
+    , TargetId
+    , Selected(..)
+    , FilehubEvent(..)
+    , SessionId
+    , Resolution(..)
+    , Manifest
+    , LoginForm
+    , OpenTarget
+    , MoveFile
+    , UIComponent
     )
 import GHC.Generics (Generic)
 import Filehub.Server.Handler (ConfirmReadOnly, ConfirmMobilOnly, ConfirmDesktopOnly, ConfirmLogin)
-import Filehub.Layout (Layout)
 import Data.ByteString (ByteString)
 import Conduit (ConduitT, ResourceT)
 import Amazonka.Data (Value)

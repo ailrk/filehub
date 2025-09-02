@@ -1,8 +1,7 @@
 module Filehub.Template.Internal where
 
-import Filehub.Types ( Display(..), ControlPanelState (..))
+import Filehub.Types ( Display(..), ControlPanelState (..), Layout)
 import Lens.Micro.Platform ()
-import Filehub.Layout (Layout)
 import Filehub.Theme (Theme)
 import Effectful.Reader.Dynamic (Reader, runReader)
 import Effectful (Eff, runPureEff)
