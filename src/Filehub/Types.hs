@@ -38,6 +38,7 @@ module Filehub.Types
 
 import Data.Text (Text)
 import Data.Text.Lazy.Encoding qualified as LText
+import Data.Time (UTCTime)
 import Data.Aeson (ToJSON (..), (.=), Value)
 import Data.Aeson qualified as Aeson
 import GHC.Generics (Generic)
@@ -53,15 +54,13 @@ import Servant.API (MimeRender(..))
 import Filehub.Target.Types (Target (..))
 import Filehub.Target.Types.TargetId (TargetId(..))
 import Filehub.ClientPath (ClientPath(..), RawClientPath(..))
-import Filehub.File (File(..), FileContent(..))
 import Filehub.Theme (Theme(..))
 import Filehub.Display (Display(..), Resolution(..))
 import Filehub.Sort (SortFileBy(..))
-import Filehub.Selected.Types (Selected(..))
-import Filehub.Copy.Types (CopyState(..))
 import Filehub.Session.Types (SessionId(..), Session(..), TargetSessionData(..))
-import Filehub.Env.Types (Env(..))
+import Filehub.Env (Env(..))
 import GHC.IsList (fromList)
+import Network.Mime (MimeType)
 
 
 data LoginForm = LoginForm
@@ -106,6 +105,49 @@ instance FromHttpApiData Layout where
   parseUrlPiece "ThumbnailLayout" = pure ThumbnailLayout
   parseUrlPiece "ListLayout"      = pure ListLayout
   parseUrlPiece _                 = Left "Unknown layout"
+
+
+data FileContent
+  = Content
+  | Dir (Maybe [File])
+  deriving (Show, Eq, Generic)
+
+
+data File = File
+  { path     :: FilePath -- absolute path
+  , atime    :: Maybe UTCTime
+  , mtime    :: Maybe UTCTime
+  , size     :: Maybe Integer
+  , mimetype :: MimeType
+  , content  :: FileContent
+  }
+  deriving (Show, Eq, Generic)
+
+
+instance Ord File where
+  compare a b = compare a.path b.path
+
+data CopyState
+ -- | Ready to paste
+  = CopySelected [(Target, [File])]
+  -- | Start pasting files to target path
+  | Paste [(Target, [File])]
+  -- | No copy paste action being performed at the moment.
+  | NoCopyPaste
+
+
+data Selected
+  = Selected ClientPath [ClientPath] -- non empty list
+  | NoSelection
+  deriving (Show, Eq)
+
+
+instance FromForm Selected where
+  fromForm f = do
+    selected <- parseAll "selected" f
+    case selected of
+      [] -> pure NoSelection
+      x:xs->  pure $ Selected x xs
 
 
 newtype SearchWord = SearchWord Text deriving (Show, Eq, Generic)

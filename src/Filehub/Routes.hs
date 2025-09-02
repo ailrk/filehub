@@ -65,7 +65,6 @@ import Conduit (ConduitT, ResourceT)
 import Amazonka.Data (Value)
 import Web.Cookie (SetCookie)
 import Filehub.Locale (Locale)
-import Network.URI (URI)
 
 
 type instance AuthServerData (AuthProtect "session")      = SessionId

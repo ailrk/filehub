@@ -11,7 +11,7 @@ import Prelude hiding (readFile)
 import Filehub.Template.Mobile qualified as Template.Mobile
 import Filehub.Template.Internal (runTemplate, TemplateContext(..))
 import Filehub.Error ( withServerError, withServerError )
-import Filehub.Selected qualified as Selected
+import Filehub.Session.Selected qualified as Selected
 import Filehub.Sort (sortFiles)
 import Filehub.Server.Internal (withQueryParam, makeTemplateContext)
 import Filehub.ClientPath qualified as ClientPath

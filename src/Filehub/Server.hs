@@ -49,6 +49,7 @@ import Filehub.Auth.Simple qualified as Auth.Simple
 import Filehub.Auth.Types (ActiveUsers(..))
 import Filehub.Auth.Types qualified as Auth
 import Filehub.ClientPath qualified as ClientPath
+import Filehub.Config.Options (parseOptions, Options(..))
 import Filehub.Config (Config(..), TargetConfig (..))
 import Filehub.Config qualified as Config
 import Filehub.Cookie qualified as Cookie
@@ -59,11 +60,10 @@ import Filehub.Locale (Locale)
 import Filehub.Log qualified as Log
 import Filehub.Mime (isMime)
 import Filehub.Monad
-import Filehub.Options (parseOptions, Options(..))
 import Filehub.Orphan ()
 import Filehub.Routes (Api (..))
 import Filehub.Routes qualified as Routes
-import Filehub.Selected qualified as Selected
+import Filehub.Session.Selected qualified as Selected
 import Filehub.Server.Desktop qualified as Server.Desktop
 import Filehub.Server.Handler (ConfirmLogin, ConfirmReadOnly, ConfirmDesktopOnly)
 import Filehub.Server.Handler qualified as Server.Handler
@@ -75,6 +75,7 @@ import Filehub.Session (SessionId(..))
 import Filehub.Session qualified as Session
 import Filehub.Session.Pool qualified as SessionPool
 import Filehub.Storage (getStorage, Storage(..))
+import Filehub.Sort qualified as Sort
 import Filehub.Target qualified as Target
 import Filehub.Target.File qualified as FS
 import Filehub.Target.S3 qualified as S3
@@ -86,12 +87,11 @@ import Filehub.Template.Login qualified as Template.Login
 import Filehub.Template.Mobile qualified as Template.Mobile
 import Filehub.Template.Shared qualified as Template
 import Filehub.Theme qualified as Theme
-import Filehub.Toml qualified as Toml
-import Filehub.Types ( Display (..), Layout (..))
+import Filehub.Config.Toml qualified as Toml
+import Filehub.Types ( Display (..), Layout (..), Resource (..))
 import Filehub.Types ( FilehubEvent (..), LoginForm(..), MoveFile (..), UIComponent (..), FileContent (..), TargetId, SearchWord, OpenTarget, Resolution)
 import Filehub.Types (File(..), ClientPath(..), UpdatedFile(..), NewFile(..), NewFolder(..), SortFileBy(..), UpdatedFile(..), Theme(..), Selected (..))
 import Filehub.Types (Target(..))
-import Filehub.Viewer qualified as Viewer
 import Lens.Micro
 import Lens.Micro.Platform ()
 import Lucid
@@ -118,6 +118,7 @@ import UnliftIO (hFlush, stdout)
 import Web.Cookie (SetCookie (..))
 import Network.URI (relativeTo)
 import Network.URI qualified as URI
+import Network.Mime (MimeType)
 
 
 #ifdef DEBUG
@@ -611,8 +612,33 @@ initViewer sessionId _ mClientPath = do
   withServerError do
     clientPath <- withQueryParam mClientPath
     root <- Session.getRoot sessionId
-    payload <- Viewer.initViewer sessionId root clientPath
+    payload <- initViewer' root clientPath
     pure $ addHeader payload NoContent
+  where
+    initViewer' root clientPath = do
+      storage <- getStorage sessionId
+      let filePath = ClientPath.fromClientPath root clientPath
+      let dir      = takeDirectory filePath
+      order <- Session.getSortFileBy sessionId
+      files <- takeResourceFiles . Sort.sortFiles order <$> (storage.ls dir)
+      let idx       = fromMaybe 0 $ List.elemIndex filePath (fmap (.path) files)
+      let resources = fmap (toResource root) files
+      pure $ ViewerInited resources idx
+
+    isResource :: MimeType -> Bool
+    isResource s = any (s `isMime`)  ["image", "video", "audio"]
+
+    takeResourceFiles :: [File] -> [File]
+    takeResourceFiles = filter (isResource . (.mimetype))
+
+
+    toResource :: FilePath -> File -> Resource
+    toResource root f =
+      Resource
+        { url = let ClientPath path = ClientPath.toClientPath root f.path -- encode path url
+                 in ClientPath.RawClientPath [i|/serve?file=#{path}|]
+                                                  , mimetype = Text.decodeUtf8 f.mimetype
+        }
 
 
 open :: SessionId -> ConfirmLogin -> Maybe OpenTarget -> Maybe ClientPath

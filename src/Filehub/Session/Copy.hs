@@ -1,6 +1,15 @@
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-module Filehub.Copy ()
+module Filehub.Session.Copy
+  ( select
+  , copy
+  , paste
+  , getCopyState
+  , setCopyState
+  , clearCopyState
+  , CopyState
+  )
   where
+
+
 
 import Lens.Micro hiding (to)
 import Lens.Micro.Platform ()
@@ -106,3 +115,4 @@ paste sessionId = do
     _ -> do
       logAttention_ [i|Paste error: #{sessionId}, not in pastable state.|]
       throwError (FilehubError SelectError "Not in a pastable state")
+

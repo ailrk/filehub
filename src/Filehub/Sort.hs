@@ -9,7 +9,7 @@ module Filehub.Sort (SortFileBy(..), sortFiles) where
 import Data.List ( sortOn )
 import System.FilePath ( takeFileName )
 import Servant (ToHttpApiData(..), FromHttpApiData(..))
-import Filehub.File (File(..), FileContent (..))
+import {-# SOURCE #-} Filehub.Types (File(..), FileContent(..))
 
 
 data SortFileBy

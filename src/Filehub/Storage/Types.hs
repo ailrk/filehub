@@ -1,6 +1,5 @@
 module Filehub.Storage.Types where
 
-import Filehub.File (File)
 import Filehub.ClientPath (ClientPath)
 import Lens.Micro.Platform ()
 import Data.Generics.Labels ()
@@ -10,6 +9,7 @@ import Prelude hiding (readFile, writeFile)
 import Data.Conduit (ConduitT)
 import Conduit (ResourceT)
 import Data.ByteString (ByteString)
+import {-# SOURCE #-} Filehub.Types (File)
 
 
 data Storage m = Storage

@@ -1,31 +1,28 @@
 {-# LANGUAGE PartialTypeSignatures #-}
 module Filehub.Server.Internal where
 
+import Control.Exception (SomeException, catch)
+import Data.ByteString (ByteString)
+import Data.String.Interpolate (i)
 import Effectful ( Eff, (:>), IOE, MonadUnliftIO (..) )
 import Effectful.Error.Dynamic (throwError, Error)
+import Effectful.Log (logAttention)
 import Effectful.Reader.Dynamic (Reader, asks, ask)
-import Filehub.Env (Env (..))
-import Filehub.Selected qualified as Selected
+import Filehub.Session.Copy qualified as Copy
+import Filehub.Session.Selected qualified as Selected
+import Filehub.Env qualified as Env
+import Filehub.Error (withServerError)
+import Filehub.Monad (Filehub)
+import Filehub.Session qualified as Session
+import Filehub.Template.Internal (TemplateContext(..))
 import Filehub.Types
-    ( SessionId(..),
-      SessionId(..))
-import Filehub.Copy qualified as Copy
+import Lens.Micro ((&))
 import Lens.Micro.Platform ()
-import Prelude hiding (readFile)
+import Prelude hiding (elem)
 import Prelude hiding (readFile)
 import Servant ( ServerError(..), ServerError, FromHttpApiData (..), err500 )
 import Servant.Server (err400)
-import Data.ByteString (ByteString)
-import Filehub.Monad (Filehub)
-import Filehub.Template.Internal (TemplateContext(..))
-import Filehub.Error (withServerError)
-import Control.Exception (SomeException, catch)
-import Data.String.Interpolate (i)
-import Lens.Micro ((&))
-import Effectful.Log (logAttention)
-import Filehub.Session qualified as Session
-import Filehub.Env qualified as Env
-import Filehub.ControlPanel qualified as ControlPanel
+
 
 
 makeTemplateContext :: SessionId -> Filehub TemplateContext
@@ -35,7 +32,7 @@ makeTemplateContext sessionId = do
   readOnly <- asks @Env (.readOnly)
   noLogin <- Env.hasNoLogin <$> ask @Env
   display <- Session.getDisplay sessionId & withServerError
-  state <- ControlPanel.getControlPanelState sessionId & withServerError
+  state <- Session.getControlPanelState sessionId & withServerError
   root <- Session.getRoot sessionId & withServerError
   sortedBy <- Session.getSortFileBy sessionId & withServerError
   selected <- Selected.getSelected sessionId & withServerError

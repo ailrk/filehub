@@ -139,27 +139,23 @@ library
     Filehub.Auth.Simple
     Filehub.Auth.OIDC
     Filehub.ClientPath
-    Filehub.ControlPanel
     Filehub.Cookie
     Filehub.Copy
-    Filehub.Copy.Types
     Filehub.Config
+    Filehub.Config.Toml
+    Filehub.Config.Options
     Filehub.Display
     Filehub.Env
-    Filehub.Env.Types
     Filehub.ExpandEnv
     Filehub.Error
-    Filehub.File
     Filehub.Links
     Filehub.Locale
     Filehub.Log
     Filehub.Mime
     Filehub.Monad
-    Filehub.Options
     Filehub.Orphan
     Filehub.Routes
     Filehub.Selected
-    Filehub.Selected.Types
     Filehub.Server
     Filehub.Server.Handler
     Filehub.Server.Desktop
@@ -169,6 +165,8 @@ library
     Filehub.Session
     Filehub.Session.Internal
     Filehub.Session.Pool
+    Filehub.Session.Copy
+    Filehub.Session.Selected
     Filehub.Session.Types
     Filehub.Session.Types.SessionId
     Filehub.Size
@@ -191,11 +189,9 @@ library
     Filehub.Template.Internal
     Filehub.Template.Login
     Filehub.Template.Mobile
-    Filehub.Toml
     Filehub.Theme
     Filehub.Types
     Filehub.UserAgent
-    Filehub.Viewer
     Paths_filehub
 
   default-language: Haskell2010

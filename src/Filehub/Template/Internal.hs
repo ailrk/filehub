@@ -1,11 +1,10 @@
 module Filehub.Template.Internal where
 
-import Filehub.Types ( Display(..), ControlPanelState (..), Layout)
+import Filehub.Types (Display(..), ControlPanelState (..), Layout, Selected)
 import Lens.Micro.Platform ()
 import Filehub.Theme (Theme)
 import Effectful.Reader.Dynamic (Reader, runReader)
 import Effectful (Eff, runPureEff)
-import Filehub.Selected.Types (Selected)
 import Filehub.Sort (SortFileBy)
 import Filehub.Session (TargetView)
 import Filehub.Locale (Locale)

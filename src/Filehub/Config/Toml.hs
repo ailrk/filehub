@@ -6,7 +6,7 @@
 -- from the config file will be combined with options to create the final `Config`.
 -- Note, there are some configurations only available in the config file. e.g
 -- OIDC doesn't have an cli option.
-module Filehub.Toml where
+module Filehub.Config.Toml where
 
 import Toml qualified as Toml
 import Toml (TomlCodec, (.=), Key)

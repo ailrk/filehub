@@ -55,39 +55,42 @@ module Filehub.Session
   , updateSession
   , getOIDCState
   , setOIDCState
+  , getControlPanelState
   , changeCurrentTarget
   , currentTarget
   , withTarget
   )
   where
 
-
-import Lens.Micro
-import Lens.Micro.Platform ()
-import Data.Generics.Labels ()
-import Filehub.Types ( Env(..), Session(..), Target(..), Display (..), SessionId(..), Theme, SortFileBy, Layout)
-import Filehub.Session.Pool (getSession, updateSession, newSession)
-import Filehub.Display qualified as Display
-import Filehub.Target.File (Backend(..), FileSys)
-import Filehub.Target.S3 (S3)
-import Filehub.UserAgent qualified as UserAgent
-import Filehub.Target.Types.TargetView (TargetView(..))
 import Control.Applicative (asum)
-import Data.Typeable (cast)
+import Data.Generics.Labels ()
+import Data.List (find)
 import Data.Maybe (fromMaybe)
+import Data.String.Interpolate (i)
+import Data.Text (Text)
+import Data.Typeable (cast)
 import Effectful (Eff, (:>), IOE)
+import Effectful.Error.Dynamic (Error, throwError)
 import Effectful.Log (Log, logAttention, logTrace_)
 import Effectful.Reader.Dynamic (Reader, asks)
-import Filehub.Error (FilehubError (..), Error' (..))
-import Effectful.Error.Dynamic (Error, throwError)
 import Filehub.Auth.Types (AuthId)
+import Filehub.Display qualified as Display
+import Filehub.Error (FilehubError (..), Error' (..))
 import Filehub.Locale (Locale)
-import Data.Text (Text)
-import Filehub.Target.Types.TargetId (TargetId)
-import Data.String.Interpolate (i)
+import Filehub.Session.Pool (getSession, updateSession, newSession)
 import Filehub.Session.Pool qualified as Session.Pool
+import {-# SOURCE #-} Filehub.Session.Selected qualified as Selected
+import {-# SOURCE #-} Filehub.Session.Copy qualified as Copy
 import Filehub.Target (getTargetId)
-import Data.List (find)
+import Filehub.Target.File (Backend(..), FileSys)
+import Filehub.Target.S3 (S3)
+import Filehub.Target.Types.TargetView (TargetView(..))
+import Filehub.Types
+import Filehub.UserAgent qualified as UserAgent
+import Lens.Micro
+import Lens.Micro.Platform ()
+import Prelude hiding (elem)
+import Prelude hiding (readFile)
 
 
 -- | Get the current target root. The meaning of the root depends on the target. e.g for
@@ -188,6 +191,19 @@ getDisplay sessionId = do
         UserAgent.Desktop -> pure Desktop
         _ -> pure $ Display.classify resolution
     Nothing -> pure NoDisplay
+
+
+
+getControlPanelState :: (Reader Env :> es, IOE :> es, Error FilehubError :> es, Log :> es) => SessionId -> Eff es ControlPanelState
+getControlPanelState sessionId = do
+  isAnySelected <- Selected.anySelected sessionId
+  copyState <- Copy.getCopyState sessionId
+  case (isAnySelected, copyState) of
+    (_, Paste {}) -> pure ControlPanelCopied
+    (True, CopySelected {}) -> pure ControlPanelSelecting
+    (True, NoCopyPaste) -> pure ControlPanelSelecting
+    _ -> pure ControlPanelDefault
+
 
 
 ------------------------------
