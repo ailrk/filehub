@@ -56,6 +56,7 @@ module Filehub.Session
   , getOIDCState
   , setOIDCState
   , getControlPanelState
+  , getStorage
   , changeCurrentTarget
   , currentTarget
   , withTarget
@@ -77,6 +78,7 @@ import Filehub.Auth.Types (AuthId)
 import Filehub.Display qualified as Display
 import Filehub.Error (FilehubError (..), Error' (..))
 import Filehub.Locale (Locale)
+import {-# SOURCE #-} Filehub.Storage (getStorage)
 import Filehub.Session.Pool (getSession, updateSession, newSession)
 import Filehub.Session.Pool qualified as Session.Pool
 import {-# SOURCE #-} Filehub.Session.Selected qualified as Selected
@@ -91,6 +93,7 @@ import Lens.Micro
 import Lens.Micro.Platform ()
 import Prelude hiding (elem)
 import Prelude hiding (readFile)
+
 
 
 -- | Get the current target root. The meaning of the root depends on the target. e.g for
@@ -203,7 +206,6 @@ getControlPanelState sessionId = do
     (True, CopySelected {}) -> pure ControlPanelSelecting
     (True, NoCopyPaste) -> pure ControlPanelSelecting
     _ -> pure ControlPanelDefault
-
 
 
 ------------------------------

@@ -140,7 +140,6 @@ library
     Filehub.Auth.OIDC
     Filehub.ClientPath
     Filehub.Cookie
-    Filehub.Copy
     Filehub.Config
     Filehub.Config.Toml
     Filehub.Config.Options
@@ -158,10 +157,10 @@ library
     Filehub.Selected
     Filehub.Server
     Filehub.Server.Handler
-    Filehub.Server.Desktop
+    Filehub.Server.Platform.Desktop
+    Filehub.Server.Platform.Mobile
     Filehub.Server.Internal
     Filehub.Server.Middleware
-    Filehub.Server.Mobile
     Filehub.Session
     Filehub.Session.Internal
     Filehub.Session.Pool
@@ -184,11 +183,11 @@ library
     Filehub.Target.File
     Filehub.Target.S3
     Filehub.Template
-    Filehub.Template.Desktop
+    Filehub.Template.Platform.Desktop
+    Filehub.Template.Platform.Mobile
     Filehub.Template.Shared
     Filehub.Template.Internal
     Filehub.Template.Login
-    Filehub.Template.Mobile
     Filehub.Theme
     Filehub.Types
     Filehub.UserAgent

@@ -49,7 +49,9 @@ import Filehub.Auth.Simple qualified as Auth.Simple
 import Filehub.Auth.Types (ActiveUsers(..))
 import Filehub.Auth.Types qualified as Auth
 import Filehub.ClientPath qualified as ClientPath
-import Filehub.Config.Options (parseOptions, Options(..))
+import Filehub.Config.Options (Options(..))
+import Filehub.Config.Options qualified as Config.Options
+import Filehub.Config.Toml qualified as Config.Toml
 import Filehub.Config (Config(..), TargetConfig (..))
 import Filehub.Config qualified as Config
 import Filehub.Cookie qualified as Cookie
@@ -64,13 +66,13 @@ import Filehub.Orphan ()
 import Filehub.Routes (Api (..))
 import Filehub.Routes qualified as Routes
 import Filehub.Session.Selected qualified as Selected
-import Filehub.Server.Desktop qualified as Server.Desktop
+import Filehub.Server.Platform.Desktop qualified as Server.Desktop
+import Filehub.Server.Platform.Mobile qualified as Server.Mobile
 import Filehub.Server.Handler (ConfirmLogin, ConfirmReadOnly, ConfirmDesktopOnly)
 import Filehub.Server.Handler qualified as Server.Handler
 import Filehub.Server.Internal (withQueryParam, parseHeader', makeTemplateContext)
 import Filehub.Server.Internal qualified as Server.Internal
 import Filehub.Server.Middleware qualified as Server.Middleware
-import Filehub.Server.Mobile qualified as Server.Mobile
 import Filehub.Session (SessionId(..))
 import Filehub.Session qualified as Session
 import Filehub.Session.Pool qualified as SessionPool
@@ -81,13 +83,12 @@ import Filehub.Target.File qualified as FS
 import Filehub.Target.S3 qualified as S3
 import Filehub.Target.Types.TargetView (TargetView(..))
 import Filehub.Template qualified as Template
-import Filehub.Template.Desktop qualified as Template.Desktop
+import Filehub.Template.Platform.Desktop qualified as Template.Desktop
+import Filehub.Template.Platform.Mobile qualified as Template.Mobile
 import Filehub.Template.Internal (runTemplate, TemplateContext(..))
 import Filehub.Template.Login qualified as Template.Login
-import Filehub.Template.Mobile qualified as Template.Mobile
 import Filehub.Template.Shared qualified as Template
 import Filehub.Theme qualified as Theme
-import Filehub.Config.Toml qualified as Toml
 import Filehub.Types ( Display (..), Layout (..), Resource (..))
 import Filehub.Types ( FilehubEvent (..), LoginForm(..), MoveFile (..), UIComponent (..), FileContent (..), TargetId, SearchWord, OpenTarget, Resolution)
 import Filehub.Types (File(..), ClientPath(..), UpdatedFile(..), NewFile(..), NewFolder(..), SortFileBy(..), UpdatedFile(..), Theme(..), Selected (..))
@@ -898,8 +899,8 @@ main = Log.withColoredStdoutLogger \logger -> do
   Options
     { configFile = configFile
     , optionConfig
-    } <- parseOptions
-  config <- Toml.parseConfigFile configFile
+    } <- Config.Options.parseOptions
+  config <- Config.Toml.parseConfigFile configFile
   Config
     { port                 = Identity port
     , theme                = Identity theme

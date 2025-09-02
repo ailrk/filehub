@@ -10,7 +10,6 @@ module Filehub.Session.Copy
   where
 
 
-
 import Lens.Micro hiding (to)
 import Lens.Micro.Platform ()
 import Effectful (Eff, (:>), Eff, (:>), IOE)
@@ -57,40 +56,53 @@ select sessionId = do
       case selected of
         NoSelection -> do
           state <- getCopyState sessionId
-          case state of
-            NoCopyPaste -> setCopyState sessionId (CopySelected [])
-            CopySelected {} -> pure ()
-            _ -> do
-              logAttention_ [i|Select error: #{sessionId}|]
-              throwError (FilehubError SelectError "Invalid selection")
+          case onNoSelection state of
+            Right (Just state') -> setCopyState sessionId state'
+            Right Nothing -> pure ()
+            Left err -> do
+              logAttention_ [i|#{err}|]
+              throwError err
         Selected x xs -> do
           root <- Session.getRoot sessionId
           storage <- getStorage sessionId
           let paths = (x:xs) & fmap (ClientPath.fromClientPath root)
           files <- traverse storage.get paths
           state <- getCopyState sessionId
-          case state of
-            NoCopyPaste -> setCopyState sessionId (CopySelected [(target, files)])
-            CopySelected selections -> setCopyState sessionId (CopySelected (merge (target, files) selections))
-            _ -> do
-              logAttention_ [i|Select error: #{sessionId}|]
-              throwError (FilehubError SelectError "Invalid selection")
+          case onSelected (target, files) state of
+            Right state' -> setCopyState sessionId state'
+            Left err -> do
+              logAttention_ [i|#{err}|]
+              throwError err
   where
     merge sel [] = [sel]
     merge sel@(target, files) (h@(target', files'):rest)
       | on (==) Target.getTargetId target target' = (target, nub (files <> files')):rest
       | otherwise = h:merge sel rest
 
+    onNoSelection = \case
+      NoCopyPaste -> Right . Just $ CopySelected []
+      CopySelected {} -> Right Nothing
+      _ -> Left $ FilehubError SelectError "Invalid selection"
+
+    onSelected (target, files) = \case
+      NoCopyPaste -> Right $ CopySelected [(target, files)]
+      CopySelected selections -> Right $ CopySelected (merge (target, files) selections)
+      _ -> Left $ FilehubError SelectError "Invalid selection"
+
 
 -- | Confirm selection
 copy :: (Reader Env :> es, IOE :> es, Error FilehubError :> es, Log :> es) => SessionId -> Eff es ()
 copy sessionId = do
   state <- getCopyState sessionId
-  case state of
-    CopySelected selections -> setCopyState sessionId (Paste selections)
-    _ -> do
-      logAttention_ [i|Copy error: #{sessionId}, not in copyable state.|]
-      throwError (FilehubError SelectError "Not in a copyable state")
+  case step state of
+    Right state' -> setCopyState sessionId state'
+    Left err -> do
+      logAttention_ [i|#{err}|]
+      throwError err
+  where
+    step = \case
+      CopySelected selections -> Right $ Paste selections
+      _ -> Left $ FilehubError SelectError "Not in a copyable state"
 
 
 -- | Paste files
@@ -115,4 +127,3 @@ paste sessionId = do
     _ -> do
       logAttention_ [i|Paste error: #{sessionId}, not in pastable state.|]
       throwError (FilehubError SelectError "Not in a pastable state")
-

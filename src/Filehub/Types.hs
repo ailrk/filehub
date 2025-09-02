@@ -63,6 +63,7 @@ import GHC.IsList (fromList)
 import Network.Mime (MimeType)
 
 
+-- | Simple Auth login form
 data LoginForm = LoginForm
   { username :: Text
   , password :: Text
@@ -83,6 +84,7 @@ instance ToForm LoginForm where
         ]
 
 
+-- | The state of the control panel.
 data ControlPanelState
   = ControlPanelDefault
   | ControlPanelSelecting
@@ -90,6 +92,7 @@ data ControlPanelState
   deriving (Show, Eq)
 
 
+-- | The table layout of a session
 data Layout
   = ThumbnailLayout
   | ListLayout
@@ -107,6 +110,8 @@ instance FromHttpApiData Layout where
   parseUrlPiece _                 = Left "Unknown layout"
 
 
+-- | `FileContent` represents the tree structure of a folder without pulling in
+-- any content. To read content from a file, use `Storage.read` or `Storage.readStream`
 data FileContent
   = Content
   | Dir (Maybe [File])
@@ -127,6 +132,8 @@ data File = File
 instance Ord File where
   compare a b = compare a.path b.path
 
+
+-- | State machine reprents the copy and paste process.
 data CopyState
  -- | Ready to paste
   = CopySelected [(Target, [File])]
@@ -268,6 +275,7 @@ instance ToHttpApiData FilehubEvent where
   toUrlPiece v = (v & Aeson.encode & LText.decodeUtf8) ^. strict
 
 
+-- | The target for windows.open().
 data OpenTarget
   = OpenDOMSelf
   | OpenDOMBlank

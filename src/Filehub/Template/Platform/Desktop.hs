@@ -1,7 +1,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE CPP #-}
-module Filehub.Template.Desktop
+module Filehub.Template.Platform.Desktop
   ( index
   , sideBar
   , controlPanel

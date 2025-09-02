@@ -1,5 +1,5 @@
 {-# LANGUAGE NamedFieldPuns #-}
-module Filehub.Template.Mobile where
+module Filehub.Template.Platform.Mobile where
 
 import Data.ByteString (ByteString)
 import Data.Foldable (traverse_)
