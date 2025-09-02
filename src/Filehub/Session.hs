@@ -55,8 +55,9 @@ module Filehub.Session
   , updateSession
   , getOIDCState
   , setOIDCState
-  , currentTarget
   , changeCurrentTarget
+  , currentTarget
+  , withTarget
   )
   where
 
@@ -66,8 +67,6 @@ import Lens.Micro.Platform ()
 import Data.Generics.Labels ()
 import Filehub.Types ( Env(..), Session(..), Target(..), Display (..), SessionId(..), Theme, SortFileBy)
 import Filehub.Session.Pool (getSession, updateSession, newSession)
-import Filehub.Target (currentTarget, changeCurrentTarget)
-import Filehub.Target qualified as Target
 import Filehub.Display qualified as Display
 import Filehub.Target.File (Backend(..), FileSys)
 import Filehub.Target.S3 (S3)
@@ -77,14 +76,19 @@ import Control.Applicative (asum)
 import Data.Typeable (cast)
 import Data.Maybe (fromMaybe)
 import Effectful (Eff, (:>), IOE)
-import Effectful.Log (Log)
-import Effectful.Reader.Dynamic (Reader)
-import Filehub.Error (FilehubError)
-import Effectful.Error.Dynamic (Error)
+import Effectful.Log (Log, logAttention, logTrace_)
+import Effectful.Reader.Dynamic (Reader, asks)
+import Filehub.Error (FilehubError (..), Error' (..))
+import Effectful.Error.Dynamic (Error, throwError)
 import Filehub.Layout (Layout)
 import Filehub.Auth.Types (AuthId)
 import Filehub.Locale (Locale)
 import Data.Text (Text)
+import Filehub.Target.Types.TargetId (TargetId)
+import Data.String.Interpolate (i)
+import Filehub.Session.Pool qualified as Session.Pool
+import Filehub.Target (getTargetId)
+import Data.List (find)
 
 
 -- | Get the current target root. The meaning of the root depends on the target. e.g for
@@ -100,7 +104,7 @@ getRoot sessionId = do
 
 -- | Get the current working directory of the session.
 getCurrentDir :: (Reader Env  :> es,  Error FilehubError :> es,  IOE :> es, Log :> es) => SessionId -> Eff es FilePath
-getCurrentDir sessionId = (^. #sessionData . #currentDir) <$> Target.currentTarget sessionId
+getCurrentDir sessionId = (^. #sessionData . #currentDir) <$> currentTarget sessionId
 
 
 -- | Set the current working directory of the session.
@@ -111,7 +115,7 @@ setCurrentDir sessionId path = do
 
 -- | Get the file sorting order of the current session.
 getSortFileBy :: (Reader Env :> es, Error FilehubError :> es, IOE :> es,  Log :> es) => SessionId -> Eff es SortFileBy
-getSortFileBy sessionId = (^. #sessionData . #sortedFileBy) <$> Target.currentTarget sessionId
+getSortFileBy sessionId = (^. #sessionData . #sortedFileBy) <$> currentTarget sessionId
 
 
 -- | Set the file sorting order of the current session.
@@ -185,3 +189,43 @@ getDisplay sessionId = do
         UserAgent.Desktop -> pure Desktop
         _ -> pure $ Display.classify resolution
     Nothing -> pure NoDisplay
+
+
+------------------------------
+-- Target
+------------------------------
+
+currentTarget :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es TargetView
+currentTarget sessionId = do
+  mSession <- Session.Pool.getSession sessionId
+  targets <- asks @Env (.targets)
+  maybe (throwError (FilehubError InvalidSession "Invalid session")) pure do
+    index <- mSession ^? #index
+    targetSessionData <- mSession ^? #targets . ix index
+    target <- targets ^? ix index
+    pure $ TargetView target targetSessionData index
+
+
+changeCurrentTarget :: (Reader Env :> es, IOE :> es, Error FilehubError :> es, Log :> es) => SessionId -> TargetId -> Eff es ()
+changeCurrentTarget sessionId targetId = do
+  logTrace_ [i|Changing target to #{targetId}|]
+  TargetView target _ _ <- currentTarget sessionId
+  targets <- asks @Env (.targets)
+  if getTargetId target == targetId
+     then pure ()
+     else do
+       case find (\(_, x) -> getTargetId x == targetId) ([0..] `zip` targets) of
+         Just (idx, _) -> do
+           Session.Pool.updateSession sessionId (\s -> s & #index .~ idx)
+         Nothing -> do
+           logAttention "Can't find target" (show targetId)
+           throwError (FilehubError InvalidSession "Invalid session")
+
+
+withTarget :: (Reader Env :> es, IOE :> es, Error FilehubError :> es, Log :> es) => SessionId -> TargetId -> (TargetView -> Eff es a) -> Eff es a
+withTarget sessionId targetId action = do
+  TargetView saved _ _ <- currentTarget sessionId
+  changeCurrentTarget sessionId targetId
+  result <- currentTarget sessionId >>= action
+  changeCurrentTarget sessionId (getTargetId saved)
+  pure result

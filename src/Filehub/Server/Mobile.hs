@@ -10,7 +10,6 @@ import Lucid
 import Prelude hiding (readFile)
 import Filehub.Template.Mobile qualified as Template.Mobile
 import Filehub.Template.Internal (runTemplate, TemplateContext(..))
-import Filehub.Target qualified as Target
 import Filehub.Error ( withServerError, withServerError )
 import Filehub.Selected qualified as Selected
 import Filehub.Sort (sortFiles)
@@ -41,7 +40,7 @@ sideBar :: SessionId -> Filehub (Html ())
 sideBar sessionId = withServerError $
   Template.Mobile.sideBar
   <$> asks @Env (.targets)
-  <*> Target.currentTarget sessionId
+  <*> Session.currentTarget sessionId
 
 
 toolBar :: SessionId -> Filehub (Html ())

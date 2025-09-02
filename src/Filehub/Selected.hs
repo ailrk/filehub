@@ -14,7 +14,6 @@ module Filehub.Selected
   )
   where
 
-
 import Lens.Micro hiding (to)
 import Lens.Micro.Platform ()
 import Data.List (union)
@@ -25,14 +24,13 @@ import Effectful.Reader.Dynamic (Reader, asks)
 import Filehub.Types ( ClientPath, Env(..), SessionId, Session(..), Selected(..), Target)
 import Filehub.Error (FilehubError)
 import Filehub.Session qualified as Session
-import Filehub.Target qualified as Target
 import Prelude hiding (elem)
 import Prelude qualified
 import Control.Monad (join)
 
 
 getSelected :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es Selected
-getSelected sessionId = (^. #sessionData . #selected) <$> Target.currentTarget sessionId
+getSelected sessionId = (^. #sessionData . #selected) <$> Session.currentTarget sessionId
 
 
 setSelected :: (Reader Env :> es, IOE :> es) => SessionId -> Selected -> Eff es ()

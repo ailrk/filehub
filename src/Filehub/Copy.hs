@@ -52,7 +52,7 @@ select sessionId = do
     do
       let tid = Target.getTargetId target
       logAttention_ [i|#{tid}, #{selected}|]
-    Target.withTarget sessionId (Target.getTargetId target) $ \_ -> do
+    Session.withTarget sessionId (Target.getTargetId target) $ \_ -> do
       case selected of
         NoSelection -> do
           state <- getCopyState sessionId
@@ -101,10 +101,10 @@ paste sessionId = do
       TargetView to _ _ <- Session.currentTarget sessionId
       forM_ selections $ \(from, files) -> do
         forM_ files $ \file -> do
-          bytes <- Target.withTarget sessionId (Target.getTargetId from) \_ -> do
+          bytes <- Session.withTarget sessionId (Target.getTargetId from) \_ -> do
             storage <- getStorage sessionId
             storage.read file
-          Target.withTarget sessionId (Target.getTargetId to) \_ -> do
+          Session.withTarget sessionId (Target.getTargetId to) \_ -> do
             storage <- getStorage sessionId
             dirPath <- Session.getCurrentDir sessionId
             let destination = dirPath </> takeFileName file.path

@@ -119,7 +119,6 @@ import UnliftIO (hFlush, stdout)
 import Web.Cookie (SetCookie (..))
 import Network.URI (relativeTo)
 import Network.URI qualified as URI
-import Network.URI (URI)
 
 
 #ifdef DEBUG
@@ -429,7 +428,7 @@ deleteFile sessionId _ _ clientPaths deleteSelected = do
     when deleteSelected do
       allSelecteds <- Selected.allSelecteds sessionId
       forM_ allSelecteds $ \(target, selected) -> do
-        Target.withTarget sessionId (Target.getTargetId target) $ \_ -> do
+        Session.withTarget sessionId (Target.getTargetId target) $ \_ -> do
           case selected of
             NoSelection -> pure ()
             Selected x xs -> do
@@ -629,7 +628,7 @@ changeTarget :: SessionId -> ConfirmLogin -> Maybe TargetId
              -> Filehub (Headers '[Header "HX-Trigger-After-Swap" FilehubEvent] (Html ()))
 changeTarget sessionId _ mTargetId = do
   savedTargetId <- withServerError do
-    TargetView saved _ _ <- Target.currentTarget sessionId
+    TargetView saved _ _ <- Session.currentTarget sessionId
     pure $ Target.getTargetId saved
   let restore = Session.changeCurrentTarget sessionId savedTargetId & withServerError
   targetId <- withQueryParam mTargetId

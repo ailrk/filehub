@@ -6,12 +6,12 @@ import Control.Monad (forM)
 import Filehub.ClientPath qualified as ClientPath
 import Filehub.Env qualified as Env
 import Filehub.Env (Env)
-import Filehub.Target qualified as Target
 import Filehub.Target.Types (Target(..))
 import Filehub.Target.Types.TargetView (TargetView(..))
 import Filehub.Error ( withServerError )
 import Filehub.Monad ( Filehub )
 import Filehub.Session.Types (TargetSessionData(..))
+import Filehub.Session qualified as Session
 import Filehub.Sort (sortFiles)
 import Filehub.Storage qualified as Storage
 import Filehub.Template.Desktop qualified as Template.Desktop
@@ -76,11 +76,11 @@ sideBar sessionId = do
   targets <- asks @Env (.targets)
   targets' <- forM targets $ \(Target backend) -> withServerError do
     let targetId = getTargetIdFromBackend backend
-    Target.withTarget sessionId targetId $ \(TargetView target targetData _) -> do
+    Session.withTarget sessionId targetId $ \(TargetView target targetData _) -> do
       case targetData.selected of
         Selected _ sels -> pure (target, length sels + 1)
         NoSelection -> pure (target, 0)
-  currentTargetView <- Target.currentTarget sessionId & withServerError
+  currentTargetView <- Session.currentTarget sessionId & withServerError
   pure $ runTemplate ctx $ Template.Desktop.sideBar targets' currentTargetView
 
 
