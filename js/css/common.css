@@ -23,6 +23,12 @@
 
 
 .selected {
+  background: color-mix(in srgb, var(--background3) 98%, white) !important;
+
+}
+
+
+.selected.confirmed {
   background-color: var(--background3) !important;
 }
 

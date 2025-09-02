@@ -557,9 +557,16 @@ modal attrs body = do
              ] mempty
 
 
-------------------------------------
+-----------------------------------------------------------------------------------------
 -- table
-------------------------------------
+--
+-- == Item selection and `.selected` `.confirmed`.
+--   Each session maintains a list of selected items. When generating the table, a selected item
+--   should have `.selected` `.confirmed` attached to it.
+--   `.selected.confirmed` proves that the frontend state is in sync with the backend. Meanwhile a
+--   single `.selected` can mean an item is selected in the frontend, but not yet confirmed.
+--   Isolated `.confirmed` is not defined and can indicate a bug.
+-----------------------------------------------------------------------------------------
 
 
 table :: [File] ->  Template (Html ())
@@ -594,7 +601,7 @@ listLayout files = do
           `with`
             mconcat
               [ [ term "data-path" (Text.pack path) ]
-              , [ class_ "selected " | clientPath `Selected.elem` selected]
+              , [ class_ "selected confirmed " | clientPath `Selected.elem` selected]
               , [ id_ [i|tr-#{idx}|]
                 , class_ "table-item "
                 , draggable_ "true"
@@ -667,7 +674,7 @@ thumbnailLayout files = do
             `with`
               mconcat
                 [ [ term "data-path" (Text.pack path) ]
-                , [ class_ "selected " | clientPath `Selected.elem` selected ]
+                , [ class_ "selected confirmed " | clientPath `Selected.elem` selected ]
                 , [ id_ [i|tr-#{idx}|]
                   , class_ "thumbnail table-item "
                   , draggable_ "true"

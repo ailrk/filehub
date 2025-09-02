@@ -109,80 +109,74 @@ function handleMouseMove(e: Event) {
   const width = Math.abs(x - selectionScreen.x);
   const height = Math.abs(y - selectionScreen.y);
 
-  // ignore small mouse movement
-  if (width < 100 || height < 100) return;
+  dragging = false;
+  if (width > 100 || height > 100) {
+    dragging = true;
+    selectionScreen.elt.style.top = top.toString();
+    selectionScreen.elt.style.left = left.toString();
+    selectionScreen.elt.style.width = width.toString();
+    selectionScreen.elt.style.height = height.toString();
 
-  dragging = true;
-  selectionScreen.elt.style.top = top.toString();
-  selectionScreen.elt.style.left = left.toString();
-  selectionScreen.elt.style.width = width.toString();
-  selectionScreen.elt.style.height = height.toString();
-
-  let rect = selectionScreen.elt.getBoundingClientRect();
-  Array
-    .from(fileItems)
-    .filter(item => {
-      let itemRect = item.getBoundingClientRect();
-      return !(itemRect.left > rect.right ||
-        itemRect.right < rect.left ||
-        itemRect.top > rect.bottom ||
-        itemRect.bottom < rect.top)
-    })
-    .forEach(selectN)
+    let rect = selectionScreen.elt.getBoundingClientRect();
+    Array
+      .from(fileItems)
+      .forEach(item => {
+        const id = item.dataset.path!
+        let itemRect = item.getBoundingClientRect();
+        let inRect = !(itemRect.left > rect.right ||
+          itemRect.right < rect.left ||
+          itemRect.top > rect.bottom ||
+          itemRect.bottom < rect.top)
+        if (inRect && !item.classList.contains('selected')) {
+          selectedIds.add(id)
+          item.classList.add('selected')
+        }
+      })
+  }
 }
 
 
-function handleMouseUp(e: Event) {
+async function handleMouseUp(e: Event) {
   isMouseDown = false;
-  function handleClick(e: Event) {
-    if (!(e instanceof MouseEvent)) return;
-    let item = (e.target as Element).closest('.table-item') as HTMLElement;
-    if (!item) return;
-    select1 (item)
-  }
-
   if (!(e instanceof MouseEvent)) return;
-  if (!dragging) {
+  if (!dragging) { // ctrl + click
     if (e.ctrlKey || e.metaKey) {
       view!.addEventListener('click', prevent, true);
       // 'click' is fired right after mouseup.
       // we block click on this event loop cycle. set timeout 0 will trigger the call back
       // on the next cycle, in which click is fired exactly once.
       setTimeout(() => { view!.removeEventListener("click", prevent, true); }, 0);
-      handleClick(e)
+
+      let item = (e.target as Element).closest('.table-item') as HTMLElement;
+      const id = item.dataset.path!
+      if (!item) return;
+
+      await selectByClicking(item);
+      // we only add .confirmed class if we are selecting an item. If we are unselecting we should
+      // just skip.
+      if (selectedIds.has(id)) confirm();
+      return;
     }
-    return;
+  } else { // dragging
+    await selectRequest();
+    dragging = false;
+    selectionScreen?.elt.remove();
+    selectionScreen = null;
+    confirm();
   }
-
-  // update sidebar
-  htmx
-    .ajax('GET', `/refresh?component=UIComponentSideBar`,
-      { target: '#side-bar',
-        source: "#side-bar",
-        swap: 'outerHtml' ,
-      })
-    .finally((_: any) => {
-      dragging = false;
-      selectionScreen?.elt.remove();
-      selectionScreen = null;
-    });
-}
-
-function prevent(e: Event) {
-  e.preventDefault();
-  e.stopImmediatePropagation();
 }
 
 
-function selectGo(
-  hooks: {
-    prepare: () => void,
-    confirm: () => void,
-    recover: () => void
-  }) {
-  hooks.prepare()
+function confirm() {
+  document.querySelectorAll('.selected').forEach(item => {
+    item.classList.add('confirmed')
+  })
+}
+
+
+async function selectRequest() {
   const values: Record<string, string[]> = { selected: Array.from(selectedIds) }
-  htmx.ajax('POST',
+  await htmx.ajax('POST',
     '/table/select',
     {
       values,
@@ -193,39 +187,36 @@ function selectGo(
       target: '#control-panel',
       swap: 'outerHTML'
     }
-  ).then((_: any) => {
-    hooks.confirm()
-  }).catch((_: any) => {
-    hooks.recover()
-    console.error('failed to select')
-  })
+  );
 }
 
 
-function select1(item: HTMLElement) {
+async function selectByClicking(item: HTMLElement) {
   const id = item.dataset.path!
   if (selectedIds.has(id)) {
-    selectGo({
-      prepare: () => { selectedIds.delete(id) },
-      confirm: () => { item.classList.remove('selected') },
-      recover: () => { selectedIds.add(id) }
-    })
+    selectedIds.delete(id)
+    item.classList.remove('selected')
+    item.classList.remove('confirmed')
   } else {
-    selectGo({
-      prepare: () => { selectedIds.add(id) },
-      confirm: () => { item.classList.add('selected') },
-      recover: () => { selectedIds.delete(id) }
-    })
+    selectedIds.add(id)
+    item.classList.add('selected')
+  }
+  try {
+    await selectRequest();
+  } catch {
+    if (selectedIds.has(id)) {
+      selectedIds.add(id)
+      item.classList.add('selected')
+    } else {
+      selectedIds.delete(id)
+      item.classList.remove('selected')
+      item.classList.remove('confirmed')
+    }
   }
 }
 
 
-function selectN(item: HTMLElement) {
-  const id = item.dataset.path!;
-  if (item.classList.contains('selected')) return;
-  selectGo({
-    prepare: () => { selectedIds.add(id) },
-    confirm: () => { item.classList.add('selected') },
-    recover: () => { selectedIds.delete(id) }
-  })
+function prevent(e: Event) {
+  e.preventDefault();
+  e.stopImmediatePropagation();
 }

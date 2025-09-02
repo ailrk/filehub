@@ -40,7 +40,7 @@ import Effectful ( withRunInIO, MonadIO (liftIO) )
 import Effectful (runEff)
 import Effectful.Error.Dynamic (throwError)
 import Effectful.FileSystem (runFileSystem)
-import Effectful.Log (logAttention_, logInfo_)
+import Effectful.Log (logInfo_)
 import Effectful.Log (runLog)
 import Effectful.Reader.Dynamic (asks)
 import Filehub.Auth.OIDC (OIDCAuthProviders(..))
@@ -518,12 +518,20 @@ selectRows :: SessionId -> ConfirmLogin -> Selected -> Filehub (Headers '[ Heade
 selectRows sessionId _ selected = do
   case selected of
     NoSelection -> do
-      logAttention_ [i|No selection: #{sessionId}|]
-      throwError (FilehubError InvalidSelection "Nothing is selected") & withServerError
+      Selected.setSelected sessionId NoSelection
+      sideBar' <- sideBar sessionId
+      controlPanel' <- controlPanel sessionId
+      pure $ addHeader 0 $ do
+        sideBar' `with` [ term "hx-swap-oob" "true" ]
+        controlPanel'
     _ -> do
       Selected.setSelected sessionId selected
       count <- Selected.countSelected sessionId & withServerError
-      addHeader count <$> controlPanel sessionId
+      sideBar' <- sideBar sessionId
+      controlPanel' <- controlPanel sessionId
+      pure $ addHeader count $ do
+        sideBar' `with` [ term "hx-swap-oob" "true" ]
+        controlPanel'
 
 
 upload :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> MultipartData Mem -> Filehub (Html ())
