@@ -9,7 +9,6 @@ module Filehub.Session.Copy
   )
   where
 
-
 import Lens.Micro hiding (to)
 import Lens.Micro.Platform ()
 import Effectful (Eff, (:>), Eff, (:>), IOE)

@@ -31,7 +31,7 @@ data TokenForm = TokenForm
   , redirectUri   :: Text
   , clientId      :: Text
   , clientSecret  :: Maybe Text
-  , codeVerifier :: Maybe Text
+  , codeVerifier  :: Maybe Text
   }
   deriving (Generic, Show)
 instance ToForm TokenForm
@@ -64,7 +64,7 @@ data Provider = Provider
   , clientSecret :: Text
   , grantType    :: Text
   , allowedUsers :: [Text]
-  , redirectURI :: URI
+  , redirectURI  :: URI
   }
   deriving (Show, Eq)
 
