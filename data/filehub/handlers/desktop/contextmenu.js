@@ -1,3 +1,4 @@
+let currentController = null;
 export function register() {
     register1();
     document.body.addEventListener('htmx:afterSwap', _ => {
@@ -48,7 +49,7 @@ export function onContextMenu(e) {
         const path = item.dataset.path;
         params.append('file', path);
     }
-    fetch(`/contextmenu?${params.toString()}`)
+    fetchWithCancel(`/contextmenu?${params.toString()}`)
         .then(res => res.text())
         .then(html => {
         const table = document.getElementById('table');
@@ -95,4 +96,29 @@ function init(menu) {
             menu.remove();
         });
     });
+}
+/* Try fetch the url. Cancel any inflight request sent by this function */
+async function fetchWithCancel(url, options = {}) {
+    // Cancel previous request if still pending
+    if (currentController) {
+        currentController.abort();
+    }
+    // Create a new controller for this request
+    currentController = new AbortController();
+    const { signal } = currentController;
+    try {
+        const response = await fetch(url, { ...options, signal });
+        if (!response.ok)
+            throw new Error(`HTTP error: ${response.status}`);
+        return response;
+    }
+    catch (err) {
+        if (err.name === "AbortError") {
+            console.log("Request aborted");
+        }
+        else {
+            console.error("Fetch error:", err);
+        }
+        throw err;
+    }
 }

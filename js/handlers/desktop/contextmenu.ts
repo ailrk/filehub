@@ -1,6 +1,9 @@
 declare var htmx: any;
 
 
+let currentController: AbortController | null = null;
+
+
 export function register() {
   register1();
   document.body.addEventListener('htmx:afterSwap', _ => {
@@ -59,7 +62,7 @@ export function onContextMenu(e: Event) {
   }
 
 
-  fetch(`/contextmenu?${params.toString()}`)
+  fetchWithCancel(`/contextmenu?${params.toString()}`)
     .then(res => res.text())
     .then(html => {
       const table = document.getElementById('table') as HTMLElement
@@ -107,4 +110,31 @@ function init(menu: HTMLElement) {
       menu.remove()
     })
   })
+}
+
+
+
+/* Try fetch the url. Cancel any inflight request sent by this function */
+async function fetchWithCancel(url: string, options = {}) {
+  // Cancel previous request if still pending
+  if (currentController) {
+    currentController.abort();
+  }
+
+  // Create a new controller for this request
+  currentController = new AbortController();
+  const { signal } = currentController;
+
+  try {
+    const response = await fetch(url, { ...options, signal });
+    if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+    return response;
+  } catch (err) {
+    if ((err as any).name === "AbortError") {
+      console.log("Request aborted");
+    } else {
+      console.error("Fetch error:", err);
+    }
+    throw err;
+  }
 }

@@ -161,7 +161,7 @@ textarea {
 
   & #search-bar {
     padding-right: 2rem;
-    flex: 1;
+    flex: 0.8;
   }
 }
 
