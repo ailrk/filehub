@@ -4,6 +4,13 @@
 }
 
 
+.fade {
+  animation-name: fadeIn;
+  animation-duration: 100ms;
+  animation-timing-function: ease-in;
+}
+
+
 .hidden { opacity: 0; }
 
 

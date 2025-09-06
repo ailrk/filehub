@@ -10,3 +10,4 @@ result
 profile*
 .profile
 js/node_modules/
+*.eventlog

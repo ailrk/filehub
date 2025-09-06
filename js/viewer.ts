@@ -129,6 +129,7 @@ class Viewer {
     const filename = (new URL(url, 'https://base.com')).searchParams.get('file')!;
     this.title.innerHTML = filename;
 
+    content.classList.add('fade');
     this.currentContent = content;
   }
 

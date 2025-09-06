@@ -363,13 +363,6 @@ textarea.form-control {
 }
 
 
-.fade {
-  animation-name: fadeIn;
-  animation-duration: 100ms;
-  animation-timing-function: ease-in;
-}
-
-
 #table {
   & tr {
     cursor: pointer;
