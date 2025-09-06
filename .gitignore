@@ -11,3 +11,9 @@ profile*
 .profile
 js/node_modules/
 *.eventlog
+*.eventlog.html
+*.hp
+*.pdf
+*.aux
+*.prof
+*.ps
