@@ -1,0 +1,7 @@
+users:
+  test:
+    displayname: "Test"
+    password: "$argon2id$v=19$m=65536,t=3,p=4$TNcXZK2/XagYbaROe2fSMA$D+KqKvvHaqH+EyLFS4wSnZ3DJUhceMs9pLh8M9ZkmhA"
+    email: "test@localhost"
+    groups:
+      - "admin"

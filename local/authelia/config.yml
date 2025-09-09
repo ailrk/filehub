@@ -1,0 +1,97 @@
+server:
+  address: 127.0.0.1:9520
+
+log:
+  file_path: null
+  format: text
+  keep_stdout: false
+  level: info
+
+notifier:
+  filesystem:
+    filename: /var/lib/authelia-main/.authelia-emails.log
+
+session:
+  name: authelia_session
+  expiration: 12h
+  inactivity: 30m
+  cookies:
+    - name: authelia_session
+      domain: 127.0.0.1
+      authelia_url: https://127.0.0.1:9520
+
+storage:
+  local:
+    path: /var/lib/authelia-main/db.sqlite3
+
+theme: light
+
+access_control:
+  default_policy: one_factor
+  rules:
+    - domain: "127.0.0.1"
+      policy: bypass   # all localhost traffic bypasses 2FA
+
+authentication_backend:
+  file:
+    path: /etc/authelia-main/users_database.yml
+
+identity_providers:
+  oidc:
+    clients:
+      - client_id: filehub-test
+        client_secret: "0fad5a051a4507cf8085cbffc9e862964306eff7150227265e2798370a711186"
+        client_name: Filehub-test Login
+        token_endpoint_auth_method: client_secret_jwt
+        redirect_uris:
+          - http://localhost:2223/login/oidc/callback
+        response_modes:
+          - form_post
+          - query
+        response_types:
+          - code
+        scopes:
+          - openid
+          - profile
+          - email
+        grant_types:
+          - authorization_code
+          - refresh_token
+    hmac_secret: "kjyWET80auj/a/DTkGP50n/IgazjHRuimr3u263kLco="
+    jwks:
+      - key_id: authelia-key1
+        key: |
+          -----BEGIN PRIVATE KEY-----
+          MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDJYxeM2++JIPCs
+          kiSbMnf6EG1oWRSDIBXYTEEaFAYHI5qeddGvuBTYCOll698pPG2T90lwlNvu3c5s
+          y5I41LNzAcxCFD8VGG8VjtBgFlV2YCrBNJHtrfWjogpgTjrTlXymob1hcq3xni4B
+          2MxjtTeNBu+f0uSWYdz+GFr82y8LBZP+tdtiU61fLHpEhNNVfwbHtpBlhbKrWItJ
+          E1PAUDcmWNKQ6ohaHTUpqniNtPKqPXdB+g6/1ZpQOPVLVdgphusHBi0PCbbiqN61
+          LuAs1L8Fazc+WsTaUDXqeeqGwvsGgEteeJtPAUz8oqylw5F59V9TGF+WeomJbvfW
+          62ZKBWDrAgMBAAECggEAIStMhDCaAIR9OiHXR1E7LePfGUTexNrCg6h06ot/aKqb
+          u1tdc4CGvQROvjDoxcfEUTl1Y5u+U6voZXFBaVHYfT8/uhHP8rSztcxwE/tpt8Bk
+          GllYawTFb15E25LW9pAUV/T4wQrx4liywYQd5JLtjjFPw2D+sal3DB930QDK0UNz
+          2Gq4e3w/TB8b7x91Ety5ZrMrtMNzJME4wE8kRWiZ4yvgtd2MaBD0F+zI00wTD2FQ
+          vG45blKTk2v1BTWd3fnktSkVAHw3ErZ49iYGjWngPNJGQpnKdGgzJCQyiwHa3xsE
+          3/vOHVU6ymNG6Qskda+NRpYWPA5UeeQ8FlDqzn9TSQKBgQD9uTq+NQOZ8Bi5qrZ6
+          +9lmNh20YqqkmZmUjg2qfSjoDc2EG1oz8/8tf7AhbttzWQLVmmuhS3Pny9XjpUQn
+          BUdL4Ci2WtAwF2ODLvgTuX6AcV7ypMKF4KnOHAgTWvDCU+soOzXYQxpBbyRY+cKB
+          fzhF1YN0PvstmUgACif67/ZbuQKBgQDLMab/9BBHmfqFRr7XepsaSqW/ZA3anpDh
+          6SItqp2sziKd30YlWLiF/y+yUAEjkCnroN6GhJVy/RFT0Fct9ZuXCBYHFaeoIBaH
+          ccNIV9TV7bAqumzQ18Z1DEcIIxB13w69fRtFhgjOfePt4YPoBnBEUsDBcHEYypiY
+          I1ospbkbwwKBgQCX63YB9+pNHRcg7NfQscYNTm/g14dHgXUVHy2NnN2GfOVGqb4M
+          B5gOXTtP+XnLCkwJLCov7Obcrw9F/GnfV2jGRNT7w0qO0SJTpScDYHkfXUK11PNo
+          iAoEkIJBXJ12LhtK/pESCbPJ5EuGPx44vb0rC1pnm2J4fiQ/adVgipgfeQKBgFlp
+          7Qn+tVc8u9AAFKSvkCceqBcziSEl2619sIuV47KSNwtvn+d5RiG47J0ztXyXyMqm
+          TKW3HCiwkfpm2KYhySjJ5x+Q+OjzzdYmSn/AHqlQ4c+7n3y7JtqE35EGFQ05bbwW
+          nHSYibGMFkusjCYDB04ZeDbnKu104Xc5P0ocVvuPAoGAGLDph+tL/Or3/2iLmMhP
+          R9w/BKP7u3d/roHXfQbES16iFi2fSmfmtzj2BWmYXcIkzAlh7RHTsWF7+sRpuIox
+          +2cxxdLpODX+2xh7IHcWyTJq8dlyWpdRIxDbdCLNSP9n0hyQVXrXFDATXEi4JKbM
+          Fj8Dt/46QK/cc3T7YLwTmf8=
+          -----END PRIVATE KEY-----
+        algorithm: RS256
+        use: sig
+    lifespans:
+      access_token: 1h
+      id_token: 1h
+      refresh_token: 90d

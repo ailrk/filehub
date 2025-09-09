@@ -1,0 +1,24 @@
+port      = 2223
+theme     = "dark"
+verbosity = "info"
+readonly  = false
+
+[[target]]
+type = "fs"
+root = "$HOME"
+
+
+[[login]]
+username = "admin"
+password = "123"
+
+
+[[oidc]]
+name          = "authelia-local"
+issuer        = "https://auth.local"
+client_id     = "filehub-test"
+client_secret = "0fad5a051a4507cf8085cbffc9e862964306eff7150227265e2798370a711186"
+scopes        = "email openid profile"
+allowed_users = ["test"]
+grant_type    = "authorization_code"
+redirect_uri  = "https://filehub.local/login/oidc/callback"
