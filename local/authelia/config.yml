@@ -17,8 +17,8 @@ session:
   inactivity: 30m
   cookies:
     - name: authelia_session
-      domain: 127.0.0.1
-      authelia_url: https://127.0.0.1:9520
+      domain: auth.local
+      authelia_url: https://auth.local
 
 storage:
   local:
@@ -29,8 +29,10 @@ theme: light
 access_control:
   default_policy: one_factor
   rules:
-    - domain: "127.0.0.1"
-      policy: bypass   # all localhost traffic bypasses 2FA
+    - domain: "auth.local"
+      policy: bypass
+    - domain: "*.local"
+      policy: one_factor
 
 authentication_backend:
   file:
@@ -44,7 +46,7 @@ identity_providers:
         client_name: Filehub-test Login
         token_endpoint_auth_method: client_secret_jwt
         redirect_uris:
-          - http://localhost:2223/login/oidc/callback
+          - https://filehub.local/login/oidc/callback
         response_modes:
           - form_post
           - query

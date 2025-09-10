@@ -19,7 +19,7 @@
 
           # VM settings
           virtualisation = {
-            graphics = false;
+            graphics = true;
             host = { inherit pkgs; };
             memorySize = 2 * 1024;
             diskSize = 8 * 1024;
@@ -30,6 +30,27 @@
               { from = "host"; host.port = 9520;  guest.port = 9520; }
               { from = "host"; host.port = 2223;  guest.port = 2223; }
             ];
+            qemu.options = [
+              "-serial" "mon:stdio"   # Serial console stays in terminal
+            ];
+          };
+
+          environment.systemPackages = with pkgs; [
+            lsof
+            htop
+            tmux
+            xterm               # optional terminal
+          ];
+
+          environment.etc = {
+            "authelia-main/.jwt-secret".source             = ./authelia/.jwt-secret;
+            "authelia-main/.session-secret".source         = ./authelia/.session-secret;
+            "authelia-main/.storage-encryption-key".source = ./authelia/.storage-encryption-key;
+            "authelia-main/users_database.yml".source      = ./authelia/users_database.yml;
+            "authelia-main/config.yml".source              = ./authelia/config.yml;
+            "filehub/config.toml".source                   = ./filehub/config.toml;
+            "ssl/localhost.crt".source                     = ./ssl/localhost.crt;
+            "ssl/localhost.key".source                     = ./ssl/localhost.key;
           };
 
           services.getty.autologinUser = "root";
@@ -43,18 +64,9 @@
             };
           };
 
-          environment.systemPackages = with pkgs; [ lsof htop tmux ];
-
-          environment.etc = {
-            "authelia-main/.jwt-secret".source             = ./authelia/.jwt-secret;
-            "authelia-main/.session-secret".source         = ./authelia/.session-secret;
-            "authelia-main/.storage-encryption-key".source = ./authelia/.storage-encryption-key;
-            "authelia-main/users_database.yml".source      = ./authelia/users_database.yml;
-            "authelia-main/config.yml".source              = ./authelia/config.yml;
-            "filehub/config.toml".source                   = ./filehub/config.toml;
-            "ssl/localhost.crt".source                     = ./ssl/localhost.crt;
-            "ssl/localhost.key".source                     = ./ssl/localhost.key;
-          };
+          services.xserver.enable = true;
+          services.xserver.displayManager.startx.enable = true;
+          services.xserver.videoDrivers = [ "dummy" ];  # no GPU required
 
           users.users.root = {
             password = "root";
@@ -66,6 +78,17 @@
           # DNS resolver so VM can resolve hostnames
           networking.firewall.allowedTCPPorts = [ 53 80 443 9520 2223 ];
           networking.firewall.enable = true;
+
+          security.pki.certificateFiles = [
+            ./ssl/localhost.crt
+          ];
+
+          programs.firefox = {
+            enable = true;
+            wrapperConfig = {
+              MOZILLA_CERTIFICATE_TRUST = "1";
+            };
+          };
 
           # Enable Nginx reverse proxy
           services.nginx.enable = true;
@@ -125,6 +148,9 @@
             settings = {
               address = "/local/127.0.0.1";
               "listen-address" = "0.0.0.0";
+              server = [
+                "10.0.2.3" # QEMU builtin DNS
+              ];
               port = 53;
               "bind-interfaces" = true;
               "no-resolv" = true;
