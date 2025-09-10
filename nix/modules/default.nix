@@ -68,6 +68,14 @@ in
           '';
         };
 
+        configFile = lib.mkOption {
+          type = lib.types.nullOr lib.types.path;
+          default = null;
+          description = ''
+            path to the toml config file
+          '';
+        };
+
         package = lib.mkOption {
           type = lib.types.package;
           default = self.packages.${pkgs.system}.default;
@@ -106,6 +114,7 @@ in
                   "--theme" cfg.theme
                 ]
                 ++ (if cfg.readonly then [ "--readonly" ] else [])
+                ++ (if cfg.configFile != null then [ "--config-file=${cfg.configFile}" ] else [])
                 ++ (map (p: "--fs=${toString p}") cfg.fs)
                 ++ (map (s: "--s3=${s}") cfg.s3)
                 );

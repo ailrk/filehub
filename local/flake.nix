@@ -7,7 +7,6 @@
 
   outputs = { self, nixpkgs, flake-utils, filehub }:
   flake-utils.lib.eachDefaultSystem (system:
-
   {
     nixosConfigurations.local = nixpkgs.lib.nixosSystem {
       inherit system;
@@ -114,6 +113,7 @@
             fs = [];
             s3 = [];
             theme = "dark";
+            configFile = "/etc/filehub/config.toml";
             port = 2223;
           };
 
