@@ -17,7 +17,7 @@ session:
   inactivity: 30m
   cookies:
     - name: authelia_session
-      domain: home.local-vm
+      domain: .home.local-vm
       authelia_url: https://auth.home.local-vm
 
 storage:
@@ -46,7 +46,7 @@ identity_providers:
         client_name: Filehub-test Login
         token_endpoint_auth_method: client_secret_jwt
         redirect_uris:
-          - https://filehub.test/login/oidc/callback
+          - 'https://filehub.home.local-vm/login/oidc/callback'
         response_modes:
           - form_post
           - query
@@ -58,7 +58,6 @@ identity_providers:
           - email
         grant_types:
           - authorization_code
-          - refresh_token
         authorization_policy: one_factor
     hmac_secret: "kjyWET80auj/a/DTkGP50n/IgazjHRuimr3u263kLco="
     jwks:

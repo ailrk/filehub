@@ -6,7 +6,7 @@ import Effectful.Log (LogLevel (..))
 import Data.Functor.Identity
 import Control.Applicative ((<|>))
 import Data.List (nub)
-import Filehub.Auth.OIDC qualified as Auth.OIDC
+import {-# SOURCE #-} Filehub.Auth.OIDC qualified as Auth.OIDC
 import Filehub.Locale (Locale (..))
 
 

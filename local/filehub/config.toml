@@ -1,6 +1,6 @@
 port      = 2223
 theme     = "dark"
-verbosity = "info"
+verbosity = "trace"
 readonly  = false
 
 [[target]]

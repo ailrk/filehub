@@ -8,10 +8,10 @@ import Data.Hashable (Hashable)
 import Effectful (Eff, (:>), MonadIO (..), IOE)
 import Prelude hiding (readFile)
 import Data.Time (UTCTime)
-import Data.Map.Strict (Map)
 import Filehub.Session.Types.SessionId (SessionId)
-import Filehub.Auth.OIDC qualified as Auth.OIDC
 import Filehub.Auth.Simple qualified as Auth.Simple
+import {-# SOURCE #-} Filehub.Auth.OIDC qualified as Auth.OIDC
+import Data.Map.Strict (Map)
 
 
 data ActiveUser = ActiveUser
@@ -29,12 +29,11 @@ data Auth
   deriving (Show, Eq)
 
 
-newtype AuthId = AuthId UUID deriving (Show, Eq, Ord, Hashable)
-
 
 newtype ActiveUsers = ActiveUsers (Map AuthId ActiveUser)
   deriving (Show, Eq)
 
+newtype AuthId = AuthId UUID deriving (Show, Eq, Ord, Hashable)
 
 createAuthId :: (IOE :> es) => Eff es AuthId
 createAuthId = AuthId <$> liftIO UUID.nextRandom

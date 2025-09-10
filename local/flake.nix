@@ -21,17 +21,19 @@
           virtualisation = {
             graphics = true;
             host = { inherit pkgs; };
-            memorySize = 2 * 1024;
+            memorySize = 3 * 1024;
             diskSize = 8 * 1024;
             forwardPorts = [
               { from = "host"; host.port = 53535; guest.port = 53; }  # DNS
               { from = "host"; host.port = 8443;  guest.port = 443; }
               { from = "host"; host.port = 8080;  guest.port = 80; }
               { from = "host"; host.port = 9520;  guest.port = 9520; }
-              { from = "host"; host.port = 2223;  guest.port = 2223; }
+              { from = "host"; host.port = 9521;  guest.port = 9521; }
             ];
             qemu.options = [
               "-serial" "mon:stdio"   # Serial console stays in terminal
+              "-smp" " 4"
+              "-cpu" "host"
             ];
           };
 
@@ -53,6 +55,14 @@
             "ssl/localhost.key".source                     = ./ssl/localhost.key;
           };
 
+          environment.etc."bash_profile" = {
+            text = ''
+              if [[ -z $DISPLAY ]] && [[ $(tty) == /dev/tty1 ]]; then
+              exec startx
+              fi
+            '';
+          };
+
           services.getty.autologinUser = "root";
 
           services.openssh = lib.mkForce {
@@ -66,6 +76,7 @@
 
           services.xserver.enable = true;
           services.xserver.displayManager.startx.enable = true;
+          services.xserver.desktopManager.xterm.enable = true;
           services.xserver.videoDrivers = [ "dummy" ];  # no GPU required
 
           users.users.root = {
@@ -76,7 +87,7 @@
           networking.useDHCP = true;
 
           # DNS resolver so VM can resolve hostnames
-          networking.firewall.allowedTCPPorts = [ 53 80 443 9520 2223 ];
+          networking.firewall.allowedTCPPorts = [ 53 80 443 9520 9521 ];
           networking.firewall.enable = true;
 
           security.pki.certificateFiles = [
@@ -87,6 +98,18 @@
             enable = true;
             wrapperConfig = {
               MOZILLA_CERTIFICATE_TRUST = "1";
+            };
+          };
+
+          systemd.services."autox" = {
+            wantedBy = [ "multi-user.target" ];
+            serviceConfig = {
+              ExecStart = "${pkgs.bashInteractive}/bin/bash -l -c startx";
+              StandardInput = "tty";
+              TTYPath = "/dev/tty1";
+              TTYReset = true;
+              TTYVHangup = true;
+              TTYVTDisallocate = true;
             };
           };
 
@@ -112,7 +135,7 @@
             sslCertificate = "/etc/ssl/localhost.crt";
             sslCertificateKey = "/etc/ssl/localhost.key";
             locations."/" = {
-              proxyPass = "http://localhost:2223";
+              proxyPass = "http://localhost:9521";
             };
           };
 
@@ -137,7 +160,7 @@
             s3 = [];
             theme = "dark";
             configFile = "/etc/filehub/config.toml";
-            port = 2223;
+            port = 9521;
           };
 
           # extend the environment variable

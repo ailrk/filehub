@@ -15,7 +15,7 @@ module Filehub.Env
 import Data.Map.Strict qualified as Map
 import Lens.Micro.Platform ()
 import Filehub.Auth.Simple (SimpleAuthUserDB(..))
-import Filehub.Auth.OIDC (OIDCAuthProviders(..))
+import {-# SOURCE #-} Filehub.Auth.OIDC (OIDCAuthProviders(..))
 import Data.Time (NominalDiffTime)
 import Filehub.Theme (Theme)
 import Filehub.Session.Types qualified as Session

@@ -334,7 +334,6 @@ loginAuthOIDCRedirect sessionId providerName = do
         $ Text.encodeUtf8
         $ codeVerifier
   let uri = flip relativeTo provider.issuer
-          $ linkURI
           $ Auth.OIDC.authorizeLink
               Auth.OIDC.Authorization
                 { responseType         = "code"
