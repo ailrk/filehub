@@ -17,3 +17,4 @@ js/node_modules/
 *.aux
 *.prof
 *.ps
+*.qcow2

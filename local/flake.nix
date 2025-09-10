@@ -2,11 +2,14 @@
   description = "Local NixOS VM for the testing environment";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/8f3cf34b8d2e2caf4ae5ee1d1fddc1baab4c5964";
+  inputs.flake-utils.url = "github:numtide/flake-utils";
 
-  outputs = { self, nixpkgs }: {
+  outputs = { self, nixpkgs, flake-utils }:
+  flake-utils.lib.eachDefaultSystem (system:
+
+  {
     nixosConfigurations.local = nixpkgs.lib.nixosSystem {
-      system = "x86_64-linux";
-
+      inherit system;
       modules = [
         ({ config, pkgs, lib, modulesPath, ... }: {
 
@@ -111,5 +114,5 @@
         })
       ];
     };
-  };
+  });
 }
