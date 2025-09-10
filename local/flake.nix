@@ -3,14 +3,17 @@
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/8f3cf34b8d2e2caf4ae5ee1d1fddc1baab4c5964";
   inputs.flake-utils.url = "github:numtide/flake-utils";
+  inputs.filehub.url = "path:..";
 
-  outputs = { self, nixpkgs, flake-utils }:
+  outputs = { self, nixpkgs, flake-utils, filehub }:
   flake-utils.lib.eachDefaultSystem (system:
 
   {
     nixosConfigurations.local = nixpkgs.lib.nixosSystem {
       inherit system;
       modules = [
+        filehub.nixosModules.${system}.default
+
         ({ config, pkgs, lib, modulesPath, ... }: {
 
           imports = [ "${modulesPath}/virtualisation/qemu-vm.nix" ];
@@ -44,14 +47,14 @@
           environment.systemPackages = with pkgs; [ lsof htop tmux ];
 
           environment.etc = {
-            "authelia-main/.jwt-secret".source = ./authelia/.jwt-secret;
-            "authelia-main/.session-secret".source = ./authelia/.session-secret;
+            "authelia-main/.jwt-secret".source             = ./authelia/.jwt-secret;
+            "authelia-main/.session-secret".source         = ./authelia/.session-secret;
             "authelia-main/.storage-encryption-key".source = ./authelia/.storage-encryption-key;
-            "authelia-main/users_database.yml".source = ./authelia/users_database.yml;
-            "authelia-main/config.yml".source = ./authelia/config.yml;
-            "filehub/config.toml".source = ./filehub/config.toml;
-            "ssl/localhost.crt".source = ./ssl/localhost.crt;
-            "ssl/localhost.key".source = ./ssl/localhost.key;
+            "authelia-main/users_database.yml".source      = ./authelia/users_database.yml;
+            "authelia-main/config.yml".source              = ./authelia/config.yml;
+            "filehub/config.toml".source                   = ./filehub/config.toml;
+            "ssl/localhost.crt".source                     = ./ssl/localhost.crt;
+            "ssl/localhost.key".source                     = ./ssl/localhost.key;
           };
 
           users.users.root = {
@@ -74,12 +77,20 @@
             sslCertificateKey = "/etc/ssl/localhost.key";
             locations."/" = {
               proxyPass = "http://localhost:9520";
-              proxyWebsockets = true;
               extraConfig = ''
                 proxy_set_header Host $host;
                 proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
                 proxy_set_header X-Forwarded-Proto $scheme;
               '';
+            };
+          };
+
+          services.nginx.virtualHosts."filehub.local" = {
+            forceSSL = true;
+            sslCertificate = "/etc/ssl/localhost.crt";
+            sslCertificateKey = "/etc/ssl/localhost.key";
+            locations."/" = {
+              proxyPass = "http://localhost:2223";
             };
           };
 
@@ -96,6 +107,14 @@
                 "/etc/authelia-main/config.yml"
               ];
             };
+          };
+
+          services.filehub.test = {
+            enable = true;
+            fs = [];
+            s3 = [];
+            theme = "dark";
+            port = 2223;
           };
 
           # extend the environment variable

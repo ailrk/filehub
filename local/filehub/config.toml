@@ -14,7 +14,7 @@ password = "123"
 
 
 [[oidc]]
-name          = "authelia-local"
+name          = "authelia-main"
 issuer        = "https://auth.local"
 client_id     = "filehub-test"
 client_secret = "0fad5a051a4507cf8085cbffc9e862964306eff7150227265e2798370a711186"

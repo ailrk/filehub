@@ -57,7 +57,8 @@ in
         };
 
         environment = lib.mkOption {
-          type = lib.types.either lib.types.str lib.types.path;
+          type = lib.types.nullOr (lib.types.either lib.types.str lib.types.path);
+          default = null;
           description = ''
             Path to the environment variable file. This file will be used on the systemd service.
 
@@ -98,7 +99,7 @@ in
               path = [ pkgs.getent ];
               serviceConfig = {
                 Type = "simple";
-                EnvironmentFile = cfg.environment;
+                EnvironmentFile = if cfg.environment == null then "" else cfg.environment;
                 ExecStart = lib.escapeShellArgs ([
                   "${cfg.package}/bin/filehub"
                   "--port" port
