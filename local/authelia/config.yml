@@ -4,8 +4,8 @@ server:
 log:
   file_path: null
   format: text
-  keep_stdout: false
-  level: info
+  keep_stdout: true
+  level: debug
 
 notifier:
   filesystem:
@@ -17,8 +17,8 @@ session:
   inactivity: 30m
   cookies:
     - name: authelia_session
-      domain: auth.local
-      authelia_url: https://auth.local
+      domain: home.local-vm
+      authelia_url: https://auth.home.local-vm
 
 storage:
   local:
@@ -29,9 +29,9 @@ theme: light
 access_control:
   default_policy: one_factor
   rules:
-    - domain: "auth.local"
+    - domain: "auth.home.local-vm"
       policy: bypass
-    - domain: "*.local"
+    - domain: "*.local-vm"
       policy: one_factor
 
 authentication_backend:
@@ -46,7 +46,7 @@ identity_providers:
         client_name: Filehub-test Login
         token_endpoint_auth_method: client_secret_jwt
         redirect_uris:
-          - https://filehub.local/login/oidc/callback
+          - https://filehub.test/login/oidc/callback
         response_modes:
           - form_post
           - query
@@ -59,6 +59,7 @@ identity_providers:
         grant_types:
           - authorization_code
           - refresh_token
+        authorization_policy: one_factor
     hmac_secret: "kjyWET80auj/a/DTkGP50n/IgazjHRuimr3u263kLco="
     jwks:
       - key_id: authelia-key1

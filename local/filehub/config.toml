@@ -15,10 +15,10 @@ password = "123"
 
 [[oidc]]
 name          = "authelia-main"
-issuer        = "https://auth.local"
+issuer        = "https://auth.home.local-vm"
 client_id     = "filehub-test"
 client_secret = "0fad5a051a4507cf8085cbffc9e862964306eff7150227265e2798370a711186"
 scopes        = "email openid profile"
 allowed_users = ["test"]
 grant_type    = "authorization_code"
-redirect_uri  = "https://filehub.local/login/oidc/callback"
+redirect_uri  = "https://filehub.home.local-vm/login/oidc/callback"

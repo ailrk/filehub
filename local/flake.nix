@@ -8,7 +8,7 @@
   outputs = { self, nixpkgs, flake-utils, filehub }:
   flake-utils.lib.eachDefaultSystem (system:
   {
-    nixosConfigurations.local = nixpkgs.lib.nixosSystem {
+    nixosConfigurations.localvm = nixpkgs.lib.nixosSystem {
       inherit system;
       modules = [
         filehub.nixosModules.${system}.default
@@ -72,7 +72,7 @@
             password = "root";
           };
 
-          networking.hostName = "local";
+          networking.hostName = "local-vm";
           networking.useDHCP = true;
 
           # DNS resolver so VM can resolve hostnames
@@ -93,7 +93,7 @@
           # Enable Nginx reverse proxy
           services.nginx.enable = true;
 
-          services.nginx.virtualHosts."auth.local" = {
+          services.nginx.virtualHosts."auth.home.local-vm" = {
             forceSSL = true;
             sslCertificate = "/etc/ssl/localhost.crt";
             sslCertificateKey = "/etc/ssl/localhost.key";
@@ -107,7 +107,7 @@
             };
           };
 
-          services.nginx.virtualHosts."filehub.local" = {
+          services.nginx.virtualHosts."filehub.home.local-vm" = {
             forceSSL = true;
             sslCertificate = "/etc/ssl/localhost.crt";
             sslCertificateKey = "/etc/ssl/localhost.key";
@@ -146,7 +146,7 @@
           services.dnsmasq = {
             enable = true;
             settings = {
-              address = "/local/127.0.0.1";
+              address = "/local-vm/127.0.0.1";
               "listen-address" = "0.0.0.0";
               server = [
                 "10.0.2.3" # QEMU builtin DNS
