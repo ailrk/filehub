@@ -50,11 +50,6 @@ module Filehub.Session
   , getSessionLocale
   , setSessionLocale
   , getDisplay
-  , newSession
-  , getSession
-  , updateSession
-  , getOIDCState
-  , setOIDCState
   , getControlPanelState
   , getStorage
   , changeCurrentTarget
@@ -68,7 +63,6 @@ import Data.Generics.Labels ()
 import Data.List (find)
 import Data.Maybe (fromMaybe)
 import Data.String.Interpolate (i)
-import Data.Text (Text)
 import Data.Typeable (cast)
 import Effectful (Eff, (:>), IOE)
 import Effectful.Error.Dynamic (Error, throwError)
@@ -79,7 +73,6 @@ import Filehub.Display qualified as Display
 import Filehub.Error (FilehubError (..), Error' (..))
 import Filehub.Locale (Locale)
 import {-# SOURCE #-} Filehub.Storage (getStorage)
-import Filehub.Session.Pool (getSession, updateSession, newSession)
 import Filehub.Session.Pool qualified as Session.Pool
 import {-# SOURCE #-} Filehub.Session.Selected qualified as Selected
 import {-# SOURCE #-} Filehub.Session.Copy qualified as Copy
@@ -115,7 +108,7 @@ getCurrentDir sessionId = (^. #sessionData . #currentDir) <$> currentTarget sess
 -- | Set the current working directory of the session.
 setCurrentDir :: (Reader Env  :> es,  IOE :> es) => SessionId -> FilePath -> Eff es ()
 setCurrentDir sessionId path = do
-  updateSession sessionId $ \s -> s & #targets . ix s.index . #currentDir .~ path
+  Session.Pool.update sessionId $ \s -> s & #targets . ix s.index . #currentDir .~ path
 
 
 -- | Get the file sorting order of the current session.
@@ -126,68 +119,57 @@ getSortFileBy sessionId = (^. #sessionData . #sortedFileBy) <$> currentTarget se
 -- | Set the file sorting order of the current session.
 setSortFileBy :: (Reader Env :> es, IOE :> es) => SessionId -> SortFileBy -> Eff es ()
 setSortFileBy sessionId order = do
-  updateSession sessionId (\s -> s & #targets . ix s.index . #sortedFileBy .~ order)
+  Session.Pool.update sessionId (\s -> s & #targets . ix s.index . #sortedFileBy .~ order)
 
 
 -- | Get the session `AuthId`.
 getAuthId :: (Reader Env :> es, Error FilehubError :> es, IOE :> es,  Log :> es) => SessionId -> Eff es (Maybe AuthId)
-getAuthId sessionId = (^. #authId) <$> getSession sessionId
+getAuthId sessionId = (^. #authId) <$> Session.Pool.get sessionId
 
 
 -- | Set the session `AuthId`.
 setAuthId :: (Reader Env :> es, IOE :> es) => SessionId -> Maybe AuthId -> Eff es ()
 setAuthId sessionId mAuthId = do
-  updateSession sessionId (\s -> s & #authId .~ mAuthId)
+  Session.Pool.update sessionId (\s -> s & #authId .~ mAuthId)
 
 
 -- | Get the current session layout.
 getLayout :: (Reader Env :> es, Error FilehubError :> es, IOE :> es,  Log :> es) => SessionId -> Eff es Layout
-getLayout sessionId = (^. #layout) <$> getSession sessionId
+getLayout sessionId = (^. #layout) <$> Session.Pool.get sessionId
 
 
 -- | Set the current session layout.
 setLayout :: (Reader Env :> es, IOE :> es) => SessionId -> Layout -> Eff es ()
 setLayout sessionId layout = do
-  updateSession sessionId (\s -> s & #layout .~ layout)
+  Session.Pool.update sessionId (\s -> s & #layout .~ layout)
 
 
 -- | Get the current session theme.
 getSessionTheme :: (Reader Env :> es, Error FilehubError :> es, IOE :> es,  Log :> es) => SessionId -> Eff es Theme
-getSessionTheme sessionId = (^. #theme) <$> getSession sessionId
+getSessionTheme sessionId = (^. #theme) <$> Session.Pool.get sessionId
 
 
 -- | Set the current session theme.
 setSessionTheme :: (Reader Env :> es, IOE :> es) => SessionId -> Theme -> Eff es ()
 setSessionTheme sessionId theme = do
-  updateSession sessionId (\s -> s & #theme .~ theme)
+  Session.Pool.update sessionId (\s -> s & #theme .~ theme)
 
 
 -- | Get the current session theme.
 getSessionLocale :: (Reader Env :> es, Error FilehubError :> es, IOE :> es,  Log :> es) => SessionId -> Eff es Locale
-getSessionLocale sessionId = (^. #locale) <$> getSession sessionId
+getSessionLocale sessionId = (^. #locale) <$> Session.Pool.get sessionId
 
 
 -- | Set the current session theme.
 setSessionLocale :: (Reader Env :> es, IOE :> es) => SessionId -> Locale -> Eff es ()
 setSessionLocale sessionId locale = do
-  updateSession sessionId (\s -> s & #locale .~ locale)
-
-
--- | Get the current session theme.
-getOIDCState :: (Reader Env :> es, Error FilehubError :> es, IOE :> es,  Log :> es) => SessionId -> Eff es (Maybe Text)
-getOIDCState sessionId = (^. #oidcState) <$> getSession sessionId
-
-
--- | Set the current session theme.
-setOIDCState :: (Reader Env :> es, IOE :> es) => SessionId -> Maybe Text -> Eff es ()
-setOIDCState sessionId theme = do
-  updateSession sessionId (\s -> s & #oidcState .~ theme)
+  Session.Pool.update sessionId (\s -> s & #locale .~ locale)
 
 
 -- | Get the current session display. The display is calculated base on the client screen resolution.
 getDisplay :: (Reader Env :> es, Error FilehubError :> es, IOE :> es,  Log :> es) => SessionId -> Eff es Display
 getDisplay sessionId = do
-  session <- getSession sessionId
+  session <- Session.Pool.get sessionId
   case session ^. #resolution of
     Just resolution ->
       case session ^. #deviceType of
@@ -214,7 +196,7 @@ getControlPanelState sessionId = do
 
 currentTarget :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es TargetView
 currentTarget sessionId = do
-  mSession <- Session.Pool.getSession sessionId
+  mSession <- Session.Pool.get sessionId
   targets <- asks @Env (.targets)
   maybe (throwError (FilehubError InvalidSession "Invalid session")) pure do
     index <- mSession ^? #index
@@ -233,7 +215,7 @@ changeCurrentTarget sessionId targetId = do
      else do
        case find (\(_, x) -> getTargetId x == targetId) ([0..] `zip` targets) of
          Just (idx, _) -> do
-           Session.Pool.updateSession sessionId (\s -> s & #index .~ idx)
+           Session.Pool.update sessionId (\s -> s & #index .~ idx)
          Nothing -> do
            logAttention "Can't find target" (show targetId)
            throwError (FilehubError InvalidSession "Invalid session")

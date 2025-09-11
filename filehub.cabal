@@ -85,6 +85,7 @@ library
     , containers
     , cookie
     , cryptohash-sha256
+    , cryptonite
     , directory
     , data-default
     , effectful
@@ -128,6 +129,7 @@ library
     , uri-encode
     , uuid
     , vault
+    , vector
     , wai
     , wai-app-static
     , wai-extra
@@ -135,8 +137,10 @@ library
     , zip
 
   exposed-modules:
-    Filehub.Auth
+    Filehub.ActiveUser.Types
+    Filehub.ActiveUser.Pool
     Filehub.Auth.Types
+    Filehub.Auth.Types.AuthId
     Filehub.Auth.Simple
     Filehub.Auth.OIDC
     Filehub.ClientPath
@@ -230,6 +234,8 @@ test-suite filehub_test
     , hspec-wai
     , http-api-data
     , http-types
+    , http-client
+    , http-client-tls
     , log-base
     , log-effectful
     , servant-server

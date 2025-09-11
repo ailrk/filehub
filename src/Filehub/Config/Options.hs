@@ -12,7 +12,7 @@ module Filehub.Config.Options
   where
 
 import Filehub.Config
-import Filehub.Auth.Simple (LoginUser (..))
+import Filehub.Auth.Simple qualified as Auth.Simple
 import Options.Applicative
   ( Parser
   , ReadM
@@ -70,23 +70,23 @@ targetConfig = (S3TargetConfig <$> s3TargetConfig) <|> (FSTargetConfig <$> fsTar
                 ])
 
 
-simpleAuthLoginUsers :: Parser [LoginUser]
-simpleAuthLoginUsers = pure [] <|> some loginUserConfig
+simpleAuthUserRecords :: Parser [Auth.Simple.UserRecord]
+simpleAuthUserRecords = pure [] <|> some loginUserConfig
 
 
-loginUserConfig :: Parser LoginUser
+loginUserConfig :: Parser Auth.Simple.UserRecord
 loginUserConfig =
-  option parseLoginUser
+  option parseUserRecord
       $ mconcat
       $ [ long "login"
         , metavar "USERNAME PASSWORD"
         ]
 
 
-parseLoginUser :: ReadM LoginUser
-parseLoginUser = eitherReader $ \s ->
+parseUserRecord :: ReadM Auth.Simple.UserRecord
+parseUserRecord = eitherReader $ \s ->
   case splitOn "," s of
-    [u, p] -> Right $ LoginUser u p
+    [u, p] -> Right $ Auth.Simple.UserRecord u p
     _      -> Left "Expected USERNAME and PASSWORD separated by space"
 
 
@@ -154,7 +154,7 @@ config =
   <*> optional readonly
   <*> optional locale
   <*> (pure [] <|> some targetConfig)
-  <*> simpleAuthLoginUsers
+  <*> simpleAuthUserRecords
   <*> pure []
 
 

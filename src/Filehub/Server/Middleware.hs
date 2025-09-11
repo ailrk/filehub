@@ -19,11 +19,12 @@ import Effectful ( MonadIO(liftIO), liftIO, liftIO )
 import Effectful.Error.Dynamic (runErrorNoCallStack)
 import Filehub.Cookie qualified as Cookies
 import Filehub.Env (Env (..))
-import Filehub.Session qualified as Session
 import Filehub.Error ( withServerError, withServerError )
 import Filehub.Error (FilehubError)
 import Filehub.Monad ( toIO )
 import Filehub.Server.Internal (parseHeader')
+import Filehub.Session qualified as Session
+import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Types (Session(..), SessionId(..))
 import Filehub.UserAgent qualified as UserAgent
 import Lens.Micro
@@ -72,7 +73,7 @@ displayMiddleware :: Env -> Middleware
 displayMiddleware  env app req respond = toIO onErr env do
   let mCookie = lookup "Cookie" $ requestHeaders req
   let Just sessionId = mCookie >>= parseHeader' >>= Cookies.getSessionId
-  session <- Session.getSession sessionId & withServerError
+  session <- Session.Pool.get sessionId & withServerError
 
   -- set device type
   do
@@ -82,7 +83,7 @@ displayMiddleware  env app req respond = toIO onErr env do
             Just userAgent -> UserAgent.detectDeviceType userAgent
             Nothing -> UserAgent.Unknown
     when (session ^. #deviceType /= deviceType) do
-      Session.updateSession sessionId $ #deviceType .~ deviceType
+      Session.Pool.update sessionId $ #deviceType .~ deviceType
 
   -- set display cookie
   -- Note only the server set the cookie.
@@ -106,7 +107,7 @@ sessionMiddleware env app req respond = toIO onErr env do
   let mSessionId = mCookie >>= parseHeader' >>= Cookies.getSessionId
   case mSessionId of
     Just sessionId -> do
-      eSession <- runErrorNoCallStack @FilehubError $ Session.getSession sessionId
+      eSession <- runErrorNoCallStack @FilehubError $ Session.Pool.get sessionId
       case eSession of
         Left _ -> do
           logTrace_ [i|Invalid session: #{sessionId}|]
@@ -119,7 +120,7 @@ sessionMiddleware env app req respond = toIO onErr env do
       respondWithNewSession
   where
     respondWithNewSession = do
-      session <- Session.newSession
+      session <- Session.Pool.newSession
       let sessionId@(SessionId sid) = session.sessionId
       let setCookieHeader = ("Set-Cookie", Cookies.renderSetCookie $ Cookies.setSessionId session)
       let injectedCookieHeader = ("Cookie", "sessionId=" <> UUID.toASCIIBytes sid)

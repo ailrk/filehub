@@ -13,7 +13,7 @@ import Toml (TomlCodec, (.=), Key)
 import Filehub.Config
 import Filehub.Theme (Theme (..))
 import Filehub.ExpandEnv (expandVars)
-import Filehub.Auth.Simple (LoginUser(..))
+import Filehub.Auth.Simple qualified as Auth.Simple
 import Filehub.Auth.OIDC qualified as Auth.OIDC
 import Effectful.Log (LogLevel (..))
 import Control.Applicative ((<|>))
@@ -28,9 +28,9 @@ import Control.Category ((>>>))
 import Data.Text (Text)
 
 
-simpleAuthLoginUser :: TomlCodec LoginUser
-simpleAuthLoginUser =
-  LoginUser
+simpleAuthUserRecord :: TomlCodec Auth.Simple.UserRecord
+simpleAuthUserRecord =
+  Auth.Simple.UserRecord
   <$> Toml.string "username" .= (.username)
   <*> Toml.string "password" .= (.password)
 
@@ -38,13 +38,13 @@ simpleAuthLoginUser =
 oidcAuthProvider :: TomlCodec Auth.OIDC.Provider
 oidcAuthProvider =
   Auth.OIDC.Provider
-  <$> Toml.text "name"                        .= (.name)
-  <*> Toml.match _URI "issuer"                .= (.issuer)
-  <*> Toml.text "client_id"                   .= (.clientId)
-  <*> Toml.text "client_secret"               .= (.clientSecret)
-  <*> Toml.text "grant_type"                  .= (.grantType)
+  <$> Toml.text               "name"          .= (.name)
+  <*> Toml.match _URI         "issuer"        .= (.issuer)
+  <*> Toml.text               "client_id"     .= (.clientId)
+  <*> Toml.text               "client_secret" .= (.clientSecret)
+  <*> Toml.text               "grant_type"    .= (.grantType)
   <*> Toml.arrayOf Toml._Text "allowed_users" .= (.allowedUsers)
-  <*> Toml.match _URI "redirect_uri"          .= (.redirectURI)
+  <*> Toml.match _URI         "redirect_uri"  .= (.redirectURI)
 
 
 targetConfig :: TomlCodec TargetConfig
@@ -104,14 +104,14 @@ locale key
 
 config :: TomlCodec (Config Maybe)
 config = Config
-  <$> Toml.dioptional (Toml.int     "port")      .= (.port)
-  <*> Toml.dioptional (theme        "theme")     .= (.theme)
-  <*> Toml.dioptional (verbosity    "verbosity") .= (.verbosity)
-  <*> Toml.dioptional (Toml.bool    "readonly")  .= (.readOnly)
-  <*> Toml.dioptional (locale       "locale")    .= (.locale)
-  <*> Toml.list targetConfig        "target"     .= (.targets)
-  <*> Toml.list simpleAuthLoginUser "login"      .= (.simpleAuthLoginUsers)
-  <*> Toml.list oidcAuthProvider    "oidc"       .= (.oidcAuthProviders)
+  <$> Toml.dioptional (Toml.int      "port")      .= (.port)
+  <*> Toml.dioptional (theme         "theme")     .= (.theme)
+  <*> Toml.dioptional (verbosity     "verbosity") .= (.verbosity)
+  <*> Toml.dioptional (Toml.bool     "readonly")  .= (.readOnly)
+  <*> Toml.dioptional (locale        "locale")    .= (.locale)
+  <*> Toml.list targetConfig         "target"     .= (.targets)
+  <*> Toml.list simpleAuthUserRecord "login"      .= (.simpleAuthUserRecords)
+  <*> Toml.list oidcAuthProvider     "oidc"       .= (.oidcAuthProviders)
 
 
 -- | It should be called at the top level, let it throw if we failed to decode.

@@ -49,7 +49,7 @@ createSession = do
     , layout     = ThumbnailLayout
     , theme      = theme
     , locale     = locale
-    , oidcState  = Nothing
+    , oidcFlow   = Nothing
     }
 
 

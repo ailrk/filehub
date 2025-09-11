@@ -18,6 +18,7 @@ import Effectful.Reader.Dynamic (Reader, asks)
 import Filehub.Types (Env(..), SessionId, Session(..), Selected(..), Target)
 import Filehub.Error (FilehubError)
 import Filehub.Session qualified as Session
+import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Selected qualified as Selected
 import Prelude hiding (elem)
 
@@ -27,17 +28,17 @@ getSelected sessionId = (^. #sessionData . #selected) <$> Session.currentTarget 
 
 
 setSelected :: (Reader Env :> es, IOE :> es) => SessionId -> Selected -> Eff es ()
-setSelected sessionId selected = Session.updateSession sessionId $ \s -> s & #targets . ix s.index . #selected .~ selected
+setSelected sessionId selected = Session.Pool.update sessionId $ \s -> s & #targets . ix s.index . #selected .~ selected
 
 
 anySelected :: (Reader Env :> es, IOE :> es, Error FilehubError :> es, Log :> es) => SessionId -> Eff es Bool
-anySelected sessionId = Selected.anySelected  <$> Session.getSession sessionId
+anySelected sessionId = Selected.anySelected  <$> Session.Pool.get sessionId
 
 
 -- | Get all selected files grouped by targets
 allSelecteds :: (Reader Env :> es, IOE :> es, Error FilehubError :> es, Log :> es) => SessionId -> Eff es [(Target, Selected)]
 allSelecteds sessionId = do
-  session <- Session.getSession sessionId
+  session <- Session.Pool.get sessionId
   let selecteds = session ^. #targets & fmap (^. #selected)
   targets <- asks @Env (.targets)
   pure (Selected.allSelecteds selecteds targets)
@@ -45,7 +46,7 @@ allSelecteds sessionId = do
 
 countSelected :: (Reader Env :> es, IOE :> es, Error FilehubError :> es, Log :> es) => SessionId -> Eff es Int
 countSelected sessionId = do
-  session <- Session.getSession sessionId
+  session <- Session.Pool.get sessionId
   let selecteds = session ^. #targets & fmap (^. #selected)
   targets <- asks @Env (.targets)
   pure $ Selected.countSelected selecteds targets
@@ -58,4 +59,4 @@ clearSelected sessionId = setSelected sessionId NoSelection
 clearSelectedAllTargets :: (Reader Env :> es, IOE :> es) => SessionId -> Eff es ()
 clearSelectedAllTargets sessionId = do
   let update sessionData = sessionData & #selected .~ NoSelection
-  Session.updateSession sessionId $ \s -> s &  #targets . mapped %~ update
+  Session.Pool.update sessionId $ \s -> s &  #targets . mapped %~ update

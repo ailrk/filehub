@@ -12,6 +12,7 @@
 -- implement with servant are provided through wai middleware.
 module Filehub.Server (application, main, mainDev) where
 
+
 import Codec.Archive.Zip qualified as Zip
 import Conduit (ConduitT, ResourceT)
 import Conduit qualified
@@ -38,19 +39,18 @@ import Effectful ( withRunInIO, MonadIO (liftIO) )
 import Effectful (runEff)
 import Effectful.Error.Dynamic (throwError)
 import Effectful.FileSystem (runFileSystem)
-import Effectful.Log (logInfo_)
+import Effectful.Log (logInfo_, logAttention_)
 import Effectful.Log (runLog)
-import Filehub.Auth.OIDC (OIDCAuthProviders(..))
+import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
+import Filehub.Auth.OIDC (OIDCAuthProviders(..), AuthUrl (..), SomeOIDCFlow (..))
 import Filehub.Auth.OIDC qualified as Auth.OIDC
 import Filehub.Auth.Simple qualified as Auth.Simple
-import Filehub.Auth.Types (ActiveUsers(..))
-import Filehub.Auth.Types qualified as Auth
 import Filehub.ClientPath qualified as ClientPath
+import Filehub.Config (Config(..), TargetConfig (..))
+import Filehub.Config qualified as Config
 import Filehub.Config.Options (Options(..))
 import Filehub.Config.Options qualified as Config.Options
 import Filehub.Config.Toml qualified as Config.Toml
-import Filehub.Config (Config(..), TargetConfig (..))
-import Filehub.Config qualified as Config
 import Filehub.Cookie qualified as Cookie
 import Filehub.Cookie qualified as Cookies
 import Filehub.Env (Env(..))
@@ -62,28 +62,28 @@ import Filehub.Monad
 import Filehub.Orphan ()
 import Filehub.Routes (Api (..))
 import Filehub.Routes qualified as Routes
-import Filehub.Session.Selected qualified as Selected
-import Filehub.Server.Platform.Desktop qualified as Server.Desktop
-import Filehub.Server.Platform.Mobile qualified as Server.Mobile
 import Filehub.Server.Handler (ConfirmLogin, ConfirmReadOnly, ConfirmDesktopOnly)
 import Filehub.Server.Handler qualified as Server.Handler
 import Filehub.Server.Internal (withQueryParam, parseHeader', makeTemplateContext)
 import Filehub.Server.Internal qualified as Server.Internal
 import Filehub.Server.Middleware qualified as Server.Middleware
+import Filehub.Server.Platform.Desktop qualified as Server.Desktop
+import Filehub.Server.Platform.Mobile qualified as Server.Mobile
 import Filehub.Session (SessionId(..))
 import Filehub.Session qualified as Session
-import Filehub.Session.Pool qualified as SessionPool
-import Filehub.Storage (getStorage, Storage(..))
+import Filehub.Session.Pool qualified as Session.Pool
+import Filehub.Session.Selected qualified as Selected
 import Filehub.Sort qualified as Sort
+import Filehub.Storage (getStorage, Storage(..))
 import Filehub.Target qualified as Target
 import Filehub.Target.File qualified as FS
 import Filehub.Target.S3 qualified as S3
 import Filehub.Target.Types.TargetView (TargetView(..))
 import Filehub.Template qualified as Template
-import Filehub.Template.Platform.Desktop qualified as Template.Desktop
-import Filehub.Template.Platform.Mobile qualified as Template.Mobile
 import Filehub.Template.Internal (runTemplate, TemplateContext(..))
 import Filehub.Template.Login qualified as Template.Login
+import Filehub.Template.Platform.Desktop qualified as Template.Desktop
+import Filehub.Template.Platform.Mobile qualified as Template.Mobile
 import Filehub.Template.Shared qualified as Template
 import Filehub.Theme qualified as Theme
 import Filehub.Types ( Display (..), Layout (..), Resource (..))
@@ -93,8 +93,11 @@ import Filehub.Types (Target(..))
 import Lens.Micro
 import Lens.Micro.Platform ()
 import Lucid
+import Network.HTTP.Client.TLS (newTlsManager)
 import Network.HTTP.Types.Header (hLocation)
+import Network.Mime (MimeType)
 import Network.Mime qualified as Mime
+import Network.URI qualified as URI
 import Network.Wai.Handler.Warp (setPort, defaultSettings, runSettings)
 import Network.Wai.Middleware.Gzip qualified as Wai.Middleware
 import Network.Wai.Middleware.RequestLogger qualified as Wai.Middleware (logStdout)
@@ -114,10 +117,7 @@ import Text.Printf (printf)
 import UnliftIO (catch)
 import UnliftIO (hFlush, stdout)
 import Web.Cookie (SetCookie (..))
-import Network.URI qualified as URI
-import Network.Mime (MimeType)
 import Debug.Trace
-
 
 #ifdef DEBUG
 import Effectful ( MonadIO (liftIO) )
@@ -198,7 +198,7 @@ server = Api
 
 init :: SessionId -> Resolution -> Filehub (Html ())
 init sessionId res = do
-  Session.updateSession sessionId $
+  Session.Pool.update sessionId $
     \s -> s & #resolution .~ Just res
   Server.Internal.clear sessionId
   index sessionId
@@ -300,50 +300,78 @@ loginAuthSimple :: SessionId -> LoginForm
                 -> Filehub (Headers '[ Header "Set-Cookie" SetCookie
                                      , Header "HX-Redirect" Text
                                      ] (Html ()))
-loginAuthSimple sessionId (LoginForm username password) =  do
-  ctx@TemplateContext { simpleAuthUserDB = db } <- makeTemplateContext sessionId
-  if Auth.Simple.validate (Auth.Simple.Username username) (Text.encodeUtf8 password) db then do
-    Auth.createAuthId >>= Session.setAuthId sessionId . Just
-    session <- Session.getSession sessionId & withServerError
-    case Cookie.setAuthId session of
-      Just setCookie -> do
-        logInfo_ [i|User #{username} logged in|]
-        addHeader setCookie . addHeader "/" <$> pure mempty
-      Nothing -> do noHeader . noHeader <$> (pure $ runTemplate ctx $ Template.Login.loginFailed)
-  else do noHeader . noHeader <$> (pure $ runTemplate ctx $ Template.Login.loginFailed)
+loginAuthSimple sessionId form@(LoginForm username _) =  do
+  ctx <- makeTemplateContext sessionId
+  let failed = runTemplate ctx $ Template.Login.loginFailed
+  mSession <- Auth.Simple.authenticateSession sessionId form & withServerError
+  case mSession of
+    Just session -> do
+      case Cookie.setAuthId session of
+        Just setCookie -> do
+          logInfo_ [i|User #{username} logged in|]
+          addHeader setCookie . addHeader "/" <$> pure mempty
+        Nothing -> do
+          noHeader . noHeader <$> (pure failed)
+    Nothing -> do
+      noHeader . noHeader <$> (pure failed)
 
 
 loginAuthOIDCRedirect :: SessionId -> Text -> Filehub NoContent
 loginAuthOIDCRedirect sessionId providerName = do
-  uri <- Auth.OIDC.oidcAuthorizationURI sessionId providerName & withServerError
-  throwError err303
-    { errHeaders =
-        [( "Location"
-         , ByteString.pack $ URI.uriToString id uri ""
-         )]
-    }
+  stage <- withServerError do
+    Auth.OIDC.init providerName >>= Auth.OIDC.authorize
+  Auth.OIDC.setSessionOIDCFlow sessionId (Just stage)
+  case stage of
+    Auth.OIDC.AuthRequestPrepared _ _ _ _ (AuthUrl url) ->
+      throwError err303
+        { errHeaders =
+            [( "Location"
+             , ByteString.pack $ URI.uriToString id url ""
+             )]
+        }
 
 
-loginAuthOIDCCallback :: SessionId -> Maybe Text -> Maybe Text -> Filehub NoContent
-loginAuthOIDCCallback sessionId mCode mState = do
-  liftIO $ print "callback is called!"
-  pure NoContent
+loginAuthOIDCCallback :: SessionId -> Text -> Text -> Filehub NoContent
+loginAuthOIDCCallback sessionId code state = do
+  withServerError do
+    Auth.OIDC.getSessionOIDCFlow sessionId >>= \case
+      Just (SomeOIDCFlow (stage@Auth.OIDC.AuthRequestPrepared {})) -> do
+          Auth.OIDC.callback stage code state
+            >>= Auth.OIDC.exchangeToken
+            >>= Auth.OIDC.verifyToken
+            >>= Auth.OIDC.authenticateSession sessionId
+            >>= Auth.OIDC.setSessionOIDCFlow sessionId . Just
+      _ -> do
+        logAttention_ "OIDC Error: invalid stage"
+        pure ()
+  session <- Session.Pool.get sessionId & withServerError
+  case Cookie.setAuthId session of
+    Just setCookie -> do
+      throwError err303
+        { errHeaders = [( "Location" , "/"), ("Set-Cookie", Cookies.renderSetCookie setCookie)]
+        }
+    Nothing ->
+      throwError err303
+        { errHeaders = [( "Location" , "/login")]
+        }
 
 
 logout :: SessionId -> ConfirmLogin -> Filehub (Headers '[ Header "Set-Cookie" SetCookie
                                                          , Header "HX-Redirect" Text
-                                                         ] (Html ()))
-logout sessionId _ = do
-  session <- Session.getSession sessionId & withServerError
-  case Cookie.setAuthId session of
-    Just setCookie -> do
+                                                         ] NoContent)
+logout sessionId _ = withServerError do
+  session <- Session.Pool.get sessionId
+  case (,) <$> Cookie.setAuthId session <*> session.authId of
+    Just (setCookie, authId) -> do
       Session.setAuthId sessionId Nothing
+      Auth.OIDC.setSessionOIDCFlow sessionId Nothing
+      ActiveUser.Pool.delete authId
       addHeader
         (setCookie
           { setCookieExpires = Just (UTCTime (fromGregorian 1970 1 1) 0) })
         . addHeader "/login"
-        <$> pure mempty
-    Nothing -> noHeader . noHeader <$> pure mempty
+        <$> pure NoContent
+    Nothing -> noHeader . noHeader <$> pure NoContent
 
 
 cd :: SessionId -> ConfirmLogin -> Maybe ClientPath
@@ -610,7 +638,6 @@ initViewer sessionId _ mClientPath = do
 
     takeResourceFiles :: [File] -> [File]
     takeResourceFiles = filter (isResource . (.mimetype))
-
 
     toResource :: FilePath -> File -> Resource
     toResource root f =
@@ -881,23 +908,25 @@ main = Log.withColoredStdoutLogger \logger -> do
     } <- Config.Options.parseOptions
   config <- Config.Toml.parseConfigFile configFile
   Config
-    { port                 = Identity port
-    , theme                = Identity theme
-    , verbosity            = Identity verbosity
-    , readOnly             = Identity readOnly
-    , locale               = Identity locale
-    , targets              = targetConfigs
-    , simpleAuthLoginUsers = simpleAuthLoginUsers
-    , oidcAuthProviders    = oidcAuthProviders
+    { port                  = Identity port
+    , theme                 = Identity theme
+    , verbosity             = Identity verbosity
+    , readOnly              = Identity readOnly
+    , locale                = Identity locale
+    , targets               = targetConfigs
+    , simpleAuthUserRecords = simpleAuthLoginUsers
+    , oidcAuthProviders     = oidcAuthProviders
     } <-
       either
         (\err -> throwIO (userError err))
         pure
         (Config.merge optionConfig config)
 
-  sessionPool <- runEff SessionPool.new
+  sessionPool <- runEff Session.Pool.new
+  activeUserPool <- runEff ActiveUser.Pool.new
   targets <- runEff . runLog "Targets" logger verbosity . runFileSystem $ fromTargetConfig targetConfigs
   simpleAuthUserDB <- runEff . runFileSystem $ Auth.Simple.createSimpleAuthUserDB simpleAuthLoginUsers
+  httpManager <- newTlsManager
 
   printf "PORT: %d\n" port
   printf "V: %s\n" (show verbosity)
@@ -918,7 +947,8 @@ main = Log.withColoredStdoutLogger \logger -> do
           , logLevel          = verbosity
           , simpleAuthUserDB  = simpleAuthUserDB
           , oidcAuthProviders = OIDCAuthProviders oidcAuthProviders
-          , activeUsers       = ActiveUsers mempty
+          , activeUsers       = activeUserPool
+          , httpManager       = httpManager
           }
 
   go env `catch` handler

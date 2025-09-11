@@ -8,7 +8,7 @@ import Network.Wai.Test hiding (request)
 import Filehub.ClientPath qualified as ClientPath
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Env (Env(..))
-import Filehub.Auth.Simple (SimpleAuthUserDB(..), LoginUser(..))
+import Filehub.Auth.Simple (SimpleAuthUserDB(..), UserRecord(..))
 import Filehub.Server qualified as Filehub
 import Data.Char (isPrint)
 import System.FilePath ((</>), normalise)
@@ -19,12 +19,7 @@ import Effectful.Log (LogLevel(LogTrace), Logger)
 import Log (mkLogger)
 import Data.UUID qualified as UUID
 import Data.Maybe (fromJust)
-import Filehub.Types
-  ( ClientPath(..)
-  , RawClientPath(..)
-  , Theme(..)
-  , Target(..)
-  , TargetId(..))
+import Filehub.Types ( ClientPath(..), RawClientPath(..), Theme(..), Target(..), TargetId(..))
 import System.Directory (createDirectoryIfMissing, removePathForcibly, doesFileExist, doesDirectoryExist)
 import Control.Monad (forM_)
 import System.FilePath (takeDirectory)
@@ -38,9 +33,10 @@ import Network.HTTP.Types.Status
 import Network.HTTP.Types (methodPost)
 import Filehub.Auth.Simple (createSimpleAuthUserDB)
 import Effectful.FileSystem (runFileSystem)
-import Filehub.Auth.Types (ActiveUsers(..))
 import Filehub.Auth.OIDC (OIDCAuthProviders(..))
 import Filehub.Locale (Locale(..))
+import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
+import Network.HTTP.Client.TLS (newTlsManager)
 
 
 main :: IO ()
@@ -215,7 +211,7 @@ serverSpec = before setup  $ after_ teardown do
 
   describe "Prevent access without logging-in" $ do
     env <- runIO $ mkEnv >>= \e -> do
-      userDB <- runEff . runFileSystem $ createSimpleAuthUserDB [LoginUser "paul" "123"]
+      userDB <- runEff . runFileSystem $ createSimpleAuthUserDB [UserRecord "paul" "123"]
       pure $ e { simpleAuthUserDB = userDB }
     with (pure $ Filehub.application $ env) do
       it "should redirect to /login" do
@@ -234,7 +230,7 @@ serverSpec = before setup  $ after_ teardown do
 
   describe "Login" $ do
     env <- runIO $ mkEnv >>= \e -> do
-      userDB <- runEff . runFileSystem $ createSimpleAuthUserDB [LoginUser "paul" "123", LoginUser "peter" "345"]
+      userDB <- runEff . runFileSystem $ createSimpleAuthUserDB [UserRecord "paul" "123", UserRecord "peter" "345"]
       pure $ e { simpleAuthUserDB = userDB }
     let f =  UrlFormEncoded.urlEncodeAsForm . toForm
     with (pure $ Filehub.application env) do
@@ -257,7 +253,9 @@ serverSpec = before setup  $ after_ teardown do
 mkEnv :: IO Env
 mkEnv = do
   sessionPool <- runEff Session.Pool.new
+  activeUserPool <- runEff ActiveUser.Pool.new
   logger <- nullLogger
+  httpManager <- newTlsManager
   let env =
         Env
           { port = 0
@@ -277,7 +275,8 @@ mkEnv = do
           , logLevel = LogTrace
           , simpleAuthUserDB = SimpleAuthUserDB mempty
           , oidcAuthProviders = OIDCAuthProviders mempty
-          , activeUsers = ActiveUsers mempty
+          , httpManager = httpManager
+          , activeUsers = activeUserPool
           }
   pure env
 

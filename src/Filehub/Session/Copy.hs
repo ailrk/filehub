@@ -20,6 +20,7 @@ import Filehub.Types (Env, CopyState(..), SessionId, File(..), Selected (..))
 import Filehub.Target (TargetView(..))
 import Filehub.Error (FilehubError (..), Error' (..))
 import Filehub.Session qualified as Session
+import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Storage (getStorage, Storage(..))
 import Filehub.Target qualified as Target
 import Filehub.Session.Selected qualified as Selected
@@ -32,11 +33,11 @@ import Data.List (nub)
 
 
 getCopyState :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es CopyState
-getCopyState sessionId = (^. #copyState) <$> Session.getSession sessionId
+getCopyState sessionId = (^. #copyState) <$> Session.Pool.get sessionId
 
 
 setCopyState :: (Reader Env :> es, IOE :> es) => SessionId -> CopyState -> Eff es ()
-setCopyState sessionId copyState = Session.updateSession sessionId $ \s -> s & #copyState .~ copyState
+setCopyState sessionId copyState = Session.Pool.update sessionId $ \s -> s & #copyState .~ copyState
 
 
 clearCopyState :: (Reader Env :> es, IOE :> es) => SessionId -> Eff es ()

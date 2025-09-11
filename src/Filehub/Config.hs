@@ -1,7 +1,7 @@
 module Filehub.Config where
 
 import Filehub.Theme (Theme (..))
-import Filehub.Auth.Simple (LoginUser)
+import {-# SOURCE #-} Filehub.Auth.Simple qualified as Auth.Simple
 import Effectful.Log (LogLevel (..))
 import Data.Functor.Identity
 import Control.Applicative ((<|>))
@@ -11,14 +11,14 @@ import Filehub.Locale (Locale (..))
 
 
 data Config f = Config
-  { port                 :: f Int
-  , theme                :: f Theme
-  , verbosity            :: f LogLevel
-  , readOnly             :: f Bool
-  , locale               :: f Locale
-  , targets              :: [TargetConfig]
-  , simpleAuthLoginUsers :: [LoginUser]
-  , oidcAuthProviders    :: [Auth.OIDC.Provider]
+  { port                  :: f Int
+  , theme                 :: f Theme
+  , verbosity             :: f LogLevel
+  , readOnly              :: f Bool
+  , locale                :: f Locale
+  , targets               :: [TargetConfig]
+  , simpleAuthUserRecords :: [Auth.Simple.UserRecord]
+  , oidcAuthProviders     :: [Auth.OIDC.Provider]
   }
 
 
@@ -49,16 +49,16 @@ merge cfg1 cfg2 = do
   readOnly  <-  maybe (Right True)             Right $ cfg1.readOnly <|> cfg2.readOnly
   locale    <-  maybe (Right EN)               Right $ cfg1.locale <|> cfg2.locale
   let targets              = nub . mconcat $ [cfg1.targets, cfg2.targets]
-  let simpleAuthLoginUsers = nub . mconcat $ [cfg1.simpleAuthLoginUsers , cfg2.simpleAuthLoginUsers]
+  let simpleAuthLoginUsers = nub . mconcat $ [cfg1.simpleAuthUserRecords, cfg2.simpleAuthUserRecords]
   let oidcAuthProviders    = nub . mconcat $ [cfg1.oidcAuthProviders , cfg2.oidcAuthProviders]
   pure
     Config
-      { port                 = Identity port
-      , theme                = Identity theme
-      , verbosity            = Identity verbosity
-      , readOnly             = Identity readOnly
-      , locale               = Identity locale
-      , targets              = targets
-      , simpleAuthLoginUsers = simpleAuthLoginUsers
-      , oidcAuthProviders    = oidcAuthProviders
+      { port                  = Identity port
+      , theme                 = Identity theme
+      , verbosity             = Identity verbosity
+      , readOnly              = Identity readOnly
+      , locale                = Identity locale
+      , targets               = targets
+      , simpleAuthUserRecords = simpleAuthLoginUsers
+      , oidcAuthProviders     = oidcAuthProviders
       }

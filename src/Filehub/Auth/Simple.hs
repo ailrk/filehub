@@ -1,26 +1,41 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Filehub.Auth.Simple where
 
-import Data.Map.Strict qualified as Map
-import Data.Map.Strict (Map)
-import Data.Text (Text)
-import Data.Text qualified as Text
+
+import Control.Monad (forM)
+import Crypto.BCrypt qualified as BCrypt
 import Data.ByteString (ByteString)
 import Data.ByteString.Char8 qualified as Char8
 import Data.Hashable (Hashable)
-import Crypto.BCrypt qualified as BCrypt
-import Effectful (Eff, (:>), MonadIO (..), IOE)
-import Control.Monad (forM)
+import Data.Map.Strict (Map)
+import Data.Map.Strict qualified as Map
 import Data.Maybe (maybeToList)
+import Data.Text (Text)
+import Data.Text qualified as Text
+import Data.Text.Encoding qualified as Text
+import Data.Time qualified as Time
+import Effectful (Eff, (:>), MonadIO (..), IOE)
+import Effectful.Error.Dynamic (Error)
+import Effectful.Log (Log)
+import Effectful.Reader.Dynamic (Reader, asks)
+import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
+import Filehub.ActiveUser.Types (ActiveUser (..))
+import Filehub.Auth.Types (createAuthId, AuthId, Auth (..))
+import Filehub.Env (Env(..))
+import Filehub.Error (FilehubError)
+import Filehub.Session (SessionId, Session)
+import Filehub.Session qualified as Session
+import Filehub.Session.Pool qualified as Session.Pool
+import Filehub.Types (LoginForm (..))
 import Prelude hiding (readFile)
 
-
-newtype Username = Username Text deriving (Show, Eq, Ord, Hashable)
-newtype PasswordHash = PasswordHash ByteString deriving (Show, Eq, Ord)
+newtype Username         = Username Text deriving (Show, Eq, Ord, Hashable)
+newtype PasswordHash     = PasswordHash ByteString deriving (Show, Eq, Ord)
 newtype SimpleAuthUserDB = SimpleAuthUserDB (Map Username PasswordHash) deriving (Show, Eq)
 
 
-data LoginUser = LoginUser
+-- | A single user record
+data UserRecord = UserRecord
   { username :: String
   , password :: String
   }
@@ -34,15 +49,40 @@ validate name password (SimpleAuthUserDB db) =
     Nothing -> False
 
 
-createSimpleAuthUserDB :: (IOE :> es) => [LoginUser] -> Eff es SimpleAuthUserDB
+createSimpleAuthUserDB :: (IOE :> es) => [UserRecord] -> Eff es SimpleAuthUserDB
 createSimpleAuthUserDB loginInfo =
   case loginInfo of
     [] -> pure (SimpleAuthUserDB mempty)
     infos -> fromList infos
   where
     fromList xs = liftIO $ do
-      infos <- forM xs $ \(LoginUser u p) -> do
+      infos <- forM xs $ \(UserRecord u p) -> do
         let username = Username . Text.pack $ u
         mHash <- BCrypt.hashPasswordUsingPolicy BCrypt.slowerBcryptHashingPolicy (Char8.pack p)
         pure $ maybeToList $ fmap (\hash -> (username, PasswordHash hash)) mHash
       pure $ SimpleAuthUserDB . Map.fromList . mconcat $ infos
+
+
+-- | Handle the simple authetication login.
+authenticateSession :: (Reader Env :> es, Error FilehubError :> es, Log :> es, IOE :> es) => SessionId -> LoginForm -> Eff es (Maybe Session)
+authenticateSession sessionId (LoginForm username password) =  do
+  db <- asks @Env (.simpleAuthUserDB)
+  let username' =  Username username
+  if (validate username' (Text.encodeUtf8 password) db) then do
+    authId <- createAuthId
+    Session.setAuthId sessionId (Just authId)
+    activeUser <- createActiveUser authId sessionId username'
+    ActiveUser.Pool.add activeUser
+    Just <$> Session.Pool.get sessionId
+  else pure Nothing
+
+
+createActiveUser :: (IOE :> es) => AuthId -> SessionId -> Username -> Eff es ActiveUser
+createActiveUser authId sessionId username = do
+  now <- liftIO Time.getCurrentTime
+  pure ActiveUser
+    { authId   = authId
+    , loginAt  = now
+    , sessions = [sessionId]
+    , auth     = Simple username
+    }

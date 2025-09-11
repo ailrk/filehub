@@ -39,6 +39,7 @@ import Control.Monad.Trans.Except (ExceptT(..))
 import Network.HTTP.Types.Header (hLocation)
 import Control.Monad.Trans.Maybe (MaybeT(..))
 import Control.Monad (guard)
+import Filehub.Session.Pool qualified as Session.Pool
 
 
 toServantHandler :: Env -> Filehub a -> Handler a
@@ -75,7 +76,7 @@ sessionHandler env = mkAuthHandler handler
         header <- toEither "cookie not found" $ lookup "Cookie" $ requestHeaders req
         cookie <- bimap (Text.encodeUtf8 . Text.fromStrict) id $ parseHeader header
         toEither "can't get sessionId" $ Cookie.getSessionId cookie
-      _ <- toServantHandler env $ Session.getSession sessionId & withServerError
+      _ <- toServantHandler env $ Session.Pool.get sessionId & withServerError
       pure sessionId
 
 
@@ -131,7 +132,7 @@ loginHandler env
         cookie <- MaybeT . pure $ lookup "Cookie" (requestHeaders req)
         sessionId <- MaybeT . pure $ parseHeader' cookie >>= Cookies.getSessionId
         authId <- MaybeT . pure $ parseHeader' cookie >>= Cookies.getAuthId
-        eSession  <- liftIO . runFilehub env . withServerError $ Session.getSession sessionId
+        eSession  <- liftIO . runFilehub env . withServerError $ Session.Pool.get sessionId
         session   <- MaybeT . pure $ either (const Nothing) Just eSession
         guard (session.authId == Just authId)
         pure ConfirmLogin

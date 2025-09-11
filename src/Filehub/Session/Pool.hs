@@ -3,9 +3,9 @@ module Filehub.Session.Pool
   , new
   , newSession
   , extendSession
-  , deleteSession
-  , getSession
-  , updateSession
+  , delete
+  , get
+  , update
   )
   where
 
@@ -59,14 +59,14 @@ extendSession sessionId = do
         (\session -> (Just $ session { expireDate = duration `addUTCTime` now }, ()))
 
 
-deleteSession :: (Reader Env :> es, IOE :> es) => SessionId -> Eff es ()
-deleteSession sessionId = do
+delete :: (Reader Env :> es, IOE :> es) => SessionId -> Eff es ()
+delete sessionId = do
   Session.Pool pool _ <- asks @Env (.sessionPool)
   liftIO $ HashTable.delete pool sessionId
 
 
-getSession :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es Session
-getSession sessionId = do
+get :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es Session
+get sessionId = do
   Session.Pool pool _ <- asks @Env (.sessionPool)
   mResult <- liftIO $ HashTable.lookup pool sessionId
   case mResult of
@@ -76,11 +76,11 @@ getSession sessionId = do
       throwError (FilehubError InvalidSession "Invalid session")
 
 
-updateSession :: (Reader Env :> es, IOE :> es) => SessionId -> (Session -> Session) -> Eff es ()
-updateSession sessionId update = do
+update :: (Reader Env :> es, IOE :> es) => SessionId -> (Session -> Session) -> Eff es ()
+update sessionId f = do
   Session.Pool pool _ <- asks @Env (.sessionPool)
   liftIO
     $ HashTable.mutate pool sessionId
     $ maybe
         (Nothing, ())
-        (\session -> (Just $ update session, ()))
+        (\session -> (Just $ f session, ()))

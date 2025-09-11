@@ -12,18 +12,19 @@ module Filehub.Env
   )
   where
 
+
 import Data.Map.Strict qualified as Map
-import Lens.Micro.Platform ()
-import Filehub.Auth.Simple (SimpleAuthUserDB(..))
-import {-# SOURCE #-} Filehub.Auth.OIDC (OIDCAuthProviders(..))
 import Data.Time (NominalDiffTime)
-import Filehub.Theme (Theme)
+import {-# SOURCE #-} Filehub.Auth.Simple (SimpleAuthUserDB(..))
+import Filehub.ActiveUser.Types qualified as ActiveUser
+import Filehub.Locale (Locale)
 import Filehub.Session.Types qualified as Session
 import Filehub.Target.Types (Target)
-import Filehub.Auth.Types (ActiveUsers(..))
+import Filehub.Theme (Theme)
+import Lens.Micro.Platform ()
 import Log (Logger, LogLevel)
-import Filehub.Locale (Locale)
-
+import Network.HTTP.Client qualified as HTTP
+import {-# SOURCE #-} Filehub.Auth.OIDC (OIDCAuthProviders(..))
 
 data Env = Env
   { -- The port number the filehub listens on.
@@ -50,7 +51,9 @@ data Env = Env
   , oidcAuthProviders :: OIDCAuthProviders
     -- Map from `AuthId` to `ActiveUser`. The definition of an active user depends on
     -- its login method. An active user can have multiple sessions.
-  , activeUsers       :: ActiveUsers
+  , activeUsers       :: ActiveUser.Pool
+    -- top level http-tls manager
+  , httpManager       :: HTTP.Manager
   }
 
 

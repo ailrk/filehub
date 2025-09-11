@@ -30,7 +30,7 @@ import Servant
       StreamGet,
       NoFraming,
       NoContent,
-      CaptureAll, QueryParams, Capture,
+      CaptureAll, QueryParams, Capture, Required, QueryParam',
     )
 import Lucid
 import Lens.Micro.Platform ()
@@ -140,10 +140,9 @@ data Api mode = Api
   , loginAuthOIDCCallback :: mode
                           :- "login" :> "oidc" :> "callback"
                           :> AuthProtect "session"
-                          :> QueryParam "code" Text
-                          :> QueryParam "state" Text
-                          :> Get '[HTML] NoContent
-
+                          :> QueryParam' '[Required] "code" Text
+                          :> QueryParam' '[Required] "state" Text
+                          :> Get '[HTML]  NoContent
 
   , logout                :: mode
                           :- "logout"
@@ -151,7 +150,7 @@ data Api mode = Api
                           :> AuthProtect "login"
                           :> Post '[HTML] (Headers '[ Header "Set-Cookie" SetCookie
                                                     , Header "HX-Redirect" Text
-                                                    ] (Html ()))
+                                                    ] NoContent)
 
 
   , cd                    :: mode
