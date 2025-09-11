@@ -7,7 +7,14 @@
 -- Copyright   :  (c) 2025-present Jinyang yao
 --
 -- This module implements a OIDC client for filehub.
-module Filehub.Auth.OIDC where
+module Filehub.Auth.OIDC
+  ( Provider(..)
+  , OIDCAuthProviders(..)
+  , User(..)
+  , Authorization(..)
+  , oidcAuthorizationURI
+  )
+  where
 
 import Data.Text (Text)
 import Servant (QueryParam, QueryParam', Proxy (..), Get, NoContent, Post, ReqBody, FormUrlEncoded, JSON, Required, linkURI)
@@ -35,7 +42,7 @@ import Filehub.Error (FilehubError (..), Error' (..))
 import Filehub.Orphan ()
 import Filehub.Session.Types.SessionId (SessionId)
 import Lens.Micro.Platform ()
-import Network.HTTP.Client (newManager, defaultManagerSettings)
+import Network.HTTP.Client.TLS (newTlsManager)
 import Network.URI (URIAuth (..))
 import Network.URI (relativeTo)
 import Network.URI qualified as URI
@@ -44,6 +51,9 @@ import Servant.Client (BaseUrl (..), Scheme (..), runClientM, mkClientEnv)
 import Servant.Conduit ()
 import System.Random (randomRIO)
 import Filehub.Session qualified as Session
+import Data.Functor.Identity (Identity (..))
+import Control.Exception (try, Exception (..), SomeException)
+import Debug.Trace
 
 
 data Token = Token
@@ -120,7 +130,6 @@ newtype OIDCAuthProviders = OIDCAuthProviders [Provider]
   deriving (Show, Eq)
 
 
-
 -- | contains Authorization parameters
 authorizeLink :: Authorization -> URI
 authorizeLink (Authorization
@@ -161,30 +170,59 @@ exchangeToken = client (Servant.Proxy @ExchangeTokenApi)
 type WellKnownAPI =
   ".well-known"
     Servant.:> "openid-configuration"
-    Servant.:> Get '[JSON] WellKnownConfig
+    Servant.:> Get '[JSON] (WellKnownConfig Maybe)
 
 
 -- | Return value of Wellknown URI registry
 -- https://openid.net/specs/openid-connect-discovery-1_0.html#IANA
-data WellKnownConfig = WellKnownConfig
-  { issuer                 :: Text
-  , authorization_endpoint :: Text
-  , token_endpoint         :: Text
-  , jwks_uri               :: Text
-  , response_types_supported :: [Text]
-  , subject_types_supported  :: [Text]
-  , id_token_signing_alg_values_supported :: [Text]
-  , userinfo_endpoint      :: Maybe Text
-  , end_session_endpoint   :: Maybe Text
-  } deriving (Show, Generic)
+data WellKnownConfig f = WellKnownConfig
+  { issuer                                :: f URI
+  , authorization_endpoint                :: f URI
+  , token_endpoint                        :: f URI
+  , jwks_uri                              :: f URI
+  , response_types_supported              :: f [Text]
+  , subject_types_supported               :: f [Text]
+  , id_token_signing_alg_values_supported :: f [Text]
+  , userinfo_endpoint                     :: (Maybe Text)
+  , end_session_endpoint                  :: (Maybe Text)
+  } deriving (Generic)
+
+deriving instance Show (WellKnownConfig Maybe)
+deriving instance Show (WellKnownConfig Identity)
+
+instance FromJSON (WellKnownConfig Maybe)
 
 
-instance FromJSON WellKnownConfig
+verifyWellKnownConfig :: WellKnownConfig Maybe -> Maybe (WellKnownConfig Identity)
+verifyWellKnownConfig WellKnownConfig
+  { issuer                                   = Just issuer
+  , authorization_endpoint                   = Just authorization_endpoint
+  , token_endpoint                           = Just token_endpoint
+  , jwks_uri                                 = Just jwks_uri
+  , response_types_supported                 = Just response_types_supported
+  , subject_types_supported                  = Just subject_types_supported
+  , id_token_signing_alg_values_supported    = Just id_token_signing_alg_values_supported
+  , userinfo_endpoint                        = userinfo_endpoint
+  , end_session_endpoint                     = end_session_endpoint
+  } =
+  Just $ WellKnownConfig
+    { issuer                                 = Identity  issuer
+    , authorization_endpoint                 = Identity  authorization_endpoint
+    , token_endpoint                         = Identity  token_endpoint
+    , jwks_uri                               = Identity  jwks_uri
+    , response_types_supported               = Identity  response_types_supported
+    , subject_types_supported                = Identity  subject_types_supported
+    , id_token_signing_alg_values_supported  = Identity  id_token_signing_alg_values_supported
+    , userinfo_endpoint                      = userinfo_endpoint
+    , end_session_endpoint                   = end_session_endpoint
+    }
+verifyWellKnownConfig _ = Nothing
 
 
-
-loginAuthOIDCRedirectURI :: (Reader Env :> es, IOE :> es, Error FilehubError :> es) => SessionId -> Text -> Eff es URI
-loginAuthOIDCRedirectURI sessionId providerName = do
+-- | Create oidc authorization uri. The server needs to redirect to the uri to start the OIDC
+-- authentication flow
+oidcAuthorizationURI :: (Reader Env :> es, IOE :> es, Error FilehubError :> es) => SessionId -> Text -> Eff es URI
+oidcAuthorizationURI sessionId providerName = do
   OIDCAuthProviders providers <- asks @Env (.oidcAuthProviders)
   provider <- maybe
     (throwError (FilehubError InternalError "Invalid provider"))
@@ -200,7 +238,10 @@ loginAuthOIDCRedirectURI sessionId providerName = do
         $ SHA256.update SHA256.init
         $ Text.encodeUtf8
         $ codeVerifier
-  pure $ flip relativeTo provider.issuer
+  WellKnownConfig
+    { authorization_endpoint = Identity authorization_endpoint
+    } <- wellknownOpenIdConfigration provider
+  pure $ flip relativeTo authorization_endpoint
        $ authorizeLink
           Authorization
             { responseType         = "code"
@@ -213,21 +254,17 @@ loginAuthOIDCRedirectURI sessionId providerName = do
             }
 
 
-
-wellKnownConfigClient :: ClientM WellKnownConfig
-wellKnownConfigClient = client (Proxy :: Proxy WellKnownAPI)
-
-
 -- | Query the standard /.well-known/openid-configuration endpoint from IdP.
-wellknownOpenIdConfigration :: (IOE :> es, Error FilehubError :> es) => Provider -> Eff es WellKnownConfig
+wellknownOpenIdConfigration :: (IOE :> es, Error FilehubError :> es) => Provider -> Eff es (WellKnownConfig Identity)
 wellknownOpenIdConfigration (Provider { issuer }) = do
-  manager <- liftIO $ newManager defaultManagerSettings
+  manager <- liftIO $ newTlsManager
   baseUri <- either (\err -> throwError (FilehubError InternalError $ Text.unpack err)) pure (uriToBaseUrl issuer)
-
-  eWellKnownConfig <- liftIO $ runClientM wellKnownConfigClient (mkClientEnv manager baseUri)
-  case eWellKnownConfig of
-    Right config -> pure config
-    Left err -> throwError (FilehubError InternalError (show err))
+  result  <- liftIO . try $ runClientM wellKnownConfigClient (mkClientEnv manager baseUri)
+  eWellKnownConfig <- either (\(e :: SomeException) -> throwError (FilehubError InternalError (displayException e))) pure result
+  case verifyWellKnownConfig <$> eWellKnownConfig of
+    Right (Just config) -> trace "x" $ pure config
+    Right Nothing -> trace "y" $ traceShow eWellKnownConfig $ throwError (FilehubError InternalError "Invalid .well-known/openid-configuration")
+    Left err -> trace "z" $ traceShow err $ throwError (FilehubError InternalError (show err))
   where
     uriToBaseUrl :: URI -> Either Text BaseUrl
     uriToBaseUrl uri = do
@@ -241,3 +278,5 @@ wellknownOpenIdConfigration (Provider { issuer }) = do
                      else read (tail $ uriPort auth) -- drop leading ':'
             path = uriPath uri
         pure $ BaseUrl scheme (uriRegName auth) port path
+    wellKnownConfigClient :: ClientM (WellKnownConfig Maybe)
+    wellKnownConfigClient = client (Proxy :: Proxy WellKnownAPI)

@@ -95,6 +95,7 @@ library
     , hashable
     , hashtables
     , http-client
+    , http-client-tls
     , http-api-data
     , http-types
     , jwt

@@ -18,14 +18,12 @@ import Conduit qualified
 import Control.Exception (SomeException)
 import Control.Exception (throwIO)
 import Control.Monad (when, forM, replicateM)
-import Crypto.Hash.SHA256 qualified as SHA256
 import Data.Aeson (object, KeyValue (..), (.:), withObject, Value)
 import Data.Aeson.Types (parseMaybe)
 import Data.ByteString (ByteString)
-import Data.ByteString.Base64 qualified as Base64
 import Data.ByteString.Char8 qualified as ByteString
 import Data.FileEmbed qualified as FileEmbed
-import Data.Foldable (forM_, find)
+import Data.Foldable (forM_)
 import Data.Functor.Identity (Identity(..))
 import Data.List qualified as List
 import Data.Map.Strict (Map)
@@ -42,7 +40,6 @@ import Effectful.Error.Dynamic (throwError)
 import Effectful.FileSystem (runFileSystem)
 import Effectful.Log (logInfo_)
 import Effectful.Log (runLog)
-import Effectful.Reader.Dynamic (asks)
 import Filehub.Auth.OIDC (OIDCAuthProviders(..))
 import Filehub.Auth.OIDC qualified as Auth.OIDC
 import Filehub.Auth.Simple qualified as Auth.Simple
@@ -102,7 +99,7 @@ import Network.Wai.Handler.Warp (setPort, defaultSettings, runSettings)
 import Network.Wai.Middleware.Gzip qualified as Wai.Middleware
 import Network.Wai.Middleware.RequestLogger qualified as Wai.Middleware (logStdout)
 import Prelude hiding (init, readFile)
-import Servant (addHeader, err500, linkURI, err303)
+import Servant (addHeader, err500, err303)
 import Servant (errBody, Headers, Header, NoContent (..), err404, errHeaders, err301, noHeader, err400)
 import Servant (serveWithContextT, Context (..), Application)
 import Servant.Conduit ()
@@ -117,9 +114,9 @@ import Text.Printf (printf)
 import UnliftIO (catch)
 import UnliftIO (hFlush, stdout)
 import Web.Cookie (SetCookie (..))
-import Network.URI (relativeTo)
 import Network.URI qualified as URI
 import Network.Mime (MimeType)
+import Debug.Trace
 
 
 #ifdef DEBUG
@@ -318,32 +315,7 @@ loginAuthSimple sessionId (LoginForm username password) =  do
 
 loginAuthOIDCRedirect :: SessionId -> Text -> Filehub NoContent
 loginAuthOIDCRedirect sessionId providerName = do
-  OIDCAuthProviders providers <- asks @Env (.oidcAuthProviders)
-  provider <- maybe
-    (throwError err400 { errBody = "Invalid provider"})
-    pure
-    (find ((providerName ==) . (.name)) providers)
-  state <- Text.pack <$> replicateM 32 (randomRIO ('a', 'z'))
-  Session.setOIDCState sessionId (Just state)
-  codeVerifier <- Text.pack <$> replicateM 43 (randomRIO ('0', 'z'))
-  let codeChallenge
-        = Text.decodeUtf8
-        $ Base64.encode
-        $ SHA256.finalize
-        $ SHA256.update SHA256.init
-        $ Text.encodeUtf8
-        $ codeVerifier
-  let uri = flip relativeTo provider.issuer
-          $ Auth.OIDC.authorizeLink
-              Auth.OIDC.Authorization
-                { responseType         = "code"
-                , clientId             = provider.clientId
-                , redirectUri          = Text.pack $ URI.uriToString id provider.redirectURI ""
-                , scope                = "openid profile email"
-                , state                = state
-                , codeChallenge        = Just codeChallenge
-                , codeChallengeMethod  = Just "S256"
-                }
+  uri <- Auth.OIDC.oidcAuthorizationURI sessionId providerName & withServerError
   throwError err303
     { errHeaders =
         [( "Location"
