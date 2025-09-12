@@ -117,6 +117,8 @@ import Text.Printf (printf)
 import UnliftIO (catch)
 import UnliftIO (hFlush, stdout)
 import Web.Cookie (SetCookie (..))
+import Effectful.Reader.Dynamic (asks)
+import Control.Applicative (Alternative((<|>)))
 
 #ifdef DEBUG
 import Effectful ( MonadIO (liftIO) )
@@ -675,9 +677,11 @@ changeTarget sessionId _ mTargetId = do
   savedTargetId <- withServerError do
     TargetView saved _ _ <- Session.currentTarget sessionId
     pure $ Target.getTargetId saved
+
   let restore = Session.changeCurrentTarget sessionId savedTargetId & withServerError
   targetId <- withQueryParam mTargetId
   Session.changeCurrentTarget sessionId targetId & withServerError
+
   html <- withRunInIO \unlift -> do
     unlift (index sessionId) `catch` \(_ :: SomeException) -> unlift do
       restore
@@ -687,19 +691,20 @@ changeTarget sessionId _ mTargetId = do
 
 themeCss :: SessionId -> Filehub ByteString
 themeCss sessionId = do
+  customThemeDark  <- (fmap . fmap) Theme.customTheme2Css (asks @Env (.customThemeDark))
+  customThemeLight <- (fmap . fmap) Theme.customTheme2Css (asks @Env (.customThemeLight))
 #ifdef DEBUG
   theme <- Session.getSessionTheme sessionId & withServerError
   dir <- liftIO $ Paths_filehub.getDataDir >>= makeAbsolute <&> (++ "/data/filehub")
-  liftIO . readFile
-    case theme of
-      Dark  -> dir </> "theme-dark.css"
-      Light -> dir </> "theme-light.css"
+  case theme of
+    Dark  -> liftIO $ maybe (readFile (dir </> "theme-dark.css")) pure customThemeDark
+    Light -> liftIO $ maybe (readFile (dir </> "theme-light.css")) pure customThemeLight
 #else
   theme <- Session.getSessionTheme sessionId & withServerError
   pure
     case theme of
-      Dark  -> fromMaybe "no-theme" $ Map.lookup "theme-dark.css" staticFiles
-      Light -> fromMaybe "no-theme" $ Map.lookup "theme-light.css" staticFiles
+      Dark  -> fromMaybe "no-theme" $ customThemeDark <|> Map.lookup "theme-dark.css" staticFiles
+      Light -> fromMaybe "no-theme" $ customThemeLight <|> Map.lookup "theme-light.css" staticFiles
 #endif
 
 
@@ -925,6 +930,8 @@ main = Log.withColoredStdoutLogger \logger -> do
     , verbosity             = Identity verbosity
     , readOnly              = Identity readOnly
     , locale                = Identity locale
+    , customThemeDark       = Identity customThemeDark
+    , customThemeLight      = Identity customThemeLight
     , targets               = targetConfigs
     , simpleAuthUserRecords = simpleAuthLoginUsers
     , oidcAuthProviders     = oidcAuthProviders
@@ -934,17 +941,21 @@ main = Log.withColoredStdoutLogger \logger -> do
         pure
         (Config.merge optionConfig config)
 
+  runEff $ runLog "main" logger verbosity do
+    logInfo_ [i|port:      #{port}|]
+    logInfo_ [i|theme:     #{theme}|]
+    logInfo_ [i|verbosity: #{verbosity}|]
+    logInfo_ [i|readonly:  #{readOnly}|]
+    logInfo_ [i|locale:    #{locale}|]
+#ifdef DEBUG
+    logInfo_ [i|debug:     true|]
+#endif
+
   sessionPool      <- runEff Session.Pool.new
   activeUserPool   <- runEff ActiveUser.Pool.new
-  targets          <- runEff . runLog "Targets" logger verbosity . runFileSystem $ fromTargetConfig targetConfigs
-  simpleAuthUserDB <- runEff . runFileSystem $ Auth.Simple.createSimpleAuthUserDB simpleAuthLoginUsers
+  targets          <- runEff . runLog "Targets" logger verbosity . runFileSystem $ fromTargetConfig targetConfigs.unTargets
+  simpleAuthUserDB <- runEff . runFileSystem $ Auth.Simple.createSimpleAuthUserDB simpleAuthLoginUsers.unSimpleAuthUserRecords
   httpManager      <- newTlsManager
-
-  printf "PORT: %d\n" port
-  printf "V: %s\n" (show verbosity)
-#ifdef DEBUG
-  printf "DEBUG build\n"
-#endif
 
   let env =
         Env
@@ -957,8 +968,10 @@ main = Log.withColoredStdoutLogger \logger -> do
           , locale            = locale
           , logger            = logger
           , logLevel          = verbosity
+          , customThemeDark   = (.unCustomThemeDark) <$> customThemeDark
+          , customThemeLight  = (.unCustomThemeLight) <$> customThemeLight
           , simpleAuthUserDB  = simpleAuthUserDB
-          , oidcAuthProviders = OIDCAuthProviders oidcAuthProviders
+          , oidcAuthProviders = OIDCAuthProviders (oidcAuthProviders.unOidcAuthProviders)
           , activeUsers       = activeUserPool
           , httpManager       = httpManager
           }

@@ -26,6 +26,7 @@ import Data.Text qualified as Text
 import Network.URI qualified as URI
 import Control.Category ((>>>))
 import Data.Text (Text)
+import Data.Coerce (coerce)
 
 
 simpleAuthUserRecord :: TomlCodec Auth.Simple.UserRecord
@@ -58,8 +59,21 @@ targetConfig =
     s3 = S3TargetConfig_ <$> (Toml.validateIf (== "s3") Toml._Text "type" .= const "s3" *> Toml.string "bucket") .= (.bucket)
 
 
+targetConfigs :: Key -> TomlCodec Targets
+targetConfigs key = Toml.dimap (.unTargets) Targets (Toml.list targetConfig key)
+
+
+simpleAuthUserRecords :: Key -> TomlCodec SimpleAuthUserRecords
+simpleAuthUserRecords key = Toml.dimap (.unSimpleAuthUserRecords) SimpleAuthUserRecords (Toml.list simpleAuthUserRecord key)
+
+
+oidcAuthProviders :: Key -> TomlCodec OidcAuthProviders
+oidcAuthProviders key = Toml.dimap (.unOidcAuthProviders) OidcAuthProviders (Toml.list oidcAuthProvider key)
+
+
+
 theme :: Key -> TomlCodec Theme
-theme key =
+theme =
   Toml.textBy
     (\case
       Dark -> "dark"
@@ -68,11 +82,10 @@ theme key =
       "dark" -> Right Dark
       "light" -> Right Light
       _ -> Left "unknown theme")
-    key
 
 
 verbosity :: Key -> TomlCodec LogLevel
-verbosity key =
+verbosity =
   Toml.textBy
     (\case
       LogInfo -> "info"
@@ -83,35 +96,83 @@ verbosity key =
       "attention" -> Right LogAttention
       "trace" -> Right LogTrace
       _ -> Left "unknown log level")
-    key
 
 
 locale :: Key -> TomlCodec Locale
-locale key
-  =   Toml.dimatch (const (Just "en"))    (const EN)    (Toml.text key)
-  <|> Toml.dimatch (const (Just "zh_cn")) (const ZH_CN) (Toml.text key)
-  <|> Toml.dimatch (const (Just "zh_tw")) (const ZH_TW) (Toml.text key)
-  <|> Toml.dimatch (const (Just "zh_hk")) (const ZH_HK) (Toml.text key)
-  <|> Toml.dimatch (const (Just "ja"))    (const JA)    (Toml.text key)
-  <|> Toml.dimatch (const (Just "es"))    (const ES)    (Toml.text key)
-  <|> Toml.dimatch (const (Just "fr"))    (const FR)    (Toml.text key)
-  <|> Toml.dimatch (const (Just "de"))    (const DE)    (Toml.text key)
-  <|> Toml.dimatch (const (Just "ko"))    (const KO)    (Toml.text key)
-  <|> Toml.dimatch (const (Just "ru"))    (const RU)    (Toml.text key)
-  <|> Toml.dimatch (const (Just "pt"))    (const PT)    (Toml.text key)
-  <|> Toml.dimatch (const (Just "it"))    (const IT)    (Toml.text key)
+locale =
+  Toml.textBy
+    (\case
+    EN      -> "en"
+    ZH_CN   -> "zh_cn"
+    ZH_TW   -> "zh_tw"
+    ZH_HK   -> "zh_hk"
+    JA      -> "ja"
+    ES      -> "es"
+    FR      -> "fr"
+    DE      -> "de"
+    KO      -> "ko"
+    RU      -> "ru"
+    PT      -> "pt"
+    IT      -> "it")
+    (\case
+    "en"    -> Right EN;
+    "zh_cn" -> Right ZH_CN
+    "zh_tw" -> Right ZH_TW
+    "zh_hk" -> Right ZH_HK
+    "ja"    -> Right JA
+    "es"    -> Right ES
+    "fr"    -> Right FR
+    "de"    -> Right DE
+    "ko"    -> Right KO
+    "ru"    -> Right RU
+    "pt"    -> Right PT
+    "it"    -> Right IT
+    _       -> Left "unknown locale")
+
+
+customTheme :: Key -> TomlCodec CustomTheme
+customTheme key=
+  Toml.table
+    (CustomTheme
+      <$> colorHex "frontground" .= (.frontground)
+      <*> colorHex "background1" .= (.background1)
+      <*> colorHex "background2" .= (.background2)
+      <*> colorHex "background3" .= (.background3)
+      <*> colorHex "primary"     .= (.primary)
+      <*> colorHex "secondary"   .= (.secondary)
+      <*> colorHex "tertiary"    .= (.tertiary)
+      <*> colorHex "dark"        .= (.dark)
+      <*> colorHex "light"       .= (.light))
+    key
+
+
+-- | If we don't wrap custom theme in newtype tomland will parse the table in order regardless
+-- of the key for some reasons.
+customThemeDark :: Key -> TomlCodec CustomThemeDark
+customThemeDark key = Toml.dimap (.unCustomThemeDark) CustomThemeDark (customTheme key)
+
+
+customThemeLight :: Key -> TomlCodec CustomThemeLight
+customThemeLight key = Toml.dimap (.unCustomThemeLight) CustomThemeLight (customTheme key)
+
+
+-- | Maybe maybe?
+dioptional2 :: TomlCodec a -> TomlCodec (Maybe (Maybe a))
+dioptional2 = Toml.dioptional . Toml.dioptional
 
 
 config :: TomlCodec (Config Maybe)
 config = Config
-  <$> Toml.dioptional (Toml.int      "port")      .= (.port)
-  <*> Toml.dioptional (theme         "theme")     .= (.theme)
-  <*> Toml.dioptional (verbosity     "verbosity") .= (.verbosity)
-  <*> Toml.dioptional (Toml.bool     "readonly")  .= (.readOnly)
-  <*> Toml.dioptional (locale        "locale")    .= (.locale)
-  <*> Toml.list targetConfig         "target"     .= (.targets)
-  <*> Toml.list simpleAuthUserRecord "login"      .= (.simpleAuthUserRecords)
-  <*> Toml.list oidcAuthProvider     "oidc"       .= (.oidcAuthProviders)
+  <$> Toml.dioptional (Toml.int            "port")        .= (.port)
+  <*> Toml.dioptional (theme               "theme")       .= (.theme)
+  <*> Toml.dioptional (verbosity           "verbosity")   .= (.verbosity)
+  <*> Toml.dioptional (Toml.bool           "readonly")    .= (.readOnly)
+  <*> Toml.dioptional (locale              "locale")      .= (.locale)
+  <*> dioptional2     (customThemeDark     "dark-theme")  .= (.customThemeDark)
+  <*> dioptional2     (customThemeLight    "light-theme") .= (.customThemeLight)
+  <*> (targetConfigs                       "target")      .= (.targets)
+  <*> (simpleAuthUserRecords               "login")       .= (.simpleAuthUserRecords)
+  <*> (oidcAuthProviders                   "oidc")        .= (.oidcAuthProviders)
 
 
 -- | It should be called at the top level, let it throw if we failed to decode.
@@ -127,13 +188,14 @@ parseConfigFile (Just filePath) = do
             root' <- expandVars t.root
             pure $ FSTargetConfig (t { root = root' })
           expand x = pure x
-      targets' <- traverse expand c.targets
-      pure $ c { targets = targets' }
+      targets' <- traverse expand (coerce @_ @[TargetConfig] c.targets)
+      pure $ c { targets = coerce @_ @Targets targets' }
     targetCheck c = do
-      when (null c.targets) do
+      when (null (coerce @_ @[TargetConfig] c.targets)) do
         throwIO (userError "No target specified")
       pure c
-parseConfigFile _ = pure (Config Nothing Nothing Nothing Nothing Nothing [] [] [])
+parseConfigFile _ =
+  pure (Config Nothing Nothing Nothing Nothing Nothing Nothing Nothing mempty mempty mempty)
 
 
 ------------------------------
@@ -152,3 +214,7 @@ _URI = uriText >>> Toml._Text
       (Left (Toml.ArbitraryError "invalid uri"))
       Right
       (URI.parseURI (Text.unpack t))
+
+
+colorHex :: Key -> TomlCodec Text
+colorHex key = Toml.validateIf (\s -> "#" `Text.isPrefixOf` s && Text.length s == 7) Toml._Text key

@@ -12,7 +12,6 @@ module Filehub.Env
   )
   where
 
-
 import Data.Map.Strict qualified as Map
 import Data.Time (NominalDiffTime)
 import {-# SOURCE #-} Filehub.Auth.Simple (SimpleAuthUserDB(..))
@@ -20,11 +19,12 @@ import Filehub.ActiveUser.Types qualified as ActiveUser
 import Filehub.Locale (Locale)
 import Filehub.Session.Types qualified as Session
 import Filehub.Target.Types (Target)
-import Filehub.Theme (Theme)
+import Filehub.Theme (Theme, CustomTheme)
 import Lens.Micro.Platform ()
 import Log (Logger, LogLevel)
 import Network.HTTP.Client qualified as HTTP
 import {-# SOURCE #-} Filehub.Auth.OIDC (OIDCAuthProviders(..))
+
 
 data Env = Env
   { -- The port number the filehub listens on.
@@ -54,6 +54,10 @@ data Env = Env
   , activeUsers       :: ActiveUser.Pool
     -- top level http-tls manager
   , httpManager       :: HTTP.Manager
+    -- dark custom theme
+  , customThemeDark   :: Maybe CustomTheme
+    -- light custom theme
+  , customThemeLight  :: Maybe CustomTheme
   }
 
 

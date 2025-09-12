@@ -44,9 +44,10 @@ data CustomTheme = CustomTheme
   , dark        :: Text
   , light       :: Text
   }
+  deriving (Eq, Show)
 
 
-customTheme2Css :: CustomTheme -> Text
+customTheme2Css :: CustomTheme -> ByteString
 customTheme2Css CustomTheme
   { frontground, background1, background2, background3, primary, secondary, tertiary, dark, light } =
   [iii|

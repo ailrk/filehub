@@ -70,8 +70,8 @@ targetConfig = (S3TargetConfig <$> s3TargetConfig) <|> (FSTargetConfig <$> fsTar
                 ])
 
 
-simpleAuthUserRecords :: Parser [Auth.Simple.UserRecord]
-simpleAuthUserRecords = pure [] <|> some loginUserConfig
+simpleAuthUserRecords :: Parser SimpleAuthUserRecords
+simpleAuthUserRecords = SimpleAuthUserRecords <$> (pure [] <|> some loginUserConfig)
 
 
 loginUserConfig :: Parser Auth.Simple.UserRecord
@@ -140,7 +140,7 @@ locale = option auto
       $ mconcat
       $ [ long "theme"
         , metavar "THEME"
-        , help "default EN. EN | ZH_CN | ZH_TW | ZH_HK | ES | FR | DE | KR | RU | PT | IT"
+        , help "default en. en | zh_cn | zh_tw | zh_hk | es | fr | de | kr | ru | pt | it"
         , value EN
         ]
 
@@ -153,9 +153,11 @@ config =
   <*> optional verbosity
   <*> optional readonly
   <*> optional locale
-  <*> (pure [] <|> some targetConfig)
+  <*> pure Nothing
+  <*> pure Nothing
+  <*> (pure mempty <|> (Targets <$> some targetConfig))
   <*> simpleAuthUserRecords
-  <*> pure []
+  <*> pure mempty
 
 
 options :: Parser Options
