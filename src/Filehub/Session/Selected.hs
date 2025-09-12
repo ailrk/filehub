@@ -28,7 +28,7 @@ getSelected sessionId = (^. #sessionData . #selected) <$> Session.currentTarget 
 
 
 setSelected :: (Reader Env :> es, IOE :> es) => SessionId -> Selected -> Eff es ()
-setSelected sessionId selected = Session.Pool.update sessionId $ \s -> s & #targets . ix s.index . #selected .~ selected
+setSelected sessionId selected = Session.Pool.update sessionId \s -> s & #targets . ix s.index . #selected .~ selected
 
 
 anySelected :: (Reader Env :> es, IOE :> es, Error FilehubError :> es, Log :> es) => SessionId -> Eff es Bool
@@ -59,4 +59,4 @@ clearSelected sessionId = setSelected sessionId NoSelection
 clearSelectedAllTargets :: (Reader Env :> es, IOE :> es) => SessionId -> Eff es ()
 clearSelectedAllTargets sessionId = do
   let update sessionData = sessionData & #selected .~ NoSelection
-  Session.Pool.update sessionId $ \s -> s &  #targets . mapped %~ update
+  Session.Pool.update sessionId \s -> s &  #targets . mapped %~ update

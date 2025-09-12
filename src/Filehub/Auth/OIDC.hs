@@ -223,26 +223,26 @@ instance FromJSON (WellKnownConfig Maybe)
 
 verifyWellKnownConfig :: WellKnownConfig Maybe -> Maybe (WellKnownConfig Identity)
 verifyWellKnownConfig WellKnownConfig
-  { issuer                                   = Just issuer
-  , authorization_endpoint                   = Just authorization_endpoint
-  , token_endpoint                           = Just token_endpoint
-  , jwks_uri                                 = Just jwks_uri
-  , response_types_supported                 = Just response_types_supported
-  , subject_types_supported                  = Just subject_types_supported
-  , id_token_signing_alg_values_supported    = Just id_token_signing_alg_values_supported
-  , userinfo_endpoint                        = userinfo_endpoint
-  , end_session_endpoint                     = end_session_endpoint
+  { issuer                                = Just issuer
+  , authorization_endpoint                = Just authorization_endpoint
+  , token_endpoint                        = Just token_endpoint
+  , jwks_uri                              = Just jwks_uri
+  , response_types_supported              = Just response_types_supported
+  , subject_types_supported               = Just subject_types_supported
+  , id_token_signing_alg_values_supported = Just id_token_signing_alg_values_supported
+  , userinfo_endpoint                     = userinfo_endpoint
+  , end_session_endpoint                  = end_session_endpoint
   } =
   Just $ WellKnownConfig
-    { issuer                                 = Identity issuer
-    , authorization_endpoint                 = Identity authorization_endpoint
-    , token_endpoint                         = Identity token_endpoint
-    , jwks_uri                               = Identity jwks_uri
-    , response_types_supported               = Identity response_types_supported
-    , subject_types_supported                = Identity subject_types_supported
-    , id_token_signing_alg_values_supported  = Identity id_token_signing_alg_values_supported
-    , userinfo_endpoint                      = userinfo_endpoint
-    , end_session_endpoint                   = end_session_endpoint
+    { issuer                                = Identity issuer
+    , authorization_endpoint                = Identity authorization_endpoint
+    , token_endpoint                        = Identity token_endpoint
+    , jwks_uri                              = Identity jwks_uri
+    , response_types_supported              = Identity response_types_supported
+    , subject_types_supported               = Identity subject_types_supported
+    , id_token_signing_alg_values_supported = Identity id_token_signing_alg_values_supported
+    , userinfo_endpoint                     = userinfo_endpoint
+    , end_session_endpoint                  = end_session_endpoint
     }
 verifyWellKnownConfig _ = Nothing
 
@@ -273,9 +273,9 @@ type AuthorizationApi
 -- authentication flow
 authorize :: (Reader Env :> es, IOE :> es, Error FilehubError :> es) => OIDCFlow Inited -> Eff es (OIDCFlow AuthRequestPrepared)
 authorize (Inited provider) = do
-  state <- Text.pack <$> replicateM 32 (randomRIO ('a', 'z'))
+  state        <- Text.pack <$> replicateM 32 (randomRIO ('a', 'z'))
   codeVerifier <- Text.pack <$> replicateM 43 (randomRIO ('a', 'z'))
-  nonce <- Text.pack <$> replicateM 16 (randomRIO ('a', 'z'))
+  nonce        <- Text.pack <$> replicateM 16 (randomRIO ('a', 'z'))
 
   -- PKCE (Proof Key for Code Exchange) codeChallenge = BASE64URL(SHA256(codeVerifier)). The codeChallenge is sent to the IdP in the
   -- authentication stage. Later in token exchange stage we send codeVerifier again, the IdP use them to prevent code interception.
@@ -290,21 +290,21 @@ authorize (Inited provider) = do
   let url = flip relativeTo authorization_endpoint
           $ authorizeLink
             Authorization
-              { responseType         = "code"
-              , clientId             = provider.clientId
-              , redirectUri          = Text.pack $ URI.uriToString id provider.redirectURI ""
-              , scope                = "openid profile email"
-              , state                = state
-              , nonce                = nonce
-              , codeChallenge        = Just codeChallenge
-              , codeChallengeMethod  = Just "S256"
+              { responseType        = "code"
+              , clientId            = provider.clientId
+              , redirectUri         = Text.pack (URI.uriToString id provider.redirectURI "")
+              , scope               = "openid profile email"
+              , state               = state
+              , nonce               = nonce
+              , codeChallenge       = Just codeChallenge
+              , codeChallengeMethod = Just "S256"
               }
   pure $ AuthRequestPrepared provider wellknownConfig (OIDCState state) (CodeVerifier codeVerifier) (AuthUrl url)
   where
     authorizeLink :: Authorization -> URI
     authorizeLink Authorization
       { responseType, clientId, redirectUri, scope, state, codeChallenge, codeChallengeMethod
-      } = linkURI $ authorizeLink' responseType clientId redirectUri scope state codeChallenge codeChallengeMethod
+      } = linkURI (authorizeLink' responseType clientId redirectUri scope state codeChallenge codeChallengeMethod)
     authorizeLink' =
       safeLink
         (Proxy @AuthorizationApi)
@@ -333,13 +333,13 @@ exchangeToken
         TokenForm
           { grant_type    = "authorization_code"
           , code          = code
-          , redirect_uri  = Text.pack $ URI.uriToString id provider.redirectURI ""
+          , redirect_uri  = Text.pack (URI.uriToString id provider.redirectURI "")
           , client_id     = provider.clientId
           , client_secret = provider.clientSecret
           , code_verifier = codeVerifier
           }
 
-  baseUri <- either (\err -> throwError (FilehubError InternalError $ Text.unpack err)) pure (uriToBaseUrl token_endpoint)
+  baseUri <- either (\err -> throwError (FilehubError InternalError (Text.unpack err))) pure (uriToBaseUrl token_endpoint)
   runClientM (exchangeTokenClient form) (mkClientEnv manager baseUri) & liftIO . try
     >>= either (\(e :: SomeException) -> throwError (FilehubError InternalError (displayException e))) pure
     >>= either (\err -> throwError (FilehubError InternalError (show err))) pure
@@ -369,22 +369,21 @@ verifyToken
   (TokenExchanged
     (WellKnownConfig { jwks_uri = Identity jwks_uri })
     TokenUnverified { id_token, access_token, refresh_token, expires_in, token_type }) = do
-  manager <- asks @Env (.httpManager)
-
-  idTokenUnverified <- JWT.decode id_token & maybe (throwError (FilehubError LoginFailed "invalid id token: not a JWT"))     pure
+  manager           <- asks @Env (.httpManager)
+  idTokenUnverified <- JWT.decode id_token & maybe (throwError (FilehubError LoginFailed "invalid id token: not a JWT")) pure
 
   let JOSEHeader { kid } = JWT.header idTokenUnverified
 
   jwks <- do
-    baseUri <- uriToBaseUrl jwks_uri & either (\err -> throwError (FilehubError InternalError $ Text.unpack err)) pure
-
-    value <- runClientM (client (Proxy @(Get '[JSON] Value))) (mkClientEnv manager baseUri) & liftIO . try
-      >>= either (\(e :: SomeException) -> throwError (FilehubError LoginFailed (displayException e))) pure
-      >>= either (\err -> throwError (FilehubError LoginFailed (show err))) pure
+    baseUri <- uriToBaseUrl jwks_uri & either (\err -> throwError (FilehubError InternalError (Text.unpack err))) pure
+    value   <- do
+      runClientM (client (Proxy @(Get '[JSON] Value))) (mkClientEnv manager baseUri) & liftIO . try
+        >>= either (\(e :: SomeException) -> throwError (FilehubError LoginFailed (displayException e))) pure
+        >>= either (\err -> throwError (FilehubError LoginFailed (show err))) pure
 
     -- .keys.JWT[]
     let parseJWTS :: Value -> Aeson.Parser [JWK]
-        parseJWTS = Aeson.withObject "JWKS" $ \o -> o .: "keys"
+        parseJWTS = Aeson.withObject "JWKS" \o -> o .: "keys"
 
     case Aeson.parseEither parseJWTS value of
       Left err -> throwError (FilehubError LoginFailed [i|failed to parse jwt. #{err}|])
@@ -393,17 +392,17 @@ verifyToken
   jwk <- find (\(JWK { kid = kid' }) -> Just kid' == kid ) jwks
     & maybe (throwError (FilehubError LoginFailed "no jwk corresponds to expected kid")) pure
 
-  verifySigner <- either (\err -> throwError (FilehubError LoginFailed (show err))) pure $ do
+  verifySigner <- either (\err -> throwError (FilehubError LoginFailed (show err))) pure do
     nBytes <- Base64.URL.decodeUnpadded . Text.encodeUtf8 $ jwk.n
     eBytes <- Base64.URL.decodeUnpadded . Text.encodeUtf8 $ jwk.e
     let n' = os2ip nBytes
     let e' = os2ip eBytes
     pure
-      $ JWT.VerifyRSAPublicKey
+      . JWT.VerifyRSAPublicKey
       $ RSA.PublicKey
         { public_size = (ByteString.length nBytes)
-        , public_n = n'
-        , public_e = e'
+        , public_n    = n'
+        , public_e    = e'
         }
 
   idTokenVerified <- do
@@ -411,7 +410,7 @@ verifyToken
       (JWT.verify verifySigner idTokenUnverified)
 
   when (Text.toLower token_type /= "bearer") do
-    throwError (FilehubError LoginFailed (Text.unpack $ "invalid token type: " <> token_type))
+    throwError (FilehubError LoginFailed (Text.unpack ("invalid token type: " <> token_type)))
 
   pure
     $ TokenVerified Token
@@ -436,14 +435,14 @@ authenticateSession sessionId (TokenVerified token) = do
 -- | Query the standard /.well-known/openid-configuration endpoint from IdP.
 getWellknownOpenIdConfigration :: (Reader Env :> es, IOE :> es, Error FilehubError :> es) => Provider -> Eff es (WellKnownConfig Identity)
 getWellknownOpenIdConfigration (Provider { issuer }) = do
-  manager <- asks @Env (.httpManager)
-  baseUri <- uriToBaseUrl issuer & either (\err -> throwError (FilehubError InternalError $ Text.unpack err)) pure
-  result  <- runClientM wellKnownConfigClient (mkClientEnv manager baseUri) & liftIO . try
+  manager          <- asks @Env (.httpManager)
+  baseUri          <- uriToBaseUrl issuer & either (\err -> throwError (FilehubError InternalError (Text.unpack err))) pure
+  result           <- runClientM wellKnownConfigClient (mkClientEnv manager baseUri) & liftIO . try
   eWellKnownConfig <- result & either (\(e :: SomeException) -> throwError (FilehubError InternalError (displayException e))) pure
   case verifyWellKnownConfig <$> eWellKnownConfig of
     Right (Just config) -> pure config
-    Right Nothing -> throwError (FilehubError InternalError "Invalid .well-known/openid-configuration")
-    Left err -> throwError (FilehubError InternalError (show err))
+    Right Nothing       -> throwError (FilehubError InternalError "Invalid .well-known/openid-configuration")
+    Left err            -> throwError (FilehubError InternalError (show err))
   where
     wellKnownConfigClient :: ClientM (WellKnownConfig Maybe)
     wellKnownConfigClient = client (Proxy :: Proxy WellKnownAPI)
@@ -458,7 +457,7 @@ uriToBaseUrl uri = do
                    _        -> Left "Unsupported scheme"
     let port = if null (uriPort auth)
                  then if scheme == Https then 443 else 80
-                 else read (tail $ uriPort auth) -- drop leading ':'
+                 else read (tail (uriPort auth)) -- drop leading ':'
         path = uriPath uri
     pure $ BaseUrl scheme (uriRegName auth) port path
 
@@ -482,6 +481,6 @@ getSessionOIDCFlow sessionId = (^. #oidcFlow) <$> Session.Pool.get sessionId
 -- | Set the current oidc flow.
 setSessionOIDCFlow :: (Reader Env :> es, IOE :> es) => SessionId -> Maybe (OIDCFlow s) -> Eff es ()
 setSessionOIDCFlow sessionId (Just flow) = do
-  Session.Pool.update sessionId (\s -> s & #oidcFlow .~ (Just (SomeOIDCFlow flow)))
+  Session.Pool.update sessionId \s -> s & #oidcFlow .~ (Just (SomeOIDCFlow flow))
 setSessionOIDCFlow sessionId Nothing = do
-  Session.Pool.update sessionId (\s -> s & #oidcFlow .~ Nothing)
+  Session.Pool.update sessionId \s -> s & #oidcFlow .~ Nothing

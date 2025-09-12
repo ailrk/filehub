@@ -41,11 +41,11 @@ toList (Selected x xs) = x:xs
 
 fromList :: [ClientPath] -> Selected
 fromList (x:xs) = Selected x xs
-fromList [] = NoSelection
+fromList []     = NoSelection
 
 
 elem :: ClientPath -> Selected -> Bool
-elem _ NoSelection = False
+elem _ NoSelection        = False
 elem path (Selected x xs) = path == x || path `Prelude.elem` xs
 
 

@@ -17,9 +17,9 @@ import Data.Aeson.Encode.Pretty (Config(..), defConfig, encodePretty', Indent (.
 
 
 withColoredStdoutLogger :: MonadUnliftIO m => (Logger -> m r) -> m r
-withColoredStdoutLogger act = withRunInIO $ \unlift -> do
-  logger <- mkLogger "stdout" $ \msg -> do
-    Text.putStrLn $ showColoredLogMessage Nothing msg
+withColoredStdoutLogger act = withRunInIO \unlift -> do
+  logger <- mkLogger "stdout" \msg -> do
+    Text.putStrLn (showColoredLogMessage Nothing msg)
     hFlush stdout
   withLogger logger (unlift . act)
 
@@ -28,10 +28,10 @@ withColoredStdoutLogger act = withRunInIO $ \unlift -> do
 showColoredLogMessage :: Maybe UTCTime -> LogMessage -> Text
 showColoredLogMessage mInsertionTime LogMessage{..}
   = Text.concat $ [
-    Text.pack $ formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S" lmTime
+    Text.pack (formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S" lmTime)
   , case mInsertionTime of
       Nothing -> " "
-      Just it -> Text.pack $ formatTime defaultTimeLocale " (%H:%M:%S) " it
+      Just it -> Text.pack (formatTime defaultTimeLocale " (%H:%M:%S) " it)
   , colorize lmLevel . Text.toUpper $ showLogLevel lmLevel
   , " "
   , colorize lmLevel . Text.intercalate "/" $ lmComponent : lmDomain

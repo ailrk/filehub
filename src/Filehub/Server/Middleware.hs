@@ -56,7 +56,7 @@ exposeHeaders = addHeaders
 
 dedupHeadersKeepLast :: Middleware
 dedupHeadersKeepLast app req respond =
-  app req $ \res ->
+  app req \res ->
     respond $ mapResponseHeaders keepLastHeaders res
   where
     -- Keep the last occurrence of each header
@@ -71,28 +71,28 @@ dedupHeadersKeepLast app req respond =
 
 displayMiddleware :: Env -> Middleware
 displayMiddleware  env app req respond = toIO onErr env do
-  let mCookie = lookup "Cookie" $ requestHeaders req
+  let mCookie        = lookup "Cookie" (requestHeaders req)
   let Just sessionId = mCookie >>= parseHeader' >>= Cookies.getSessionId
   session <- Session.Pool.get sessionId & withServerError
 
   -- set device type
   do
-    let mUserAgent = lookup hUserAgent $ requestHeaders req
+    let mUserAgent = lookup hUserAgent (requestHeaders req)
     let deviceType =
           case mUserAgent of
             Just userAgent -> UserAgent.detectDeviceType userAgent
-            Nothing -> UserAgent.Unknown
+            Nothing        -> UserAgent.Unknown
     when (session ^. #deviceType /= deviceType) do
-      Session.Pool.update sessionId $ #deviceType .~ deviceType
+      Session.Pool.update sessionId (#deviceType .~ deviceType)
 
   -- set display cookie
   -- Note only the server set the cookie.
   setCookieHeader <- do
     currentDisplay <- Session.getDisplay sessionId & withServerError
-    let header = ("Set-Cookie", Cookies.renderSetCookie $ Cookies.setDisplay currentDisplay)
+    let header     =  ("Set-Cookie", Cookies.renderSetCookie (Cookies.setDisplay currentDisplay))
     pure (header :)
 
-  liftIO $ app req $ \res ->
+  liftIO $ app req \res ->
     let res' = mapResponseHeaders setCookieHeader res
      in respond res'
 
@@ -103,7 +103,7 @@ displayMiddleware  env app req respond = toIO onErr env do
 -- | If session is not present, create a new session
 sessionMiddleware :: Env -> Middleware
 sessionMiddleware env app req respond = toIO onErr env do
-  let mCookie = lookup "Cookie" $ requestHeaders req
+  let mCookie    = lookup "Cookie" (requestHeaders req)
   let mSessionId = mCookie >>= parseHeader' >>= Cookies.getSessionId
   case mSessionId of
     Just sessionId -> do
@@ -122,11 +122,11 @@ sessionMiddleware env app req respond = toIO onErr env do
     respondWithNewSession = do
       session <- Session.Pool.newSession
       let sessionId@(SessionId sid) = session.sessionId
-      let setCookieHeader = ("Set-Cookie", Cookies.renderSetCookie $ Cookies.setSessionId session)
-      let injectedCookieHeader = ("Cookie", "sessionId=" <> UUID.toASCIIBytes sid)
-      let req' = req { requestHeaders = injectedCookieHeader : requestHeaders req }
+      let setCookieHeader           = ("Set-Cookie", Cookies.renderSetCookie $ Cookies.setSessionId session)
+      let injectedCookieHeader      = ("Cookie", "sessionId=" <> UUID.toASCIIBytes sid)
+      let req'                      = req { requestHeaders = injectedCookieHeader : requestHeaders req }
       logTrace_ [i|New session: #{sessionId}|]
-      liftIO $ app req' $ \res ->
+      liftIO $ app req' \res ->
         let res' = mapResponseHeaders (setCookieHeader :) res
          in respond res'
     onErr _ = respond $ responseLBS status500 [] "server error" -- impossible
@@ -138,7 +138,7 @@ sessionMiddleware env app req respond = toIO onErr env do
 stripCookiesForStatic :: Middleware
 stripCookiesForStatic app req respond
   | not (null path) && head path == "static" =
-    app req $ \res -> do
+    app req \res -> do
       respond $ mapResponseHeaders (filter (\(h,_) -> h /= hSetCookie)) res
   | otherwise = app req respond
   where path = pathInfo req

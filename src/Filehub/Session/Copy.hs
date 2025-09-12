@@ -37,7 +37,7 @@ getCopyState sessionId = (^. #copyState) <$> Session.Pool.get sessionId
 
 
 setCopyState :: (Reader Env :> es, IOE :> es) => SessionId -> CopyState -> Eff es ()
-setCopyState sessionId copyState = Session.Pool.update sessionId $ \s -> s & #copyState .~ copyState
+setCopyState sessionId copyState = Session.Pool.update sessionId \s -> s & #copyState .~ copyState
 
 
 clearCopyState :: (Reader Env :> es, IOE :> es) => SessionId -> Eff es ()
@@ -48,26 +48,26 @@ clearCopyState sessionId = setCopyState sessionId NoCopyPaste
 select :: (Reader Env :> es, IOE :> es, FileSystem :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es ()
 select sessionId = do
   allSelecteds <- Selected.allSelecteds sessionId
-  forM_ allSelecteds $ \(target, selected) -> do
+  forM_ allSelecteds \(target, selected) -> do
     do
       let tid = Target.getTargetId target
       logAttention_ [i|#{tid}, #{selected}|]
-    Session.withTarget sessionId (Target.getTargetId target) $ \_ -> do
+    Session.withTarget sessionId (Target.getTargetId target) \_ -> do
       case selected of
         NoSelection -> do
           state <- getCopyState sessionId
           case onNoSelection state of
             Right (Just state') -> setCopyState sessionId state'
-            Right Nothing -> pure ()
+            Right Nothing       -> pure ()
             Left err -> do
               logAttention_ [i|#{err}|]
               throwError err
         Selected x xs -> do
-          root <- Session.getRoot sessionId
-          storage <- getStorage sessionId
-          let paths = (x:xs) & fmap (ClientPath.fromClientPath root)
-          files <- traverse storage.get paths
-          state <- getCopyState sessionId
+          root      <- Session.getRoot sessionId
+          storage   <- getStorage sessionId
+          let paths =  (x:xs) & fmap (ClientPath.fromClientPath root)
+          files     <- traverse storage.get paths
+          state     <- getCopyState sessionId
           case onSelected (target, files) state of
             Right state' -> setCopyState sessionId state'
             Left err -> do
@@ -80,14 +80,14 @@ select sessionId = do
       | otherwise = h:merge sel rest
 
     onNoSelection = \case
-      NoCopyPaste -> Right . Just $ CopySelected []
+      NoCopyPaste     -> Right . Just $ CopySelected []
       CopySelected {} -> Right Nothing
-      _ -> Left $ FilehubError SelectError "Invalid selection"
+      _               -> Left (FilehubError SelectError "Invalid selection")
 
     onSelected (target, files) = \case
-      NoCopyPaste -> Right $ CopySelected [(target, files)]
-      CopySelected selections -> Right $ CopySelected (merge (target, files) selections)
-      _ -> Left $ FilehubError SelectError "Invalid selection"
+      NoCopyPaste             -> Right (CopySelected [(target, files)])
+      CopySelected selections -> Right (CopySelected (merge (target, files) selections))
+      _                       -> Left (FilehubError SelectError "Invalid selection")
 
 
 -- | Confirm selection
@@ -101,8 +101,8 @@ copy sessionId = do
       throwError err
   where
     step = \case
-      CopySelected selections -> Right $ Paste selections
-      _ -> Left $ FilehubError SelectError "Not in a copyable state"
+      CopySelected selections -> Right (Paste selections)
+      _                       -> Left (FilehubError SelectError "Not in a copyable state")
 
 
 -- | Paste files
@@ -112,15 +112,15 @@ paste sessionId = do
   case state of
     Paste selections -> do
       TargetView to _ _ <- Session.currentTarget sessionId
-      forM_ selections $ \(from, files) -> do
-        forM_ files $ \file -> do
+      forM_ selections \(from, files) -> do
+        forM_ files \file -> do
           bytes <- Session.withTarget sessionId (Target.getTargetId from) \_ -> do
             storage <- getStorage sessionId
             storage.read file
           Session.withTarget sessionId (Target.getTargetId to) \_ -> do
-            storage <- getStorage sessionId
-            dirPath <- Session.getCurrentDir sessionId
-            let destination = dirPath </> takeFileName file.path
+            storage         <- getStorage sessionId
+            dirPath         <- Session.getCurrentDir sessionId
+            let destination =  dirPath </> takeFileName file.path
             storage.write destination bytes
       setCopyState sessionId NoCopyPaste
       Selected.clearSelectedAllTargets sessionId

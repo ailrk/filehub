@@ -153,8 +153,8 @@ instance FromForm Selected where
   fromForm f = do
     selected <- parseAll "selected" f
     case selected of
-      [] -> pure NoSelection
-      x:xs->  pure $ Selected x xs
+      []   -> pure NoSelection
+      x:xs -> pure $ Selected x xs
 
 
 newtype SearchWord = SearchWord Text deriving (Show, Eq, Generic)
@@ -175,12 +175,12 @@ instance FromForm MoveFile where fromForm f = MoveFile <$> parseAll "src" f <*> 
 
 data UpdatedFile = UpdatedFile
   { clientPath :: ClientPath
-  , content :: Text
+  , content    :: Text
   }
   deriving (Show, Eq, Generic)
 instance FromForm UpdatedFile where
   fromForm f = do
-    path <- parseUnique "path" f
+    path    <- parseUnique "path" f
     content <- parseUnique "content" f
     pure (UpdatedFile path content)
 
@@ -245,22 +245,22 @@ instance ToJSON FilehubEvent where
     Aeson.object
       [ "ViewerInited" .= Aeson.object
           [ "resources" .= toJSON res
-          , "index" .= toJSON index
+          , "index"     .= toJSON index
           ]
       ]
-  toJSON TargetChanged = Aeson.object [ "TargetChanged" .= Aeson.object [] ]
-  toJSON TableSorted   = Aeson.object [ "TableSorted" .= Aeson.object [] ]
-  toJSON DirChanged    = Aeson.object [ "DirChanged" .= Aeson.object [] ]
-  toJSON LayoutChanged = Aeson.object [ "LayoutChanged" .= Aeson.object [] ]
-  toJSON ThemeChanged  = Aeson.object [ "ThemeChanged" .= Aeson.object [] ]
-  toJSON LocaleChanged = Aeson.object [ "LocaleChanged" .= Aeson.object [] ]
-  toJSON FileMoved     = Aeson.object [ "FileMoved" .= Aeson.object [] ]
-  toJSON Canceled      = Aeson.object [ "Canceled" .= Aeson.object [] ]
+  toJSON TargetChanged  = Aeson.object [ "TargetChanged" .= Aeson.object [] ]
+  toJSON TableSorted    = Aeson.object [ "TableSorted"   .= Aeson.object [] ]
+  toJSON DirChanged     = Aeson.object [ "DirChanged"    .= Aeson.object [] ]
+  toJSON LayoutChanged  = Aeson.object [ "LayoutChanged" .= Aeson.object [] ]
+  toJSON ThemeChanged   = Aeson.object [ "ThemeChanged"  .= Aeson.object [] ]
+  toJSON LocaleChanged  = Aeson.object [ "LocaleChanged" .= Aeson.object [] ]
+  toJSON FileMoved      = Aeson.object [ "FileMoved"     .= Aeson.object [] ]
+  toJSON Canceled       = Aeson.object [ "Canceled"      .= Aeson.object [] ]
   toJSON (Opened target path) =
     Aeson.object
       [ "Opened" .= Aeson.object
           [ "path" .= toJSON path
-          , "tgt" .= toJSON target
+          , "tgt"  .= toJSON target
           ]
       ]
   toJSON (UIComponentReloaded comp) =

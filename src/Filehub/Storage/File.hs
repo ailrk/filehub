@@ -38,7 +38,7 @@ get sessionId  path = do
   exists <- doesPathExist path
   if exists
      then do
-       size <- getFileSize path
+       size  <- getFileSize path
        mtime <- getModificationTime path
        atime <- getAccessTime path
        isDir <- isDirectory sessionId path
@@ -65,7 +65,7 @@ get sessionId  path = do
 isDirectory :: Storage.Context es => SessionId -> FilePath -> Eff es Bool
 isDirectory _ filePath = do
   pathExists <- doesPathExist filePath
-  dirExists <- doesDirectoryExist filePath
+  dirExists  <- doesDirectoryExist filePath
   if not pathExists
      then pure False
      else pure dirExists
@@ -82,7 +82,7 @@ readStream _sessionId file = pure $ Conduit.sourceFile file.path
 newFolder :: Storage.Context es => SessionId -> String -> Eff es ()
 newFolder sessionId name = do
   filePath <- toFilePath sessionId name
-  exists <- doesFileExist filePath
+  exists   <- doesFileExist filePath
   when exists do
     logAttention "[newFolder] path doesn't exists:" filePath
     throwError (FilehubError FileExists "Folder already exists")
@@ -92,7 +92,7 @@ newFolder sessionId name = do
 new :: Storage.Context es => SessionId -> String -> Eff es ()
 new sessionId name = do
   filePath <- toFilePath sessionId name
-  exists <- doesFileExist filePath
+  exists   <- doesFileExist filePath
   when exists do
     logAttention "[new] path doesn't exists:" filePath
     throwError (FilehubError FileExists "File already exists")
@@ -117,7 +117,7 @@ copyDirectoryRecursive :: Storage.Context es => FilePath -> FilePath -> Eff es (
 copyDirectoryRecursive src dst = do
   createDirectoryIfMissing True dst
   contents <- listDirectory src
-  forM_ contents $ \name -> do
+  forM_ contents \name -> do
       let srcPath = src </> name
       let dstPath = dst </> name
       isDir <- doesDirectoryExist srcPath
@@ -128,13 +128,13 @@ copyDirectoryRecursive src dst = do
 
 delete :: Storage.Context es => SessionId -> String -> Eff es ()
 delete sessionId name = do
-  filePath <- toFilePath sessionId name
+  filePath   <- toFilePath sessionId name
   fileExists <- doesFileExist filePath
-  dirExists <- doesDirectoryExist filePath
+  dirExists  <- doesDirectoryExist filePath
   if
      | fileExists -> removeFile filePath
-     | dirExists -> removeDirectoryRecursive filePath
-     | otherwise -> pure ()
+     | dirExists  -> removeDirectoryRecursive filePath
+     | otherwise  -> pure ()
 
 
 ls :: Storage.Context es => SessionId -> FilePath -> Eff es [File]
@@ -160,7 +160,7 @@ cd sessionId path = do
 
 lsCwd :: Storage.Context es => SessionId -> Eff es [File]
 lsCwd sessionId = do
-  path <- Session.getCurrentDir sessionId
+  path   <- Session.getCurrentDir sessionId
   exists <- doesDirectoryExist path
   unless exists do
     logAttention "[lsCwd] dir doesn't exists:" path
@@ -170,17 +170,17 @@ lsCwd sessionId = do
 
 upload :: Storage.Context es => SessionId -> MultipartData Mem -> Eff es ()
 upload sessionId multipart = do
-  forM_ multipart.files $ \file -> do
-    let name = Text.unpack file.fdFileName
+  forM_ multipart.files \file -> do
+    let name    = Text.unpack file.fdFileName
     let content = LBS.toStrict file.fdPayload
     write sessionId name content
 
 
 download :: Storage.Context es => SessionId -> ClientPath -> Eff es (ConduitT () ByteString (ResourceT IO) ())
 download sessionId clientPath = do
-  root <- Session.getRoot sessionId
-  let path = fromClientPath root clientPath
-  file <- get sessionId path
+  root     <- Session.getRoot sessionId
+  let path =  fromClientPath root clientPath
+  file     <- get sessionId path
   case file.content of
     Content -> readStream sessionId file
     Dir _ -> do
@@ -188,7 +188,7 @@ download sessionId clientPath = do
         tempDir <- Temp.getCanonicalTemporaryDirectory
         Temp.openTempFile tempDir "DXXXXXX.zip"
 
-      Zip.createArchive zipPath $ do
+      Zip.createArchive zipPath do
         Zip.packDirRecur
           Zip.Zstd
           Zip.mkEntrySelector

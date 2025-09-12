@@ -43,14 +43,14 @@ data S3TargetConfig = S3TargetConfig_
 -- | Left config overrides the right one
 merge :: Config Maybe -> Config Maybe -> Either String (Config Identity)
 merge cfg1 cfg2 = do
-  port      <-  maybe (Left "port is missing") Right $ cfg1.port <|> cfg2.port
-  theme     <-  maybe (Right Dark)             Right $ cfg1.theme <|> cfg2.theme
-  verbosity <-  maybe (Right LogInfo)          Right $ cfg1.verbosity <|> cfg2.verbosity
-  readOnly  <-  maybe (Right True)             Right $ cfg1.readOnly <|> cfg2.readOnly
-  locale    <-  maybe (Right EN)               Right $ cfg1.locale <|> cfg2.locale
-  let targets              = nub . mconcat $ [cfg1.targets, cfg2.targets]
-  let simpleAuthLoginUsers = nub . mconcat $ [cfg1.simpleAuthUserRecords, cfg2.simpleAuthUserRecords]
-  let oidcAuthProviders    = nub . mconcat $ [cfg1.oidcAuthProviders , cfg2.oidcAuthProviders]
+  port      <- maybe (Left "port is missing") Right (cfg1.port <|> cfg2.port)
+  theme     <- maybe (Right Dark)             Right (cfg1.theme <|> cfg2.theme)
+  verbosity <- maybe (Right LogInfo)          Right (cfg1.verbosity <|> cfg2.verbosity)
+  readOnly  <- maybe (Right True)             Right (cfg1.readOnly <|> cfg2.readOnly)
+  locale    <- maybe (Right EN)               Right (cfg1.locale <|> cfg2.locale)
+  let targets              = (nub . mconcat)  [cfg1.targets, cfg2.targets]
+  let simpleAuthLoginUsers = (nub . mconcat)  [cfg1.simpleAuthUserRecords, cfg2.simpleAuthUserRecords]
+  let oidcAuthProviders    = (nub . mconcat)  [cfg1.oidcAuthProviders , cfg2.oidcAuthProviders]
   pure
     Config
       { port                  = Identity port

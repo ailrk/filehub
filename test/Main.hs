@@ -284,7 +284,7 @@ mkEnv = do
 setup :: IO ()
 setup = do
   createDirectoryIfMissing True root
-  forM_ fullPaths $ \file -> do
+  forM_ fullPaths \file -> do
     createDirectoryIfMissing True (takeDirectory file)
     writeFile file "test content"
 

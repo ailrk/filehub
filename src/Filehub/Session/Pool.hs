@@ -42,21 +42,21 @@ new = do
 newSession :: (Reader Env :> es, IOE :> es) => Eff es Session
 newSession = do
   Session.Pool pool _ <- asks @Env (.sessionPool)
-  session <- Session.createSession
+  session             <- Session.createSession
   liftIO $ HashTable.insert pool session.sessionId session
   pure session
 
 
 extendSession :: (Reader Env :> es, IOE :> es) => SessionId -> Eff es ()
 extendSession sessionId = do
-  duration <- asks @Env (.sessionDuration)
+  duration            <- asks @Env (.sessionDuration)
   Session.Pool pool _ <- asks @Env (.sessionPool)
-  now <- liftIO Time.getCurrentTime
+  now                 <- liftIO Time.getCurrentTime
   liftIO
     $ HashTable.mutate pool sessionId
     $ maybe
         (Nothing, ())
-        (\session -> (Just $ session { expireDate = duration `addUTCTime` now }, ()))
+        \session -> (Just session { expireDate = duration `addUTCTime` now }, ())
 
 
 delete :: (Reader Env :> es, IOE :> es) => SessionId -> Eff es ()
@@ -83,4 +83,4 @@ update sessionId f = do
     $ HashTable.mutate pool sessionId
     $ maybe
         (Nothing, ())
-        (\session -> (Just $ f session, ()))
+        \session -> (Just (f session), ())

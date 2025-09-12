@@ -239,4 +239,4 @@ phraseCodec =
 
 
 config :: Text
-config = Text.decodeUtf8 $ $(FileEmbed.embedFile "data/locale.toml")
+config = Text.decodeUtf8 $(FileEmbed.embedFile "data/locale.toml")

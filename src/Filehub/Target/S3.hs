@@ -37,10 +37,10 @@ instance IsTarget S3 where
 --   and `AWS_SESSION_TOKEN`. To set custom endpoint url, we also need to hand `AWS_ENDPOINT_URL`.
 initialize :: (IOE :> es, Log :> es) => S3TargetConfig -> Eff es (Backend S3)
 initialize opt = do
-  targetId <- liftIO $ TargetId <$> UUID.nextRandom
-  let bucket = Text.pack opt.bucket
-  service <- liftIO makeS3Service
-  env <- liftIO $ Amazonka.configureService service <$> Amazonka.newEnv Amazonka.discover
+  targetId   <- liftIO $ TargetId <$> UUID.nextRandom
+  let bucket =  Text.pack opt.bucket
+  service    <- liftIO makeS3Service
+  env        <- liftIO $ Amazonka.configureService service <$> Amazonka.newEnv Amazonka.discover
   logInfo_ [i|Initialized: #{targetId} - S3 #{bucket}|]
   pure $ S3Backend targetId bucket env
   where
@@ -64,4 +64,4 @@ initialize opt = do
           Environment.lookupEnv "AWS_ENDPOINT_URL" <&> \case
             Nothing -> Nothing
             Just "" -> Nothing
-            Just v -> URI.parseURI $ v
+            Just v  -> URI.parseURI $ v

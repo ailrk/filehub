@@ -27,6 +27,6 @@ instance IsTarget FileSys where
 initialize :: (IOE :> es, Log :> es, FileSystem :> es) => FSTargetConfig -> Eff es (Backend FileSys)
 initialize opt = do
   targetId <- liftIO $ TargetId <$> UUID.nextRandom
-  root <- makeAbsolute opt.root
+  root     <- makeAbsolute opt.root
   logInfo_ [i|Initialized: #{targetId} - FS #{root}|]
   pure $ FileBackend targetId Nothing root

@@ -43,7 +43,7 @@ get :: Storage.Context es => SessionId -> FilePath -> Eff es File
 get sessionId path = do
   s3 <- getS3 sessionId
   let bucket  = Amazonka.BucketName s3.bucket
-  let key     = Amazonka.ObjectKey $ Text.pack path
+  let key     = Amazonka.ObjectKey (Text.pack path)
   let request = Amazonka.newHeadObject bucket key
   resp <- runResourceT $ send s3.env request
   let mtime       = resp ^. Amazonka.headObjectResponse_lastModified
@@ -76,14 +76,14 @@ read :: Storage.Context es => SessionId -> File -> Eff es ByteString
 read sessionId file = do
   stream <- readStream sessionId file
   chunks <- liftIO $ runResourceT . Conduit.runConduit $ stream Conduit..| Conduit.sinkList
-  pure $ LBS.toStrict $ LBS.fromChunks chunks
+  pure $ LBS.toStrict (LBS.fromChunks chunks)
 
 
 readStream :: Storage.Context es => SessionId -> File -> Eff es (ConduitT () ByteString (ResourceT IO) ())
 readStream sessionId file = do
   s3 <- getS3 sessionId
-  let bucket = Amazonka.BucketName s3.bucket
-      key = Amazonka.ObjectKey $ Text.pack file.path
+  let bucket  = Amazonka.BucketName s3.bucket
+      key     = Amazonka.ObjectKey (Text.pack file.path)
       request = Amazonka.newGetObject bucket key
   pure $ do
     resp <- lift $ send s3.env request
@@ -95,9 +95,9 @@ newFolder :: Storage.Context es => SessionId -> FilePath -> Eff es ()
 newFolder sessionId filePath = do
   s3 <- getS3 sessionId
   let bucket  = Amazonka.BucketName s3.bucket
-  let key     = Amazonka.ObjectKey $ Text.pack $ normalizeDirPath filePath
+  let key     = Amazonka.ObjectKey (Text.pack (normalizeDirPath filePath))
   let request = Amazonka.newPutObject bucket key (toBody LBS.empty)
-  void $ runResourceT $ send s3.env request
+  void . runResourceT $ send s3.env request
 
 
 new :: Storage.Context es => SessionId -> FilePath -> Eff es ()
@@ -108,26 +108,26 @@ write :: Storage.Context es => SessionId -> FilePath -> ByteString -> Eff es ()
 write sessionId filePath bytes = do
   s3 <- getS3 sessionId
   let bucket  = Amazonka.BucketName s3.bucket
-  let key     = Amazonka.ObjectKey $ Text.pack filePath
+  let key     = Amazonka.ObjectKey (Text.pack filePath)
   let request = Amazonka.newPutObject bucket key (toBody bytes)
-  void $ runResourceT $ send s3.env request
+  void . runResourceT $ send s3.env request
 
 
 cp :: Storage.Context es => SessionId -> FilePath -> FilePath -> Eff es ()
 cp sessionId src dest = do
   s3 <- getS3 sessionId
   let bucket  = Amazonka.BucketName s3.bucket
-  let destKey = Amazonka.ObjectKey $ Text.pack dest
+  let destKey = Amazonka.ObjectKey (Text.pack dest)
   let request = Amazonka.newCopyObject bucket (Text.pack src) destKey
-  void $ runResourceT $ send s3.env request
+  void . runResourceT $ send s3.env request
 
 
 delete :: Storage.Context es => SessionId -> FilePath -> Eff es ()
 delete sessionId filePath = do
   s3 <- getS3 sessionId
   let bucket = Amazonka.BucketName s3.bucket
-  let key    = Amazonka.ObjectKey $ Text.pack filePath
-  void $ runResourceT $ send s3.env (Amazonka.newDeleteObject bucket key)
+  let key    = Amazonka.ObjectKey (Text.pack filePath)
+  void . runResourceT $ send s3.env (Amazonka.newDeleteObject bucket key)
 
 
 ls :: Storage.Context es => SessionId -> FilePath -> Eff es [File]
@@ -138,7 +138,7 @@ ls sessionId _ = do
                & Amazonka.listObjectsV2_prefix ?~ Text.pack "" -- root
    resp <- runResourceT $ send s3.env request
    let files = maybe [] (fmap toFile) $ resp ^. Amazonka.listObjectsV2Response_contents
-   let dirs  = maybe [] (fmap toDir) $ resp ^. Amazonka.listObjectsV2Response_commonPrefixes
+   let dirs  = maybe [] (fmap toDir)  $ resp ^. Amazonka.listObjectsV2Response_commonPrefixes
    pure $ files <> dirs
   where
     toDir (commonPrefix :: CommonPrefix) =
@@ -157,8 +157,8 @@ ls sessionId _ = do
        in File
          { path     = Text.unpack filePath
          , atime    = Nothing
-         , mtime    = Just $ object ^. Amazonka.object_lastModified
-         , size     = Just $ object ^. Amazonka.object_size
+         , mtime    = Just (object ^. Amazonka.object_lastModified)
+         , size     = Just (object ^. Amazonka.object_size)
          , mimetype = defaultMimeLookup filePath -- content type can be unreliable because it's derived from the extension.
          , content  = Content
          }
@@ -174,9 +174,9 @@ lsCwd sessionId = ls sessionId ""
 
 upload :: Storage.Context es => SessionId -> MultipartData Mem -> Eff es ()
 upload sessionId multipart = do
-  forM_ multipart.files $ \file -> do
+  forM_ multipart.files \file -> do
     let name    = Text.unpack file.fdFileName
-    let content = LBS.toStrict $ file.fdPayload
+    let content = LBS.toStrict (file.fdPayload)
     write sessionId name content
 
 
@@ -192,7 +192,7 @@ download sessionId clientPath = do
         tempDir <- Temp.getCanonicalTemporaryDirectory
         Temp.openTempFile tempDir "DXXXXXX.zip"
 
-      Zip.createArchive zipPath $ do
+      Zip.createArchive zipPath do
         Zip.packDirRecur
           Zip.Zstd
           Zip.mkEntrySelector
@@ -234,7 +234,7 @@ getS3 :: Storage.Context es => SessionId -> Eff es (Backend S3)
 getS3 sessionId = do
   TargetView target _ _ <- Session.currentTarget sessionId
   maybe (throwError (FilehubError TargetError "Target is not valid S3 bucket")) pure $ handleTarget target
-    [ targetHandler @S3 $ \x -> x
+    [ targetHandler @S3 \x -> x
     ]
 
 

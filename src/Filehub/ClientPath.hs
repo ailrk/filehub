@@ -70,7 +70,7 @@ fromClientPath root (ClientPath cp) =
 --   The path returned is guaranteed not start with '/'
 toRawClientPath :: FilePath -> FilePath -> RawClientPath
 toRawClientPath root path = do
-  RawClientPath (ensureUnslash $ removePrefix (ensureSlash root) path)
+  RawClientPath (ensureUnslash (removePrefix (ensureSlash root) path))
   where
 
 
@@ -89,11 +89,11 @@ ensureSlash :: FilePath -> FilePath
 ensureSlash path =
   case path of
     '/':_ -> path
-    _ -> '/':path
+    _     -> '/':path
 
 
 ensureUnslash :: FilePath -> FilePath
 ensureUnslash path =
   case path of
     '/':rest -> rest
-    _ -> path
+    _        -> path

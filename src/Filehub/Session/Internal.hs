@@ -26,16 +26,16 @@ createSessionId = SessionId <$> liftIO UUID.nextRandom
 createExpireDate :: (Reader Env :> es, IOE :> es) => Eff es UTCTime
 createExpireDate = do
   duration <- asks @Env (.sessionDuration)
-  current <- liftIO Time.getCurrentTime
+  current  <- liftIO Time.getCurrentTime
   pure $ duration `addUTCTime` current
 
 
 createSession :: (Reader Env :> es, IOE :> es) => Eff es Session
 createSession = do
-  targets <- asks @Env (.targets)
-  theme <- asks @Env (.theme)
-  locale <- asks @Env (.locale)
-  sessionId <- createSessionId
+  targets    <- asks @Env (.targets)
+  theme      <- asks @Env (.theme)
+  locale     <- asks @Env (.locale)
+  sessionId  <- createSessionId
   expireDate <- createExpireDate
   pure Session
     { sessionId  = sessionId

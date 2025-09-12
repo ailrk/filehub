@@ -46,7 +46,7 @@ validate :: Username -> ByteString -> SimpleAuthUserDB -> Bool
 validate name password (SimpleAuthUserDB db) =
   case Map.lookup name db of
     Just (PasswordHash hash) -> BCrypt.validatePassword hash password
-    Nothing -> False
+    Nothing                  -> False
 
 
 createSimpleAuthUserDB :: (IOE :> es) => [UserRecord] -> Eff es SimpleAuthUserDB
@@ -56,11 +56,15 @@ createSimpleAuthUserDB loginInfo =
     infos -> fromList infos
   where
     fromList xs = liftIO $ do
-      infos <- forM xs $ \(UserRecord u p) -> do
-        let username = Username . Text.pack $ u
+      infos <- forM xs \(UserRecord u p) -> do
+        let username = Username (Text.pack u)
         mHash <- BCrypt.hashPasswordUsingPolicy BCrypt.slowerBcryptHashingPolicy (Char8.pack p)
-        pure $ maybeToList $ fmap (\hash -> (username, PasswordHash hash)) mHash
-      pure $ SimpleAuthUserDB . Map.fromList . mconcat $ infos
+        pure $ maybeToList (fmap (\hash -> (username, PasswordHash hash)) mHash)
+      pure
+        . SimpleAuthUserDB
+        . Map.fromList
+        . mconcat
+        $ infos
 
 
 -- | Handle the simple authetication login.

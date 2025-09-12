@@ -21,20 +21,20 @@ import Filehub.Auth.OIDC (OIDCAuthProviders)
 --   every field even when we don't need them. Being lazy means we pay exactly what we
 --   need, which is pretty good.
 data TemplateContext = TemplateContext
-  { readOnly             :: ~Bool
-  , noLogin              :: ~Bool
-  , display              :: ~Display
-  , layout               :: ~Layout
-  , theme                :: ~Theme
-  , selected             :: ~Selected
-  , sortedBy             :: ~SortFileBy
-  , locale               :: ~Locale
-  , state                :: ~ControlPanelState
-  , currentDir           :: ~FilePath
-  , currentTarget        :: ~TargetView
-  , root                 :: ~FilePath
-  , simpleAuthUserDB     :: ~SimpleAuthUserDB
-  , oidcAuthProviders    :: ~OIDCAuthProviders
+  { readOnly          :: ~Bool
+  , noLogin           :: ~Bool
+  , display           :: ~Display
+  , layout            :: ~Layout
+  , theme             :: ~Theme
+  , selected          :: ~Selected
+  , sortedBy          :: ~SortFileBy
+  , locale            :: ~Locale
+  , state             :: ~ControlPanelState
+  , currentDir        :: ~FilePath
+  , currentTarget     :: ~TargetView
+  , root              :: ~FilePath
+  , simpleAuthUserDB  :: ~SimpleAuthUserDB
+  , oidcAuthProviders :: ~OIDCAuthProviders
   }
 
 

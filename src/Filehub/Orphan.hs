@@ -9,11 +9,11 @@ import Data.Aeson (FromJSON (..), withText)
 
 
 instance ToHttpApiData URI where
-  toUrlPiece uri = Text.pack $ URI.uriToString id uri ""
+  toUrlPiece uri = Text.pack (URI.uriToString id uri "")
 
 
 instance FromJSON URI where
-  parseJSON = withText "URI" $ \t ->
+  parseJSON = withText "URI" \t ->
     case URI.parseURI (Text.unpack t) of
       Just u  -> pure u
-      Nothing -> fail $ "Invalid URI: " <> Text.unpack t
+      Nothing -> fail ("Invalid URI: " <> Text.unpack t)

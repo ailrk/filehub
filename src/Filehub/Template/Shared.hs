@@ -55,8 +55,8 @@ withDefault display background html = do
   meta_ [ name_ "theme-color", content_ background ]
 
   case display of
-    Desktop -> link_ [ rel_ "stylesheet", href_ "/static/desktop.css" ]
-    Mobile -> link_ [ rel_ "stylesheet", href_ "/static/mobile.css" ]
+    Desktop   -> link_ [ rel_ "stylesheet", href_ "/static/desktop.css" ]
+    Mobile    -> link_ [ rel_ "stylesheet", href_ "/static/mobile.css" ]
     NoDisplay -> link_ [ rel_ "stylesheet", href_ "/static/mobile.css" ]
   html
 
@@ -73,13 +73,14 @@ pathBreadcrumb = do
           & (\path-> if null path then ["/"] else path)
           & filter (\path -> length (splitPath path) >= length (splitPath root))
           & fmap (\path ->
-            let clientPath@(ClientPath cp) =  (ClientPath.toClientPath root path)
-             in li_ [ term "hx-get" $ linkToText (apiLinks.cd (Just clientPath))
-                    , term "hx-target" ("#" <> viewId)
-                    , term "hx-swap" "outerHTML"
-                    , term "data-path" (Text.pack cp)
-                    , class_ "dir "
-                    ] . toHtml . pathShow  $ path)
+            let clientPath@(ClientPath cp) = (ClientPath.toClientPath root path)
+                mkLi                       = li_ [ term "hx-get" (linkToText (apiLinks.cd (Just clientPath)))
+                                                 , term "hx-target" ("#" <> viewId)
+                                                 , term "hx-swap" "outerHTML"
+                                                 , term "data-path" (Text.pack cp)
+                                                 , class_ "dir "
+                                                 ]
+             in  (mkLi . toHtml . pathShow) path)
           & Seq.fromList
           & (\path -> Seq.adjust (`with` [class_ " active"]) (length path - 1) path)
           & sequence_
@@ -115,7 +116,7 @@ searchBar = do
              , type_ "input"
              , name_ "search"
              , placeholder_ search_as_you_type
-             , term "hx-post" $ linkToText apiLinks.search
+             , term "hx-post" (linkToText apiLinks.search)
              , term "hx-trigger" "input changed delay:200ms, search"
              , term "hx-target" "#table"
              , term "hx-swap" "outerHTML"
@@ -151,7 +152,7 @@ controlPanel
             localeBtn
             when (not noLogin) logoutBtn
             maybe mempty id mScroll2TopBtn
-            span_ [ class_ "btn-like field " ] $ i_ [ class_ "bx bx-lock-alt" ] mempty >> span_ "Read-only"
+            span_ [ class_ "btn-like field " ] do i_ [ class_ "bx bx-lock-alt" ] mempty >> span_ "Read-only"
         False ->
           case state of
             ControlPanelDefault ->
@@ -193,9 +194,9 @@ controlPanel
     sep = span_ [ style_ "display:inline-block; width: 20px"]  mempty
     newBtnGroup target = fromMaybe mempty do
       handleTarget target
-        [ targetHandler @S3 $ \_ -> do
+        [ targetHandler @S3 \_ -> do
             newFileBtn
-        , targetHandler @FileSys $ \_ -> do
+        , targetHandler @FileSys \_ -> do
             newFolderBtn
             newFileBtn
         ]
@@ -206,24 +207,24 @@ icon file =
   case file.content of
     Dir _ -> i_ [ class_ "bx bxs-folder "] mempty
     Content
-      | file.mimetype `isMime` "application/pdf" -> i_ [ class_ "bx bxs-file-pdf"] mempty
+      | file.mimetype `isMime` "application/pdf"                       -> i_ [ class_ "bx bxs-file-pdf"] mempty
       | file.mimetype `isMime` "video" || file.mimetype `isMime` "mp4" -> i_ [ class_ "bx bxs-videos"] mempty
       | file.mimetype `isMime` "audio" || file.mimetype `isMime` "mp3" -> i_ [ class_ "bx bxs-music"] mempty
-      | file.mimetype `isMime` "image" -> i_ [ class_ "bx bx-image"] mempty
+      | file.mimetype `isMime` "image"                                 -> i_ [ class_ "bx bx-image"] mempty
       | file.mimetype `isMime` "application/x-tar"
-        || file.mimetype `isMime` "application/x-bzip-compressed-tar"
-        || file.mimetype `isMime` "application/x-tgz"
-        || file.mimetype `isMime` "application/x-bzip2"
-        || file.mimetype `isMime` "application/x-zstd"
-        || file.mimetype `isMime` "application/x-7z-compressed"
-        || file.mimetype `isMime` "application/x-lzma"
-        || file.mimetype `isMime` "application/x-lz"
-        || file.mimetype `isMime` "application/zip"
-        || file.mimetype `isMime` "application/gzip"
-        || file.mimetype `isMime` "application/zstd"
-        || file.mimetype `isMime` "application/vnd.rar" -> i_ [ class_ "bx bxs-file-archive"] mempty
-      | file.mimetype `isMime` "text" -> i_ [ class_ "bx bxs-file"] mempty
-      | otherwise -> i_ [ class_ "bx bxs-file-blank "] mempty
+      || file.mimetype `isMime` "application/x-bzip-compressed-tar"
+      || file.mimetype `isMime` "application/x-tgz"
+      || file.mimetype `isMime` "application/x-bzip2"
+      || file.mimetype `isMime` "application/x-zstd"
+      || file.mimetype `isMime` "application/x-7z-compressed"
+      || file.mimetype `isMime` "application/x-lzma"
+      || file.mimetype `isMime` "application/x-lz"
+      || file.mimetype `isMime` "application/zip"
+      || file.mimetype `isMime` "application/gzip"
+      || file.mimetype `isMime` "application/zstd"
+      || file.mimetype `isMime` "application/vnd.rar"                  -> i_ [ class_ "bx bxs-file-archive"] mempty
+      | file.mimetype `isMime` "text"                                  -> i_ [ class_ "bx bxs-file"] mempty
+      | otherwise                                                      -> i_ [ class_ "bx bxs-file-blank "] mempty
 
 
 open :: FilePath -> File -> [Attribute]
@@ -231,38 +232,38 @@ open root file = do
   let clientPath = ClientPath.toClientPath root file.path
   case file.content of
     Dir _ ->
-        [ term "hx-get" $ linkToText (apiLinks.cd (Just clientPath))
+        [ term "hx-get" (linkToText (apiLinks.cd (Just clientPath)))
         , term "hx-target" ("#" <> viewId)
         , term "hx-swap" "outerHTML"
         ]
     Content
       | file.mimetype `isMime` "application/pdf" ->
-          [ term "hx-get" $ linkToText (apiLinks.open (Just OpenDOMBlank) (Just clientPath))
+          [ term "hx-get" (linkToText (apiLinks.open (Just OpenDOMBlank) (Just clientPath)))
           , term "hx-target" "this"
           , term "hx-swap" "none"
           ]
       | file.mimetype `isMime` "audio" ->
-          [ term "hx-get" $ linkToText (apiLinks.open (Just OpenViewer) (Just clientPath))
+          [ term "hx-get" (linkToText (apiLinks.open (Just OpenViewer) (Just clientPath)))
           , term "hx-target" "this"
           , term "hx-swap" "none"
           ]
       | file.mimetype `isMime` "video" ->
-          [ term "hx-get" $ linkToText (apiLinks.open (Just OpenViewer) (Just clientPath))
+          [ term "hx-get" (linkToText (apiLinks.open (Just OpenViewer) (Just clientPath)))
           , term "hx-target" "this"
           , term "hx-swap" "none"
           ]
       | file.mimetype `isMime` "image" ->
-          [ term "hx-get" $ linkToText (apiLinks.open (Just OpenViewer) (Just clientPath))
+          [ term "hx-get" (linkToText (apiLinks.open (Just OpenViewer) (Just clientPath)))
           , term "hx-target" "this"
           , term "hx-swap" "none"
           ]
       | file.mimetype `isMime` "text" ->
-          [ term "hx-get" $ linkToText (apiLinks.editorModal (Just clientPath))
+          [ term "hx-get" (linkToText (apiLinks.editorModal (Just clientPath)))
           , term "hx-target" "#index"
           , term "hx-swap" "beforeend"
           ]
       | otherwise ->
-          [ term "hx-get" $ linkToText (apiLinks.editorModal (Just clientPath))
+          [ term "hx-get" (linkToText (apiLinks.editorModal (Just clientPath)))
           , term "hx-target" "#index"
           , term "hx-swap" "beforeend"
           ]

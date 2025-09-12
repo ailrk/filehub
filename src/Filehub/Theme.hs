@@ -1,6 +1,9 @@
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE NamedFieldPuns #-}
 module Filehub.Theme
   ( Theme(..)
+  , CustomTheme(..)
+  , customTheme2Css
   , defaultTheme
   , parse
   ) where
@@ -9,6 +12,8 @@ import Text.ParserCombinators.ReadP
 import Data.Char (isAlphaNum, isSpace)
 import Data.ByteString (ByteString)
 import Data.ByteString.Char8 qualified as ByteString
+import Data.Text (Text)
+import Data.String.Interpolate (iii)
 
 
 -- An example theme file
@@ -27,9 +32,41 @@ import Data.ByteString.Char8 qualified as ByteString
 
 data Theme = Dark | Light deriving (Eq)
 
+
+data CustomTheme = CustomTheme
+  { frontground :: Text
+  , background1 :: Text
+  , background2 :: Text
+  , background3 :: Text
+  , primary     :: Text
+  , secondary   :: Text
+  , tertiary    :: Text
+  , dark        :: Text
+  , light       :: Text
+  }
+
+
+customTheme2Css :: CustomTheme -> Text
+customTheme2Css CustomTheme
+  { frontground, background1, background2, background3, primary, secondary, tertiary, dark, light } =
+  [iii|
+    :root {
+        --frontground: #{frontground};
+        --background1: #{background1};
+        --background2: #{background2};
+        --background3: #{background3};
+        --primary:     #{primary};
+        --secondary:   #{secondary};
+        --tertiary:    #{tertiary};
+        --dark:        #{dark};
+        --light:       #{light};
+    }
+  |]
+
+
 instance Show Theme where
   show = \case
-    Dark -> "dark"
+    Dark  -> "dark"
     Light -> "light"
 
 
@@ -37,9 +74,9 @@ instance Read Theme where
   readsPrec _ s = do
     let theme =
           case s of
-          "dark" -> Dark
+          "dark"  -> Dark
           "light" -> Light
-          _ -> Dark
+          _       -> Dark
     pure (theme, "")
 
 
@@ -70,5 +107,5 @@ cssVars = between (string ":root" >> skipSpaces >> char '{') (char '}') (many cs
 parse :: String -> ByteString -> Maybe String
 parse color txt =
   case readP_to_S cssVars (ByteString.unpack txt) of
-    [] -> Nothing
+    []      -> Nothing
     results -> lookup color (fst (last results))

@@ -33,9 +33,9 @@ fileDetailModal sessionId mClientPath = do
   ctx@TemplateContext{ root } <- makeTemplateContext sessionId
   withServerError do
     clientPath <- withQueryParam mClientPath
-    storage <- getStorage sessionId
-    file <- storage.get (ClientPath.fromClientPath root clientPath)
-    pure $ runTemplate ctx $ Template.Desktop.fileDetailModal file
+    storage    <- getStorage sessionId
+    file       <- storage.get (ClientPath.fromClientPath root clientPath)
+    pure $ runTemplate ctx (Template.Desktop.fileDetailModal file)
 
 
 editorModal :: SessionId -> Maybe ClientPath -> Filehub (Html ())
@@ -43,13 +43,13 @@ editorModal sessionId mClientPath = do
   ctx@TemplateContext{ root } <- makeTemplateContext sessionId
   withServerError do
     clientPath <- withQueryParam mClientPath
-    storage <- getStorage sessionId
+    storage    <- getStorage sessionId
     let p = ClientPath.fromClientPath root clientPath
     content <- do
       f <- storage.get p
       storage.read f
     let filename = takeFileName p
-    pure $ runTemplate ctx $ Template.Desktop.editorModal filename content
+    pure $ runTemplate ctx (Template.Desktop.editorModal filename content)
 
 
 contextMenu :: SessionId -> [ClientPath] -> Filehub (Html ())
@@ -57,31 +57,31 @@ contextMenu sessionId clientPaths = do
   ctx@TemplateContext { root } <- makeTemplateContext sessionId
   withServerError do
     storage <- getStorage sessionId
-    files <- traverse storage.get $ ClientPath.fromClientPath root <$> clientPaths
-    pure $ runTemplate ctx $ Template.Desktop.contextMenu files
+    files   <- traverse storage.get (ClientPath.fromClientPath root <$> clientPaths)
+    pure $ runTemplate ctx (Template.Desktop.contextMenu files)
 
 
 index :: SessionId -> Filehub (Html ())
 index sessionId = do
-  ctx <- makeTemplateContext sessionId
+  ctx      <- makeTemplateContext sessionId
   sideBar' <- sideBar sessionId
-  view' <- view sessionId
+  view'    <- view sessionId
   toolBar' <- toolBar sessionId
-  pure $ runTemplate ctx $ Template.Desktop.index sideBar' view' toolBar'
+  pure $ runTemplate ctx (Template.Desktop.index sideBar' view' toolBar')
 
 
 sideBar :: SessionId -> Filehub (Html ())
 sideBar sessionId = do
-  ctx <- makeTemplateContext sessionId
-  targets <- asks @Env (.targets)
-  targets' <- forM targets $ \(Target backend) -> withServerError do
+  ctx      <- makeTemplateContext sessionId
+  targets  <- asks @Env (.targets)
+  targets' <- forM targets \(Target backend) -> withServerError do
     let targetId = getTargetIdFromBackend backend
-    Session.withTarget sessionId targetId $ \(TargetView target targetData _) -> do
+    Session.withTarget sessionId targetId \(TargetView target targetData _) -> do
       case targetData.selected of
         Selected _ sels -> pure (target, length sels + 1)
-        NoSelection -> pure (target, 0)
+        NoSelection     -> pure (target, 0)
   currentTargetView <- Session.currentTarget sessionId & withServerError
-  pure $ runTemplate ctx $ Template.Desktop.sideBar targets' currentTargetView
+  pure $ runTemplate ctx (Template.Desktop.sideBar targets' currentTargetView)
 
 
 view :: SessionId -> Filehub (Html ())
@@ -89,8 +89,8 @@ view sessionId = do
   ctx@TemplateContext { sortedBy = order } <- makeTemplateContext sessionId
   table <- withServerError do
     storage <- getStorage sessionId
-    files <- sortFiles order <$> storage.lsCwd
-    pure $ runTemplate ctx $ Template.Desktop.table files
+    files   <- sortFiles order <$> storage.lsCwd
+    pure $ runTemplate ctx (Template.Desktop.table files)
   pure $ Template.Desktop.view table
 
 

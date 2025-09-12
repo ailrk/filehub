@@ -30,8 +30,8 @@ getStorage :: Storage.Context es => SessionId -> Eff es (Storage (Eff es))
 getStorage sessionId = do
   TargetView target _ _ <- Session.currentTarget sessionId
   maybe onError pure $ handleTarget target
-    [ targetHandler @FileSys $ \_ -> File.storage sessionId
-    , targetHandler @S3 $ \_ -> S3.storage sessionId
+    [ targetHandler @FileSys \_ -> File.storage sessionId
+    , targetHandler @S3      \_ -> S3.storage sessionId
     ]
   where
     onError = do

@@ -24,22 +24,21 @@ import Servant ( ServerError(..), ServerError, FromHttpApiData (..), err500 )
 import Servant.Server (err400)
 
 
-
 makeTemplateContext :: SessionId -> Filehub TemplateContext
 makeTemplateContext sessionId = do
-  theme <- Session.getSessionTheme sessionId & withServerError
-  layout <- Session.getLayout sessionId & withServerError
-  readOnly <- asks @Env (.readOnly)
-  noLogin <- Env.hasNoLogin <$> ask @Env
-  display <- Session.getDisplay sessionId & withServerError
-  state <- Session.getControlPanelState sessionId & withServerError
-  root <- Session.getRoot sessionId & withServerError
-  sortedBy <- Session.getSortFileBy sessionId & withServerError
-  selected <- Selected.getSelected sessionId & withServerError
-  currentDir <- Session.getCurrentDir sessionId & withServerError
-  currentTarget <- Session.currentTarget sessionId & withServerError
-  locale <- Session.getSessionLocale sessionId & withServerError
-  simpleAuthUserDB <- asks @Env (.simpleAuthUserDB)
+  theme             <- Session.getSessionTheme sessionId      & withServerError
+  layout            <- Session.getLayout sessionId            & withServerError
+  readOnly          <- asks @Env (.readOnly)
+  noLogin           <- Env.hasNoLogin <$> ask @Env
+  display           <- Session.getDisplay sessionId           & withServerError
+  state             <- Session.getControlPanelState sessionId & withServerError
+  root              <- Session.getRoot sessionId              & withServerError
+  sortedBy          <- Session.getSortFileBy sessionId        & withServerError
+  selected          <- Selected.getSelected sessionId         & withServerError
+  currentDir        <- Session.getCurrentDir sessionId        & withServerError
+  currentTarget     <- Session.currentTarget sessionId        & withServerError
+  locale            <- Session.getSessionLocale sessionId     & withServerError
+  simpleAuthUserDB  <- asks @Env (.simpleAuthUserDB)
   oidcAuthProviders <- asks @Env (.oidcAuthProviders)
   pure TemplateContext
     { readOnly           = readOnly
@@ -67,7 +66,7 @@ copy sessionId = withServerError do
 
 paste :: SessionId -> Filehub ()
 paste sessionId = do
-  withRunInIO $ \unlift -> do
+  withRunInIO \unlift -> do
     unlift (Copy.paste sessionId & withServerError) `catch` \(e :: SomeException) -> unlift do
       logAttention [i|Paste Failed |] (show e)
       throwError (err500 { errBody = [i|Paste failed #{e}|]})
@@ -77,7 +76,7 @@ paste sessionId = do
 withQueryParam :: (Error ServerError :> es) => Maybe a -> Eff es a
 withQueryParam m =
   case m of
-    Just a -> pure a
+    Just a  -> pure a
     Nothing -> throwError err400
 
 
@@ -89,4 +88,4 @@ clear sessionId = do
 
 
 parseHeader' :: FromHttpApiData a => ByteString -> Maybe a
-parseHeader' x = either (const Nothing) Just $ parseHeader x
+parseHeader' x = either (const Nothing) Just (parseHeader x)

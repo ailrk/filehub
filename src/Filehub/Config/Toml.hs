@@ -11,7 +11,7 @@ module Filehub.Config.Toml where
 import Toml qualified as Toml
 import Toml (TomlCodec, (.=), Key)
 import Filehub.Config
-import Filehub.Theme (Theme (..))
+import Filehub.Theme (Theme (..), CustomTheme(..))
 import Filehub.ExpandEnv (expandVars)
 import Filehub.Auth.Simple qualified as Auth.Simple
 import Filehub.Auth.OIDC qualified as Auth.OIDC
@@ -88,18 +88,18 @@ verbosity key =
 
 locale :: Key -> TomlCodec Locale
 locale key
-  =   Toml.dimatch (const $ Just "en")    (const EN)    (Toml.text key)
-  <|> Toml.dimatch (const $ Just "zh_cn") (const ZH_CN) (Toml.text key)
-  <|> Toml.dimatch (const $ Just "zh_tw") (const ZH_TW) (Toml.text key)
-  <|> Toml.dimatch (const $ Just "zh_hk") (const ZH_HK) (Toml.text key)
-  <|> Toml.dimatch (const $ Just "ja")    (const JA)    (Toml.text key)
-  <|> Toml.dimatch (const $ Just "es")    (const ES)    (Toml.text key)
-  <|> Toml.dimatch (const $ Just "fr")    (const FR)    (Toml.text key)
-  <|> Toml.dimatch (const $ Just "de")    (const DE)    (Toml.text key)
-  <|> Toml.dimatch (const $ Just "ko")    (const KO)    (Toml.text key)
-  <|> Toml.dimatch (const $ Just "ru")    (const RU)    (Toml.text key)
-  <|> Toml.dimatch (const $ Just "pt")    (const PT)    (Toml.text key)
-  <|> Toml.dimatch (const $ Just "it")    (const IT)    (Toml.text key)
+  =   Toml.dimatch (const (Just "en"))    (const EN)    (Toml.text key)
+  <|> Toml.dimatch (const (Just "zh_cn")) (const ZH_CN) (Toml.text key)
+  <|> Toml.dimatch (const (Just "zh_tw")) (const ZH_TW) (Toml.text key)
+  <|> Toml.dimatch (const (Just "zh_hk")) (const ZH_HK) (Toml.text key)
+  <|> Toml.dimatch (const (Just "ja"))    (const JA)    (Toml.text key)
+  <|> Toml.dimatch (const (Just "es"))    (const ES)    (Toml.text key)
+  <|> Toml.dimatch (const (Just "fr"))    (const FR)    (Toml.text key)
+  <|> Toml.dimatch (const (Just "de"))    (const DE)    (Toml.text key)
+  <|> Toml.dimatch (const (Just "ko"))    (const KO)    (Toml.text key)
+  <|> Toml.dimatch (const (Just "ru"))    (const RU)    (Toml.text key)
+  <|> Toml.dimatch (const (Just "pt"))    (const PT)    (Toml.text key)
+  <|> Toml.dimatch (const (Just "it"))    (const IT)    (Toml.text key)
 
 
 config :: TomlCodec (Config Maybe)
@@ -149,6 +149,6 @@ _URI = uriText >>> Toml._Text
 
     forward uri = Right . Text.pack . URI.uriToString id uri $ ""
     backward t = maybe
-      (Left $ Toml.ArbitraryError "invalid uri")
+      (Left (Toml.ArbitraryError "invalid uri"))
       Right
       (URI.parseURI (Text.unpack t))

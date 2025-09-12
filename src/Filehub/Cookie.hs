@@ -28,7 +28,7 @@ newtype Cookies' = Cookies' Cookies
 
 
 instance FromHttpApiData Cookies' where
-  parseHeader = return . Cookies' . Cookie.parseCookies
+  parseHeader     = return . Cookies' . Cookie.parseCookies
   parseQueryParam = return . Cookies' . Cookie.parseCookies . Text.encodeUtf8
 
 
@@ -87,14 +87,14 @@ setAuthId session = fmap mk session.authId
 getDisplay :: Cookies' -> Maybe Display
 getDisplay (Cookies' cookies) = do
   bytes <- lookup "display" cookies
-  either (const Nothing) Just $ parseUrlPiece $ Text.decodeUtf8 bytes
+  either (const Nothing) Just (parseUrlPiece (Text.decodeUtf8 bytes))
 
 
 setDisplay :: Display -> SetCookie
 setDisplay display =
   defaultSetCookie
     { setCookieName     = "display"
-    , setCookieValue    = ByteString.pack $ show display
+    , setCookieValue    = ByteString.pack (show display)
     , setCookieExpires  = Nothing
     , setCookieHttpOnly = False
     , setCookiePath     = Just "/"

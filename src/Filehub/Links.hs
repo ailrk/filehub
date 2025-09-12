@@ -30,7 +30,7 @@ apiLinks = allFieldLinks @Api
 sitemapLinks :: [Link]
 sitemapLinks =
   [ apiLinks.home
-  , apiLinks.cd $ Just (ClientPath "dummy.txt")
+  , apiLinks.cd (Just (ClientPath "dummy.txt"))
   , apiLinks.newFile
   , apiLinks.updateFile
   , apiLinks.deleteFile [ClientPath "dummy.txt"] True
@@ -39,21 +39,21 @@ sitemapLinks =
   , apiLinks.newFolder
   , apiLinks.newFileModal
   , apiLinks.newFolderModal
-  , apiLinks.fileDetailModal $ Just (ClientPath "dummy.txt")
-  , apiLinks.editorModal $ Just (ClientPath "dummy.txt")
+  , apiLinks.fileDetailModal (Just (ClientPath "dummy.txt"))
+  , apiLinks.editorModal (Just (ClientPath "dummy.txt"))
   , apiLinks.search
   , apiLinks.sortTable (Just BySizeDown)
   , apiLinks.selectLayout (Just ThumbnailLayout)
   , apiLinks.selectRows
   , apiLinks.upload
-  , apiLinks.download $ [ClientPath "dummy.txt"]
-  , apiLinks.contextMenu $ [ ClientPath "dummy.txt"]
-  , apiLinks.initViewer $ Just (ClientPath "dummy.txt")
-  , apiLinks.open (Just OpenDOMBlank) $ Just (ClientPath "dummy.txt")
-  , apiLinks.changeTarget $ Just (TargetId $ fromJust $ UUID.fromString "8d8ac610-566d-4ef0-9c22-186b2a5ed793")
+  , apiLinks.download ([ClientPath "dummy.txt"])
+  , apiLinks.contextMenu ([ ClientPath "dummy.txt"])
+  , apiLinks.initViewer (Just (ClientPath "dummy.txt"))
+  , apiLinks.open (Just OpenDOMBlank) (Just (ClientPath "dummy.txt"))
+  , apiLinks.changeTarget (Just (TargetId (fromJust (UUID.fromString "8d8ac610-566d-4ef0-9c22-186b2a5ed793"))))
   , apiLinks.themeCss
   , apiLinks.toggleTheme
-  , apiLinks.changeLocale $ Just EN
+  , apiLinks.changeLocale (Just EN)
   , apiLinks.healthz
   ]
 

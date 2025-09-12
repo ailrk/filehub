@@ -26,12 +26,12 @@ import System.FilePath (takeFileName)
 
 index :: SessionId -> Filehub (Html ())
 index sessionId = do
-  ctx <- makeTemplateContext sessionId
-  sideBar' <- sideBar sessionId
-  view' <- view sessionId
+  ctx           <- makeTemplateContext sessionId
+  sideBar'      <- sideBar sessionId
+  view'         <- view sessionId
   selectedCount <- Selected.countSelected sessionId & withServerError
-  toolBar' <- toolBar sessionId
-  pure $ runTemplate ctx $ Template.Mobile.index sideBar' toolBar' view' selectedCount
+  toolBar'      <- toolBar sessionId
+  pure $ runTemplate ctx (Template.Mobile.index sideBar' toolBar' view' selectedCount)
 
 
 sideBar :: SessionId -> Filehub (Html ())
@@ -44,15 +44,15 @@ sideBar sessionId = withServerError $
 toolBar :: SessionId -> Filehub (Html ())
 toolBar sessionId = do
   ctx <- makeTemplateContext sessionId
-  pure $ runTemplate ctx $ Template.Mobile.toolBar
+  pure $ runTemplate ctx (Template.Mobile.toolBar)
 
 
 editorModal :: SessionId -> Maybe ClientPath -> Filehub (Html ())
 editorModal sessionId mClientPath = withServerError do
   clientPath <- withQueryParam mClientPath
-  storage <- getStorage sessionId
-  root <- Session.getRoot sessionId
-  let p = ClientPath.fromClientPath root clientPath
+  storage    <- getStorage sessionId
+  root       <- Session.getRoot sessionId
+  let p      =  ClientPath.fromClientPath root clientPath
   content <- do
     f <- storage.get p
     storage.read f
@@ -66,6 +66,6 @@ view sessionId = do
   ctx@TemplateContext{ sortedBy = order } <- makeTemplateContext sessionId
   table <- withServerError do
     storage <- getStorage sessionId
-    files <- sortFiles order <$> storage.lsCwd
-    pure $ runTemplate ctx $ Template.Mobile.table files
+    files   <- sortFiles order <$> storage.lsCwd
+    pure $ runTemplate ctx (Template.Mobile.table files)
   pure $ Template.Mobile.view table

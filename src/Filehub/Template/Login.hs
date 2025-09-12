@@ -22,13 +22,13 @@ login = do
   pure do
     script_ [ src_ "/static/htmx2.0.3.js" ] ("" :: Text)
     script_ [ src_ "/static/login.js", type_ "module" ] ("" :: Text)
-    meta_ [ name_ "viewport", content_ "width=device-width, initial-scale=1.0, viewport-fit=cover" ]
-    link_ [ rel_ "stylesheet", href_ "/static/login.css" ]
-    link_ [ rel_ "stylesheet", href_ "/static/boxicons2.1.4.css" ]
-    link_ [ rel_ "icon", type_ "image/png", href_ "/favicon-96x96.png", sizes_ "96x96"]
-    link_ [ rel_ "icon", type_ "image/svg+xml", href_ "/favicon.svg"]
-    link_ [ rel_ "shortcut icon", href_ "/favicon.ico"]
-    link_ [ rel_ "stylesheet", href_ "/theme.css" ]
+    meta_   [ name_ "viewport", content_ "width=device-width, initial-scale=1.0, viewport-fit=cover" ]
+    link_   [ rel_ "stylesheet", href_ "/static/login.css" ]
+    link_   [ rel_ "stylesheet", href_ "/static/boxicons2.1.4.css" ]
+    link_   [ rel_ "icon", type_ "image/png", href_ "/favicon-96x96.png", sizes_ "96x96"]
+    link_   [ rel_ "icon", type_ "image/svg+xml", href_ "/favicon.svg"]
+    link_   [ rel_ "shortcut icon", href_ "/favicon.ico"]
+    link_   [ rel_ "stylesheet", href_ "/theme.css" ]
     html
 
 
@@ -72,36 +72,35 @@ login' = do
                , term "hx-target" "this"
                , term "hx-swap" "outerHTML"
                ] mempty
-          div_ $
+          div_ do
             button_ (toHtml login_button)
         when (length providers > 0) do
           div_ [ class_ "or-sep "] (toHtml login_or)
           div_ [ class_ "panel oidc " ] do
-            forM_ providers $ \provider -> do
-              button_ [ onclick_  (mconcat $ ["window.location.href='", (linkToText $ apiLinks.loginAuthOIDCRedirect provider.name), "'"]) ]
+            forM_ providers \provider -> do
+              button_ [ onclick_  (mconcat ["window.location.href='", (linkToText (apiLinks.loginAuthOIDCRedirect provider.name)), "'"]) ]
                 (toHtml provider.name)
 
 
 localeBtn :: Html ()
 localeBtn =
   div_ [ id_ "locale" ] do
-    button_ [ class_ "btn btn-control "
-            ] do
+    button_ [ class_ "btn btn-control " ] do
       span_ [ class_ "field " ] do
         i_ [ class_ "bx bx-world" ] mempty
     div_ [ class_ "dropdown-content " ] do
-      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.loginChangeLocale (Just EN)), term "hx-target" "#login", term "hx-swap" "outerHTML" ] $ span_ "English"
-      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.loginChangeLocale (Just ZH_CN)), term "hx-target" "#login", term "hx-swap" "outerHTML" ] $ span_ "简体中文"
-      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.loginChangeLocale (Just ZH_TW)), term "hx-target" "#login", term "hx-swap" "outerHTML" ] $ span_ "繁體中文"
-      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.loginChangeLocale (Just ZH_HK)), term "hx-target" "#login", term "hx-swap" "outerHTML" ] $ span_ "繁體中文"
-      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.loginChangeLocale (Just JA)), term "hx-target" "#login", term "hx-swap" "outerHTML" ] $ span_ "日本語"
-      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.loginChangeLocale (Just ES)), term "hx-target" "#login", term "hx-swap" "outerHTML" ] $ span_ "Español"
-      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.loginChangeLocale (Just FR)), term "hx-target" "#login", term "hx-swap" "outerHTML" ] $ span_ "Français"
-      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.loginChangeLocale (Just DE)), term "hx-target" "#login", term "hx-swap" "outerHTML" ] $ span_ "Deutsch"
-      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.loginChangeLocale (Just KO)), term "hx-target" "#login", term "hx-swap" "outerHTML" ] $ span_ "한국어"
-      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.loginChangeLocale (Just RU)), term "hx-target" "#login", term "hx-swap" "outerHTML" ] $ span_ "Русский"
-      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.loginChangeLocale (Just PT)), term "hx-target" "#login", term "hx-swap" "outerHTML" ] $ span_ "Português"
-      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.loginChangeLocale (Just IT)), term "hx-target" "#login", term "hx-swap" "outerHTML" ] $ span_ "Italiano"
+      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.loginChangeLocale (Just EN)), term "hx-target" "#login", term "hx-swap" "outerHTML" ] do span_ "English"
+      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.loginChangeLocale (Just ZH_CN)), term "hx-target" "#login", term "hx-swap" "outerHTML" ] do span_ "简体中文"
+      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.loginChangeLocale (Just ZH_TW)), term "hx-target" "#login", term "hx-swap" "outerHTML" ] do span_ "繁體中文"
+      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.loginChangeLocale (Just ZH_HK)), term "hx-target" "#login", term "hx-swap" "outerHTML" ] do span_ "繁體中文"
+      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.loginChangeLocale (Just JA)), term "hx-target" "#login", term "hx-swap" "outerHTML" ] do span_ "日本語"
+      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.loginChangeLocale (Just ES)), term "hx-target" "#login", term "hx-swap" "outerHTML" ] do span_ "Español"
+      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.loginChangeLocale (Just FR)), term "hx-target" "#login", term "hx-swap" "outerHTML" ] do span_ "Français"
+      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.loginChangeLocale (Just DE)), term "hx-target" "#login", term "hx-swap" "outerHTML" ] do span_ "Deutsch"
+      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.loginChangeLocale (Just KO)), term "hx-target" "#login", term "hx-swap" "outerHTML" ] do span_ "한국어"
+      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.loginChangeLocale (Just RU)), term "hx-target" "#login", term "hx-swap" "outerHTML" ] do span_ "Русский"
+      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.loginChangeLocale (Just PT)), term "hx-target" "#login", term "hx-swap" "outerHTML" ] do span_ "Português"
+      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.loginChangeLocale (Just IT)), term "hx-target" "#login", term "hx-swap" "outerHTML" ] do span_ "Italiano"
 
 
 themeBtn :: Template (Html ())
@@ -112,7 +111,7 @@ themeBtn = do
       Light -> do
         button_ [ class_ "btn btn-control"
                 , type_ "submit"
-                , term "hx-get" $ linkToText apiLinks.loginToggleTheme
+                , term "hx-get" (linkToText apiLinks.loginToggleTheme)
                 , term "hx-target" "#login"
                 , term "hx-swap" "outerHTML"
                 ] do
@@ -120,7 +119,7 @@ themeBtn = do
       Dark -> do
         button_ [ class_ "btn btn-control"
                 , type_ "submit"
-                , term "hx-get" $ linkToText apiLinks.loginToggleTheme
+                , term "hx-get" (linkToText apiLinks.loginToggleTheme)
                 , term "hx-target" "#login"
                 , term "hx-swap" "outerHTML"
                 ] do

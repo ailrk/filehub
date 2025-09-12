@@ -16,7 +16,7 @@ data Resolution = Resolution
 
 
 instance ToHttpApiData Resolution where
-  toUrlPiece (Resolution w h) = toUrlPiece $ show w ++ "x" ++ show h
+  toUrlPiece (Resolution w h) = toUrlPiece (show w ++ "x" ++ show h)
 
 
 -- | e.g 1920x1080
@@ -25,8 +25,8 @@ instance FromHttpApiData Resolution where
     case Text.splitOn "x" res of
       x:y:_ -> do
         maybe (Left "invalid resolution") (\(w, h) -> pure $ Resolution w h) do
-          w <- readMaybe $ Text.unpack x
-          h <- readMaybe $ Text.unpack y
+          w <- readMaybe (Text.unpack x)
+          h <- readMaybe (Text.unpack y)
           pure (w, h)
       _ -> Left "unknown resolution"
 
@@ -58,8 +58,8 @@ instance FromHttpApiData Display where
 
 classify :: Resolution -> Display
 classify (Resolution w h)
-  | isMobile = Mobile
-  | otherwise    = Desktop
+  | isMobile  = Mobile
+  | otherwise = Desktop
   where
-    aspect = fromIntegral w / fromIntegral h :: Double
+    aspect   = fromIntegral w / fromIntegral h :: Double
     isMobile = w < 768 || aspect < 0.75

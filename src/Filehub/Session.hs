@@ -94,9 +94,10 @@ import Prelude hiding (readFile)
 getRoot :: (Reader Env  :> es,  Error FilehubError :> es,  IOE :> es, Log :> es) => SessionId -> Eff es FilePath
 getRoot sessionId = do
   TargetView (Target t) _ _ <- currentTarget sessionId
-  pure $
-    fromMaybe "" . asum $
-      [ cast t <&> \(x :: Backend FileSys) -> x.root
+  pure
+    . fromMaybe ""
+    . asum
+    $ [ cast t <&> \(x :: Backend FileSys) -> x.root
       , cast t <&> \(_ :: Backend S3) -> ""
       ]
 
@@ -108,7 +109,7 @@ getCurrentDir sessionId = (^. #sessionData . #currentDir) <$> currentTarget sess
 -- | Set the current working directory of the session.
 setCurrentDir :: (Reader Env  :> es,  IOE :> es) => SessionId -> FilePath -> Eff es ()
 setCurrentDir sessionId path = do
-  Session.Pool.update sessionId $ \s -> s & #targets . ix s.index . #currentDir .~ path
+  Session.Pool.update sessionId \s -> s & #targets . ix s.index . #currentDir .~ path
 
 
 -- | Get the file sorting order of the current session.
@@ -119,7 +120,7 @@ getSortFileBy sessionId = (^. #sessionData . #sortedFileBy) <$> currentTarget se
 -- | Set the file sorting order of the current session.
 setSortFileBy :: (Reader Env :> es, IOE :> es) => SessionId -> SortFileBy -> Eff es ()
 setSortFileBy sessionId order = do
-  Session.Pool.update sessionId (\s -> s & #targets . ix s.index . #sortedFileBy .~ order)
+  Session.Pool.update sessionId \s -> s & #targets . ix s.index . #sortedFileBy .~ order
 
 
 -- | Get the session `AuthId`.
@@ -130,7 +131,7 @@ getAuthId sessionId = (^. #authId) <$> Session.Pool.get sessionId
 -- | Set the session `AuthId`.
 setAuthId :: (Reader Env :> es, IOE :> es) => SessionId -> Maybe AuthId -> Eff es ()
 setAuthId sessionId mAuthId = do
-  Session.Pool.update sessionId (\s -> s & #authId .~ mAuthId)
+  Session.Pool.update sessionId \s -> s & #authId .~ mAuthId
 
 
 -- | Get the current session layout.
@@ -141,7 +142,7 @@ getLayout sessionId = (^. #layout) <$> Session.Pool.get sessionId
 -- | Set the current session layout.
 setLayout :: (Reader Env :> es, IOE :> es) => SessionId -> Layout -> Eff es ()
 setLayout sessionId layout = do
-  Session.Pool.update sessionId (\s -> s & #layout .~ layout)
+  Session.Pool.update sessionId \s -> s & #layout .~ layout
 
 
 -- | Get the current session theme.
@@ -152,7 +153,7 @@ getSessionTheme sessionId = (^. #theme) <$> Session.Pool.get sessionId
 -- | Set the current session theme.
 setSessionTheme :: (Reader Env :> es, IOE :> es) => SessionId -> Theme -> Eff es ()
 setSessionTheme sessionId theme = do
-  Session.Pool.update sessionId (\s -> s & #theme .~ theme)
+  Session.Pool.update sessionId \s -> s & #theme .~ theme
 
 
 -- | Get the current session theme.
@@ -163,7 +164,7 @@ getSessionLocale sessionId = (^. #locale) <$> Session.Pool.get sessionId
 -- | Set the current session theme.
 setSessionLocale :: (Reader Env :> es, IOE :> es) => SessionId -> Locale -> Eff es ()
 setSessionLocale sessionId locale = do
-  Session.Pool.update sessionId (\s -> s & #locale .~ locale)
+  Session.Pool.update sessionId \s -> s & #locale .~ locale
 
 
 -- | Get the current session display. The display is calculated base on the client screen resolution.
@@ -174,7 +175,7 @@ getDisplay sessionId = do
     Just resolution ->
       case session ^. #deviceType of
         UserAgent.Desktop -> pure Desktop
-        _ -> pure $ Display.classify resolution
+        _                 -> pure $ Display.classify resolution
     Nothing -> pure NoDisplay
 
 
@@ -182,12 +183,12 @@ getDisplay sessionId = do
 getControlPanelState :: (Reader Env :> es, IOE :> es, Error FilehubError :> es, Log :> es) => SessionId -> Eff es ControlPanelState
 getControlPanelState sessionId = do
   isAnySelected <- Selected.anySelected sessionId
-  copyState <- Copy.getCopyState sessionId
+  copyState     <- Copy.getCopyState sessionId
   case (isAnySelected, copyState) of
-    (_, Paste {}) -> pure ControlPanelCopied
+    (_, Paste {})           -> pure ControlPanelCopied
     (True, CopySelected {}) -> pure ControlPanelSelecting
-    (True, NoCopyPaste) -> pure ControlPanelSelecting
-    _ -> pure ControlPanelDefault
+    (True, NoCopyPaste)     -> pure ControlPanelSelecting
+    _                       -> pure ControlPanelDefault
 
 
 ------------------------------
@@ -199,9 +200,9 @@ currentTarget sessionId = do
   mSession <- Session.Pool.get sessionId
   targets <- asks @Env (.targets)
   maybe (throwError (FilehubError InvalidSession "Invalid session")) pure do
-    index <- mSession ^? #index
+    index             <- mSession ^? #index
     targetSessionData <- mSession ^? #targets . ix index
-    target <- targets ^? ix index
+    target            <- targets  ^? ix index
     pure $ TargetView target targetSessionData index
 
 
@@ -209,13 +210,13 @@ changeCurrentTarget :: (Reader Env :> es, IOE :> es, Error FilehubError :> es, L
 changeCurrentTarget sessionId targetId = do
   logTrace_ [i|Changing target to #{targetId}|]
   TargetView target _ _ <- currentTarget sessionId
-  targets <- asks @Env (.targets)
+  targets               <- asks @Env (.targets)
   if getTargetId target == targetId
      then pure ()
      else do
        case find (\(_, x) -> getTargetId x == targetId) ([0..] `zip` targets) of
          Just (idx, _) -> do
-           Session.Pool.update sessionId (\s -> s & #index .~ idx)
+           Session.Pool.update sessionId \s -> s & #index .~ idx
          Nothing -> do
            logAttention "Can't find target" (show targetId)
            throwError (FilehubError InvalidSession "Invalid session")

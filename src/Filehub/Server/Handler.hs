@@ -56,7 +56,7 @@ data ConfirmReadOnly = ConfirmReadOnly
 
 readOnlyHandler :: Env -> AuthHandler Request ConfirmReadOnly
 readOnlyHandler env =
-  mkAuthHandler $ \_ ->
+  mkAuthHandler \_ ->
     if env.readOnly
       then throwError err400 { errBody = "Read-only mode is enabled" }
       else return ConfirmReadOnly
@@ -68,21 +68,21 @@ sessionHandler env = mkAuthHandler handler
     toEither msg Nothing = Left msg
     toEither _ (Just x) = Right x
 
-    throw401 msg = throwError $ err401 { errBody = msg }
+    throw401 msg = throwError err401 { errBody = msg }
 
     handler :: Request -> Handler SessionId
     handler req = do
       sessionId <- either throw401 pure do
-        header <- toEither "cookie not found" $ lookup "Cookie" $ requestHeaders req
+        header <- toEither "cookie not found" $ lookup "Cookie" (requestHeaders req)
         cookie <- bimap (Text.encodeUtf8 . Text.fromStrict) id $ parseHeader header
-        toEither "can't get sessionId" $ Cookie.getSessionId cookie
-      _ <- toServantHandler env $ Session.Pool.get sessionId & withServerError
+        toEither "can't get sessionId" (Cookie.getSessionId cookie)
+      _ <- toServantHandler env (Session.Pool.get sessionId & withServerError)
       pure sessionId
 
 
 -- | Withness
 data ConfirmDesktopOnly = ConfirmDesktopOnly
-data ConfirmMobilOnly = ConfirmMobilOnly
+data ConfirmMobilOnly   = ConfirmMobilOnly
 
 
 desktopOnlyHandler :: Env -> AuthHandler Request ConfirmDesktopOnly
@@ -91,8 +91,7 @@ desktopOnlyHandler =
     ConfirmDesktopOnly
     (\case
       Desktop -> True
-      _ -> False
-    )
+      _       -> False)
     "Only allowed for desktop view"
 
 
@@ -102,18 +101,17 @@ mobileOnlyHandler =
     ConfirmMobilOnly
     (\case
       Mobile -> True
-      _ -> False
-    )
+      _      -> False)
     "Only allowed for mobile view"
 
 
 displayOnlyHandler :: witness -> (Display -> Bool) -> ByteString -> Env -> AuthHandler Request witness
 displayOnlyHandler witness predicate msg env =
-  mkAuthHandler $ \req -> do
-    sessionId <- maybe (throwError $ err401 { errBody = "invalid session" }) pure do
-      cookie <-  lookup "Cookie" $ requestHeaders req
+  mkAuthHandler \req -> do
+    sessionId <- maybe (throwError err401 { errBody = "invalid session" }) pure do
+      cookie <-  lookup "Cookie" (requestHeaders req)
       parseHeader' cookie >>= Cookies.getSessionId
-    display <- liftIO . runFilehub env $ Session.getDisplay sessionId & withServerError
+    display <- liftIO $ runFilehub env (Session.getDisplay sessionId & withServerError)
     case display of
       Right d | predicate d -> pure witness
       _ -> throwError err400 { errBody = msg }
@@ -126,13 +124,13 @@ data ConfirmLogin = ConfirmLogin
 --   otherwise we check the validity of the current auth Id from cookie.
 loginHandler :: Env -> AuthHandler Request ConfirmLogin
 loginHandler env
-  | Env.hasNoLogin env = mkAuthHandler $ \_ -> pure ConfirmLogin
-  | otherwise = mkAuthHandler $ \req -> do
+  | Env.hasNoLogin env = mkAuthHandler \_ -> pure ConfirmLogin
+  | otherwise = mkAuthHandler \req -> do
       result <- runMaybeT do
-        cookie <- MaybeT . pure $ lookup "Cookie" (requestHeaders req)
+        cookie    <- MaybeT . pure $ lookup "Cookie" (requestHeaders req)
         sessionId <- MaybeT . pure $ parseHeader' cookie >>= Cookies.getSessionId
-        authId <- MaybeT . pure $ parseHeader' cookie >>= Cookies.getAuthId
-        eSession  <- liftIO . runFilehub env . withServerError $ Session.Pool.get sessionId
+        authId    <- MaybeT . pure $ parseHeader' cookie >>= Cookies.getAuthId
+        eSession  <- liftIO $ runFilehub env (Session.Pool.get sessionId & withServerError)
         session   <- MaybeT . pure $ either (const Nothing) Just eSession
         guard (session.authId == Just authId)
         pure ConfirmLogin

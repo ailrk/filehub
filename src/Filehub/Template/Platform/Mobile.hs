@@ -72,15 +72,15 @@ sideBar targets (TargetView currentTarget _ _) = do
     targetIcon :: Target -> Html ()
     targetIcon target = do
       div_ [ class_ "target-icon"
-           , term "hx-get" $ linkToText (apiLinks.changeTarget (Just (Target.getTargetId target)))
+           , term "hx-get" (linkToText (apiLinks.changeTarget (Just (Target.getTargetId target))))
            , term "hx-target" "#index"
            , term "hx-swap" "outerHTML"
            ] do
         fromMaybe "unknown" $ handleTarget target
-          [ targetHandler @FileSys $ \(FileBackend { root }) -> do
+          [ targetHandler @FileSys \(FileBackend { root }) -> do
               i_ [ class_ "bx bx-folder" ] mempty
               span_ [iii| /#{takeFileName root} |]
-          , targetHandler @S3 $ \(S3Backend { bucket }) -> do
+          , targetHandler @S3 \(S3Backend { bucket }) -> do
               i_ [ class_ "bx bxs-cube" ] mempty
               span_  [iii| /#{bucket} |]
           ]
@@ -157,29 +157,29 @@ sortTool = do
       , term "hx-target" "#view"
       ]
     sortControlName = \case
-        ByNameUp -> sortControl ByNameDown
+        ByNameUp   -> sortControl ByNameDown
         ByNameDown -> sortControl ByNameUp
-        _ -> sortControl ByNameUp
+        _          -> sortControl ByNameUp
     sortControlMTime = \case
-        ByModifiedUp -> sortControl ByModifiedDown
+        ByModifiedUp   -> sortControl ByModifiedDown
         ByModifiedDown -> sortControl ByModifiedUp
-        _ -> sortControl ByModifiedUp
+        _              -> sortControl ByModifiedUp
     sortControlSize = \case
-        BySizeUp -> sortControl BySizeDown
+        BySizeUp   -> sortControl BySizeDown
         BySizeDown -> sortControl BySizeUp
-        _ -> sortControl BySizeUp
+        _          -> sortControl BySizeUp
     sortIconName = \case
-        ByNameUp -> i_ [ class_ "bx bxs-up-arrow"] mempty
+        ByNameUp   -> i_ [ class_ "bx bxs-up-arrow"] mempty
         ByNameDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
-        _ -> i_ [ class_ "bx bx-sort"] mempty
+        _          -> i_ [ class_ "bx bx-sort"] mempty
     sortIconMTime = \case
-        ByModifiedUp -> i_ [ class_ "bx bxs-up-arrow"] mempty
+        ByModifiedUp   -> i_ [ class_ "bx bxs-up-arrow"] mempty
         ByModifiedDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
-        _ -> i_ [ class_ "bx bx-sort"] mempty
+        _              -> i_ [ class_ "bx bx-sort"] mempty
     sortIconSize = \case
-        BySizeUp -> i_ [ class_ "bx bxs-up-arrow"] mempty
+        BySizeUp   -> i_ [ class_ "bx bxs-up-arrow"] mempty
         BySizeDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
-        _ -> i_ [ class_ "bx bx-sort"] mempty
+        _          -> i_ [ class_ "bx bx-sort"] mempty
 
 
 table :: [File] -> Template (Html ())
@@ -242,30 +242,30 @@ fileNameElement target file = do
     name = span_ (toHtml displayName)
     displayName =
       fromMaybe "-" $ handleTarget target
-        [ targetHandler @S3 $ \_ -> file.path
-        , targetHandler @FileSys $ \_ -> takeFileName file.path
+        [ targetHandler @S3      \_ -> file.path
+        , targetHandler @FileSys \_ -> takeFileName file.path
         ]
 
 
 languagePanel :: (Html ())
 languagePanel =
   div_ [ id_ "locale", class_ "panel " ] do
-    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just EN)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "English"
-    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ZH_CN)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "简体中文"
-    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ZH_TW)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "繁體中文"
-    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ZH_HK)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "繁體中文"
-    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just JA)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "日本語"
-    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ES)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "Español"
-    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just FR)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "Français"
-    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just DE)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "Deutsch"
-    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just KO)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "한국어"
-    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just RU)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "Русский"
-    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just PT)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "Português"
-    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just IT)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] $ span_ "Italiano"
+    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just EN)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] do span_ "English"
+    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ZH_CN)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] do span_ "简体中文"
+    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ZH_TW)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] do span_ "繁體中文"
+    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ZH_HK)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] do span_ "繁體中文"
+    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just JA)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] do span_ "日本語"
+    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ES)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] do span_ "Español"
+    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just FR)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] do span_ "Français"
+    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just DE)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] do span_ "Deutsch"
+    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just KO)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] do span_ "한국어"
+    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just RU)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] do span_ "Русский"
+    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just PT)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] do span_ "Português"
+    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just IT)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] do span_ "Italiano"
 
 
 controlPanel :: Template (Html ())
-controlPanel = fmap (`with` [ class_ "panel "]) $ join do
+controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
   Template.controlPanel
     <$> localeBtn
     <*> newFolderBtn
@@ -351,7 +351,7 @@ controlPanel = fmap (`with` [ class_ "panel "]) $ join do
                , id_ fileInputId
                , style_ "display:none"
                , term "hx-encoding" "multipart/form-data"
-               , term "hx-post" $ linkToText apiLinks.upload
+               , term "hx-post" (linkToText apiLinks.upload)
                , term "hx-target" "#index"
                , term "hx-swap" "outerHTML"
                , term "hx-trigger" "change"
@@ -370,7 +370,7 @@ controlPanel = fmap (`with` [ class_ "panel "]) $ join do
       Phrase { control_panel_copy } <- phrase <$> asks @TemplateContext (.locale)
       pure do
         button_ [ class_ "action-btn"
-                , term "hx-get" $ linkToText apiLinks.copy
+                , term "hx-get" (linkToText apiLinks.copy)
                 , term "hx-target" "#control-panel"
                 , term "hx-swap" "outerHTML"
                 ] do
@@ -384,7 +384,7 @@ controlPanel = fmap (`with` [ class_ "panel "]) $ join do
       Phrase { control_panel_paste } <- phrase <$> asks @TemplateContext (.locale)
       pure do
         button_ [ class_ "action-btn"
-                , term "hx-post" $ linkToText apiLinks.paste
+                , term "hx-post" (linkToText apiLinks.paste)
                 , term "hx-target" "#index"
                 , term "hx-swap" "outerHTML"
                 ] do
@@ -398,7 +398,7 @@ controlPanel = fmap (`with` [ class_ "panel "]) $ join do
       Phrase { control_panel_delete } <- phrase <$> asks @TemplateContext (.locale)
       pure do
         button_ [ class_ "action-btn urgent "
-                , term "hx-delete" $ linkToText (apiLinks.deleteFile [] True)
+                , term "hx-delete" (linkToText (apiLinks.deleteFile [] True))
                 , term "hx-target" "#index"
                 , term "hx-swap" "outerHTML"
                 , term "hx-confirm" ("Are you sure about deleting selected files?")
@@ -413,7 +413,7 @@ controlPanel = fmap (`with` [ class_ "panel "]) $ join do
       Phrase { control_panel_cancel } <- phrase <$> asks @TemplateContext (.locale)
       pure do
         button_ [ class_ "action-btn"
-                , term "hx-post" $ linkToText apiLinks.cancel
+                , term "hx-post" (linkToText apiLinks.cancel)
                 , term "hx-target" "#index"
                 , term "hx-swap" "outerHTML"
                 ] do
@@ -428,7 +428,7 @@ controlPanel = fmap (`with` [ class_ "panel "]) $ join do
       pure do
         button_ [ class_ "action-btn urgent "
                 , type_ "submit"
-                , term "hx-post" $ linkToText apiLinks.logout
+                , term "hx-post" (linkToText apiLinks.logout)
                 , term "hx-target" "#index"
                 , term "hx-swap" "outerHTML"
                 , term "hx-confirm" "Logout?"
@@ -449,7 +449,7 @@ controlPanel = fmap (`with` [ class_ "panel "]) $ join do
           Light -> do
             button_ [ class_ "action-btn"
                     , type_ "submit"
-                    , term "hx-get" $ linkToText apiLinks.toggleTheme
+                    , term "hx-get" (linkToText apiLinks.toggleTheme)
                     , term "hx-target" "#index"
                     , term "hx-swap" "outerHTML"
                     ] do
@@ -458,7 +458,7 @@ controlPanel = fmap (`with` [ class_ "panel "]) $ join do
           Dark -> do
             button_ [ class_ "action-btn"
                     , type_ "submit"
-                    , term "hx-get" $ linkToText apiLinks.toggleTheme
+                    , term "hx-get" (linkToText apiLinks.toggleTheme)
                     , term "hx-target" "#index"
                     , term "hx-swap" "outerHTML"
                     ] do
@@ -481,7 +481,7 @@ controlPanel = fmap (`with` [ class_ "panel "]) $ join do
 selectedCounter :: Int -> Html ()
 selectedCounter n = do
   div_ [ id_ selectedCounterId
-       , term "hx-post" $ linkToText apiLinks.cancel
+       , term "hx-post" (linkToText apiLinks.cancel)
        , term "hx-target" "#index"
        , term "hx-swap" "outerHTML"
        , class_ "field "
@@ -495,7 +495,7 @@ editorModal :: Bool -> FilePath -> ByteString -> Html ()
 editorModal readOnly filename content = do
   div_ [ id_ editorModalId, closeEditorScript ] do
 
-    form_ [ term "hx-post" $ linkToText (apiLinks.updateFile)
+    form_ [ term "hx-post" (linkToText (apiLinks.updateFile))
           , term "hx-confirm" ("Save the edit of " <> Text.pack filename <> "?")
           , term "hx-on::after-request" [i|document.querySelector('\##{editorModalId}').dispatchEvent(new Event('Close'))|]
           ] do
@@ -536,7 +536,7 @@ editorModal readOnly filename content = do
           , if readOnly then [ readonly_ "readonly" ] else mempty
           ]
         )
-        (toHtml $ Text.decodeUtf8 content)
+        (toHtml (Text.decodeUtf8 content))
 
   where
     closeEditorScript = term "_" [i| on Close remove me end |]
