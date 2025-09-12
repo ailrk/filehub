@@ -117,7 +117,6 @@ import Text.Printf (printf)
 import UnliftIO (catch)
 import UnliftIO (hFlush, stdout)
 import Web.Cookie (SetCookie (..))
-import Debug.Trace
 
 #ifdef DEBUG
 import Effectful ( MonadIO (liftIO) )
@@ -258,8 +257,8 @@ refresh sessionId _ mUIComponent = do
 
 
 -- | Return the login page
-loginPage :: SessionId -> Maybe Text -> Filehub (Html ())
-loginPage sessionId cookie = do
+loginPage :: SessionId -> Maybe Text -> Maybe Text -> Filehub (Html ())
+loginPage sessionId cookie Nothing = do
   ctx@TemplateContext { noLogin } <- makeTemplateContext sessionId
   if noLogin
      then go
@@ -273,6 +272,9 @@ loginPage sessionId cookie = do
          Nothing -> pure $ runTemplate ctx $ Template.Login.login
   where
     go = throwError (err301 { errHeaders = [(hLocation, "/")] })
+loginPage sessionId _ (Just _) = do
+  ctx <- makeTemplateContext sessionId
+  pure $ runTemplate ctx $ Template.Login.login
 
 
 loginToggleTheme :: SessionId -> Filehub (Headers '[ Header "HX-Trigger-After-Settle" FilehubEvent ] (Html ()))
@@ -302,7 +304,7 @@ loginAuthSimple :: SessionId -> LoginForm
                                      ] (Html ()))
 loginAuthSimple sessionId form@(LoginForm username _) =  do
   ctx <- makeTemplateContext sessionId
-  let failed = runTemplate ctx $ Template.Login.loginFailed
+  let failed = runTemplate ctx $ Template.Login.loginFailed Nothing
   mSession <- Auth.Simple.authenticateSession sessionId form & withServerError
   case mSession of
     Just session -> do
@@ -331,8 +333,15 @@ loginAuthOIDCRedirect sessionId providerName = do
         }
 
 
-loginAuthOIDCCallback :: SessionId -> Text -> Text -> Filehub NoContent
-loginAuthOIDCCallback sessionId code state = do
+loginAuthOIDCCallback :: SessionId
+                      -> Maybe Text
+                      -> Maybe Text
+                      -> Maybe Text
+                      -> Maybe Text
+                      -> Maybe Text
+                      -> Maybe Text
+                      -> Filehub NoContent
+loginAuthOIDCCallback sessionId (Just code) (Just state) _ _ _ _ = do
   withServerError do
     Auth.OIDC.getSessionOIDCFlow sessionId >>= \case
       Just (SomeOIDCFlow (stage@Auth.OIDC.AuthRequestPrepared {})) -> do
@@ -354,6 +363,11 @@ loginAuthOIDCCallback sessionId code state = do
       throwError err303
         { errHeaders = [( "Location" , "/login")]
         }
+loginAuthOIDCCallback _ _ _ mErr mErrDescription _ _ = do
+  let message = fromMaybe "" mErr <> ", " <> fromMaybe "" mErrDescription
+  throwError err303
+    { errHeaders = [( "Location" , "/login?error=\"" <> Text.encodeUtf8 message <> "\"" )]
+    }
 
 
 logout :: SessionId -> ConfirmLogin -> Filehub (Headers '[ Header "Set-Cookie" SetCookie

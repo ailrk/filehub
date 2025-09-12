@@ -13,6 +13,7 @@ import Effectful.Reader.Dynamic (asks)
 import Filehub.Links (linkToText, apiLinks)
 import Filehub.Routes (Api(..))
 import Filehub.Theme (Theme(..))
+import Data.Maybe (fromMaybe)
 
 
 login :: Template (Html ())
@@ -126,8 +127,8 @@ themeBtn = do
           i_ [ class_ "bx bxs-sun" ] mempty
 
 
-loginFailed :: Template (Html ())
-loginFailed = do
+loginFailed :: Maybe Text -> Template (Html ())
+loginFailed mMsg = do
   Phrase
     { login_error } <- phrase <$> asks @TemplateContext (.locale)
   pure do
@@ -136,4 +137,4 @@ loginFailed = do
          , term "hx-target" "this"
          , term "hx-swap" "outerHTML"
          ] do
-           span_ (toHtml login_error)
+           span_ (toHtml (fromMaybe login_error mMsg))
