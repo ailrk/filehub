@@ -109,6 +109,7 @@ library
     , network-uri
     , optparse-applicative
     , random
+    , retry
     , servant
     , servant-client
     , servant-conduit

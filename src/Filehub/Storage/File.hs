@@ -3,12 +3,13 @@
 module Filehub.Storage.File (storage) where
 
 import Codec.Archive.Zip qualified as Zip
-import Control.Monad (unless, when, forM_, join)
 import Conduit (ConduitT, ResourceT)
 import Conduit qualified
+import Control.Monad (unless, when, forM_, join, void)
 import Data.ByteString (ByteString)
 import Data.ByteString (readFile)
 import Data.ByteString.Lazy qualified as LBS
+import Data.Generics.Labels ()
 import Data.Generics.Labels ()
 import Data.Text qualified as Text
 import Effectful ( Eff, Eff, runEff )
@@ -18,19 +19,20 @@ import Effectful.FileSystem.IO (withFile, IOMode (..))
 import Effectful.FileSystem.IO.ByteString (hPut)
 import Effectful.Log
 import Filehub.ClientPath (fromClientPath)
-import Filehub.Session qualified as Session
 import Filehub.Error (FilehubError(..), Error' (..))
-import Filehub.Types ( SessionId, File(..), FileContent(..), ClientPath )
-import Filehub.Target.Types (Storage(..))
+import Filehub.Session qualified as Session
 import Filehub.Storage.Context qualified as Storage
+import Filehub.Target.Types (Storage(..))
+import Filehub.Types ( SessionId, File(..), FileContent(..), ClientPath )
+import Lens.Micro.Platform ()
 import Network.Mime (defaultMimeLookup)
 import Prelude hiding (read, readFile, writeFile)
 import Servant.Multipart (MultipartData(..), Mem, FileData (..))
 import System.FilePath ( (</>) )
-import Data.Generics.Labels ()
-import UnliftIO (MonadIO (..))
-import Lens.Micro.Platform ()
 import System.IO.Temp qualified as Temp
+import UnliftIO (MonadIO (..), tryIO, IOException, Handler (..), try)
+import UnliftIO.Retry (recovering, limitRetries, exponentialBackoff)
+import System.IO.Error (isDoesNotExistError)
 
 
 get :: Storage.Context es => SessionId -> FilePath -> Eff es File
@@ -99,7 +101,7 @@ new sessionId name = do
   withFile filePath ReadWriteMode (\_ -> pure ())
 
 
-write :: Storage.Context es => SessionId -> String -> ByteString -> Eff es ()
+write :: Storage.Context es => SessionId -> FilePath -> ByteString -> Eff es ()
 write sessionId name content = do
   filePath <- toFilePath sessionId name
   withFile filePath WriteMode (\h -> hPut h content)
@@ -132,9 +134,23 @@ delete sessionId name = do
   fileExists <- doesFileExist filePath
   dirExists  <- doesDirectoryExist filePath
   if
-     | fileExists -> removeFile filePath
-     | dirExists  -> removeDirectoryRecursive filePath
+     | fileExists -> withRetry (removeFile filePath)
+     | dirExists  -> withRetry (removeDirectoryRecursive filePath)
      | otherwise  -> pure ()
+  where
+    withRetry action = recovering policy handlers \_ -> do
+      result <- tryIO action
+      case result of
+        Left e | isDoesNotExistError e -> pure () -- it's already gone
+        Left e -> liftIO (ioError e)
+        Right _ -> pure ()
+      where
+        policy = exponentialBackoff 50000 <> limitRetries 3
+        handlers =
+          [ -- we need to retry unless the exception is cause becasue the file doesn't exist
+            -- anymore.
+            \_ -> Handler \(e :: IOException) -> pure $ not (isDoesNotExistError e)
+          ]
 
 
 ls :: Storage.Context es => SessionId -> FilePath -> Eff es [File]
