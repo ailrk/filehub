@@ -30,6 +30,8 @@ import System.FilePath (takeFileName, (</>))
 import Data.String.Interpolate (i)
 import Data.Function (on)
 import Data.List (nub)
+import Filehub.Effectful.Cache (Cache)
+import Filehub.Effectful.LockManager (LockManager)
 
 
 getCopyState :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es CopyState
@@ -45,7 +47,7 @@ clearCopyState sessionId = setCopyState sessionId NoCopyPaste
 
 
 -- | Add selected to copy state.
-select :: (Reader Env :> es, IOE :> es, FileSystem :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es ()
+select :: (Reader Env :> es, IOE :> es, FileSystem :> es, Log :> es, Cache :> es, LockManager :> es, Error FilehubError :> es) => SessionId -> Eff es ()
 select sessionId = do
   allSelecteds <- Selected.allSelecteds sessionId
   forM_ allSelecteds \(target, selected) -> do
@@ -106,7 +108,7 @@ copy sessionId = do
 
 
 -- | Paste files
-paste :: (Reader Env :> es, IOE :> es, FileSystem :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es ()
+paste :: (Reader Env :> es, IOE :> es, FileSystem :> es, Log :> es, Cache :> es, LockManager :> es, Error FilehubError :> es) => SessionId -> Eff es ()
 paste sessionId = do
   state <- getCopyState sessionId
   case state of

@@ -8,7 +8,6 @@ import Data.Maybe (fromMaybe)
 expandVars :: FilePath -> IO FilePath
 expandVars path
   | not ('$' `elem` path) = pure path
-
 expandVars ('$':'{':rest) = do
   let (var, rest') = span (/= '}') rest
   case rest' of

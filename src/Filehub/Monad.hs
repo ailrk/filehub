@@ -20,16 +20,20 @@ import Filehub.Env (Env(..))
 import Servant (ServerError)
 import Control.Monad.Trans.Except (ExceptT(ExceptT), runExceptT)
 import Control.Monad ((>=>))
+import Filehub.Effectful.LockManager (LockManager, runLockManagerLocal)
+import Filehub.Effectful.Cache (Cache, runCacheInMemory)
 
 
-type Filehub = Eff [Reader Env, Log, Error ServerError, FileSystem, Concurrent, IOE]
+type Filehub = Eff [Reader Env, Log, Error ServerError, FileSystem, Concurrent, LockManager, Cache, IOE]
 
 
 -- | Discharge a `Filehub` effect
 runFilehub :: Env -> Filehub a -> IO (Either ServerError a)
 runFilehub env eff =
   runEff $
-    runConcurrent
+    runCacheInMemory env.cache
+  . runLockManagerLocal env.lockRegistry
+  . runConcurrent
   . runFileSystem
   . runErrorNoCallStack
   . runLog "filehub" env.logger env.logLevel

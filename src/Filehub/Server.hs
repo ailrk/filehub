@@ -119,6 +119,8 @@ import UnliftIO (hFlush, stdout)
 import Web.Cookie (SetCookie (..))
 import Effectful.Reader.Dynamic (asks)
 import Control.Applicative (Alternative((<|>)))
+import Filehub.LockRegistry.Local qualified as LockRegistry.Local
+import Filehub.Cache.InMemory qualified as Cache.InMemory
 
 #ifdef DEBUG
 import Effectful ( MonadIO (liftIO) )
@@ -622,6 +624,7 @@ move sessionId _ _ (MoveFile src tgt) = do
 contextMenu :: SessionId -> ConfirmLogin -> ConfirmDesktopOnly -> [ClientPath] -> Filehub (Html ())
 contextMenu sessionId _ _ paths = Server.Desktop.contextMenu sessionId paths
 
+
 cancel :: SessionId -> ConfirmLogin -> Filehub (Headers '[Header "X-Filehub-Selected-Count" Int] (Html ()))
 cancel sessionId _ = do
   Server.Internal.clear sessionId
@@ -955,6 +958,8 @@ main = Log.withColoredStdoutLogger \logger -> do
   activeUserPool   <- runEff ActiveUser.Pool.new
   targets          <- runEff . runLog "Targets" logger verbosity . runFileSystem $ fromTargetConfig targetConfigs.unTargets
   simpleAuthUserDB <- runEff . runFileSystem $ Auth.Simple.createSimpleAuthUserDB simpleAuthLoginUsers.unSimpleAuthUserRecords
+  lockRegistry     <- LockRegistry.Local.new
+  cache            <- Cache.InMemory.new 5000
   httpManager      <- newTlsManager
 
   let env =
@@ -974,6 +979,8 @@ main = Log.withColoredStdoutLogger \logger -> do
           , oidcAuthProviders = OIDCAuthProviders (oidcAuthProviders.unOidcAuthProviders)
           , activeUsers       = activeUserPool
           , httpManager       = httpManager
+          , cache             = cache
+          , lockRegistry      = lockRegistry
           }
 
   go env `catch` handler

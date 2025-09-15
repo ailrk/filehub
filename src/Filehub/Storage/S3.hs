@@ -1,4 +1,15 @@
 {-# LANGUAGE ConstraintKinds #-}
+-- |
+-- Maintainer  :  jimmy@ailrk.com
+-- Copyright   :  (c) 2025-present Jinyang yao
+--
+-- S3 storage backend.
+--
+-- === Cache
+-- We use a simple cache aside strategy.
+-- when reading data, we first try to read from the cache. if it's a miss, we then
+-- perform the full read, then cache the result.
+-- When updating, we first delete the cache, then write the full update.
 module Filehub.Storage.S3 (storage) where
 
 import Amazonka (send, runResourceT, toBody, ResponseBody (..))
@@ -26,62 +37,87 @@ import Filehub.ClientPath (fromClientPath)
 import Filehub.Session qualified as Session
 import Filehub.Error (FilehubError (..), Error' (..))
 import Filehub.Storage.Context qualified as Storage
-import Filehub.Target (TargetView(..), handleTarget)
+import Filehub.Target (TargetView(..), handleTarget, getTargetId)
 import Filehub.Target.S3 (Backend(..), S3)
 import Filehub.Target.Types (Storage(..))
 import Filehub.Target.Types (targetHandler)
-import Filehub.Types (File(..), FileContent(..), ClientPath, SessionId)
+import Filehub.Types (File(..), FileContent(..), ClientPath, SessionId, TargetId)
 import Lens.Micro
 import Lens.Micro.Platform ()
 import Network.Mime (defaultMimeLookup)
 import Prelude hiding (read, readFile, writeFile)
 import Servant.Multipart (MultipartData(..), Mem, FileData (..))
 import System.IO.Temp qualified as Temp
+import Data.ByteString.Builder qualified as Builder
+import Filehub.Effectful.Cache qualified as Cache
+import Filehub.Target.Types.TargetId qualified as TargetId
 
 
 get :: Storage.Context es => SessionId -> FilePath -> Eff es File
 get sessionId path = do
-  s3 <- getS3 sessionId
-  let bucket  = Amazonka.BucketName s3.bucket
-  let key     = Amazonka.ObjectKey (Text.pack path)
-  let request = Amazonka.newHeadObject bucket key
-  resp <- runResourceT $ send s3.env request
-  let mtime       = resp ^. Amazonka.headObjectResponse_lastModified
-  let size        = resp ^. Amazonka.headObjectResponse_contentLength
-  let contentType = resp ^. Amazonka.headObjectResponse_contentType
-  pure File
-    { path = path
-    , atime = Nothing
-    , mtime = mtime
-    , size = size
-    , mimetype = maybe "application/octet-stream" Text.encodeUtf8 contentType
-    , content = Content
-    }
+  (targetId, s3) <- getS3 sessionId
+  let cacheKey = Cache.mkCacheKey ["st:s3:get:", TargetId.targetIdBuilder targetId, ":", Builder.string8 path]
+  mCached <- Cache.lookup @File cacheKey
+  case mCached of
+    Just cached -> pure cached
+    Nothing -> do
+      let bucket  = Amazonka.BucketName s3.bucket
+      let key     = Amazonka.ObjectKey (Text.pack path)
+      let request = Amazonka.newHeadObject bucket key
+      resp <- runResourceT $ send s3.env request
+      let mtime       = resp ^. Amazonka.headObjectResponse_lastModified
+      let size        = resp ^. Amazonka.headObjectResponse_contentLength
+      let contentType = resp ^. Amazonka.headObjectResponse_contentType
+      let file = File
+            { path = path
+            , atime = Nothing
+            , mtime = mtime
+            , size = size
+            , mimetype = maybe "application/octet-stream" Text.encodeUtf8 contentType
+            , content = Content
+            }
+      Cache.insert cacheKey file
+      pure file
 
 
 -- | Because S3 doesn't have real directory, we need to list all keys in the
 -- bucket and check if the file path is prefix of any key.
 isDirectory :: Storage.Context es => SessionId -> FilePath -> Eff es Bool
 isDirectory sessionId filePath = do
-  s3 <- getS3 sessionId
-  let bucket = Amazonka.BucketName s3.bucket
-  let request = Amazonka.newListObjectsV2 bucket
-              & Amazonka.listObjectsV2_prefix ?~ Text.pack (normalizeDirPath filePath)
-              & Amazonka.listObjectsV2_maxKeys ?~ 1
-  resp <- runResourceT $ send s3.env request
-  pure $ maybe False (> 0) (resp ^. Amazonka.listObjectsV2Response_keyCount)
+  (targetId, s3) <- getS3 sessionId
+  let cacheKey = Cache.mkCacheKey ["st:s3:isDirectory:", TargetId.targetIdBuilder targetId, ":", Builder.string8 filePath]
+  mCached <- Cache.lookup @Bool cacheKey
+  case mCached of
+    Just cached -> pure cached
+    Nothing -> do
+      let bucket = Amazonka.BucketName s3.bucket
+      let request = Amazonka.newListObjectsV2 bucket
+                  & Amazonka.listObjectsV2_prefix ?~ Text.pack (normalizeDirPath filePath)
+                  & Amazonka.listObjectsV2_maxKeys ?~ 1
+      resp <- runResourceT $ send s3.env request
+      let result = maybe False (> 0) (resp ^. Amazonka.listObjectsV2Response_keyCount)
+      Cache.insert cacheKey result
+      pure result
 
 
 read :: Storage.Context es => SessionId -> File -> Eff es ByteString
 read sessionId file = do
-  stream <- readStream sessionId file
-  chunks <- liftIO $ runResourceT . Conduit.runConduit $ stream Conduit..| Conduit.sinkList
-  pure $ LBS.toStrict (LBS.fromChunks chunks)
+  mCached <- Cache.lookup @ByteString cacheKey
+  case mCached of
+    Just cached -> pure cached
+    Nothing -> do
+      stream <- readStream sessionId file
+      chunks <- liftIO $ runResourceT . Conduit.runConduit $ stream Conduit..| Conduit.sinkList
+      let result = LBS.toStrict (LBS.fromChunks chunks)
+      Cache.insert cacheKey result
+      pure result
+  where
+    cacheKey = Cache.mkCacheKey ["st:s3:read:", Builder.string8 file.path]
 
 
 readStream :: Storage.Context es => SessionId -> File -> Eff es (ConduitT () ByteString (ResourceT IO) ())
 readStream sessionId file = do
-  s3 <- getS3 sessionId
+  (_, s3) <- getS3 sessionId
   let bucket  = Amazonka.BucketName s3.bucket
       key     = Amazonka.ObjectKey (Text.pack file.path)
       request = Amazonka.newGetObject bucket key
@@ -93,7 +129,7 @@ readStream sessionId file = do
 
 newFolder :: Storage.Context es => SessionId -> FilePath -> Eff es ()
 newFolder sessionId filePath = do
-  s3 <- getS3 sessionId
+  (_, s3) <- getS3 sessionId
   let bucket  = Amazonka.BucketName s3.bucket
   let key     = Amazonka.ObjectKey (Text.pack (normalizeDirPath filePath))
   let request = Amazonka.newPutObject bucket key (toBody LBS.empty)
@@ -106,7 +142,7 @@ new sessionId filePath = write sessionId filePath mempty
 
 write :: Storage.Context es => SessionId -> FilePath -> ByteString -> Eff es ()
 write sessionId filePath bytes = do
-  s3 <- getS3 sessionId
+  (_, s3) <- getS3 sessionId
   let bucket  = Amazonka.BucketName s3.bucket
   let key     = Amazonka.ObjectKey (Text.pack filePath)
   let request = Amazonka.newPutObject bucket key (toBody bytes)
@@ -115,7 +151,7 @@ write sessionId filePath bytes = do
 
 cp :: Storage.Context es => SessionId -> FilePath -> FilePath -> Eff es ()
 cp sessionId src dest = do
-  s3 <- getS3 sessionId
+  (_, s3) <- getS3 sessionId
   let bucket  = Amazonka.BucketName s3.bucket
   let destKey = Amazonka.ObjectKey (Text.pack dest)
   let request = Amazonka.newCopyObject bucket (Text.pack src) destKey
@@ -124,7 +160,7 @@ cp sessionId src dest = do
 
 delete :: Storage.Context es => SessionId -> FilePath -> Eff es ()
 delete sessionId filePath = do
-  s3 <- getS3 sessionId
+  (_, s3) <- getS3 sessionId
   let bucket = Amazonka.BucketName s3.bucket
   let key    = Amazonka.ObjectKey (Text.pack filePath)
   void . runResourceT $ send s3.env (Amazonka.newDeleteObject bucket key)
@@ -132,14 +168,22 @@ delete sessionId filePath = do
 
 ls :: Storage.Context es => SessionId -> FilePath -> Eff es [File]
 ls sessionId _ = do
-   s3 <- getS3 sessionId
-   let bucket  = Amazonka.BucketName s3.bucket
-   let request = Amazonka.newListObjectsV2 bucket
-               & Amazonka.listObjectsV2_prefix ?~ Text.pack "" -- root
-   resp <- runResourceT $ send s3.env request
-   let files = maybe [] (fmap toFile) $ resp ^. Amazonka.listObjectsV2Response_contents
-   let dirs  = maybe [] (fmap toDir)  $ resp ^. Amazonka.listObjectsV2Response_commonPrefixes
-   pure $ files <> dirs
+    (targetId, s3) <- getS3 sessionId
+    let cacheKey = Cache.mkCacheKey ["st:s3:ls:", TargetId.targetIdBuilder targetId ]
+    mCached <- Cache.lookup @[File] cacheKey
+    case mCached of
+      Just cached -> do
+        pure cached
+      Nothing -> do
+        let bucket  = Amazonka.BucketName s3.bucket
+        let request = Amazonka.newListObjectsV2 bucket
+                    & Amazonka.listObjectsV2_prefix ?~ Text.pack "" -- root
+        resp <- runResourceT $ send s3.env request
+        let files = maybe [] (fmap toFile) $ resp ^. Amazonka.listObjectsV2Response_contents
+        let dirs  = maybe [] (fmap toDir)  $ resp ^. Amazonka.listObjectsV2Response_commonPrefixes
+        let result = files <> dirs
+        Cache.insert cacheKey result
+        pure result
   where
     toDir (commonPrefix :: CommonPrefix) =
       let dirPath = fromMaybe mempty $ commonPrefix ^. Amazonka.commonPrefix_prefix
@@ -230,11 +274,11 @@ storage sessionId =
 --
 
 
-getS3 :: Storage.Context es => SessionId -> Eff es (Backend S3)
+getS3 :: Storage.Context es => SessionId -> Eff es (TargetId, Backend S3)
 getS3 sessionId = do
   TargetView target _ _ <- Session.currentTarget sessionId
   maybe (throwError (FilehubError TargetError "Target is not valid S3 bucket")) pure $ handleTarget target
-    [ targetHandler @S3 \x -> x
+    [ targetHandler @S3 \x -> (getTargetId target, x)
     ]
 
 
