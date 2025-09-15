@@ -1,8 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE TemplateHaskell #-}
-
-module Filehub.Effectful.LockManager
+module Effectful.Extended.LockManager
   ( LockManager
   , runLockManagerLocal
   , runLockManagerDummy
@@ -14,9 +13,9 @@ module Filehub.Effectful.LockManager
 
 import Effectful
 import Effectful.Dispatch.Dynamic
-import Filehub.LockRegistry.Local qualified as Local
-import Filehub.LockRegistry.Key (LockKey, mkLockKey)
-import Filehub.LockRegistry.Dummy qualified as Dummy
+import LockRegistry.Local qualified as Local
+import LockRegistry.Key (LockKey, mkLockKey)
+import LockRegistry.Dummy qualified as Dummy
 
 
 data LockManager :: Effect where

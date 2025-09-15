@@ -3,22 +3,12 @@
 -- Maintainer  :  jimmy@ailrk.com
 -- Copyright   :  (c) 2025-present Jinyang yao
 --
--- This module defines several WAI middlewares. These middlewares sit in front
--- of the Servant handlers, allowing them to modify requests and responses.
-module Filehub.Server.Middleware
-  ( exposeHeaders
-  , dedupHeadersKeepLast
-  , displayMiddleware
-  , sessionMiddleware
-  , stripCookiesForStatic
-  ) where
+-- This module defines several filehub specifci WAI middlewares.
+-- These middlewares sit in front of the Servant handlers, allowing
+-- them to modify requests and responses.
+module Network.Wai.Middleware.Filehub where
 
 import Control.Monad (when)
-import Data.ByteString (ByteString)
-import Data.ByteString.Char8 qualified as ByteString
-import Data.CaseInsensitive qualified as CI
-import Data.List (intersperse)
-import Data.Set qualified as Set
 import Data.String.Interpolate (i)
 import Data.UUID qualified as UUID
 import Effectful ( MonadIO(liftIO), liftIO, liftIO )
@@ -38,41 +28,10 @@ import Lens.Micro.Platform ()
 import Lens.Micro.Platform ()
 import Lens.Micro.Platform ()
 import Log (logTrace_)
-import Network.HTTP.Types (HeaderName)
 import Network.HTTP.Types (hUserAgent, status500)
 import Network.HTTP.Types.Header (hSetCookie)
 import Network.Wai
-import Network.Wai.Middleware.AddHeaders
 import Prelude hiding (readFile)
-
-
-exposeHeaders :: Middleware
-exposeHeaders = addHeaders
-  [ ("Access-Control-Expose-Headers", headers)
-  ]
-  where
-    headers :: ByteString
-    headers
-      = ByteString.pack
-      $ mconcat
-      $ intersperse ","
-      [ "X-Filehub-Selected-Count"
-      ]
-
-
-dedupHeadersKeepLast :: Middleware
-dedupHeadersKeepLast app req respond =
-  app req \res ->
-    respond $ mapResponseHeaders keepLastHeaders res
-  where
-    -- Keep the last occurrence of each header
-    keepLastHeaders :: [(HeaderName, ByteString)] -> [(HeaderName, ByteString)]
-    keepLastHeaders = reverse . go Set.empty . reverse
-      where
-        go _ [] = []
-        go seen ((k,v):xs)
-          | CI.foldedCase k `Set.member` seen = go seen xs
-          | otherwise = (k,v) : go (Set.insert (CI.foldedCase k) seen) xs
 
 
 displayMiddleware :: Env -> Middleware

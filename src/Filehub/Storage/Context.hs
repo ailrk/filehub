@@ -12,8 +12,8 @@ import Effectful.Reader.Dynamic (Reader)
 import Effectful.Error.Dynamic (Error)
 import Effectful.Log
 import Prelude hiding (readFile, writeFile)
-import Filehub.Effectful.LockManager (LockManager)
-import Filehub.Effectful.Cache (Cache)
+import Effectful.Extended.LockManager (LockManager)
+import Effectful.Extended.Cache (Cache)
 
 
 type Context es =

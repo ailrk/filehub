@@ -8,25 +8,25 @@
 -- OIDC doesn't have an cli option.
 module Filehub.Config.Toml where
 
-import Toml qualified as Toml
-import Toml (TomlCodec, (.=), Key)
-import Filehub.Config
-import Filehub.Theme (Theme (..), CustomTheme(..))
-import Filehub.ExpandEnv (expandVars)
-import Filehub.Auth.Simple qualified as Auth.Simple
-import Filehub.Auth.OIDC qualified as Auth.OIDC
-import Effectful.Log (LogLevel (..))
 import Control.Applicative ((<|>))
+import Control.Category ((>>>))
 import Control.Exception (throwIO)
 import Control.Monad (when)
-import Filehub.Locale (Locale(..))
-import Toml.Codec (TomlBiMap)
-import Network.URI (URI)
-import Data.Text qualified as Text
-import Network.URI qualified as URI
-import Control.Category ((>>>))
-import Data.Text (Text)
 import Data.Coerce (coerce)
+import Data.Text (Text)
+import Data.Text qualified as Text
+import Effectful.Log (LogLevel (..))
+import Filehub.Auth.OIDC qualified as Auth.OIDC
+import Filehub.Auth.Simple qualified as Auth.Simple
+import Filehub.Config
+import Filehub.Locale (Locale(..))
+import Filehub.Theme (Theme (..), CustomTheme(..))
+import Network.URI (URI)
+import Network.URI qualified as URI
+import System.FilePath.Extended (expandVars)
+import Toml (TomlCodec, (.=), Key)
+import Toml qualified as Toml
+import Toml.Codec (TomlBiMap)
 
 
 simpleAuthUserRecord :: TomlCodec Auth.Simple.UserRecord

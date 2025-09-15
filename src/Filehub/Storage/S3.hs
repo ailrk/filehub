@@ -49,7 +49,7 @@ import Prelude hiding (read, readFile, writeFile)
 import Servant.Multipart (MultipartData(..), Mem, FileData (..))
 import System.IO.Temp qualified as Temp
 import Data.ByteString.Builder qualified as Builder
-import Filehub.Effectful.Cache qualified as Cache
+import Effectful.Extended.Cache qualified as Cache
 import Filehub.Target.Types.TargetId qualified as TargetId
 
 

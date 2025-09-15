@@ -10,18 +10,17 @@
 --
 -- This `LockRegistry` works in a single local instance. For distributed lock, check
 -- `Filehub.LockRegistry.Remote`
-module Filehub.LockRegistry.Local
+module LockRegistry.Local
   ( new
   , withLock
   , LockRegistry(..)
   )
   where
 
-import UnliftIO.STM
-  (TVar, TMVar, newTVarIO, atomically, readTVar, newTMVar, writeTVar, takeTMVar, putTMVar)
 import Data.Map.Strict qualified  as M
+import LockRegistry.Key (LockKey)
 import UnliftIO (finally)
-import Filehub.LockRegistry.Key (LockKey)
+import UnliftIO.STM (TVar, TMVar, newTVarIO, atomically, readTVar, newTMVar, writeTVar, takeTMVar, putTMVar)
 
 
 -- | A global lock registry

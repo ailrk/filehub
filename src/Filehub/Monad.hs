@@ -20,8 +20,8 @@ import Filehub.Env (Env(..))
 import Servant (ServerError)
 import Control.Monad.Trans.Except (ExceptT(ExceptT), runExceptT)
 import Control.Monad ((>=>))
-import Filehub.Effectful.LockManager (LockManager, runLockManagerLocal)
-import Filehub.Effectful.Cache (Cache, runCacheInMemory)
+import Effectful.Extended.LockManager (LockManager, runLockManagerLocal)
+import Effectful.Extended.Cache (Cache, runCacheInMemory)
 
 
 type Filehub = Eff [Reader Env, Log, Error ServerError, FileSystem, Concurrent, LockManager, Cache, IOE]

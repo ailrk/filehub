@@ -141,33 +141,31 @@ library
     , zip
 
   exposed-modules:
+    Cache.Dummy
+    Cache.InMemory
+    Cache.Key
+    Network.Wai.Middleware.Filehub
+    Network.Wai.Middleware.Extended
+    Network.Mime.Extended
+    Effectful.Extended.Cache
+    Effectful.Extended.LockManager
     Filehub.ActiveUser.Pool
     Filehub.ActiveUser.Types
     Filehub.Auth.OIDC
     Filehub.Auth.Simple
     Filehub.Auth.Types
     Filehub.Auth.Types.AuthId
-    Filehub.Cache.Dummy
-    Filehub.Cache.InMemory
-    Filehub.Cache.Key
     Filehub.ClientPath
     Filehub.Config
     Filehub.Config.Options
     Filehub.Config.Toml
     Filehub.Cookie
     Filehub.Display
-    Filehub.Effectful.Cache
-    Filehub.Effectful.LockManager
     Filehub.Env
     Filehub.Error
-    Filehub.ExpandEnv
     Filehub.Links
     Filehub.Locale
-    Filehub.LockRegistry.Dummy
-    Filehub.LockRegistry.Key
-    Filehub.LockRegistry.Local
     Filehub.Log
-    Filehub.Mime
     Filehub.Monad
     Filehub.Orphan
     Filehub.Routes
@@ -175,7 +173,6 @@ library
     Filehub.Server
     Filehub.Server.Handler
     Filehub.Server.Internal
-    Filehub.Server.Middleware
     Filehub.Server.Platform.Desktop
     Filehub.Server.Platform.Mobile
     Filehub.Session
@@ -208,8 +205,11 @@ library
     Filehub.Theme
     Filehub.Types
     Filehub.UserAgent
+    LockRegistry.Dummy
+    LockRegistry.Key
+    LockRegistry.Local
+    System.FilePath.Extended
     Paths_filehub
-
   default-language: Haskell2010
 
 

@@ -1,4 +1,4 @@
-module Filehub.Mime (isMime) where
+module Network.Mime.Extended (isMime) where
 
 import Data.Text (Text)
 import Data.Text qualified as Text

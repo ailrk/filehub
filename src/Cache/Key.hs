@@ -1,5 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module Filehub.Cache.Key where
+module Cache.Key where
 
 import Data.ByteString.Builder (Builder)
 import Data.ByteString.Builder qualified as Builder

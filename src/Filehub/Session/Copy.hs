@@ -30,8 +30,8 @@ import System.FilePath (takeFileName, (</>))
 import Data.String.Interpolate (i)
 import Data.Function (on)
 import Data.List (nub)
-import Filehub.Effectful.Cache (Cache)
-import Filehub.Effectful.LockManager (LockManager)
+import Effectful.Extended.Cache (Cache)
+import Effectful.Extended.LockManager (LockManager)
 
 
 getCopyState :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es CopyState

@@ -1,5 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module Filehub.LockRegistry.Key where
+module LockRegistry.Key where
 
 import Data.Hashable (Hashable (..))
 

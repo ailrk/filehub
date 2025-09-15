@@ -11,9 +11,11 @@
 -- Some features that are hard to implement with servant are provided through wai middleware.
 module Filehub.Server (application, main, mainDev) where
 
+import Cache.InMemory qualified as Cache.InMemory
 import Codec.Archive.Zip qualified as Zip
 import Conduit (ConduitT, ResourceT)
 import Conduit qualified
+import Control.Applicative (Alternative((<|>)))
 import Control.Exception (SomeException)
 import Control.Exception (throwIO)
 import Control.Monad (when, forM, replicateM)
@@ -39,6 +41,7 @@ import Effectful.Error.Dynamic (throwError)
 import Effectful.FileSystem (runFileSystem)
 import Effectful.Log (logInfo_, logAttention_)
 import Effectful.Log (runLog)
+import Effectful.Reader.Dynamic (asks)
 import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
 import Filehub.Auth.OIDC (OIDCAuthProviders(..), AuthUrl (..), SomeOIDCFlow (..))
 import Filehub.Auth.OIDC qualified as Auth.OIDC
@@ -55,7 +58,6 @@ import Filehub.Env (Env(..))
 import Filehub.Error ( withServerError, FilehubError(..), withServerError, Error' (..) )
 import Filehub.Locale (Locale)
 import Filehub.Log qualified as Log
-import Filehub.Mime (isMime)
 import Filehub.Monad
 import Filehub.Orphan ()
 import Filehub.Routes (Api (..))
@@ -64,7 +66,6 @@ import Filehub.Server.Handler (ConfirmLogin, ConfirmReadOnly, ConfirmDesktopOnly
 import Filehub.Server.Handler qualified as Server.Handler
 import Filehub.Server.Internal (withQueryParam, parseHeader', makeTemplateContext)
 import Filehub.Server.Internal qualified as Server.Internal
-import Filehub.Server.Middleware qualified as Server.Middleware
 import Filehub.Server.Platform.Desktop qualified as Server.Desktop
 import Filehub.Server.Platform.Mobile qualified as Server.Mobile
 import Filehub.Session (SessionId(..))
@@ -90,13 +91,17 @@ import Filehub.Types (File(..), ClientPath(..), UpdatedFile(..), NewFile(..), Ne
 import Filehub.Types (Target(..))
 import Lens.Micro
 import Lens.Micro.Platform ()
+import LockRegistry.Local qualified as LockRegistry.Local
 import Lucid
+import Network.Mime.Extended (isMime)
 import Network.HTTP.Client.TLS (newTlsManager)
 import Network.HTTP.Types.Header (hLocation)
 import Network.Mime (MimeType)
 import Network.Mime qualified as Mime
 import Network.URI qualified as URI
 import Network.Wai.Handler.Warp (setPort, defaultSettings, runSettings)
+import Network.Wai.Middleware.Extended qualified as Wai.Middleware
+import Network.Wai.Middleware.Filehub qualified as Wai.Middleware
 import Network.Wai.Middleware.Gzip qualified as Wai.Middleware
 import Network.Wai.Middleware.RequestLogger qualified as Wai.Middleware (logStdout)
 import Prelude hiding (init, readFile)
@@ -115,11 +120,6 @@ import Text.Printf (printf)
 import UnliftIO (catch)
 import UnliftIO (hFlush, stdout)
 import Web.Cookie (SetCookie (..))
-import Effectful.Reader.Dynamic (asks)
-import Control.Applicative (Alternative((<|>)))
-import Filehub.LockRegistry.Local qualified as LockRegistry.Local
-import Filehub.Cache.InMemory qualified as Cache.InMemory
-
 #ifdef DEBUG
 import Effectful ( MonadIO (liftIO) )
 import System.FilePath ((</>))
@@ -898,11 +898,11 @@ application :: Env -> Application
 application env
   = Wai.Middleware.gzip Wai.Middleware.defaultGzipSettings
   . Wai.Middleware.logStdout
-  . Server.Middleware.stripCookiesForStatic
-  . Server.Middleware.exposeHeaders
-  . Server.Middleware.sessionMiddleware env
-  . Server.Middleware.dedupHeadersKeepLast
-  . Server.Middleware.displayMiddleware env
+  . Wai.Middleware.stripCookiesForStatic
+  . Wai.Middleware.exposeHeaders
+  . Wai.Middleware.sessionMiddleware env
+  . Wai.Middleware.dedupHeadersKeepLast
+  . Wai.Middleware.displayMiddleware env
   . serveWithContextT Routes.api ctx (Server.Handler.toServantHandler env)
   $ server
   where

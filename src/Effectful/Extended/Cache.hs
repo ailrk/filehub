@@ -1,4 +1,4 @@
-module Filehub.Effectful.Cache
+module Effectful.Extended.Cache
   ( Cache(..)
   , runCacheInMemory
   , runCacheDummy
@@ -11,9 +11,9 @@ module Filehub.Effectful.Cache
   where
 
 import Effectful
-import Filehub.Cache.Key (CacheKey, mkCacheKey)
-import Filehub.Cache.InMemory qualified as InMemory
-import Filehub.Cache.Dummy qualified as Dummy
+import Cache.Key (CacheKey, mkCacheKey)
+import Cache.InMemory qualified as InMemory
+import Cache.Dummy qualified as Dummy
 import Effectful.Dispatch.Dynamic (interpret, send)
 import Data.Dynamic (Typeable)
 import UnliftIO (atomicModifyIORef', readIORef)

@@ -16,7 +16,7 @@ import Data.Map.Strict qualified as Map
 import Data.Time (NominalDiffTime)
 import Filehub.ActiveUser.Types qualified as ActiveUser
 import Filehub.Locale (Locale)
-import Filehub.LockRegistry.Local qualified as  LockRegistry.Local
+import LockRegistry.Local qualified as  LockRegistry.Local
 import Filehub.Session.Types qualified as Session
 import Filehub.Target.Types (Target)
 import Filehub.Theme (Theme, CustomTheme)
@@ -25,7 +25,7 @@ import Log (Logger, LogLevel)
 import Network.HTTP.Client qualified as HTTP
 import {-# SOURCE #-} Filehub.Auth.OIDC (OIDCAuthProviders(..))
 import {-# SOURCE #-} Filehub.Auth.Simple (SimpleAuthUserDB(..))
-import Filehub.Cache.InMemory qualified as Cache.InMemory
+import Cache.InMemory qualified as Cache.InMemory
 
 
 data Env = Env

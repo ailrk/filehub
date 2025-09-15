@@ -1,5 +1,6 @@
-module Filehub.Cache.Dummy where
-import Filehub.Cache.Key (CacheKey)
+module Cache.Dummy where
+
+import Cache.Key (CacheKey)
 
 
 lookup :: CacheKey -> IO (Maybe a)

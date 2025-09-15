@@ -18,7 +18,6 @@ module Filehub.Template.Platform.Desktop
   )
   where
 
-
 import Data.ByteString (ByteString)
 import Data.Foldable (traverse_)
 import Data.Maybe (fromMaybe)
@@ -35,26 +34,27 @@ import Filehub.Types
       ClientPath(..),
       Target(..))
 import Filehub.Routes (Api(..))
-import Filehub.Mime (isMime)
-import Filehub.Size (toReadableSize)
-import Filehub.Selected qualified as Selected
+import Control.Monad (when, join)
+import Effectful.Reader.Dynamic (asks)
 import Filehub.ClientPath qualified as ClientPath
+import Filehub.Links ( apiLinks, linkToText )
+import Filehub.Locale (Locale(..), Phrase (..), phrase)
+import Filehub.Selected qualified as Selected
+import Filehub.Size (toReadableSize)
 import Filehub.Target (TargetView(..), handleTarget)
 import Filehub.Target qualified as Target
+import Filehub.Target.File (FileSys, Backend (..))
+import Filehub.Target.S3 (S3, Backend (..))
+import Filehub.Target.Types (targetHandler)
+import Filehub.Template.Internal
 import Filehub.Template.Shared (bold, toClientPath, viewId, tableId, sideBarId, searchBar)
 import Filehub.Template.Shared qualified as Template
-import Filehub.Template.Internal
-import Filehub.Links ( apiLinks, linkToText )
+import Filehub.Theme (Theme (..))
 import Lens.Micro.Platform ()
 import Lucid
+import Network.Mime.Extended (isMime)
 import System.FilePath (takeFileName)
-import Filehub.Target.S3 (S3, Backend (..))
-import Filehub.Target.File (FileSys, Backend (..))
-import Filehub.Target.Types (targetHandler)
-import Filehub.Theme (Theme (..))
-import Control.Monad (when, join)
-import Filehub.Locale (Locale(..), Phrase (..), phrase)
-import Effectful.Reader.Dynamic (asks)
+
 
 ------------------------------------
 -- components

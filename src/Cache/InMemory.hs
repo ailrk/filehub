@@ -3,16 +3,16 @@
 -- Copyright   :  (c) 2025-present Jinyang yao
 --
 -- An in memory LRU cache based on priority search queue.
-module Filehub.Cache.InMemory where
+module Cache.InMemory where
 
-import Filehub.Cache.Key (CacheKey)
-import Data.Dynamic (Dynamic, fromDynamic, Typeable, toDyn)
-import Prelude hiding (lookup)
-import Data.HashPSQ qualified as HashPSQ
-import Data.HashPSQ (HashPSQ)
+import Cache.Key (CacheKey)
 import Data.Bifunctor (Bifunctor(..))
-import UnliftIO (IORef)
+import Data.Dynamic (Dynamic, fromDynamic, Typeable, toDyn)
+import Data.HashPSQ (HashPSQ)
+import Data.HashPSQ qualified as HashPSQ
 import Data.IORef (newIORef)
+import Prelude hiding (lookup)
+import UnliftIO (IORef)
 
 
 -- | Priority is a monotonically increasing tick. Every insertion or lookup

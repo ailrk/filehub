@@ -45,8 +45,8 @@ import UnliftIO (MonadIO (..), tryIO, IOException, Handler (..))
 import UnliftIO.Retry (recovering, limitRetries, exponentialBackoff)
 import System.IO.Error (isDoesNotExistError)
 import Data.ByteString.Builder qualified as Builder
-import Filehub.Effectful.Cache qualified as Cache
-import Filehub.Effectful.LockManager qualified as LockManager
+import Effectful.Extended.Cache qualified as Cache
+import Effectful.Extended.LockManager qualified as LockManager
 
 
 get :: Storage.Context es => SessionId -> FilePath -> Eff es File

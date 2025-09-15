@@ -2,8 +2,9 @@
 -- Maintainer  :  jimmy@ailrk.com
 -- Copyright   :  (c) 2025-present Jinyang yao
 --
--- This modules all application level errors. Each error has its corresponding HTTP error. You can
--- chose either handle the error in the backedn or respond it to the frontend.
+-- This module defines all application-level errors. Each error maps to a
+-- corresponding HTTP error. Errors can either be handled in the backend or
+-- returned to the frontend.
 module Filehub.Error
   ( FilehubError(..)
   , Error'(..)

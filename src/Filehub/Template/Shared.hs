@@ -1,34 +1,34 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Filehub.Template.Shared where
 
+import Control.Monad (when)
 import Data.Aeson qualified as Aeson
 import Data.Aeson.Types (Pair)
+import Data.Foldable (Foldable(..))
+import Data.Maybe (fromMaybe)
+import Data.Sequence (Seq(..))
+import Data.Sequence qualified as Seq
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Lazy.Encoding qualified as LText
-import Filehub.Types ( ClientPath(..), Display(..), ControlPanelState (..), File(..), FileContent (..), OpenTarget (..), SearchWord (..))
+import Effectful.Reader.Dynamic (asks)
 import Filehub.ClientPath qualified as ClientPath
+import Filehub.Links (linkToText, apiLinks)
+import Filehub.Locale (Phrase(..), phrase)
+import Filehub.Routes (Api (..))
+import Filehub.Sort (sortFiles)
+import Filehub.Target (TargetView(..), handleTarget)
+import Filehub.Target.File (FileSys)
+import Filehub.Target.S3 (S3)
+import Filehub.Target.Types (targetHandler)
+import Filehub.Template.Internal
+import Filehub.Types ( ClientPath(..), Display(..), ControlPanelState (..), File(..), FileContent (..), OpenTarget (..), SearchWord (..))
 import Lens.Micro
 import Lens.Micro.Platform ()
 import Lucid
-import Data.Sequence (Seq(..))
-import Data.Sequence qualified as Seq
-import Data.Foldable (Foldable(..))
+import Network.Mime.Extended (isMime)
 import System.FilePath (splitPath)
-import Filehub.Mime (isMime)
-import Control.Monad (when)
-import Filehub.Template.Internal
-import Effectful.Reader.Dynamic (asks)
-import Filehub.Links (linkToText, apiLinks)
-import Filehub.Routes (Api (..))
 import Text.Fuzzy (simpleFilter)
-import Filehub.Sort (sortFiles)
-import Filehub.Locale (Phrase(..), phrase)
-import Filehub.Target (TargetView(..), handleTarget)
-import Data.Maybe (fromMaybe)
-import Filehub.Target.S3 (S3)
-import Filehub.Target.File (FileSys)
-import Filehub.Target.Types (targetHandler)
 
 
 withDefault :: Display -> Text -> Html () -> Html ()
