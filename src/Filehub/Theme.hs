@@ -1,5 +1,10 @@
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE NamedFieldPuns #-}
+-- |
+-- Maintainer  :  jimmy@ailrk.com
+-- Copyright   :  (c) 2025-present Jinyang yao
+--
+-- This module defines and implements theme related types and logic.
 module Filehub.Theme
   ( Theme(..)
   , CustomTheme(..)

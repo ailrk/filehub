@@ -1,4 +1,16 @@
 {-# LANGUAGE TemplateHaskell #-}
+-- |
+-- Maintainer  :  jimmy@ailrk.com
+-- Copyright   :  (c) 2025-present Jinyang yao
+--
+-- This module defines locale-related types and logic. Website copy is
+-- translated into multiple languages, with the translations stored in
+-- "data/locale.toml". The TOML parser in this module is used solely for
+-- decoding that file.
+--
+-- The `Phrase` type is the main interface for working with translated text.
+-- Each UI string has a corresponding field in `Phrase`. Use `phrase` to
+-- construct the appropriate `Phrase` value for a given language.
 module Filehub.Locale (Locale(..), Phrase(..), phrase) where
 
 import Data.Either (fromRight)

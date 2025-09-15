@@ -1,3 +1,8 @@
+-- |
+-- Maintainer  :  jimmy@ailrk.com
+-- Copyright   :  (c) 2025-present Jinyang yao
+--
+-- This module implements the pure part of file selection logic.
 module Filehub.Selected
   ( anySelected
   , allSelecteds

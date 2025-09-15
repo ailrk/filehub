@@ -7,11 +7,9 @@
 -- Maintainer  :  jimmy@ailrk.com
 -- Copyright   :  (c) 2025-present Jinyang yao
 --
--- This module implements the filehub server. Most of the server is
--- implemented with servant handlers. Some features that are hard to
--- implement with servant are provided through wai middleware.
+-- This module implements the filehub server. Most of the server is implemented with servant handlers.
+-- Some features that are hard to implement with servant are provided through wai middleware.
 module Filehub.Server (application, main, mainDev) where
-
 
 import Codec.Archive.Zip qualified as Zip
 import Conduit (ConduitT, ResourceT)

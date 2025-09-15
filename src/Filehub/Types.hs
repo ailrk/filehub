@@ -3,6 +3,11 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
+-- |
+-- Maintainer  :  jimmy@ailrk.com
+-- Copyright   :  (c) 2025-present Jinyang yao
+--
+-- Where you put your types when you don't know where they belongs to.
 module Filehub.Types
   ( LoginForm(..)
   , Session(..)

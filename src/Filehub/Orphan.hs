@@ -1,5 +1,9 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
-
+-- |
+-- Maintainer  :  jimmy@ailrk.com
+-- Copyright   :  (c) 2025-present Jinyang yao
+--
+-- The dumpster of all orphan instances.
 module Filehub.Orphan where
 import Servant (ToHttpApiData, URI)
 import Servant.API (ToHttpApiData(..))

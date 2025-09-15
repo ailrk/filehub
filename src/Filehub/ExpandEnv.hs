@@ -1,3 +1,8 @@
+-- |
+-- Maintainer  :  jimmy@ailrk.com
+-- Copyright   :  (c) 2025-present Jinyang yao
+--
+-- A simple util to expand environment variables embeded in a filepath.
 module Filehub.ExpandEnv where
 
 import System.Environment (lookupEnv)

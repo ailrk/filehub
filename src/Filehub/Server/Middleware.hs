@@ -1,4 +1,10 @@
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+-- |
+-- Maintainer  :  jimmy@ailrk.com
+-- Copyright   :  (c) 2025-present Jinyang yao
+--
+-- This module defines several WAI middlewares. These middlewares sit in front
+-- of the Servant handlers, allowing them to modify requests and responses.
 module Filehub.Server.Middleware
   ( exposeHeaders
   , dedupHeadersKeepLast

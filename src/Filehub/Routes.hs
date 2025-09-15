@@ -2,6 +2,22 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE CPP #-}
+-- |
+-- Maintainer  :  jimmy@ailrk.com
+-- Copyright   :  (c) 2025-present Jinyang yao
+--
+-- This module defines the Api type, thethe single Servant named routes for the
+-- entire application.
+--
+-- == HTMX ==
+-- Endpoints that return headers starting with `HX-` use HTMX’s HX-Trigger Response Headers feature.
+-- These headers can instruct HTMX to perform actions such as redirecting the current page or firing
+-- custom event handlers with a payload. For these endpoints to work correctly, HTMX must already be
+-- loaded on the page.
+--
+-- == AuthProtect ==
+-- Some endpoints are protected by the `AuthProtect` combinator. Most of the rules are implemented in
+-- `Filehub.Server.Handler`.
 module Filehub.Routes
   ( Api(..)
   , API

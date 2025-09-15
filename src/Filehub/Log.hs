@@ -1,3 +1,8 @@
+-- |
+-- Maintainer  :  jimmy@ailrk.com
+-- Copyright   :  (c) 2025-present Jinyang yao
+--
+-- The custom logger for filehub.
 module Filehub.Log (withColoredStdoutLogger) where
 
 import Effectful

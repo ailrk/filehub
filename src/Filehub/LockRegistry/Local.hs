@@ -1,4 +1,15 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+-- |
+-- Maintainer  :  jimmy@ailrk.com
+-- Copyright   :  (c) 2025-present Jinyang yao
+--
+-- This module implements the `LockRegistry` type that manages locks in the system.
+-- The `LockRegistry` maps a `LockKey` to a `TMVar ()`, which is used to control the
+-- synchronization among threads. the `LockKey` can be derived from any data type and
+-- should be unique to that data type.
+--
+-- This `LockRegistry` works in a single local instance. For distributed lock, check
+-- `Filehub.LockRegistry.Remote`
 module Filehub.LockRegistry.Local
   ( new
   , withLock

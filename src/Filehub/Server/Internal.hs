@@ -1,4 +1,9 @@
 {-# LANGUAGE PartialTypeSignatures #-}
+-- |
+-- Maintainer  :  jimmy@ailrk.com
+-- Copyright   :  (c) 2025-present Jinyang yao
+--
+-- Utilities for Server.
 module Filehub.Server.Internal where
 
 import Control.Exception (SomeException, catch)
