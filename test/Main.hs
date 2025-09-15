@@ -37,8 +37,8 @@ import Filehub.Auth.OIDC (OIDCAuthProviders(..))
 import Filehub.Locale (Locale(..))
 import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
 import Network.HTTP.Client.TLS (newTlsManager)
-import Filehub.Cache.InMemory qualified as Cache.InMemory
-import Filehub.LockRegistry.Local qualified as LockRegistry.Local
+import Cache.InMemory qualified as Cache.InMemory
+import LockRegistry.Local qualified as LockRegistry.Local
 
 
 main :: IO ()
