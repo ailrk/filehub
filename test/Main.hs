@@ -37,6 +37,8 @@ import Filehub.Auth.OIDC (OIDCAuthProviders(..))
 import Filehub.Locale (Locale(..))
 import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
 import Network.HTTP.Client.TLS (newTlsManager)
+import Filehub.Cache.InMemory qualified as Cache.InMemory
+import Filehub.LockRegistry.Local qualified as LockRegistry.Local
 
 
 main :: IO ()
@@ -256,6 +258,8 @@ mkEnv = do
   activeUserPool <- runEff ActiveUser.Pool.new
   logger <- nullLogger
   httpManager <- newTlsManager
+  cache <- liftIO (Cache.InMemory.new 1000)
+  lockRegistry <- liftIO LockRegistry.Local.new
   let env =
         Env
           { port = 0
@@ -278,6 +282,8 @@ mkEnv = do
           , simpleAuthUserDB = SimpleAuthUserDB mempty
           , oidcAuthProviders = OIDCAuthProviders mempty
           , httpManager = httpManager
+          , cache = cache
+          , lockRegistry = lockRegistry
           , activeUsers = activeUserPool
           }
   pure env
