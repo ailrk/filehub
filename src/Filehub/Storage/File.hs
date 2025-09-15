@@ -82,7 +82,7 @@ get sessionId  path = do
                 , mimetype = "application/octet-stream"
                 , content  = Content
                 }
-      Cache.insert cacheKey file
+      Cache.insert cacheKey Nothing file
       pure file
   where
     cacheKey = Cache.mkCacheKey ["st:fs:get:", Builder.string8 path]
@@ -104,7 +104,7 @@ read _ file = do
     Just cached -> pure cached
     Nothing -> do
       bytes <- liftIO $ readFile file.path
-      Cache.insert cacheKey bytes
+      Cache.insert cacheKey Nothing bytes
       pure bytes
   where
     cacheKey = Cache.mkCacheKey ["st:fs:read:", Builder.string8 file.path]
@@ -203,7 +203,7 @@ ls sessionId path = do
         listDirectory path
           >>= traverse makeAbsolute
           >>= traverse (get sessionId)
-      Cache.insert cacheKey files
+      Cache.insert cacheKey Nothing files
       pure files
   where
     cacheKey = Cache.mkCacheKey ["st:fs:ls:", Builder.string8 path]

@@ -76,7 +76,7 @@ get sessionId path = do
             , mimetype = maybe "application/octet-stream" Text.encodeUtf8 contentType
             , content = Content
             }
-      Cache.insert cacheKey file
+      Cache.insert cacheKey Nothing file
       pure file
 
 
@@ -96,7 +96,7 @@ isDirectory sessionId filePath = do
                   & Amazonka.listObjectsV2_maxKeys ?~ 1
       resp <- runResourceT $ send s3.env request
       let result = maybe False (> 0) (resp ^. Amazonka.listObjectsV2Response_keyCount)
-      Cache.insert cacheKey result
+      Cache.insert cacheKey Nothing result
       pure result
 
 
@@ -109,7 +109,7 @@ read sessionId file = do
       stream <- readStream sessionId file
       chunks <- liftIO $ runResourceT . Conduit.runConduit $ stream Conduit..| Conduit.sinkList
       let result = LBS.toStrict (LBS.fromChunks chunks)
-      Cache.insert cacheKey result
+      Cache.insert cacheKey Nothing result
       pure result
   where
     cacheKey = Cache.mkCacheKey ["st:s3:read:", Builder.string8 file.path]
@@ -182,7 +182,7 @@ ls sessionId _ = do
         let files = maybe [] (fmap toFile) $ resp ^. Amazonka.listObjectsV2Response_contents
         let dirs  = maybe [] (fmap toDir)  $ resp ^. Amazonka.listObjectsV2Response_commonPrefixes
         let result = files <> dirs
-        Cache.insert cacheKey result
+        Cache.insert cacheKey Nothing result
         pure result
   where
     toDir (commonPrefix :: CommonPrefix) =

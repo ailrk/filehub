@@ -6,13 +6,13 @@
 module Cache.InMemory where
 
 import Cache.Key (CacheKey)
-import Data.Bifunctor (Bifunctor(..))
 import Data.Dynamic (Dynamic, fromDynamic, Typeable, toDyn)
 import Data.HashPSQ (HashPSQ)
 import Data.HashPSQ qualified as HashPSQ
 import Data.IORef (newIORef)
 import Prelude hiding (lookup)
 import UnliftIO (IORef)
+import Data.Time (NominalDiffTime, UTCTime, addUTCTime)
 
 
 -- | Priority is a monotonically increasing tick. Every insertion or lookup
@@ -21,6 +21,12 @@ type Priority = Integer
 
 
 newtype InMemoryCache = InMemoryCache (IORef Cache)
+
+
+data Entry = Entry
+  { val      :: Dynamic
+  , expiryAt :: Maybe UTCTime
+  }
 
 
 new ::  Int -> IO InMemoryCache
@@ -33,7 +39,7 @@ data Cache = Cache
   { capacity :: Int
   , size     :: Int
   , tick     :: Priority
-  , queue    :: HashPSQ CacheKey Priority Dynamic
+  , queue    :: HashPSQ CacheKey Priority Entry
   }
 
 
@@ -58,14 +64,24 @@ trim cache
   | otherwise = cache
 
 
-insert :: forall a . Typeable a => CacheKey -> a -> Cache -> Cache
-insert key value = insertDyn key (toDyn value)
+insert :: forall a . Typeable a
+       => UTCTime
+       -> CacheKey
+       -> Maybe NominalDiffTime
+       -> a
+       -> Cache -> Cache
+insert now key mLast value = insertDyn now key mLast (toDyn value)
 
 
-insertDyn :: CacheKey -> Dynamic -> Cache -> Cache
-insertDyn key val cache = trim cache'
+insertDyn :: UTCTime
+          -> CacheKey
+          -> Maybe NominalDiffTime
+          -> Dynamic
+          -> Cache -> Cache
+insertDyn now key mLast value cache = trim cache'
   where
-    (mEvicted, queue) = HashPSQ.insertView key cache.tick val cache.queue
+    entry = Entry value (fmap (`addUTCTime` now) mLast)
+    (mEvicted, queue) = HashPSQ.insertView key cache.tick entry cache.queue
     cache' = cache
       { size  = maybe (cache.size + 1) (const cache.size) mEvicted
       , tick  = cache.tick + 1
@@ -73,15 +89,24 @@ insertDyn key val cache = trim cache'
       }
 
 
-lookup :: forall a . (Typeable a) => CacheKey -> Cache -> Maybe (Maybe a, Cache)
-lookup key cache = fmap (bimap (fromDynamic @a) id) (lookupDyn key cache)
+lookup :: forall a . (Typeable a) => UTCTime -> CacheKey -> Cache -> Maybe (Maybe a, Cache)
+lookup now key cache =
+  case lookupDyn now key cache of
+    Just (Nothing, cache') -> Just (Nothing, cache')
+    Just (Just d, cache')  -> Just (fromDynamic @a d, cache')
+    Nothing                -> Nothing
 
 
-lookupDyn :: CacheKey -> Cache -> Maybe (Dynamic, Cache)
-lookupDyn key cache =
+lookupDyn :: UTCTime -> CacheKey -> Cache -> Maybe (Maybe Dynamic, Cache)
+lookupDyn now key cache =
   case HashPSQ.alter lookupAndBump key cache.queue of
     (Nothing, _) -> Nothing
-    (Just x, queue') -> Just (x, trim $ cache { tick = cache.tick + 1, queue = queue'})
+    (Just (Entry val expiryAt), queue')
+      | Just t <- expiryAt
+      , now > t -> do
+        Just (Just val, trim $ cache { tick = cache.tick + 1, queue = queue'})
+      | otherwise -> do
+        Just (Nothing, delete key cache)
   where
     lookupAndBump Nothing       = (Nothing, Nothing)
     lookupAndBump (Just (_, x)) = (Just x,  Just (cache.tick, x))
