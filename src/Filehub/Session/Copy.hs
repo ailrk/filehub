@@ -82,14 +82,14 @@ select sessionId = do
       | otherwise = h:merge sel rest
 
     onNoSelection = \case
-      NoCopyPaste     -> Right . Just $ CopySelected []
-      CopySelected {} -> Right Nothing
-      _               -> Left (FilehubError SelectError "Invalid selection")
+      NoCopyPaste    -> Right . Just $ CopySelected []
+      CopySelected _ -> Right Nothing
+      Paste _        -> Left (FilehubError SelectError "Invalid selection")
 
     onSelected (target, files) = \case
       NoCopyPaste             -> Right (CopySelected [(target, files)])
       CopySelected selections -> Right (CopySelected (merge (target, files) selections))
-      _                       -> Left (FilehubError SelectError "Invalid selection")
+      Paste _                 -> Left (FilehubError SelectError "Invalid selection")
 
 
 -- | Confirm selection

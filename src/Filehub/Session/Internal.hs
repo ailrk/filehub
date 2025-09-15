@@ -57,7 +57,7 @@ targetToSessionData :: Target -> TargetSessionData
 targetToSessionData (Target target) =
   fromMaybe defaultTargetSessionData . asum $
     [ cast target <&> \(x :: Backend FileSys) -> defaultTargetSessionData { currentDir = x.root }
-    , cast target <&> \(_ :: Backend S3) -> defaultTargetSessionData
+    , cast target <&> \(_ :: Backend S3)      -> defaultTargetSessionData
     ]
   where
     defaultTargetSessionData =

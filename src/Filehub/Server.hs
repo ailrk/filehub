@@ -490,9 +490,9 @@ editorModal :: SessionId -> ConfirmLogin -> Maybe ClientPath -> Filehub (Html ()
 editorModal sessionId _ mClientPath = do
   display <- Session.getDisplay sessionId & withServerError
   case display of
-    Mobile -> Server.Mobile.editorModal sessionId mClientPath
-    Desktop -> Server.Desktop.editorModal sessionId mClientPath
-    NoDisplay -> undefined
+    Mobile    -> Server.Mobile.editorModal sessionId mClientPath
+    Desktop   -> Server.Desktop.editorModal sessionId mClientPath
+    NoDisplay -> error "impossible"
 
 
 selectLayout :: SessionId -> ConfirmLogin -> Maybe Layout -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
@@ -513,7 +513,8 @@ sortTable sessionId _ order = do
         pure do
           toolBar' `with` [ term "hx-swap-oob" "true" ]
           view'
-      _ -> pure view'
+      Desktop   -> pure view'
+      NoDisplay -> pure view'
   pure $ addHeader TableSorted html
 
 
@@ -527,7 +528,7 @@ search sessionId _ searchWord = do
     case display of
       Mobile    -> pure $ runTemplate ctx (Template.search searchWord files Template.Mobile.table)
       Desktop   -> pure $ runTemplate ctx (Template.search searchWord files Template.Desktop.table)
-      NoDisplay -> undefined
+      NoDisplay -> error "impossible"
 
 
 selectRows :: SessionId -> ConfirmLogin -> Selected -> Filehub (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))

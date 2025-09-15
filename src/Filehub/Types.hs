@@ -313,4 +313,3 @@ instance Accept Manifest where
 
 instance MimeRender Manifest Value where
   mimeRender _ = Aeson.encode
-

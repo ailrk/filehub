@@ -573,7 +573,7 @@ table :: [File] ->  Template (Html ())
 table files = do
   layout <- asks @TemplateContext (.layout)
   case layout of
-    ListLayout -> listLayout files
+    ListLayout      -> listLayout files
     ThumbnailLayout -> thumbnailLayout files
 
 
@@ -606,7 +606,9 @@ listLayout files = do
                 , class_ "table-item "
                 , draggable_ "true"
                 ]
-              , case file.content of Dir _ -> [ class_ "dir "]; _ -> mempty
+              , case file.content of
+                  Dir _   -> [ class_ "dir "]
+                  Content -> mempty
               ]
   let sortIconName =
         case order of
@@ -680,8 +682,8 @@ thumbnailLayout files = do
                   , draggable_ "true"
                   ]
                 , case file.content of
-                    Dir _ -> [ class_ "dir "]
-                    _     -> mempty
+                    Dir _   -> [ class_ "dir "]
+                    Content -> mempty
                 ]
           clientPath@(ClientPath path) = ClientPath.toClientPath root file.path
 

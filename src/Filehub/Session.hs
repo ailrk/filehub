@@ -175,7 +175,10 @@ getDisplay sessionId = do
     Just resolution ->
       case session ^. #deviceType of
         UserAgent.Desktop -> pure Desktop
-        _                 -> pure $ Display.classify resolution
+        UserAgent.Mobile  -> pure $ Display.classify resolution
+        UserAgent.Tablet  -> pure $ Display.classify resolution
+        UserAgent.Bot     -> pure $ Display.classify resolution
+        UserAgent.Unknown -> pure $ Display.classify resolution
     Nothing -> pure NoDisplay
 
 

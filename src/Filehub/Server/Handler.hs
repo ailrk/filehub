@@ -114,7 +114,7 @@ displayOnlyHandler witness predicate msg env =
     display <- liftIO $ runFilehub env (Session.getDisplay sessionId & withServerError)
     case display of
       Right d | predicate d -> pure witness
-      _ -> throwError err400 { errBody = msg }
+      _                     -> throwError err400 { errBody = msg }
 
 
 data ConfirmLogin = ConfirmLogin
