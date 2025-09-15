@@ -1,4 +1,6 @@
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
 -- |
 -- Maintainer  :  jimmy@ailrk.com
 -- Copyright   :  (c) 2025-present Jinyang yao
@@ -51,13 +53,37 @@ import System.IO.Temp qualified as Temp
 import Data.ByteString.Builder qualified as Builder
 import Effectful.Extended.Cache qualified as Cache
 import Filehub.Target.Types.TargetId qualified as TargetId
+import Data.ByteString.Builder (Builder)
+import GHC.TypeLits (Symbol)
+import Data.Kind (Type)
+import Cache.Key (CacheKey)
+import Data.Time (secondsToNominalDiffTime)
 
 
-get :: Storage.Context es => SessionId -> FilePath -> Eff es File
+class CacheKeyComponent (s :: Symbol) a              where toCacheKeyComponent :: Builder
+instance CacheKeyComponent "file"         File       where toCacheKeyComponent = "f:"
+instance CacheKeyComponent "dir"          [File]     where toCacheKeyComponent = "d:"
+instance CacheKeyComponent "file-content" ByteString where toCacheKeyComponent = "fcc:"
+instance CacheKeyComponent "is-directory" Bool       where toCacheKeyComponent = "id:"
+
+
+
+cacheKeyPrefix :: Builder
+cacheKeyPrefix = "st:s3:"
+
+
+createCacheKey :: forall (s :: Symbol) (a :: Type) . CacheKeyComponent s a => TargetId -> Builder -> CacheKey
+createCacheKey targetId identifier = Cache.mkCacheKey
+  [cacheKeyPrefix, TargetId.targetIdBuilder targetId, ":", toCacheKeyComponent @s @a, identifier]
+
+
+get :: forall es cacheType cacheName
+    . (Storage.Context es, cacheType ~ File, cacheName ~ "file")
+    => SessionId -> FilePath -> Eff es File
 get sessionId path = do
   (targetId, s3) <- getS3 sessionId
-  let cacheKey = Cache.mkCacheKey ["st:s3:get:", TargetId.targetIdBuilder targetId, ":", Builder.string8 path]
-  mCached <- Cache.lookup @File cacheKey
+  let cacheKey   =  createCacheKey @cacheName @cacheType targetId (Builder.string8 path)
+  mCached        <- Cache.lookup @File cacheKey
   case mCached of
     Just cached -> pure cached
     Nothing -> do
@@ -76,17 +102,21 @@ get sessionId path = do
             , mimetype = maybe "application/octet-stream" Text.encodeUtf8 contentType
             , content = Content
             }
-      Cache.insert cacheKey Nothing file
+      Cache.insert cacheKey cacheTTL file
       pure file
+  where
+    cacheTTL = Just (secondsToNominalDiffTime 10)
 
 
 -- | Because S3 doesn't have real directory, we need to list all keys in the
 -- bucket and check if the file path is prefix of any key.
-isDirectory :: Storage.Context es => SessionId -> FilePath -> Eff es Bool
+isDirectory :: forall es cacheType cacheName
+            . (Storage.Context es, cacheType ~ Bool, cacheName ~ "is-directory")
+            => SessionId -> FilePath -> Eff es Bool
 isDirectory sessionId filePath = do
   (targetId, s3) <- getS3 sessionId
-  let cacheKey = Cache.mkCacheKey ["st:s3:isDirectory:", TargetId.targetIdBuilder targetId, ":", Builder.string8 filePath]
-  mCached <- Cache.lookup @Bool cacheKey
+  let cacheKey = createCacheKey @cacheName @cacheType targetId (Builder.string8 filePath)
+  mCached <- Cache.lookup @cacheType cacheKey
   case mCached of
     Just cached -> pure cached
     Nothing -> do
@@ -96,23 +126,29 @@ isDirectory sessionId filePath = do
                   & Amazonka.listObjectsV2_maxKeys ?~ 1
       resp <- runResourceT $ send s3.env request
       let result = maybe False (> 0) (resp ^. Amazonka.listObjectsV2Response_keyCount)
-      Cache.insert cacheKey Nothing result
+      Cache.insert cacheKey cacheTTL result
       pure result
+  where
+    cacheTTL = Just (secondsToNominalDiffTime 10)
 
 
-read :: Storage.Context es => SessionId -> File -> Eff es ByteString
+read :: forall es cacheType cacheName
+     . (Storage.Context es, cacheType ~ ByteString, cacheName ~ "file-content")
+     => SessionId -> File -> Eff es ByteString
 read sessionId file = do
-  mCached <- Cache.lookup @ByteString cacheKey
+  (targetId, _) <- getS3 sessionId
+  let cacheKey = createCacheKey @cacheName @cacheType targetId (Builder.string8 file.path)
+  mCached <- Cache.lookup @cacheType cacheKey
   case mCached of
     Just cached -> pure cached
     Nothing -> do
       stream <- readStream sessionId file
       chunks <- liftIO $ runResourceT . Conduit.runConduit $ stream Conduit..| Conduit.sinkList
       let result = LBS.toStrict (LBS.fromChunks chunks)
-      Cache.insert cacheKey Nothing result
+      Cache.insert cacheKey cacheTTL result
       pure result
   where
-    cacheKey = Cache.mkCacheKey ["st:s3:read:", Builder.string8 file.path]
+    cacheTTL = Just (secondsToNominalDiffTime 10)
 
 
 readStream :: Storage.Context es => SessionId -> File -> Eff es (ConduitT () ByteString (ResourceT IO) ())
@@ -129,11 +165,15 @@ readStream sessionId file = do
 
 newFolder :: Storage.Context es => SessionId -> FilePath -> Eff es ()
 newFolder sessionId filePath = do
-  (_, s3) <- getS3 sessionId
+  (targetId, s3) <- getS3 sessionId
   let bucket  = Amazonka.BucketName s3.bucket
   let key     = Amazonka.ObjectKey (Text.pack (normalizeDirPath filePath))
   let request = Amazonka.newPutObject bucket key (toBody LBS.empty)
   void . runResourceT $ send s3.env request
+  Cache.delete (createCacheKey @"file"         @File       targetId (Builder.string8 filePath))
+  Cache.delete (createCacheKey @"file-content" @ByteString targetId (Builder.string8 filePath))
+  Cache.delete (createCacheKey @"is-directory" @Bool       targetId (Builder.string8 filePath))
+  Cache.delete (createCacheKey @"dir"          @[File]     targetId (Builder.string8 filePath))
 
 
 new :: Storage.Context es => SessionId -> FilePath -> Eff es ()
@@ -142,34 +182,45 @@ new sessionId filePath = write sessionId filePath mempty
 
 write :: Storage.Context es => SessionId -> FilePath -> ByteString -> Eff es ()
 write sessionId filePath bytes = do
-  (_, s3) <- getS3 sessionId
+  (targetId, s3) <- getS3 sessionId
   let bucket  = Amazonka.BucketName s3.bucket
   let key     = Amazonka.ObjectKey (Text.pack filePath)
   let request = Amazonka.newPutObject bucket key (toBody bytes)
   void . runResourceT $ send s3.env request
+  Cache.delete (createCacheKey @"file"         @File       targetId (Builder.string8 filePath))
+  Cache.delete (createCacheKey @"file-content" @ByteString targetId (Builder.string8 filePath))
+  Cache.delete (createCacheKey @"is-directory" @Bool       targetId (Builder.string8 filePath))
+  Cache.delete (createCacheKey @"dir"          @[File]     targetId (Builder.string8 filePath))
 
 
 cp :: Storage.Context es => SessionId -> FilePath -> FilePath -> Eff es ()
-cp sessionId src dest = do
-  (_, s3) <- getS3 sessionId
+cp sessionId src dst = do
+  (targetId, s3) <- getS3 sessionId
   let bucket  = Amazonka.BucketName s3.bucket
-  let destKey = Amazonka.ObjectKey (Text.pack dest)
+  let destKey = Amazonka.ObjectKey (Text.pack dst)
   let request = Amazonka.newCopyObject bucket (Text.pack src) destKey
   void . runResourceT $ send s3.env request
+  Cache.delete (createCacheKey @"dir" @[File] targetId (Builder.string8 dst))
 
 
 delete :: Storage.Context es => SessionId -> FilePath -> Eff es ()
 delete sessionId filePath = do
-  (_, s3) <- getS3 sessionId
+  (targetId, s3) <- getS3 sessionId
   let bucket = Amazonka.BucketName s3.bucket
   let key    = Amazonka.ObjectKey (Text.pack filePath)
   void . runResourceT $ send s3.env (Amazonka.newDeleteObject bucket key)
+  Cache.delete (createCacheKey @"file"         @File       targetId (Builder.string8 filePath))
+  Cache.delete (createCacheKey @"file-content" @ByteString targetId (Builder.string8 filePath))
+  Cache.delete (createCacheKey @"is-directory" @Bool       targetId (Builder.string8 filePath))
+  Cache.delete (createCacheKey @"dir"          @[File]     targetId (Builder.string8 filePath))
 
 
-ls :: Storage.Context es => SessionId -> FilePath -> Eff es [File]
+ls :: forall es cacheType cacheName
+    . (Storage.Context es, cacheType ~ [File], cacheName ~ "dir")
+    => SessionId -> FilePath -> Eff es [File]
 ls sessionId _ = do
     (targetId, s3) <- getS3 sessionId
-    let cacheKey = Cache.mkCacheKey ["st:s3:ls:", TargetId.targetIdBuilder targetId ]
+    let cacheKey = createCacheKey @cacheName @cacheType targetId ""
     mCached <- Cache.lookup @[File] cacheKey
     case mCached of
       Just cached -> do

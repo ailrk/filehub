@@ -1,5 +1,7 @@
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 -- |
 -- Maintainer  :  jimmy@ailrk.com
 -- Copyright   :  (c) 2025-present Jinyang yao
@@ -47,11 +49,33 @@ import System.IO.Error (isDoesNotExistError)
 import Data.ByteString.Builder qualified as Builder
 import Effectful.Extended.Cache qualified as Cache
 import Effectful.Extended.LockManager qualified as LockManager
+import Data.Time (secondsToNominalDiffTime)
+import Data.ByteString.Builder (Builder)
+import Cache.Key (CacheKey)
+import GHC.TypeLits (Symbol)
+import Data.Kind (Type)
 
 
-get :: Storage.Context es => SessionId -> FilePath -> Eff es File
+class CacheKeyComponent (s :: Symbol) a              where toCacheKeyComponent :: Builder
+instance CacheKeyComponent "file"         File       where toCacheKeyComponent = "f:"
+instance CacheKeyComponent "dir"          [File]     where toCacheKeyComponent = "d:"
+instance CacheKeyComponent "file-content" ByteString where toCacheKeyComponent = "fcc:"
+instance CacheKeyComponent "is-directory" Bool       where toCacheKeyComponent = "id:"
+
+
+cacheKeyPrefix :: Builder
+cacheKeyPrefix = "st:fs:"
+
+
+createCacheKey :: forall (s :: Symbol) (a :: Type) . CacheKeyComponent s a => Builder -> CacheKey
+createCacheKey identifier = Cache.mkCacheKey [cacheKeyPrefix, toCacheKeyComponent @s @a, identifier]
+
+
+get :: forall es cacheType cacheName
+    . (Storage.Context es, cacheType ~ File, cacheName ~ "file")
+      => SessionId -> FilePath -> Eff es File
 get sessionId  path = do
-  mCached <- Cache.lookup @File cacheKey
+  mCached <- Cache.lookup @cacheType cacheKey
   case mCached of
     Just cached -> do
       pure cached
@@ -82,32 +106,45 @@ get sessionId  path = do
                 , mimetype = "application/octet-stream"
                 , content  = Content
                 }
-      Cache.insert cacheKey Nothing file
+      Cache.insert cacheKey cacheTTL file
       pure file
   where
-    cacheKey = Cache.mkCacheKey ["st:fs:get:", Builder.string8 path]
+    cacheKey = createCacheKey @cacheName @cacheType (Builder.string8 path)
+    cacheTTL = Just (secondsToNominalDiffTime 10)
 
 
-isDirectory :: Storage.Context es => SessionId -> FilePath -> Eff es Bool
+isDirectory :: forall es cacheType cacheName
+            . (Storage.Context es, cacheType ~ Bool, cacheName ~ "is-directory")
+            => SessionId -> FilePath -> Eff es Bool
 isDirectory _ filePath = do
-  pathExists <- doesPathExist filePath
-  dirExists  <- doesDirectoryExist filePath
-  if not pathExists
-     then pure False
-     else pure dirExists
+  mCached <- Cache.lookup @cacheType cacheKey
+  case mCached of
+    Just cached -> pure cached
+    Nothing -> do
+      pathExists <- doesPathExist filePath
+      dirExists  <- doesDirectoryExist filePath
+      result <- if not pathExists then pure False else pure dirExists
+      Cache.insert cacheKey cacheTTL result
+      pure result
+  where
+    cacheKey = createCacheKey @cacheName @cacheType (Builder.string8 filePath)
+    cacheTTL = Just (secondsToNominalDiffTime 10)
 
 
-read :: Storage.Context es => SessionId -> File -> Eff es ByteString
+read :: forall es cacheType cacheName
+     . (Storage.Context es, cacheType ~ ByteString, cacheName ~ "file-content")
+     => SessionId -> File -> Eff es ByteString
 read _ file = do
-  mCached <- Cache.lookup @ByteString cacheKey
+  mCached <- Cache.lookup @cacheType cacheKey
   case mCached of
     Just cached -> pure cached
     Nothing -> do
       bytes <- liftIO $ readFile file.path
-      Cache.insert cacheKey Nothing bytes
+      Cache.insert cacheKey cacheTTL bytes
       pure bytes
   where
-    cacheKey = Cache.mkCacheKey ["st:fs:read:", Builder.string8 file.path]
+    cacheKey = createCacheKey @cacheName @cacheType (Builder.string8 file.path)
+    cacheTTL = Just (secondsToNominalDiffTime 10)
 
 
 readStream :: SessionId -> File -> Eff es (ConduitT () ByteString (ResourceT IO) ())
@@ -122,6 +159,10 @@ newFolder sessionId name = do
     logAttention "[newFolder] path doesn't exists:" filePath
     throwError (FilehubError FileExists "Folder already exists")
   createDirectoryIfMissing True filePath
+  Cache.delete (createCacheKey @"file"         @File       (Builder.string8 name))
+  Cache.delete (createCacheKey @"file-content" @ByteString (Builder.string8 name))
+  Cache.delete (createCacheKey @"is-directory" @Bool       (Builder.string8 name))
+  Cache.delete (createCacheKey @"dir"          @[File]     (Builder.string8 name))
 
 
 new :: Storage.Context es => SessionId -> String -> Eff es ()
@@ -132,6 +173,10 @@ new sessionId name = do
     logAttention "[new] path doesn't exists:" filePath
     throwError (FilehubError FileExists "File already exists")
   withFile filePath ReadWriteMode (\_ -> pure ())
+  Cache.delete (createCacheKey @"file"         @File       (Builder.string8 name))
+  Cache.delete (createCacheKey @"file-content" @ByteString (Builder.string8 name))
+  Cache.delete (createCacheKey @"is-directory" @Bool       (Builder.string8 name))
+  Cache.delete (createCacheKey @"dir"          @[File]     (Builder.string8 name))
 
 
 write :: Storage.Context es => SessionId -> FilePath -> ByteString -> Eff es ()
@@ -139,6 +184,10 @@ write sessionId name content = do
   LockManager.withLock (LockManager.mkLockKey name) do
     filePath <- toFilePath sessionId name
     withFile filePath WriteMode (\h -> hPut h content)
+  Cache.delete (createCacheKey @"file"         @File       (Builder.string8 name))
+  Cache.delete (createCacheKey @"file-content" @ByteString (Builder.string8 name))
+  Cache.delete (createCacheKey @"is-directory" @Bool       (Builder.string8 name))
+  Cache.delete (createCacheKey @"dir"          @[File]     (Builder.string8 name))
 
 
 cp :: Storage.Context es => SessionId -> FilePath -> FilePath -> Eff es ()
@@ -147,6 +196,7 @@ cp sessionId src dst = do
     isDir <- isDirectory sessionId src
     if isDir then copyDirectoryRecursive src dst
     else join $ copyFile <$> toFilePath sessionId src <*> toFilePath sessionId dst
+  Cache.delete (createCacheKey @"dir" @[File] (Builder.string8 dst))
 
 
 -- | Copy all files and subdirectories from src to dst.
@@ -162,6 +212,7 @@ copyDirectoryRecursive src dst = do
         if isDir
            then copyDirectoryRecursive srcPath dstPath
            else copyFile srcPath dstPath
+  Cache.delete (createCacheKey @"dir" @[File] (Builder.string8 dst))
 
 
 delete :: Storage.Context es => SessionId -> String -> Eff es ()
@@ -173,6 +224,10 @@ delete sessionId name = do
      | fileExists -> withRetry (removeFile filePath)
      | dirExists  -> withRetry (removeDirectoryRecursive filePath)
      | otherwise  -> pure ()
+  Cache.delete (createCacheKey @"file"         @File       (Builder.string8 name))
+  Cache.delete (createCacheKey @"file-content" @ByteString (Builder.string8 name))
+  Cache.delete (createCacheKey @"is-directory" @Bool       (Builder.string8 name))
+  Cache.delete (createCacheKey @"dir"          @[File]     (Builder.string8 name))
   where
     withRetry action = recovering policy handlers \_ -> do
       result <- tryIO action
@@ -189,9 +244,11 @@ delete sessionId name = do
           ]
 
 
-ls :: Storage.Context es => SessionId -> FilePath -> Eff es [File]
+ls :: forall es cacheType cacheName
+    . (Storage.Context es, cacheType ~ [File], cacheName ~ "dir")
+    => SessionId -> FilePath -> Eff es [File]
 ls sessionId path = do
-  mCached <- Cache.lookup @[File] cacheKey
+  mCached <- Cache.lookup @cacheType cacheKey
   case mCached of
     Just cached -> pure cached
     Nothing -> do
@@ -203,10 +260,11 @@ ls sessionId path = do
         listDirectory path
           >>= traverse makeAbsolute
           >>= traverse (get sessionId)
-      Cache.insert cacheKey Nothing files
+      Cache.insert cacheKey cacheTTL files
       pure files
   where
-    cacheKey = Cache.mkCacheKey ["st:fs:ls:", Builder.string8 path]
+    cacheKey = createCacheKey @cacheName @cacheType (Builder.string8 path)
+    cacheTTL = Just (secondsToNominalDiffTime 10)
 
 
 cd :: Storage.Context es => SessionId -> FilePath -> Eff es ()
