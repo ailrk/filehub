@@ -1,6 +1,7 @@
 module Filehub.Effectful.Cache
   ( Cache(..)
   , runCacheInMemory
+  , runCacheDummy
   , lookup
   , insert
   , delete
@@ -12,6 +13,7 @@ module Filehub.Effectful.Cache
 import Effectful
 import Filehub.Cache.Key (CacheKey, mkCacheKey)
 import Filehub.Cache.InMemory qualified as InMemory
+import Filehub.Cache.Dummy qualified as Dummy
 import Effectful.Dispatch.Dynamic (interpret, send)
 import Data.Dynamic (Typeable)
 import UnliftIO (atomicModifyIORef', readIORef)
@@ -45,6 +47,14 @@ runCacheInMemory (InMemory.InMemoryCache cacheRef) = interpret \_ -> \case
       void $ atomicModifyIORef' cacheRef (\cache -> (InMemory.delete key cache, ()))
   Flush ->
       void $ atomicModifyIORef' cacheRef (\cache -> (InMemory.empty cache.capacity, ()))
+
+
+runCacheDummy :: (IOE :> es) =>  Eff (Cache : es) a -> Eff es a
+runCacheDummy = interpret \_ -> \case
+  Lookup key       -> liftIO $ Dummy.lookup key
+  Insert key value -> liftIO $ Dummy.insert key value
+  Delete key       -> liftIO $ Dummy.delete key
+  Flush            -> liftIO Dummy.flush
 
 
 lookup :: forall a es . (Cache :> es, Typeable a) => CacheKey -> Eff es (Maybe a)

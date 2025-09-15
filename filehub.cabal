@@ -141,27 +141,29 @@ library
     , zip
 
   exposed-modules:
-    Filehub.ActiveUser.Types
     Filehub.ActiveUser.Pool
+    Filehub.ActiveUser.Types
+    Filehub.Auth.OIDC
+    Filehub.Auth.Simple
     Filehub.Auth.Types
     Filehub.Auth.Types.AuthId
-    Filehub.Auth.Simple
-    Filehub.Auth.OIDC
-    Filehub.ClientPath
+    Filehub.Cache.Dummy
     Filehub.Cache.InMemory
     Filehub.Cache.Key
-    Filehub.Cookie
+    Filehub.ClientPath
     Filehub.Config
-    Filehub.Config.Toml
     Filehub.Config.Options
-    Filehub.Effectful.LockManager
-    Filehub.Effectful.Cache
+    Filehub.Config.Toml
+    Filehub.Cookie
     Filehub.Display
+    Filehub.Effectful.Cache
+    Filehub.Effectful.LockManager
     Filehub.Env
-    Filehub.ExpandEnv
     Filehub.Error
+    Filehub.ExpandEnv
     Filehub.Links
     Filehub.Locale
+    Filehub.LockRegistry.Dummy
     Filehub.LockRegistry.Key
     Filehub.LockRegistry.Local
     Filehub.Log
@@ -172,14 +174,14 @@ library
     Filehub.Selected
     Filehub.Server
     Filehub.Server.Handler
-    Filehub.Server.Platform.Desktop
-    Filehub.Server.Platform.Mobile
     Filehub.Server.Internal
     Filehub.Server.Middleware
+    Filehub.Server.Platform.Desktop
+    Filehub.Server.Platform.Mobile
     Filehub.Session
+    Filehub.Session.Copy
     Filehub.Session.Internal
     Filehub.Session.Pool
-    Filehub.Session.Copy
     Filehub.Session.Selected
     Filehub.Session.Types
     Filehub.Session.Types.SessionId
@@ -192,17 +194,17 @@ library
     Filehub.Storage.Types
     Filehub.Target
     Filehub.Target.Class
+    Filehub.Target.File
+    Filehub.Target.S3
     Filehub.Target.Types
     Filehub.Target.Types.TargetId
     Filehub.Target.Types.TargetView
-    Filehub.Target.File
-    Filehub.Target.S3
     Filehub.Template
+    Filehub.Template.Internal
+    Filehub.Template.Login
     Filehub.Template.Platform.Desktop
     Filehub.Template.Platform.Mobile
     Filehub.Template.Shared
-    Filehub.Template.Internal
-    Filehub.Template.Login
     Filehub.Theme
     Filehub.Types
     Filehub.UserAgent
