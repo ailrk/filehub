@@ -212,6 +212,13 @@ library
     System.FilePath.Extended
     Storage.Error
     Storage.File
+    Target.Class
+    Target.File
+    Target.S3
+    Target.Internal
+    Target.Types
+    Target.Types.TargetId
+    Target.Types.TargetView
     Paths_filehub
   default-language: Haskell2010
 
