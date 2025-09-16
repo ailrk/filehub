@@ -77,9 +77,6 @@ import Filehub.Session.Selected qualified as Selected
 import Filehub.Sort qualified as Sort
 import Filehub.Storage (getStorage, Storage(..))
 import Filehub.Target qualified as Target
-import Filehub.Target.File qualified as FS
-import Filehub.Target.S3 qualified as S3
-import Filehub.Target.Types.TargetView (TargetView(..))
 import Filehub.Template qualified as Template
 import Filehub.Template.Internal (runTemplate, TemplateContext(..))
 import Filehub.Template.Login qualified as Template.Login
@@ -88,8 +85,7 @@ import Filehub.Template.Platform.Mobile qualified as Template.Mobile
 import Filehub.Template.Shared qualified as Template
 import Filehub.Theme qualified as Theme
 import Filehub.Types (Display (..), Layout (..), Resource (..))
-import Filehub.Types (FilehubEvent (..), LoginForm(..), MoveFile (..), UIComponent (..), TargetId, SearchWord, OpenTarget, Resolution)
-import Filehub.Types (Target(..))
+import Filehub.Types (FilehubEvent (..), LoginForm(..), MoveFile (..), UIComponent (..), SearchWord, OpenTarget, Resolution)
 import Filehub.Types (UpdatedFile(..), NewFile(..), NewFolder(..), SortFileBy(..), UpdatedFile(..), Theme(..), Selected (..))
 import Lens.Micro
 import Lens.Micro.Platform ()
@@ -118,6 +114,10 @@ import System.Environment (withArgs)
 import System.FilePath (takeFileName, (</>), takeDirectory, makeRelative)
 import System.IO.Temp qualified as Temp
 import System.Random (randomRIO)
+import Target.File qualified as FS
+import Target.S3 qualified as S3
+import Target.Types (TargetId, Target (..))
+import Target.Types.TargetView (TargetView(..))
 import Text.Printf (printf)
 import UnliftIO (catch)
 import UnliftIO (hFlush, stdout)

@@ -4,16 +4,18 @@
 module Target.Types
   ( Target(..)
   , TargetHandler(..)
+  , TargetId(..)
   , targetHandler
   , runTargetHandler
   )
   where
 
-import Target.Class (IsTarget(..))
+import Data.Generics.Labels ()
 import Data.Typeable (Typeable, cast)
 import Lens.Micro.Platform ()
-import Data.Generics.Labels ()
 import Prelude hiding (readFile, writeFile)
+import Target.Class (IsTarget(..))
+import Target.Types.TargetId (TargetId(..))
 
 
 -- | Existential wrapper of `Backend a`.

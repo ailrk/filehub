@@ -38,18 +38,18 @@ import Filehub.Selected qualified as Selected
 import Filehub.Size (toReadableSize)
 import Filehub.Target (TargetView(..), handleTarget)
 import Filehub.Target qualified as Target
-import Filehub.Target.File (FileSys, Backend (..))
-import Filehub.Target.S3 (S3, Backend (..))
-import Filehub.Target.Types (targetHandler)
 import Filehub.Template.Internal
 import Filehub.Template.Shared (bold, toClientPath, viewId, tableId, sideBarId, searchBar)
 import Filehub.Template.Shared qualified as Template
 import Filehub.Theme (Theme (..))
-import Filehub.Types (Layout(..), SortFileBy(..), Target(..))
+import Filehub.Types (Layout(..), SortFileBy(..))
 import Lens.Micro.Platform ()
 import Lucid
 import Network.Mime.Extended (isMime)
 import System.FilePath (takeFileName)
+import Target.File (FileSys, Backend (..))
+import Target.S3 (S3, Backend (..))
+import Target.Types (targetHandler, Target)
 
 
 ------------------------------------

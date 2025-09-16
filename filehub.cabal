@@ -191,12 +191,6 @@ library
     Filehub.Storage.S3
     Filehub.Storage.Types
     Filehub.Target
-    Filehub.Target.Class
-    Filehub.Target.File
-    Filehub.Target.S3
-    Filehub.Target.Types
-    Filehub.Target.Types.TargetId
-    Filehub.Target.Types.TargetView
     Filehub.Template
     Filehub.Template.Internal
     Filehub.Template.Login

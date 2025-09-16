@@ -13,13 +13,14 @@ module Filehub.Selected
   , AsSet(..)
   ) where
 
+import Control.Monad (join)
+import Data.List (union)
+import Filehub.Types (ClientPath, Session(..), Selected(..))
 import Lens.Micro hiding (to)
 import Lens.Micro.Platform ()
-import Data.List (union)
-import Filehub.Types (ClientPath, Session(..), Selected(..), Target)
 import Prelude hiding (elem)
 import Prelude qualified
-import Control.Monad (join)
+import Target.Types (Target)
 
 
 anySelected :: Session -> Bool

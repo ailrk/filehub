@@ -47,11 +47,10 @@ import Filehub.Error (FilehubError (..), Error' (..))
 import Filehub.Session qualified as Session
 import Filehub.Storage.Context qualified as Storage
 import Filehub.Target (TargetView(..), handleTarget, getTargetId)
-import Filehub.Target.S3 (Backend(..), S3)
-import Filehub.Target.Types (Storage(..))
-import Filehub.Target.Types (targetHandler)
-import Filehub.Target.Types.TargetId qualified as TargetId
-import Filehub.Types (SessionId, TargetId)
+import Target.S3 (Backend(..), S3)
+import Target.Types (targetHandler, TargetId)
+import Target.Types.TargetId qualified as TargetId
+import Filehub.Types (SessionId)
 import GHC.TypeLits (Symbol)
 import Lens.Micro
 import Lens.Micro.Platform ()
@@ -59,6 +58,7 @@ import Network.Mime (defaultMimeLookup)
 import Prelude hiding (read, readFile, writeFile)
 import Servant.Multipart (MultipartData(..), Mem, FileData (..))
 import System.IO.Temp qualified as Temp
+import Filehub.Storage.Types (Storage(..))
 
 
 class CacheKeyComponent (s :: Symbol) a              where toCacheKeyComponent :: Builder

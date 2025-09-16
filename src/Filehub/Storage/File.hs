@@ -43,7 +43,7 @@ import Effectful.Log
 import Filehub.Error (FilehubError(..), Error' (..))
 import Filehub.Session qualified as Session
 import Filehub.Storage.Context qualified as Storage
-import Filehub.Target.Types (Storage(..))
+import Filehub.Storage.Types (Storage (..))
 import Filehub.Types ( SessionId )
 import GHC.TypeLits (Symbol)
 import Lens.Micro.Platform ()

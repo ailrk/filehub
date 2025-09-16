@@ -20,8 +20,6 @@ module Filehub.Types
   , Env(..)
   , Resolution(..)
   , Display(..)
-  , TargetId(..)
-  , Target(..)
   , ClientPath(..)
   , RawClientPath(..)
   , SortFileBy(..)
@@ -39,30 +37,26 @@ module Filehub.Types
   )
   where
 
-import Data.Text (Text)
-import Data.Text.Lazy.Encoding qualified as LText
 import Data.Aeson (ToJSON (..), (.=), Value)
 import Data.Aeson qualified as Aeson
 import Data.ClientPath (ClientPath(..), RawClientPath(..))
+import Data.File (File)
+import Data.Text (Text)
+import Data.Text.Lazy.Encoding qualified as LText
+import Filehub.Display (Display(..), Resolution(..))
+import Filehub.Env (Env(..))
+import Filehub.Session.Types (SessionId(..), Session(..), TargetSessionData(..))
+import Filehub.Sort (SortFileBy(..))
+import Filehub.Theme (Theme(..))
 import GHC.Generics (Generic)
+import GHC.IsList (fromList)
 import Lens.Micro
 import Lens.Micro.Platform ()
-import Servant
-    ( ToHttpApiData(..),
-      FromHttpApiData(..),
-      Accept (..),
-      MimeRender )
-import Web.FormUrlEncoded (FromForm (..), parseUnique, ToForm (..), parseAll)
+import Servant ( ToHttpApiData(..), FromHttpApiData(..), Accept (..), MimeRender )
 import Servant.API (MimeRender(..))
-import Filehub.Target.Types (Target (..))
-import Filehub.Target.Types.TargetId (TargetId(..))
-import Filehub.Theme (Theme(..))
-import Filehub.Display (Display(..), Resolution(..))
-import Filehub.Sort (SortFileBy(..))
-import Filehub.Session.Types (SessionId(..), Session(..), TargetSessionData(..))
-import Filehub.Env (Env(..))
-import GHC.IsList (fromList)
-import Data.File (File)
+import Target.Types (Target (..))
+import Target.Types.TargetId (TargetId(..))
+import Web.FormUrlEncoded (FromForm (..), parseUnique, ToForm (..), parseAll)
 
 
 -- | Simple Auth login form

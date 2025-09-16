@@ -10,17 +10,18 @@ module Filehub.Links
   )
   where
 
-import Filehub.Routes (Api(..))
-import Filehub.Types (ClientPath (..), SortFileBy (..), TargetId (..), OpenTarget (..), Layout(..))
-import Servant.Links ( AsLink, allFieldLinks, linkURI )
-import Servant (Link)
-import Network.URI qualified as URI
-import Data.UUID qualified as UUID
 import Data.Function ((&))
 import Data.Maybe (fromJust)
 import Data.Text (Text)
 import Data.Text qualified as Text
+import Data.UUID qualified as UUID
 import Filehub.Locale (Locale(..))
+import Filehub.Routes (Api(..))
+import Filehub.Types (ClientPath (..), SortFileBy (..), OpenTarget (..), Layout(..))
+import Network.URI qualified as URI
+import Servant (Link)
+import Servant.Links ( AsLink, allFieldLinks, linkURI )
+import Target.Types (TargetId(..))
 
 
 apiLinks :: Api (AsLink Link)

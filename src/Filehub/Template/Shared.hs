@@ -20,9 +20,6 @@ import Filehub.Locale (Phrase(..), phrase)
 import Filehub.Routes (Api (..))
 import Filehub.Sort (sortFiles)
 import Filehub.Target (TargetView(..), handleTarget)
-import Filehub.Target.File (FileSys)
-import Filehub.Target.S3 (S3)
-import Filehub.Target.Types (targetHandler)
 import Filehub.Template.Internal
 import Filehub.Types ( Display(..), ControlPanelState (..), OpenTarget (..), SearchWord (..))
 import Lens.Micro
@@ -30,6 +27,9 @@ import Lens.Micro.Platform ()
 import Lucid
 import Network.Mime.Extended (isMime)
 import System.FilePath (splitPath)
+import Target.File (FileSys)
+import Target.S3 (S3)
+import Target.Types (targetHandler)
 import Text.Fuzzy (simpleFilter)
 
 

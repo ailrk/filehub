@@ -9,18 +9,19 @@ module Filehub.Session.Selected
   )
   where
 
-import Lens.Micro hiding (to)
-import Lens.Micro.Platform ()
 import Effectful (Eff, (:>), Eff, (:>), IOE)
-import Effectful.Log (Log)
 import Effectful.Error.Dynamic (Error)
+import Effectful.Log (Log)
 import Effectful.Reader.Dynamic (Reader, asks)
-import Filehub.Types (Env(..), SessionId, Session(..), Selected(..), Target)
 import Filehub.Error (FilehubError)
+import Filehub.Selected qualified as Selected
 import Filehub.Session qualified as Session
 import Filehub.Session.Pool qualified as Session.Pool
-import Filehub.Selected qualified as Selected
+import Filehub.Types (Env(..), SessionId, Session(..), Selected(..))
+import Lens.Micro hiding (to)
+import Lens.Micro.Platform ()
 import Prelude hiding (elem)
+import Target.Types (Target)
 
 
 getSelected :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es Selected

@@ -11,19 +11,19 @@ import Data.Generics.Labels ()
 import Effectful ( Eff, Eff )
 import Effectful.Error.Dynamic (throwError)
 import Effectful.Log (logAttention_)
-import Filehub.Target.File (FileSys)
-import Filehub.Target.S3 (S3)
-import Filehub.Target.Types (targetHandler)
+import Target.File (FileSys)
+import Target.S3 (S3)
+import Target.Types (targetHandler)
 import Filehub.Error (FilehubError(..), Error' (..))
 import Filehub.Session qualified as Session
 import Filehub.Target (TargetView(..), handleTarget)
 import Filehub.Storage.Context qualified as Storage
 import Filehub.Storage.File qualified as File
 import Filehub.Storage.S3 qualified as S3
-import Filehub.Target.Types (Storage(..))
 import Filehub.Types (SessionId)
 import Lens.Micro.Platform ()
 import Prelude hiding (read, readFile, writeFile)
+import Filehub.Storage.Types (Storage(..))
 
 
 getStorage :: Storage.Context es => SessionId -> Eff es (Storage (Eff es))

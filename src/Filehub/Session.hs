@@ -72,20 +72,21 @@ import Filehub.Auth.Types (AuthId)
 import Filehub.Display qualified as Display
 import Filehub.Error (FilehubError (..), Error' (..))
 import Filehub.Locale (Locale)
-import {-# SOURCE #-} Filehub.Storage (getStorage)
 import Filehub.Session.Pool qualified as Session.Pool
-import {-# SOURCE #-} Filehub.Session.Selected qualified as Selected
-import {-# SOURCE #-} Filehub.Session.Copy qualified as Copy
 import Filehub.Target (getTargetId)
-import Filehub.Target.File (Backend(..), FileSys)
-import Filehub.Target.S3 (S3)
-import Filehub.Target.Types.TargetView (TargetView(..))
 import Filehub.Types
 import Filehub.UserAgent qualified as UserAgent
 import Lens.Micro
 import Lens.Micro.Platform ()
 import Prelude hiding (elem)
 import Prelude hiding (readFile)
+import Target.File (Backend(..), FileSys)
+import Target.S3 (S3)
+import Target.Types (TargetId, Target (..))
+import Target.Types.TargetView (TargetView(..))
+import {-# SOURCE #-} Filehub.Session.Copy qualified as Copy
+import {-# SOURCE #-} Filehub.Session.Selected qualified as Selected
+import {-# SOURCE #-} Filehub.Storage (getStorage)
 
 
 

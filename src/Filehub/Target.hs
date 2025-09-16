@@ -5,11 +5,10 @@ module Filehub.Target
   , handleTarget
   ) where
 
-import Filehub.Types (Target(..), TargetId(..))
-import Filehub.Target.Class (IsTarget(..))
+import Target.Class (IsTarget(..))
 import Control.Applicative (asum)
-import Filehub.Target.Types.TargetView (TargetView(..))
-import Filehub.Target.Types (TargetHandler, runTargetHandler)
+import Target.Types.TargetView (TargetView(..))
+import Target.Types (TargetHandler, runTargetHandler, Target (..), TargetId)
 
 
 getTargetId :: Target -> TargetId

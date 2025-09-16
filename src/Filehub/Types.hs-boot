@@ -1,6 +1,6 @@
 module Filehub.Types where
 
-import {-# SOURCE #-} Filehub.Target.Types (Target)
+import Target.Types (Target)
 import Data.File (File)
 
 

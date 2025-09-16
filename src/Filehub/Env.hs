@@ -18,7 +18,7 @@ import Filehub.ActiveUser.Types qualified as ActiveUser
 import Filehub.Locale (Locale)
 import LockRegistry.Local qualified as  LockRegistry.Local
 import Filehub.Session.Types qualified as Session
-import Filehub.Target.Types (Target)
+import Target.Types (Target)
 import Filehub.Theme (Theme, CustomTheme)
 import Lens.Micro.Platform ()
 import Log (Logger, LogLevel)

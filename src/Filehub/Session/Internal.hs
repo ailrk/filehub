@@ -4,19 +4,20 @@ module Filehub.Session.Internal
   )
   where
 
-import Effectful.Reader.Dynamic (Reader, asks)
-import Effectful ((:>), Eff, IOE, MonadIO (liftIO))
-import Data.UUID.V4 qualified as UUID
+import Data.Functor ((<&>))
+import Data.Maybe (fromMaybe)
 import Data.Time (UTCTime, addUTCTime, NominalDiffTime)
 import Data.Time qualified as Time
-import Filehub.Types (Session(..), SessionId(..), Env(..), Target (..), TargetSessionData (..), CopyState (..), Selected (..), SortFileBy(..), Layout(..))
-import Filehub.UserAgent qualified as UserAgent
 import Data.Typeable (cast)
-import Filehub.Target.S3 (S3, Backend(..))
-import Filehub.Target.File (FileSys, Backend(..))
-import Data.Maybe (fromMaybe)
+import Data.UUID.V4 qualified as UUID
+import Effectful ((:>), Eff, IOE, MonadIO (liftIO))
+import Effectful.Reader.Dynamic (Reader, asks)
+import Filehub.Types (Session(..), SessionId(..), Env(..), TargetSessionData (..), CopyState (..), Selected (..), SortFileBy(..), Layout(..))
+import Filehub.UserAgent qualified as UserAgent
 import Options.Applicative (asum)
-import Data.Functor ((<&>))
+import Target.File (FileSys, Backend(..))
+import Target.S3 (S3)
+import Target.Types (Target (..))
 
 
 createSessionId :: (IOE :> es) => Eff es SessionId

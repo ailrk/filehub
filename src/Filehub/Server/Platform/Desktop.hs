@@ -6,8 +6,8 @@ import Control.Monad (forM)
 import Data.ClientPath qualified as ClientPath
 import Filehub.Env qualified as Env
 import Filehub.Env (Env)
-import Filehub.Target.Types (Target(..))
-import Filehub.Target.Types.TargetView (TargetView(..))
+import Target.Types (Target(..))
+import Target.Types.TargetView (TargetView(..))
 import Filehub.Error ( withServerError )
 import Filehub.Monad ( Filehub )
 import Filehub.Session.Types (TargetSessionData(..))
@@ -19,7 +19,7 @@ import Filehub.Template.Internal (runTemplate, TemplateContext(..))
 import Filehub.Server.Internal (withQueryParam, makeTemplateContext)
 import Filehub.Types ( SessionId(..), ClientPath, Selected(..))
 import Filehub.Storage (getStorage)
-import Filehub.Target.Class (IsTarget(..))
+import Target.Class (IsTarget(..))
 import Lens.Micro
 import Lens.Micro.Platform ()
 import Lucid

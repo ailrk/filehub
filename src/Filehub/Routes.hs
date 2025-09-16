@@ -65,7 +65,6 @@ import Filehub.Types
     , SearchWord(..)
     , SortFileBy(..)
     , UpdatedFile(..)
-    , TargetId
     , Selected(..)
     , FilehubEvent(..)
     , SessionId
@@ -83,6 +82,7 @@ import Conduit (ConduitT, ResourceT)
 import Amazonka.Data (Value)
 import Web.Cookie (SetCookie)
 import Filehub.Locale (Locale)
+import Target.Types (TargetId)
 
 
 type instance AuthServerData (AuthProtect "session")      = SessionId

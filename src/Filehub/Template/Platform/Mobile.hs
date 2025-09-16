@@ -19,19 +19,20 @@ import Filehub.Locale (Phrase(..), phrase, Locale (..))
 import Filehub.Routes (Api(..))
 import Filehub.Selected qualified as Selected
 import Filehub.Size (toReadableSize)
-import Filehub.Target (TargetView(..), handleTarget)
+import Filehub.Target (handleTarget)
 import Filehub.Target qualified as Target
-import Filehub.Target.File (Backend (..), FileSys)
-import Filehub.Target.S3 (Backend (..), S3)
-import Filehub.Target.Types (targetHandler)
 import Filehub.Template.Internal (Template, TemplateContext(..))
 import Filehub.Template.Shared (viewId, sideBarId, controlPanelId, toolBarId, tableId, searchBar)
 import Filehub.Template.Shared qualified as Template
 import Filehub.Theme (Theme(..))
-import Filehub.Types ( SortFileBy(..), Target(..), Selected )
+import Filehub.Types ( SortFileBy(..), Selected )
 import Lens.Micro.Platform ()
 import Lucid
 import System.FilePath (takeFileName)
+import Target.File (Backend (..), FileSys)
+import Target.S3 (Backend (..), S3)
+import Target.Types (targetHandler, Target)
+import Target.Types.TargetView (TargetView(..))
 
 
 index :: Html ()
