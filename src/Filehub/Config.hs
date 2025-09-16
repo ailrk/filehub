@@ -1,14 +1,14 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Filehub.Config where
 
-import Filehub.Theme (Theme (..), CustomTheme)
-import {-# SOURCE #-} Filehub.Auth.Simple qualified as Auth.Simple
-import Effectful.Log (LogLevel (..))
-import Data.Functor.Identity
 import Control.Applicative ((<|>))
-import {-# SOURCE #-} Filehub.Auth.OIDC qualified as Auth.OIDC
-import Filehub.Locale (Locale (..))
 import Control.Monad (join)
+import Data.Functor.Identity
+import Effectful.Log (LogLevel (..))
+import Filehub.Auth.OIDC qualified as Auth.OIDC
+import Filehub.Auth.Simple qualified as Auth.Simple
+import Filehub.Locale (Locale (..))
+import Filehub.Theme (Theme (..), CustomTheme)
 import Target.File qualified
 import Target.S3 qualified
 

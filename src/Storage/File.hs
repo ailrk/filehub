@@ -56,14 +56,14 @@ import Storage.Error (StorageError (..))
 
 
 class CacheKeyComponent (s :: Symbol) a              where toCacheKeyComponent :: Builder
-instance CacheKeyComponent "file"         File       where toCacheKeyComponent = "f:"
-instance CacheKeyComponent "dir"          [File]     where toCacheKeyComponent = "d:"
-instance CacheKeyComponent "file-content" ByteString where toCacheKeyComponent = "fcc:"
-instance CacheKeyComponent "is-directory" Bool       where toCacheKeyComponent = "id:"
+instance CacheKeyComponent "file"         File       where toCacheKeyComponent = "f"
+instance CacheKeyComponent "dir"          [File]     where toCacheKeyComponent = "d"
+instance CacheKeyComponent "file-content" ByteString where toCacheKeyComponent = "fcc"
+instance CacheKeyComponent "is-directory" Bool       where toCacheKeyComponent = "id"
 
 
 cacheKeyPrefix :: Builder
-cacheKeyPrefix = "st:fs:"
+cacheKeyPrefix = "st:fs"
 
 
 createCacheKey :: forall (s :: Symbol) (a :: Type) . CacheKeyComponent s a => Builder -> CacheKey
@@ -72,8 +72,9 @@ createCacheKey identifier = Cache.mkCacheKey [cacheKeyPrefix, toCacheKeyComponen
 
 get
   :: forall es cacheType cacheName
-  . ( FileSystem         :> es
-    , Cache              :> es
+  . ( FileSystem  :> es
+    , Log         :> es
+    , Cache       :> es
     , cacheType ~ File
     , cacheName ~ "file")
   => FilePath -> Eff es File
@@ -118,8 +119,9 @@ get path = do
 
 isDirectory
   :: forall es cacheType cacheName
-  . ( FileSystem         :> es
-    , Cache              :> es
+  . ( FileSystem  :> es
+    , Log         :> es
+    , Cache       :> es
     , cacheType ~ Bool
     , cacheName ~ "is-directory")
   => FilePath -> Eff es Bool
@@ -141,6 +143,7 @@ isDirectory filePath = do
 read
   :: forall es cacheType cacheName
   . ( IOE   :> es
+    , Log   :> es
     , Cache :> es
     , cacheType ~ ByteString
     , cacheName ~ "file-content")
@@ -201,9 +204,10 @@ new currentDir name = do
 
 
 write
-  :: ( FileSystem         :> es
-     , Cache              :> es
-     , LockManager        :> es)
+  :: ( FileSystem  :> es
+     , Cache       :> es
+     , Log         :> es
+     , LockManager :> es)
   => FilePath -> FilePath -> ByteString -> Eff es ()
 write currentDir name content = do
   LockManager.withLock (LockManager.mkLockKey name) do
@@ -255,9 +259,10 @@ copyDirectoryRecursive src dst = do
 
 
 delete
-  :: ( FileSystem         :> es
-     , IOE                :> es
-     , Cache              :> es)
+  :: ( FileSystem  :> es
+     , IOE         :> es
+     , Log         :> es
+     , Cache       :> es)
   => FilePath -> String -> Eff es ()
 delete currentDir name = do
   filePath   <- toFilePath currentDir name
@@ -333,6 +338,7 @@ lsCwd currentDir = do
 upload
   :: ( FileSystem  :> es
      , Cache       :> es
+     , Log         :> es
      , LockManager :> es)
   => FilePath -> MultipartData Mem -> Eff es ()
 upload currentDir multipart = do
@@ -345,6 +351,7 @@ upload currentDir multipart = do
 download
   :: ( FileSystem :> es
      , IOE        :> es
+     , Log        :> es
      , Cache      :> es)
   => FilePath -> Eff es (ConduitT () ByteString (ResourceT IO) ())
 download path = do

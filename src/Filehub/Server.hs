@@ -15,7 +15,6 @@ import Codec.Archive.Zip qualified as Zip
 import Conduit (ConduitT, ResourceT)
 import Conduit qualified
 import Control.Applicative (Alternative((<|>)))
-import Control.Exception (SomeException)
 import Control.Monad (when, forM, replicateM)
 import Data.Aeson (object, KeyValue (..), (.:), withObject, Value)
 import Data.Aeson.Types (parseMaybe)
@@ -98,9 +97,9 @@ import System.IO.Temp qualified as Temp
 import System.Random (randomRIO)
 import Target.Types (TargetId)
 import Text.Printf (printf)
-import UnliftIO (catch)
 import Web.Cookie (SetCookie (..))
 import Target.Types qualified as Target
+import UnliftIO.Exception (catchIO)
 #ifdef DEBUG
 import Effectful ( MonadIO (liftIO) )
 import System.FilePath ((</>))
@@ -666,7 +665,7 @@ changeTarget sessionId _ mTargetId = do
   Session.changeCurrentTarget sessionId targetId & withServerError
 
   html <- withRunInIO \unlift -> do
-    unlift (index sessionId) `catch` \(_ :: SomeException) -> unlift do
+    unlift (index sessionId) `catchIO` \(_ :: IOError) -> unlift do
       restore
       throwError (err500 { errBody = [i|Invalid target|]})
   pure $ addHeader TargetChanged html

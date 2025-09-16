@@ -62,7 +62,6 @@ import Servant.Client (BaseUrl (..), Scheme (..), runClientM, mkClientEnv)
 import Servant.Conduit ()
 import System.Random (randomRIO)
 import Data.Functor.Identity (Identity (..))
-import Control.Exception (try, Exception (..), SomeException)
 import Web.JWT (JWT, VerifiedJWT, JWTClaimsSet (..), JOSEHeader (..))
 import Web.JWT qualified as JWT
 import Data.Aeson.Types qualified as Aeson
@@ -80,6 +79,7 @@ import Effectful.Log (Log)
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Session qualified as Session
 import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
+import UnliftIO (tryIO, Exception (..))
 
 
 newtype OIDCState    = OIDCState Text
@@ -340,8 +340,8 @@ exchangeToken
           }
 
   baseUri <- either (\err -> throwError (FilehubError InternalError (Text.unpack err))) pure (uriToBaseUrl token_endpoint)
-  runClientM (exchangeTokenClient form) (mkClientEnv manager baseUri) & liftIO . try
-    >>= either (\(e :: SomeException) -> throwError (FilehubError InternalError (displayException e))) pure
+  runClientM (exchangeTokenClient form) (mkClientEnv manager baseUri) & liftIO . tryIO
+    >>= either (\(e :: IOError) -> throwError (FilehubError InternalError (displayException e))) pure
     >>= either (\err -> throwError (FilehubError InternalError (show err))) pure
     >>= pure . TokenExchanged wellknownConfig
   where
@@ -377,8 +377,8 @@ verifyToken
   jwks <- do
     baseUri <- uriToBaseUrl jwks_uri & either (\err -> throwError (FilehubError InternalError (Text.unpack err))) pure
     value   <- do
-      runClientM (client (Proxy @(Get '[JSON] Value))) (mkClientEnv manager baseUri) & liftIO . try
-        >>= either (\(e :: SomeException) -> throwError (FilehubError LoginFailed (displayException e))) pure
+      runClientM (client (Proxy @(Get '[JSON] Value))) (mkClientEnv manager baseUri) & liftIO . tryIO
+        >>= either (\(e :: IOError) -> throwError (FilehubError LoginFailed (displayException e))) pure
         >>= either (\err -> throwError (FilehubError LoginFailed (show err))) pure
 
     -- .keys.JWT[]
@@ -437,8 +437,8 @@ getWellknownOpenIdConfigration :: (Reader Env :> es, IOE :> es, Error FilehubErr
 getWellknownOpenIdConfigration (Provider { issuer }) = do
   manager          <- asks @Env (.httpManager)
   baseUri          <- uriToBaseUrl issuer & either (\err -> throwError (FilehubError InternalError (Text.unpack err))) pure
-  result           <- runClientM wellKnownConfigClient (mkClientEnv manager baseUri) & liftIO . try
-  eWellKnownConfig <- result & either (\(e :: SomeException) -> throwError (FilehubError InternalError (displayException e))) pure
+  result           <- runClientM wellKnownConfigClient (mkClientEnv manager baseUri) & liftIO . tryIO
+  eWellKnownConfig <- result & either (\(e :: IOError) -> throwError (FilehubError InternalError (displayException e))) pure
   case verifyWellKnownConfig <$> eWellKnownConfig of
     Right (Just config) -> pure config
     Right Nothing       -> throwError (FilehubError InternalError "Invalid .well-known/openid-configuration")

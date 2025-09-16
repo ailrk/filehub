@@ -20,6 +20,8 @@ import UnliftIO (atomicModifyIORef', readIORef)
 import Control.Monad (void)
 import Prelude hiding (lookup)
 import Data.Time (NominalDiffTime, getCurrentTime)
+import Effectful.Log (Log, logTrace_)
+import Data.String.Interpolate (i)
 
 
 -- | A generic cache effect
@@ -60,16 +62,23 @@ runCacheDummy = interpret \_ -> \case
   Flush                  -> liftIO Dummy.flush
 
 
-lookup :: forall a es . (Cache :> es, Typeable a) => CacheKey -> Eff es (Maybe a)
-lookup key = send (Lookup key)
+lookup :: forall a es . (Cache :> es, Log :> es, Typeable a) => CacheKey -> Eff es (Maybe a)
+lookup key = do
+  result <- send (Lookup key)
+  case result of
+    Just _   -> logTrace_ [i|CACHE HIT #{key}|]
+    Nothing  -> logTrace_ [i|CACHE MISS #{key}|]
+  pure result
 
 
 insert :: forall a es . (Cache :> es, Typeable a) => CacheKey -> Maybe NominalDiffTime -> a -> Eff es ()
 insert key mLast value = send (Insert key mLast value )
 
 
-delete :: (Cache :> es) => CacheKey -> Eff es ()
-delete key = send (Delete key)
+delete :: (Cache :> es, Log :> es) => CacheKey -> Eff es ()
+delete key = do
+  logTrace_ [i|CACHE DELETE #{key}|]
+  send (Delete key)
 
 
 flush :: (Cache :> es) => Eff es ()

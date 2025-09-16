@@ -60,6 +60,6 @@ colorize level txt = colorCode level <> txt <> reset
 
 colorCode :: LogLevel -> Text
 colorCode level = case level of
-  LogTrace     -> "\x1b[90m"  -- bright black (gray)
-  LogInfo      -> "\x1b[94m"  -- bright blue
-  LogAttention -> "\x1b[91m"  -- bright red
+  LogTrace     -> "\x1b[93m"
+  LogInfo      -> "\x1b[96m"
+  LogAttention -> "\x1b[91m"

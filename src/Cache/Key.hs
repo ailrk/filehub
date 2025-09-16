@@ -10,7 +10,7 @@ import Data.Hashable (Hashable)
 import Control.Category ((>>>))
 
 
-newtype CacheKey = CacheKey ByteString deriving (Eq, Ord, Hashable)
+newtype CacheKey = CacheKey ByteString deriving (Show, Eq, Ord, Hashable)
 
 
 mkCacheKey :: [Builder] -> CacheKey

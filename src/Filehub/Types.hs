@@ -55,7 +55,6 @@ import Lens.Micro.Platform ()
 import Servant ( ToHttpApiData(..), FromHttpApiData(..), Accept (..), MimeRender )
 import Servant.API (MimeRender(..))
 import Target.Types (Target (..))
-import Target.Types.TargetId (TargetId(..))
 import Web.FormUrlEncoded (FromForm (..), parseUnique, ToForm (..), parseAll)
 
 
