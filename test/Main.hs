@@ -5,7 +5,7 @@ import Test.Hspec
 import Test.Hspec.Wai
 import Test.QuickCheck
 import Network.Wai.Test hiding (request)
-import Filehub.ClientPath qualified as ClientPath
+import Data.ClientPath qualified as ClientPath
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Env (Env(..))
 import Filehub.Auth.Simple (SimpleAuthUserDB(..), UserRecord(..))
