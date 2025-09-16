@@ -46,9 +46,8 @@ import Effectful.FileSystem (runFileSystem, removeFile)
 import Filehub.Error (FilehubError (..), Error' (..))
 import Filehub.Session qualified as Session
 import Filehub.Storage.Context qualified as Storage
-import Filehub.Target (TargetView(..), handleTarget, getTargetId)
 import Target.S3 (Backend(..), S3)
-import Target.Types (targetHandler, TargetId)
+import Target.Types (targetHandler, TargetId, handleTarget, getTargetId)
 import Target.Types.TargetId qualified as TargetId
 import Filehub.Types (SessionId)
 import GHC.TypeLits (Symbol)
@@ -59,6 +58,7 @@ import Prelude hiding (read, readFile, writeFile)
 import Servant.Multipart (MultipartData(..), Mem, FileData (..))
 import System.IO.Temp qualified as Temp
 import Filehub.Storage.Types (Storage(..))
+import Filehub.Session (TargetView(..))
 
 
 class CacheKeyComponent (s :: Symbol) a              where toCacheKeyComponent :: Builder

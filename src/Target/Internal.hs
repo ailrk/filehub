@@ -16,4 +16,3 @@ getTargetId (Target t) = getTargetIdFromBackend t
 
 handleTarget :: Target -> [TargetHandler r] -> Maybe r
 handleTarget target handlers = asum (map (runTargetHandler target) handlers)
-

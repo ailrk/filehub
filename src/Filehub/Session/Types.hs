@@ -5,6 +5,7 @@ module Filehub.Session.Types
   , Session(..)
   , TargetSessionData(..)
   , Pool(..)
+  , TargetView(..)
   )
   where
 
@@ -21,6 +22,7 @@ import Control.Concurrent.Timer qualified as Timer
 import Data.HashTable.IO (BasicHashTable)
 import Filehub.Locale (Locale)
 import {-# SOURCE #-} Filehub.Auth.OIDC (SomeOIDCFlow)
+import Target.Types (Target)
 
 
 data Session = Session
@@ -42,6 +44,14 @@ data Session = Session
 
 instance Eq Session where
   a == b = a.sessionId == b.sessionId
+
+
+data TargetView = TargetView
+  { target      :: Target
+  , sessionData :: TargetSessionData
+  , index       :: Int
+  }
+  deriving (Generic)
 
 
 data TargetSessionData = TargetSessionData

@@ -322,12 +322,12 @@ lsCwd
      , Cache              :> es
      , Error StorageError :> es)
     => FilePath -> Eff es [File]
-lsCwd path = do
-  exists <- doesDirectoryExist path
+lsCwd currentDir = do
+  exists <- doesDirectoryExist currentDir
   unless exists do
-    logAttention "[lsCwd] dir doesn't exists:" path
+    logAttention "[lsCwd] dir doesn't exists:" currentDir
     throwError (InvalidDir "Not a directory")
-  ls path
+  ls currentDir
 
 
 upload

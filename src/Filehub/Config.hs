@@ -9,6 +9,8 @@ import Control.Applicative ((<|>))
 import {-# SOURCE #-} Filehub.Auth.OIDC qualified as Auth.OIDC
 import Filehub.Locale (Locale (..))
 import Control.Monad (join)
+import Target.File qualified
+import Target.S3 qualified
 
 
 data Config f = Config
@@ -34,20 +36,8 @@ newtype CustomThemeLight      = CustomThemeLight      { unCustomThemeLight      
 
 
 data TargetConfig
-  = FSTargetConfig FSTargetConfig
-  | S3TargetConfig S3TargetConfig
-  deriving (Show, Eq)
-
-
-data FSTargetConfig = FSTargetConfig_
-  { root :: FilePath
-  }
-  deriving (Show, Eq)
-
-
-data S3TargetConfig = S3TargetConfig_
-  { bucket :: String
-  }
+  = FSTargetConfig Target.File.Config
+  | S3TargetConfig Target.S3.Config
   deriving (Show, Eq)
 
 

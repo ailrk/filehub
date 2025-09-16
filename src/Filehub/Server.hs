@@ -70,13 +70,12 @@ import Filehub.Server.Internal (withQueryParam, parseHeader', makeTemplateContex
 import Filehub.Server.Internal qualified as Server.Internal
 import Filehub.Server.Platform.Desktop qualified as Server.Desktop
 import Filehub.Server.Platform.Mobile qualified as Server.Mobile
-import Filehub.Session (SessionId(..))
+import Filehub.Session (SessionId(..), TargetView (..))
 import Filehub.Session qualified as Session
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Session.Selected qualified as Selected
 import Filehub.Sort qualified as Sort
 import Filehub.Storage (getStorage, Storage(..))
-import Filehub.Target qualified as Target
 import Filehub.Template qualified as Template
 import Filehub.Template.Internal (runTemplate, TemplateContext(..))
 import Filehub.Template.Login qualified as Template.Login
@@ -117,11 +116,11 @@ import System.Random (randomRIO)
 import Target.File qualified as FS
 import Target.S3 qualified as S3
 import Target.Types (TargetId, Target (..))
-import Target.Types.TargetView (TargetView(..))
 import Text.Printf (printf)
 import UnliftIO (catch)
 import UnliftIO (hFlush, stdout)
 import Web.Cookie (SetCookie (..))
+import Target.Types qualified as Target
 #ifdef DEBUG
 import Effectful ( MonadIO (liftIO) )
 import System.FilePath ((</>))

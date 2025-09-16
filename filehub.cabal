@@ -190,7 +190,6 @@ library
     Filehub.Storage.File
     Filehub.Storage.S3
     Filehub.Storage.Types
-    Filehub.Target
     Filehub.Template
     Filehub.Template.Internal
     Filehub.Template.Login
@@ -212,7 +211,6 @@ library
     Target.Internal
     Target.Types
     Target.Types.TargetId
-    Target.Types.TargetView
     Paths_filehub
   default-language: Haskell2010
 

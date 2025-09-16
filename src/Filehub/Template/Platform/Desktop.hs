@@ -36,8 +36,6 @@ import Filehub.Locale (Locale(..), Phrase (..), phrase)
 import Filehub.Routes (Api(..))
 import Filehub.Selected qualified as Selected
 import Filehub.Size (toReadableSize)
-import Filehub.Target (TargetView(..), handleTarget)
-import Filehub.Target qualified as Target
 import Filehub.Template.Internal
 import Filehub.Template.Shared (bold, toClientPath, viewId, tableId, sideBarId, searchBar)
 import Filehub.Template.Shared qualified as Template
@@ -49,7 +47,9 @@ import Network.Mime.Extended (isMime)
 import System.FilePath (takeFileName)
 import Target.File (FileSys, Backend (..))
 import Target.S3 (S3, Backend (..))
-import Target.Types (targetHandler, Target)
+import Target.Types (targetHandler, Target, handleTarget)
+import Target.Types qualified as Target
+import Filehub.Session (TargetView(..))
 
 
 ------------------------------------

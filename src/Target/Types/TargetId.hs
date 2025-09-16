@@ -17,7 +17,6 @@ targetIdBuilder :: TargetId -> Builder
 targetIdBuilder (TargetId targetId) =  Builder.byteString . UUID.toASCIIBytes $ targetId
 
 
-
 instance ToHttpApiData TargetId where
   toUrlPiece (TargetId p) = toUrlPiece p
 

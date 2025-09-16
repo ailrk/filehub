@@ -7,6 +7,8 @@ module Target.Types
   , TargetId(..)
   , targetHandler
   , runTargetHandler
+  , getTargetId
+  , handleTarget
   )
   where
 
@@ -16,6 +18,7 @@ import Lens.Micro.Platform ()
 import Prelude hiding (readFile, writeFile)
 import Target.Class (IsTarget(..))
 import Target.Types.TargetId (TargetId(..))
+import Control.Applicative (asum)
 
 
 -- | Existential wrapper of `Backend a`.
@@ -32,3 +35,12 @@ targetHandler = TargetHandler
 
 runTargetHandler :: Target -> TargetHandler r -> Maybe r
 runTargetHandler (Target t) (TargetHandler f) = fmap f (cast t)
+
+
+
+getTargetId :: Target -> TargetId
+getTargetId (Target t) = getTargetIdFromBackend t
+
+
+handleTarget :: Target -> [TargetHandler r] -> Maybe r
+handleTarget target handlers = asum (map (runTargetHandler target) handlers)

@@ -39,6 +39,8 @@ import Effectful.Log (LogLevel (..))
 import Filehub.Theme (Theme (..))
 import Data.List.Split (splitOn)
 import Filehub.Locale (Locale (..))
+import Target.File qualified
+import Target.S3 qualified
 
 
 data Options = Options
@@ -52,7 +54,7 @@ targetConfig :: Parser TargetConfig
 targetConfig = (S3TargetConfig <$> s3TargetConfig) <|> (FSTargetConfig <$> fsTargetConfig)
   where
     s3TargetConfig =
-        S3TargetConfig_
+        Target.S3.Config
             <$> option str
                   (mconcat
                     [ long "s3"
@@ -61,7 +63,7 @@ targetConfig = (S3TargetConfig <$> s3TargetConfig) <|> (FSTargetConfig <$> fsTar
                     ])
 
     fsTargetConfig =
-      FSTargetConfig_
+      Target.File.Config
         <$> option str
               (mconcat
                 [ long "fs"

@@ -27,12 +27,12 @@ import Filehub.Session qualified as Session
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Session.Selected qualified as Selected
 import Filehub.Storage (getStorage, Storage(..))
-import Filehub.Target (TargetView(..))
-import Filehub.Target qualified as Target
 import Filehub.Types (Env, CopyState(..), SessionId, Selected (..))
 import Lens.Micro hiding (to)
 import Lens.Micro.Platform ()
 import System.FilePath (takeFileName, (</>))
+import Target.Types qualified as Target
+import Filehub.Session (TargetView(..))
 
 
 getCopyState :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es CopyState

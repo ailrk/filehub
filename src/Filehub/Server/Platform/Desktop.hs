@@ -7,7 +7,6 @@ import Data.ClientPath qualified as ClientPath
 import Filehub.Env qualified as Env
 import Filehub.Env (Env)
 import Target.Types (Target(..))
-import Target.Types.TargetView (TargetView(..))
 import Filehub.Error ( withServerError )
 import Filehub.Monad ( Filehub )
 import Filehub.Session.Types (TargetSessionData(..))
@@ -26,6 +25,7 @@ import Lucid
 import Prelude hiding (readFile)
 import System.FilePath (takeFileName)
 import Effectful.Reader.Dynamic (asks)
+import Filehub.Session (TargetView(..))
 
 
 fileDetailModal :: SessionId -> Maybe ClientPath -> Filehub (Html ())

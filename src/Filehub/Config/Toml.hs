@@ -24,6 +24,8 @@ import Filehub.Theme (Theme (..), CustomTheme(..))
 import Network.URI (URI)
 import Network.URI qualified as URI
 import System.FilePath.Extended (expandVars)
+import Target.File qualified
+import Target.S3 qualified
 import Toml (TomlCodec, (.=), Key)
 import Toml qualified as Toml
 import Toml.Codec (TomlBiMap)
@@ -55,8 +57,8 @@ targetConfig =
   where
     match1 (FSTargetConfig t) = Just t; match1 _ = Nothing
     match2 (S3TargetConfig t) = Just t; match2 _ = Nothing
-    fs = FSTargetConfig_ <$> (Toml.validateIf (== "fs") Toml._Text "type" .= const "fs" *> Toml.string "root" .= (.root))
-    s3 = S3TargetConfig_ <$> (Toml.validateIf (== "s3") Toml._Text "type" .= const "s3" *> Toml.string "bucket") .= (.bucket)
+    fs = Target.File.Config <$> (Toml.validateIf (== "fs") Toml._Text "type" .= const "fs" *> Toml.string "root" .= (.root))
+    s3 = Target.S3.Config <$> (Toml.validateIf (== "s3") Toml._Text "type" .= const "s3" *> Toml.string "bucket") .= (.bucket)
 
 
 targetConfigs :: Key -> TomlCodec Targets
@@ -186,7 +188,7 @@ parseConfigFile (Just filePath) = do
     expandFSTargetEnvVars c = do
       let expand (FSTargetConfig t) = do
             root' <- expandVars t.root
-            pure $ FSTargetConfig (t { root = root' })
+            pure $ FSTargetConfig (t { Target.File.root = root' })
           expand x = pure x
       targets' <- traverse expand (coerce @_ @[TargetConfig] c.targets)
       pure $ c { targets = coerce @_ @Targets targets' }
