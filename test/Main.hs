@@ -19,13 +19,13 @@ import Effectful.Log (LogLevel(LogTrace), Logger)
 import Log (mkLogger)
 import Data.UUID qualified as UUID
 import Data.Maybe (fromJust)
-import Filehub.Types ( ClientPath(..), RawClientPath(..), Theme(..), Target(..), TargetId(..))
+import Filehub.Types ( ClientPath(..), RawClientPath(..), Theme(..))
 import System.Directory (createDirectoryIfMissing, removePathForcibly, doesFileExist, doesDirectoryExist)
 import Control.Monad (forM_)
 import System.FilePath (takeDirectory)
 import Network.HTTP.Types.Header
 import Data.ByteString.Char8 qualified as ByteString
-import Filehub.Target.File (Backend(..))
+import Target.File (Backend(..))
 import Filehub.Types (LoginForm(..))
 import Web.FormUrlEncoded (ToForm(..))
 import Web.FormUrlEncoded qualified as UrlFormEncoded
@@ -39,6 +39,7 @@ import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
 import Network.HTTP.Client.TLS (newTlsManager)
 import Cache.InMemory qualified as Cache.InMemory
 import LockRegistry.Local qualified as LockRegistry.Local
+import Target.Types (TargetId(..), Target(..))
 
 
 main :: IO ()

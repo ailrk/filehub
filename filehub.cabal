@@ -205,6 +205,7 @@ library
     System.FilePath.Extended
     Storage.Error
     Storage.File
+    Storage.S3
     Target.Class
     Target.File
     Target.S3
