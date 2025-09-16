@@ -4,6 +4,7 @@ module Filehub.Template.Shared where
 import Control.Monad (when)
 import Data.Aeson qualified as Aeson
 import Data.Aeson.Types (Pair)
+import Data.ClientPath qualified as ClientPath
 import Data.Foldable (Foldable(..))
 import Data.Maybe (fromMaybe)
 import Data.Sequence (Seq(..))
@@ -12,7 +13,6 @@ import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Lazy.Encoding qualified as LText
 import Effectful.Reader.Dynamic (asks)
-import Filehub.ClientPath qualified as ClientPath
 import Filehub.Links (linkToText, apiLinks)
 import Filehub.Locale (Phrase(..), phrase)
 import Filehub.Routes (Api (..))

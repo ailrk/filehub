@@ -2,8 +2,8 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Filehub.Server.Platform.Mobile where
 
+import Data.ClientPath qualified as ClientPath
 import Effectful.Reader.Dynamic (asks)
-import Filehub.ClientPath qualified as ClientPath
 import Filehub.Env (Env)
 import Filehub.Env qualified as Env
 import Filehub.Error ( withServerError, withServerError )

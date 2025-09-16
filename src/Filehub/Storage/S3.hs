@@ -25,6 +25,7 @@ import Conduit qualified
 import Control.Monad (void)
 import Data.ByteString (ByteString)
 import Data.ByteString.Lazy qualified as LBS
+import Data.ClientPath (fromClientPath)
 import Data.Foldable (forM_)
 import Data.Generics.Labels ()
 import Data.Generics.Labels ()
@@ -35,7 +36,6 @@ import Data.Text.Encoding qualified as Text
 import Effectful (Eff, Eff, MonadIO (..), runEff)
 import Effectful.Error.Dynamic (throwError)
 import Effectful.FileSystem (runFileSystem, removeFile)
-import Filehub.ClientPath (fromClientPath)
 import Filehub.Session qualified as Session
 import Filehub.Error (FilehubError (..), Error' (..))
 import Filehub.Storage.Context qualified as Storage

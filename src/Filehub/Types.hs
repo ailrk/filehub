@@ -46,6 +46,7 @@ import Data.Text.Lazy.Encoding qualified as LText
 import Data.Time (UTCTime)
 import Data.Aeson (ToJSON (..), (.=), Value)
 import Data.Aeson qualified as Aeson
+import Data.ClientPath (ClientPath(..), RawClientPath(..))
 import GHC.Generics (Generic)
 import Lens.Micro
 import Lens.Micro.Platform ()
@@ -58,7 +59,6 @@ import Web.FormUrlEncoded (FromForm (..), parseUnique, ToForm (..), parseAll)
 import Servant.API (MimeRender(..))
 import Filehub.Target.Types (Target (..))
 import Filehub.Target.Types.TargetId (TargetId(..))
-import Filehub.ClientPath (ClientPath(..), RawClientPath(..))
 import Filehub.Theme (Theme(..))
 import Filehub.Display (Display(..), Resolution(..))
 import Filehub.Sort (SortFileBy(..))

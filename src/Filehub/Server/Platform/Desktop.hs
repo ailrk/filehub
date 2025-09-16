@@ -3,7 +3,7 @@
 module Filehub.Server.Platform.Desktop where
 
 import Control.Monad (forM)
-import Filehub.ClientPath qualified as ClientPath
+import Data.ClientPath qualified as ClientPath
 import Filehub.Env qualified as Env
 import Filehub.Env (Env)
 import Filehub.Target.Types (Target(..))

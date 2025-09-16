@@ -9,29 +9,29 @@ module Filehub.Session.Copy
   )
   where
 
-import Lens.Micro hiding (to)
-import Lens.Micro.Platform ()
+import Control.Monad (forM_)
+import Data.ClientPath qualified as ClientPath
+import Data.Function (on)
+import Data.List (nub)
+import Data.String.Interpolate (i)
 import Effectful (Eff, (:>), Eff, (:>), IOE)
 import Effectful.Error.Dynamic (Error, throwError)
-import Effectful.Reader.Dynamic (Reader)
+import Effectful.Extended.Cache (Cache)
+import Effectful.Extended.LockManager (LockManager)
 import Effectful.FileSystem (FileSystem)
 import Effectful.Log (Log, logAttention_)
-import Filehub.Types (Env, CopyState(..), SessionId, File(..), Selected (..))
-import Filehub.Target (TargetView(..))
+import Effectful.Reader.Dynamic (Reader)
 import Filehub.Error (FilehubError (..), Error' (..))
 import Filehub.Session qualified as Session
 import Filehub.Session.Pool qualified as Session.Pool
-import Filehub.Storage (getStorage, Storage(..))
-import Filehub.Target qualified as Target
 import Filehub.Session.Selected qualified as Selected
-import Filehub.ClientPath qualified as ClientPath
-import Control.Monad (forM_)
+import Filehub.Storage (getStorage, Storage(..))
+import Filehub.Target (TargetView(..))
+import Filehub.Target qualified as Target
+import Filehub.Types (Env, CopyState(..), SessionId, File(..), Selected (..))
+import Lens.Micro hiding (to)
+import Lens.Micro.Platform ()
 import System.FilePath (takeFileName, (</>))
-import Data.String.Interpolate (i)
-import Data.Function (on)
-import Data.List (nub)
-import Effectful.Extended.Cache (Cache)
-import Effectful.Extended.LockManager (LockManager)
 
 
 getCopyState :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es CopyState

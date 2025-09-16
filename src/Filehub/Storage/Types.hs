@@ -1,14 +1,13 @@
 module Filehub.Storage.Types where
 
-import Filehub.ClientPath (ClientPath)
-import Lens.Micro.Platform ()
-import Data.Generics.Labels ()
-import Servant.Multipart
-    ( MultipartData(..), Mem, MultipartData(..), Mem )
-import Prelude hiding (readFile, writeFile)
-import Data.Conduit (ConduitT)
 import Conduit (ResourceT)
 import Data.ByteString (ByteString)
+import Data.ClientPath (ClientPath)
+import Data.Conduit (ConduitT)
+import Data.Generics.Labels ()
+import Lens.Micro.Platform ()
+import Prelude hiding (readFile, writeFile)
+import Servant.Multipart ( MultipartData(..), Mem, MultipartData(..), Mem )
 import {-# SOURCE #-} Filehub.Types (File)
 
 

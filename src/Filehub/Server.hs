@@ -23,6 +23,7 @@ import Data.Aeson (object, KeyValue (..), (.:), withObject, Value)
 import Data.Aeson.Types (parseMaybe)
 import Data.ByteString (ByteString)
 import Data.ByteString.Char8 qualified as ByteString
+import Data.ClientPath qualified as ClientPath
 import Data.FileEmbed qualified as FileEmbed
 import Data.Foldable (forM_)
 import Data.Functor.Identity (Identity(..))
@@ -46,7 +47,6 @@ import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
 import Filehub.Auth.OIDC (OIDCAuthProviders(..), AuthUrl (..), SomeOIDCFlow (..))
 import Filehub.Auth.OIDC qualified as Auth.OIDC
 import Filehub.Auth.Simple qualified as Auth.Simple
-import Filehub.ClientPath qualified as ClientPath
 import Filehub.Config (Config(..), TargetConfig (..))
 import Filehub.Config qualified as Config
 import Filehub.Config.Options (Options(..))

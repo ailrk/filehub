@@ -20,6 +20,7 @@ module Filehub.Template.Platform.Desktop
 
 import Data.ByteString (ByteString)
 import Data.Foldable (traverse_)
+import Data.ClientPath qualified as ClientPath
 import Data.Maybe (fromMaybe)
 import Data.String.Interpolate (iii, i)
 import Data.Text (Text)
@@ -36,7 +37,6 @@ import Filehub.Types
 import Filehub.Routes (Api(..))
 import Control.Monad (when, join)
 import Effectful.Reader.Dynamic (asks)
-import Filehub.ClientPath qualified as ClientPath
 import Filehub.Links ( apiLinks, linkToText )
 import Filehub.Locale (Locale(..), Phrase (..), phrase)
 import Filehub.Selected qualified as Selected

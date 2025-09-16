@@ -13,7 +13,7 @@
 --
 -- Note: S3 path is already absolute and fully qualified. Because root of S3 bucket is always "",
 -- client path acts like a noop.
-module Filehub.ClientPath
+module Data.ClientPath
   ( ClientPath(..)
   , RawClientPath(..)
   , toClientPath

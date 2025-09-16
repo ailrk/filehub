@@ -144,6 +144,7 @@ library
     Cache.Dummy
     Cache.InMemory
     Cache.Key
+    Data.ClientPath
     Network.Wai.Middleware.Filehub
     Network.Wai.Middleware.Extended
     Network.Mime.Extended
@@ -155,7 +156,6 @@ library
     Filehub.Auth.Simple
     Filehub.Auth.Types
     Filehub.Auth.Types.AuthId
-    Filehub.ClientPath
     Filehub.Config
     Filehub.Config.Options
     Filehub.Config.Toml

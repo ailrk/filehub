@@ -2,6 +2,7 @@
 module Filehub.Template.Platform.Mobile where
 
 import Data.ByteString (ByteString)
+import Data.ClientPath qualified as ClientPath
 import Data.Foldable (traverse_)
 import Data.Maybe (fromMaybe)
 import Data.String.Interpolate (iii, i)
@@ -17,7 +18,6 @@ import Filehub.Types
       Selected )
 import Filehub.Size (toReadableSize)
 import Filehub.Selected qualified as Selected
-import Filehub.ClientPath qualified as ClientPath
 import Filehub.Routes (Api(..))
 import Filehub.Target (TargetView(..), handleTarget)
 import Filehub.Target qualified as Target

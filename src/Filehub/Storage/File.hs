@@ -22,6 +22,7 @@ import Control.Monad (unless, when, forM_, join)
 import Data.ByteString (ByteString)
 import Data.ByteString (readFile)
 import Data.ByteString.Lazy qualified as LBS
+import Data.ClientPath (fromClientPath)
 import Data.Generics.Labels ()
 import Data.Generics.Labels ()
 import Data.Text qualified as Text
@@ -31,7 +32,6 @@ import Effectful.FileSystem
 import Effectful.FileSystem.IO (withFile, IOMode (..))
 import Effectful.FileSystem.IO.ByteString (hPut)
 import Effectful.Log
-import Filehub.ClientPath (fromClientPath)
 import Filehub.Error (FilehubError(..), Error' (..))
 import Filehub.Session qualified as Session
 import Filehub.Storage.Context qualified as Storage
