@@ -46,7 +46,6 @@ import Effectful.FileSystem (runFileSystem, removeFile)
 import Target.S3 (Backend(..), S3)
 import Target.Types (TargetId)
 import Target.Types.TargetId qualified as TargetId
-import Filehub.Types (SessionId)
 import GHC.TypeLits (Symbol)
 import Lens.Micro
 import Lens.Micro.Platform ()
@@ -62,7 +61,6 @@ instance CacheKeyComponent "file"         File       where toCacheKeyComponent =
 instance CacheKeyComponent "dir"          [File]     where toCacheKeyComponent = "d:"
 instance CacheKeyComponent "file-content" ByteString where toCacheKeyComponent = "fcc:"
 instance CacheKeyComponent "is-directory" Bool       where toCacheKeyComponent = "id:"
-
 
 
 cacheKeyPrefix :: Builder
@@ -82,8 +80,7 @@ get
     , cacheName ~ "file")
     => Backend S3 -> FilePath -> Eff es File
 get (s3@S3Backend { targetId }) path = do
-  let cacheKey =  createCacheKey @cacheName @cacheType targetId (Builder.string8 path)
-  mCached      <- Cache.lookup @File cacheKey
+  mCached      <- Cache.lookup @cacheType cacheKey
   case mCached of
     Just cached -> pure cached
     Nothing -> do
@@ -105,6 +102,7 @@ get (s3@S3Backend { targetId }) path = do
       Cache.insert cacheKey cacheTTL file
       pure file
   where
+    cacheKey =  createCacheKey @cacheName @cacheType targetId (Builder.string8 path)
     cacheTTL = Just (secondsToNominalDiffTime 10)
 
 
@@ -118,7 +116,6 @@ isDirectory
     , cacheName ~ "is-directory")
   => Backend S3 -> FilePath -> Eff es Bool
 isDirectory s3@S3Backend { targetId } filePath = do
-  let cacheKey =  createCacheKey @cacheName @cacheType targetId (Builder.string8 filePath)
   mCached      <- Cache.lookup @cacheType cacheKey
   case mCached of
     Just cached -> pure cached
@@ -132,6 +129,7 @@ isDirectory s3@S3Backend { targetId } filePath = do
       Cache.insert cacheKey cacheTTL result
       pure result
   where
+    cacheKey =  createCacheKey @cacheName @cacheType targetId (Builder.string8 filePath)
     cacheTTL = Just (secondsToNominalDiffTime 10)
 
 
@@ -143,7 +141,6 @@ read
     , cacheName ~ "file-content")
   => Backend S3 -> File -> Eff es ByteString
 read s3@S3Backend { targetId }  file = do
-  let cacheKey =  createCacheKey @cacheName @cacheType targetId (Builder.string8 file.path)
   mCached      <- Cache.lookup @cacheType cacheKey
   case mCached of
     Just cached -> pure cached
@@ -154,6 +151,7 @@ read s3@S3Backend { targetId }  file = do
       Cache.insert cacheKey cacheTTL result
       pure result
   where
+    cacheKey =  createCacheKey @cacheName @cacheType targetId (Builder.string8 file.path)
     cacheTTL = Just (secondsToNominalDiffTime 10)
 
 
@@ -239,8 +237,7 @@ ls
     , cacheName ~ "dir")
   => Backend S3 -> FilePath -> Eff es [File]
 ls s3@S3Backend { targetId } _ = do
-    let cacheKey = createCacheKey @cacheName @cacheType targetId ""
-    mCached <- Cache.lookup @[File] cacheKey
+    mCached <- Cache.lookup @cacheType cacheKey
     case mCached of
       Just cached -> do
         pure cached
@@ -255,6 +252,8 @@ ls s3@S3Backend { targetId } _ = do
         Cache.insert cacheKey Nothing result
         pure result
   where
+    cacheKey = createCacheKey @cacheName @cacheType targetId ""
+
     toDir (commonPrefix :: CommonPrefix) =
       let dirPath = fromMaybe mempty $ commonPrefix ^. Amazonka.commonPrefix_prefix
        in File
@@ -277,13 +276,6 @@ ls s3@S3Backend { targetId } _ = do
          , content  = Content
          }
 
-
-cd :: SessionId -> FilePath -> Eff es ()
-cd _ _ = pure ()
-
-
--- lsCwd :: Storage.Context es
---       => Backend S3 -> Eff es [File]
 
 lsCwd
   :: ( Cache :> es

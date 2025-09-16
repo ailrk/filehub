@@ -16,23 +16,32 @@ module Filehub.Storage.S3 (storage) where
 
 import Data.Generics.Labels ()
 import Data.Generics.Labels ()
-import Effectful (Eff, Eff)
-import Filehub.Storage.Context qualified as Storage
-import Filehub.Types (SessionId)
+import Effectful (Eff, Eff, (:>), IOE)
+import Filehub.Types (SessionId, Env)
 import Lens.Micro.Platform ()
 import Prelude hiding (read, readFile, writeFile)
 import Filehub.Storage.Types (Storage(..))
 import Storage.S3 qualified
-import Filehub.Session (TargetView(..))
+import Filehub.Session.Types (TargetView(..))
 import Target.S3 (Backend, S3)
-import Filehub.Session qualified as Session
-import Effectful.Error.Dynamic (throwError)
+import {-# SOURCE #-} Filehub.Session qualified as Session
+import Effectful.Error.Dynamic (throwError, Error)
 import Filehub.Error
 import Target.Types (handleTarget, targetHandler)
 import Data.ClientPath (fromClientPath)
+import Effectful.Reader.Dynamic
+import Effectful.Log (Log)
+import Effectful.Extended.Cache (Cache)
 
 
-storage :: Storage.Context es => SessionId -> Storage (Eff es)
+storage
+  :: ( Reader Env         :> es
+     , Log                :> es
+     , IOE                :> es
+     , Cache              :> es
+     , Error FilehubError :> es
+     )
+  => SessionId -> Storage (Eff es)
 storage sessionId =
   Storage
     { get = \path -> do
@@ -93,7 +102,12 @@ storage sessionId =
     }
 
 
-getS3 :: Storage.Context es => SessionId -> Eff es (Backend S3)
+getS3
+  :: ( Reader Env         :> es
+     , Log                :> es
+     , IOE                :> es
+     , Error FilehubError :> es)
+  => SessionId -> Eff es (Backend S3)
 getS3 sessionId = do
   TargetView target _ _ <- Session.currentTarget sessionId
   maybe (throwError (FilehubError TargetError "Target is not valid S3 bucket")) pure $ handleTarget target

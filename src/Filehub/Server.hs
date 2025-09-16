@@ -9,15 +9,13 @@
 --
 -- This module implements the filehub server. Most of the server is implemented with servant handlers.
 -- Some features that are hard to implement with servant are provided through wai middleware.
-module Filehub.Server (application, main, mainDev) where
+module Filehub.Server (application) where
 
-import Cache.InMemory qualified as Cache.InMemory
 import Codec.Archive.Zip qualified as Zip
 import Conduit (ConduitT, ResourceT)
 import Conduit qualified
 import Control.Applicative (Alternative((<|>)))
 import Control.Exception (SomeException)
-import Control.Exception (throwIO)
 import Control.Monad (when, forM, replicateM)
 import Data.Aeson (object, KeyValue (..), (.:), withObject, Value)
 import Data.Aeson.Types (parseMaybe)
@@ -28,7 +26,6 @@ import Data.ClientPath qualified as ClientPath
 import Data.File (FileContent(..), File(..))
 import Data.FileEmbed qualified as FileEmbed
 import Data.Foldable (forM_)
-import Data.Functor.Identity (Identity(..))
 import Data.List qualified as List
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
@@ -37,29 +34,20 @@ import Data.String.Interpolate (i)
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
-import Data.Time (secondsToNominalDiffTime, UTCTime (..), fromGregorian)
+import Data.Time (UTCTime (..), fromGregorian)
 import Effectful ( withRunInIO, MonadIO (liftIO) )
-import Effectful (runEff)
 import Effectful.Error.Dynamic (throwError)
-import Effectful.FileSystem (runFileSystem)
 import Effectful.Log (logInfo_, logAttention_)
-import Effectful.Log (runLog)
 import Effectful.Reader.Dynamic (asks)
 import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
-import Filehub.Auth.OIDC (OIDCAuthProviders(..), AuthUrl (..), SomeOIDCFlow (..))
+import Filehub.Auth.OIDC (AuthUrl (..), SomeOIDCFlow (..))
 import Filehub.Auth.OIDC qualified as Auth.OIDC
 import Filehub.Auth.Simple qualified as Auth.Simple
-import Filehub.Config (Config(..), TargetConfig (..))
-import Filehub.Config qualified as Config
-import Filehub.Config.Options (Options(..))
-import Filehub.Config.Options qualified as Config.Options
-import Filehub.Config.Toml qualified as Config.Toml
 import Filehub.Cookie qualified as Cookie
 import Filehub.Cookie qualified as Cookies
 import Filehub.Env (Env(..))
 import Filehub.Error ( withServerError, FilehubError(..), withServerError, Error' (..) )
 import Filehub.Locale (Locale)
-import Filehub.Log qualified as Log
 import Filehub.Monad
 import Filehub.Orphan ()
 import Filehub.Routes (Api (..))
@@ -75,7 +63,6 @@ import Filehub.Session qualified as Session
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Session.Selected qualified as Selected
 import Filehub.Sort qualified as Sort
-import Filehub.Storage (getStorage, Storage(..))
 import Filehub.Template qualified as Template
 import Filehub.Template.Internal (runTemplate, TemplateContext(..))
 import Filehub.Template.Login qualified as Template.Login
@@ -88,15 +75,12 @@ import Filehub.Types (FilehubEvent (..), LoginForm(..), MoveFile (..), UICompone
 import Filehub.Types (UpdatedFile(..), NewFile(..), NewFolder(..), SortFileBy(..), UpdatedFile(..), Theme(..), Selected (..))
 import Lens.Micro
 import Lens.Micro.Platform ()
-import LockRegistry.Local qualified as LockRegistry.Local
 import Lucid
-import Network.HTTP.Client.TLS (newTlsManager)
 import Network.HTTP.Types.Header (hLocation)
 import Network.Mime (MimeType)
 import Network.Mime qualified as Mime
 import Network.Mime.Extended (isMime)
 import Network.URI qualified as URI
-import Network.Wai.Handler.Warp (setPort, defaultSettings, runSettings)
 import Network.Wai.Middleware.Extended qualified as Wai.Middleware
 import Network.Wai.Middleware.Filehub qualified as Wai.Middleware
 import Network.Wai.Middleware.Gzip qualified as Wai.Middleware
@@ -109,16 +93,12 @@ import Servant.Conduit ()
 import Servant.Multipart (MultipartData, Mem)
 import Servant.Server.Generic (AsServerT)
 import System.Directory (removeFile)
-import System.Environment (withArgs)
 import System.FilePath (takeFileName, (</>), takeDirectory, makeRelative)
 import System.IO.Temp qualified as Temp
 import System.Random (randomRIO)
-import Target.File qualified as FS
-import Target.S3 qualified as S3
-import Target.Types (TargetId, Target (..))
+import Target.Types (TargetId)
 import Text.Printf (printf)
 import UnliftIO (catch)
-import UnliftIO (hFlush, stdout)
 import Web.Cookie (SetCookie (..))
 import Target.Types qualified as Target
 #ifdef DEBUG
@@ -396,7 +376,7 @@ cd sessionId _ mClientPath = do
   clientPath <- withQueryParam mClientPath
   withServerError do
     root    <- Session.getRoot sessionId
-    storage <- getStorage sessionId
+    storage <- Session.getStorage sessionId
     storage.cd (ClientPath.fromClientPath root clientPath)
   html <- do
     toolBar' <- toolBar sessionId
@@ -410,7 +390,7 @@ cd sessionId _ mClientPath = do
 newFile :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> NewFile -> Filehub (Html ())
 newFile sessionId _ _ (NewFile path) = do
   withServerError do
-    storage <- getStorage sessionId
+    storage <- Session.getStorage sessionId
     storage.new (Text.unpack path)
   view sessionId
 
@@ -419,7 +399,7 @@ updateFile :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> UpdatedFile -> Fil
 updateFile sessionId _ _ (UpdatedFile clientPath content) = do
   let path = clientPath.unClientPath
   withServerError do
-    storage <- getStorage sessionId
+    storage <- Session.getStorage sessionId
     storage.write path (Text.encodeUtf8 content)
   view sessionId
 
@@ -427,7 +407,7 @@ updateFile sessionId _ _ (UpdatedFile clientPath content) = do
 newFolder :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> NewFolder -> Filehub (Html ())
 newFolder = \sessionId _ _ (NewFolder path) -> do
   withServerError do
-    storage <- getStorage sessionId
+    storage <- Session.getStorage sessionId
     storage.newFolder (Text.unpack path)
   view sessionId
 
@@ -436,7 +416,7 @@ deleteFile :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> [ClientPath] -> Bo
            -> Filehub (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))
 deleteFile sessionId _ _ clientPaths deleteSelected = do
   withServerError do
-    storage <- getStorage sessionId
+    storage <- Session.getStorage sessionId
     root    <- Session.getRoot sessionId
     forM_ clientPaths \clientPath -> do
       let path = ClientPath.fromClientPath root clientPath
@@ -522,7 +502,7 @@ search sessionId _ searchWord = do
   ctx <- makeTemplateContext sessionId
   withServerError do
     display <- Session.getDisplay sessionId
-    storage <- getStorage sessionId
+    storage <- Session.getStorage sessionId
     files   <- storage.lsCwd
     case display of
       Mobile    -> pure $ runTemplate ctx (Template.search searchWord files Template.Mobile.table)
@@ -553,7 +533,7 @@ selectRows sessionId _ selected = do
 upload :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> MultipartData Mem -> Filehub (Html ())
 upload sessionId _ _ multipart = do
   withServerError do
-    storage <- getStorage sessionId
+    storage <- Session.getStorage sessionId
     storage.upload multipart
   index sessionId
 
@@ -561,7 +541,7 @@ upload sessionId _ _ multipart = do
 download :: SessionId -> ConfirmLogin -> [ClientPath]
          -> Filehub (Headers '[ Header "Content-Disposition" String ] (ConduitT () ByteString (ResourceT IO) ()))
 download sessionId _ clientPaths = do
-  storage <- getStorage sessionId & withServerError
+  storage <- Session.getStorage sessionId & withServerError
   root    <- Session.getRoot sessionId & withServerError
   case clientPaths of
     [clientPath@(ClientPath path)] -> do
@@ -598,7 +578,7 @@ move :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> MoveFile
      -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
 move sessionId _ _ (MoveFile src tgt) = do
   root         <- Session.getRoot sessionId & withServerError
-  storage      <- getStorage sessionId & withServerError
+  storage      <- Session.getStorage sessionId & withServerError
   let srcPaths =  fmap (ClientPath.fromClientPath root) src
   let tgtPath  =  ClientPath.fromClientPath root tgt
 
@@ -642,7 +622,7 @@ initViewer sessionId _ mClientPath = do
     pure $ addHeader payload NoContent
   where
     initViewer' root clientPath = do
-      storage <- getStorage sessionId
+      storage <- Session.getStorage sessionId
       let filePath  =  ClientPath.fromClientPath root clientPath
       let dir       =  takeDirectory filePath
       order         <- Session.getSortFileBy sessionId
@@ -739,7 +719,7 @@ serve :: SessionId -> ConfirmLogin -> Maybe ClientPath
                            (ConduitT () ByteString (ResourceT IO) ()))
 serve sessionId _ mFile = do
   withServerError do
-    storage    <- getStorage sessionId
+    storage    <- Session.getStorage sessionId
     root       <- Session.getRoot sessionId
     clientPath <- withQueryParam mFile
     let path   = ClientPath.fromClientPath root clientPath
@@ -760,7 +740,7 @@ thumbnail :: SessionId -> ConfirmLogin -> Maybe ClientPath
                                (ConduitT () ByteString (ResourceT IO) ()))
 thumbnail sessionId _ mFile = do
   withServerError do
-    storage    <- getStorage sessionId
+    storage    <- Session.getStorage sessionId
     root       <- Session.getRoot sessionId
     clientPath <- withQueryParam mFile
     let path   = ClientPath.fromClientPath root clientPath
@@ -913,92 +893,3 @@ application env
         :. Server.Handler.mobileOnlyHandler env
         :. Server.Handler.loginHandler env
         :. EmptyContext
-
-
-------------------------------------
--- main
-------------------------------------
-
-
-main :: IO ()
-main = Log.withColoredStdoutLogger \logger -> do
-  Options
-    { configFile = configFile
-    , optionConfig
-    } <- Config.Options.parseOptions
-  config <- Config.Toml.parseConfigFile configFile
-  Config
-    { port                  = Identity port
-    , theme                 = Identity theme
-    , verbosity             = Identity verbosity
-    , readOnly              = Identity readOnly
-    , locale                = Identity locale
-    , customThemeDark       = Identity customThemeDark
-    , customThemeLight      = Identity customThemeLight
-    , targets               = targetConfigs
-    , simpleAuthUserRecords = simpleAuthLoginUsers
-    , oidcAuthProviders     = oidcAuthProviders
-    } <-
-      either
-        (\err -> throwIO (userError err))
-        pure
-        (Config.merge optionConfig config)
-
-  runEff $ runLog "main" logger verbosity do
-    logInfo_ [i|port:      #{port}|]
-    logInfo_ [i|theme:     #{theme}|]
-    logInfo_ [i|verbosity: #{verbosity}|]
-    logInfo_ [i|readonly:  #{readOnly}|]
-    logInfo_ [i|locale:    #{locale}|]
-#ifdef DEBUG
-    logInfo_ [i|debug:     true|]
-#endif
-
-  sessionPool      <- runEff Session.Pool.new
-  activeUserPool   <- runEff ActiveUser.Pool.new
-  targets          <- runEff . runLog "Targets" logger verbosity . runFileSystem $ fromTargetConfig targetConfigs.unTargets
-  simpleAuthUserDB <- runEff . runFileSystem $ Auth.Simple.createSimpleAuthUserDB simpleAuthLoginUsers.unSimpleAuthUserRecords
-  lockRegistry     <- LockRegistry.Local.new
-  cache            <- Cache.InMemory.new 5000
-  httpManager      <- newTlsManager
-
-  let env =
-        Env
-          { port              = port
-          , theme             = theme
-          , sessionPool       = sessionPool
-          , sessionDuration   = secondsToNominalDiffTime (60 * 60)
-          , targets           = targets
-          , readOnly          = readOnly
-          , locale            = locale
-          , logger            = logger
-          , logLevel          = verbosity
-          , customThemeDark   = (.unCustomThemeDark) <$> customThemeDark
-          , customThemeLight  = (.unCustomThemeLight) <$> customThemeLight
-          , simpleAuthUserDB  = simpleAuthUserDB
-          , oidcAuthProviders = OIDCAuthProviders (oidcAuthProviders.unOidcAuthProviders)
-          , activeUsers       = activeUserPool
-          , httpManager       = httpManager
-          , cache             = cache
-          , lockRegistry      = lockRegistry
-          }
-
-  go env `catch` handler
-  where
-    go env = do
-      putStr "[Filehub server is up and running]\n" >> hFlush stdout
-      let settings = setPort env.port defaultSettings
-      runSettings settings (application env)
-    handler (e :: SomeException) = putStrLn ("server is down " <> show e) >> hFlush stdout
-
-    fromTargetConfig opts = traverse transform opts
-      where
-        transform (FSTargetConfig c) = Target <$> FS.initialize c
-        transform (S3TargetConfig c) = Target <$> S3.initialize c
-
-
--- | For developement with ghciwatch
---   Run `ghciwatch --test-ghci "Filehub.Entry.mainDev <your args for testing>"`
---   ghciwatch will watch file changes and rerun the server automatically.
-mainDev :: String -> IO ()
-mainDev args = withArgs (words args) main

@@ -26,7 +26,6 @@ import Filehub.Error (FilehubError (..), Error' (..))
 import Filehub.Session qualified as Session
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Session.Selected qualified as Selected
-import Filehub.Storage (getStorage, Storage(..))
 import Filehub.Types (Env, CopyState(..), SessionId, Selected (..))
 import Lens.Micro hiding (to)
 import Lens.Micro.Platform ()
@@ -67,7 +66,7 @@ select sessionId = do
               throwError err
         Selected x xs -> do
           root      <- Session.getRoot sessionId
-          storage   <- getStorage sessionId
+          storage   <- Session.getStorage sessionId
           let paths =  (x:xs) & fmap (ClientPath.fromClientPath root)
           files     <- traverse storage.get paths
           state     <- getCopyState sessionId
@@ -118,10 +117,10 @@ paste sessionId = do
       forM_ selections \(from, files) -> do
         forM_ files \file -> do
           bytes <- Session.withTarget sessionId (Target.getTargetId from) \_ -> do
-            storage <- getStorage sessionId
+            storage <- Session.getStorage sessionId
             storage.read file
           Session.withTarget sessionId (Target.getTargetId to) \_ -> do
-            storage         <- getStorage sessionId
+            storage         <- Session.getStorage sessionId
             dirPath         <- Session.getCurrentDir sessionId
             let destination =  dirPath </> takeFileName file.path
             storage.write destination bytes

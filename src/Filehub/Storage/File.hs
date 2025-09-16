@@ -24,8 +24,7 @@ import Effectful.Error.Dynamic (throwError, Error, runErrorNoCallStack)
 import Effectful.FileSystem
 import Effectful.Log
 import Filehub.Error (FilehubError(..), Error' (..))
-import Filehub.Session qualified as Session
-import Filehub.Storage.Context qualified as Storage
+import {-# SOURCE #-} Filehub.Session qualified as Session
 import Filehub.Storage.Types (Storage (..))
 import Filehub.Types ( SessionId, Env )
 import Lens.Micro.Platform ()
@@ -34,6 +33,8 @@ import Storage.File qualified
 import Storage.Error (StorageError)
 import Storage.Error qualified as StorageError
 import Effectful.Reader.Dynamic (Reader)
+import Effectful.Extended.LockManager (LockManager)
+import Effectful.Extended.Cache (Cache)
 
 
 cd
@@ -63,7 +64,16 @@ withStorageError :: (Error FilehubError :> es) => Eff (Error StorageError : es) 
 withStorageError action = runErrorNoCallStack action >>= either (\err -> throwError (mapError err)) pure
 
 
-storage :: Storage.Context es => SessionId -> (Storage (Eff es))
+storage
+  :: ( Reader Env         :> es
+     , FileSystem         :> es
+     , Log                :> es
+     , IOE                :> es
+     , Cache              :> es
+     , LockManager        :> es
+     , Error FilehubError :> es
+     )
+  => SessionId -> (Storage (Eff es))
 storage sessionId =
   Storage
     { get         = Storage.File.get

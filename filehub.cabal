@@ -146,11 +146,9 @@ library
     Cache.Key
     Data.ClientPath
     Data.File
-    Network.Wai.Middleware.Filehub
-    Network.Wai.Middleware.Extended
-    Network.Mime.Extended
     Effectful.Extended.Cache
     Effectful.Extended.LockManager
+    Filehub
     Filehub.ActiveUser.Pool
     Filehub.ActiveUser.Types
     Filehub.Auth.OIDC
@@ -185,8 +183,6 @@ library
     Filehub.Session.Types.SessionId
     Filehub.Size
     Filehub.Sort
-    Filehub.Storage
-    Filehub.Storage.Context
     Filehub.Storage.File
     Filehub.Storage.S3
     Filehub.Storage.Types
@@ -202,14 +198,17 @@ library
     LockRegistry.Dummy
     LockRegistry.Key
     LockRegistry.Local
-    System.FilePath.Extended
+    Network.Mime.Extended
+    Network.Wai.Middleware.Extended
+    Network.Wai.Middleware.Filehub
     Storage.Error
     Storage.File
     Storage.S3
+    System.FilePath.Extended
     Target.Class
     Target.File
-    Target.S3
     Target.Internal
+    Target.S3
     Target.Types
     Target.Types.TargetId
     Paths_filehub

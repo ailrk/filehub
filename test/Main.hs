@@ -1,45 +1,45 @@
 {-# LANGUAGE BangPatterns #-}
 module Main where
 
+import Cache.InMemory qualified as Cache.InMemory
+import Control.Monad (forM_)
+import Data.ByteString.Char8 qualified as ByteString
+import Data.Char (isPrint)
+import Data.ClientPath qualified as ClientPath
+import Data.Maybe (fromJust)
+import Data.Time (secondsToNominalDiffTime)
+import Data.UUID qualified as UUID
+import Effectful (runEff)
+import Effectful.FileSystem (runFileSystem)
+import Effectful.Log (LogLevel(LogTrace), Logger)
+import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
+import Filehub.Auth.OIDC (OIDCAuthProviders(..))
+import Filehub.Auth.Simple (SimpleAuthUserDB(..), UserRecord(..))
+import Filehub.Auth.Simple (createSimpleAuthUserDB)
+import Filehub.Env (Env(..))
+import Filehub.Locale (Locale(..))
+import Filehub.Server qualified as Filehub
+import Filehub.Session.Pool qualified as Session.Pool
+import Filehub.Types ( ClientPath(..), RawClientPath(..), Theme(..))
+import Filehub.Types (LoginForm(..))
+import LockRegistry.Local qualified as LockRegistry.Local
+import Log (mkLogger)
+import Network.HTTP.Client.TLS (newTlsManager)
+import Network.HTTP.Types (methodPost)
+import Network.HTTP.Types.Header
+import Network.HTTP.Types.Status
+import Network.URI.Encode qualified as URI
+import Network.Wai.Test hiding (request)
+import System.Directory (createDirectoryIfMissing, removePathForcibly, doesFileExist, doesDirectoryExist)
+import System.FilePath ((</>), normalise)
+import System.FilePath (takeDirectory)
+import Target.File (Backend(..))
+import Target.Types (TargetId(..), Target(..))
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.QuickCheck
-import Network.Wai.Test hiding (request)
-import Data.ClientPath qualified as ClientPath
-import Filehub.Session.Pool qualified as Session.Pool
-import Filehub.Env (Env(..))
-import Filehub.Auth.Simple (SimpleAuthUserDB(..), UserRecord(..))
-import Filehub.Server qualified as Filehub
-import Data.Char (isPrint)
-import System.FilePath ((</>), normalise)
-import Network.URI.Encode qualified as URI
-import Effectful (runEff)
-import Data.Time (secondsToNominalDiffTime)
-import Effectful.Log (LogLevel(LogTrace), Logger)
-import Log (mkLogger)
-import Data.UUID qualified as UUID
-import Data.Maybe (fromJust)
-import Filehub.Types ( ClientPath(..), RawClientPath(..), Theme(..))
-import System.Directory (createDirectoryIfMissing, removePathForcibly, doesFileExist, doesDirectoryExist)
-import Control.Monad (forM_)
-import System.FilePath (takeDirectory)
-import Network.HTTP.Types.Header
-import Data.ByteString.Char8 qualified as ByteString
-import Target.File (Backend(..))
-import Filehub.Types (LoginForm(..))
 import Web.FormUrlEncoded (ToForm(..))
 import Web.FormUrlEncoded qualified as UrlFormEncoded
-import Network.HTTP.Types.Status
-import Network.HTTP.Types (methodPost)
-import Filehub.Auth.Simple (createSimpleAuthUserDB)
-import Effectful.FileSystem (runFileSystem)
-import Filehub.Auth.OIDC (OIDCAuthProviders(..))
-import Filehub.Locale (Locale(..))
-import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
-import Network.HTTP.Client.TLS (newTlsManager)
-import Cache.InMemory qualified as Cache.InMemory
-import LockRegistry.Local qualified as LockRegistry.Local
-import Target.Types (TargetId(..), Target(..))
 
 
 main :: IO ()

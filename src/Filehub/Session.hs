@@ -36,6 +36,7 @@ module Filehub.Session
   ( Session(..)
   , SessionId(..)
   , TargetView(..)
+  , Storage(..)
   , getRoot
   , getCurrentDir
   , setCurrentDir
@@ -66,13 +67,20 @@ import Data.String.Interpolate (i)
 import Data.Typeable (cast)
 import Effectful (Eff, (:>), IOE)
 import Effectful.Error.Dynamic (Error, throwError)
-import Effectful.Log (Log, logAttention, logTrace_)
+import Effectful.Extended.Cache (Cache)
+import Effectful.Extended.LockManager (LockManager)
+import Effectful.FileSystem (FileSystem)
+import Effectful.Log (Log, logAttention, logTrace_, logAttention_)
 import Effectful.Reader.Dynamic (Reader, asks)
 import Filehub.Auth.Types (AuthId)
 import Filehub.Display qualified as Display
 import Filehub.Error (FilehubError (..), Error' (..))
 import Filehub.Locale (Locale)
 import Filehub.Session.Pool qualified as Session.Pool
+import Filehub.Session.Types (TargetView(..))
+import Filehub.Storage.File qualified as File
+import Filehub.Storage.S3 qualified as S3
+import Filehub.Storage.Types (Storage(..))
 import Filehub.Types
 import Filehub.UserAgent qualified as UserAgent
 import Lens.Micro
@@ -81,12 +89,9 @@ import Prelude hiding (elem)
 import Prelude hiding (readFile)
 import Target.File (Backend(..), FileSys)
 import Target.S3 (S3)
-import Target.Types (TargetId, Target (..), getTargetId)
+import Target.Types (TargetId, Target (..), getTargetId, handleTarget, targetHandler)
 import {-# SOURCE #-} Filehub.Session.Copy qualified as Copy
 import {-# SOURCE #-} Filehub.Session.Selected qualified as Selected
-import {-# SOURCE #-} Filehub.Storage (getStorage)
-import Filehub.Session.Types (TargetView(..))
-
 
 
 -- | Get the current target root. The meaning of the root depends on the target. e.g for
@@ -232,3 +237,30 @@ withTarget sessionId targetId action = do
   result <- currentTarget sessionId >>= action
   changeCurrentTarget sessionId (getTargetId saved)
   pure result
+
+
+------------------------------
+-- Storage
+------------------------------
+
+
+getStorage
+  :: ( Reader Env         :> es
+     , FileSystem         :> es
+     , Log                :> es
+     , IOE                :> es
+     , Cache              :> es
+     , LockManager        :> es
+     , Error FilehubError :> es
+     )
+  => SessionId -> Eff es (Storage (Eff es))
+getStorage sessionId = do
+  TargetView target _ _ <- currentTarget sessionId
+  maybe onError pure $ handleTarget target
+    [ targetHandler @FileSys \_ -> File.storage sessionId
+    , targetHandler @S3      \_ -> S3.storage sessionId
+    ]
+  where
+    onError = do
+      logAttention_ "[getStorage] target error"
+      throwError (FilehubError TargetError "Invalid target")

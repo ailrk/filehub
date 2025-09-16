@@ -12,12 +12,10 @@ import Filehub.Monad ( Filehub )
 import Filehub.Session.Types (TargetSessionData(..))
 import Filehub.Session qualified as Session
 import Filehub.Sort (sortFiles)
-import Filehub.Storage qualified as Storage
 import Filehub.Template.Platform.Desktop qualified as Template.Desktop
 import Filehub.Template.Internal (runTemplate, TemplateContext(..))
 import Filehub.Server.Internal (withQueryParam, makeTemplateContext)
 import Filehub.Types ( SessionId(..), ClientPath, Selected(..))
-import Filehub.Storage (getStorage)
 import Target.Class (IsTarget(..))
 import Lens.Micro
 import Lens.Micro.Platform ()
@@ -33,7 +31,7 @@ fileDetailModal sessionId mClientPath = do
   ctx@TemplateContext{ root } <- makeTemplateContext sessionId
   withServerError do
     clientPath <- withQueryParam mClientPath
-    storage    <- getStorage sessionId
+    storage    <- Session.getStorage sessionId
     file       <- storage.get (ClientPath.fromClientPath root clientPath)
     pure $ runTemplate ctx (Template.Desktop.fileDetailModal file)
 
@@ -43,7 +41,7 @@ editorModal sessionId mClientPath = do
   ctx@TemplateContext{ root } <- makeTemplateContext sessionId
   withServerError do
     clientPath <- withQueryParam mClientPath
-    storage    <- getStorage sessionId
+    storage    <- Session.getStorage sessionId
     let p = ClientPath.fromClientPath root clientPath
     content <- do
       f <- storage.get p
@@ -56,7 +54,7 @@ contextMenu :: SessionId -> [ClientPath] -> Filehub (Html ())
 contextMenu sessionId clientPaths = do
   ctx@TemplateContext { root } <- makeTemplateContext sessionId
   withServerError do
-    storage <- getStorage sessionId
+    storage <- Session.getStorage sessionId
     files   <- traverse storage.get (ClientPath.fromClientPath root <$> clientPaths)
     pure $ runTemplate ctx (Template.Desktop.contextMenu files)
 
@@ -88,7 +86,7 @@ view :: SessionId -> Filehub (Html ())
 view sessionId = do
   ctx@TemplateContext { sortedBy = order } <- makeTemplateContext sessionId
   table <- withServerError do
-    storage <- getStorage sessionId
+    storage <- Session.getStorage sessionId
     files   <- sortFiles order <$> storage.lsCwd
     pure $ runTemplate ctx (Template.Desktop.table files)
   pure $ Template.Desktop.view table

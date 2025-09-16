@@ -13,7 +13,6 @@ import Filehub.Session (SessionId)
 import Filehub.Session qualified as Session
 import Filehub.Session.Selected qualified as Selected
 import Filehub.Sort (sortFiles)
-import Filehub.Storage (getStorage, Storage(..))
 import Filehub.Template.Internal (runTemplate, TemplateContext(..))
 import Filehub.Template.Platform.Mobile qualified as Template.Mobile
 import Filehub.Types (ClientPath)
@@ -50,7 +49,7 @@ toolBar sessionId = do
 editorModal :: SessionId -> Maybe ClientPath -> Filehub (Html ())
 editorModal sessionId mClientPath = withServerError do
   clientPath <- withQueryParam mClientPath
-  storage    <- getStorage sessionId
+  storage    <- Session.getStorage sessionId
   root       <- Session.getRoot sessionId
   let p      =  ClientPath.fromClientPath root clientPath
   content <- do
@@ -65,7 +64,7 @@ view :: SessionId -> Filehub (Html ())
 view sessionId = do
   ctx@TemplateContext{ sortedBy = order } <- makeTemplateContext sessionId
   table <- withServerError do
-    storage <- getStorage sessionId
+    storage <- Session.getStorage sessionId
     files   <- sortFiles order <$> storage.lsCwd
     pure $ runTemplate ctx (Template.Mobile.table files)
   pure $ Template.Mobile.view table
