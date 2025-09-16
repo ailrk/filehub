@@ -19,45 +19,46 @@ import Amazonka.Data qualified as Amazonka
 import Amazonka.S3 (Object(..), CommonPrefix)
 import Amazonka.S3 qualified as Amazonka
 import Amazonka.S3.Lens qualified as Amazonka
+import Cache.Key (CacheKey)
 import Codec.Archive.Zip qualified as Zip
 import Conduit (ConduitT, ResourceT, MonadTrans (..))
 import Conduit qualified
 import Control.Monad (void)
 import Data.ByteString (ByteString)
+import Data.ByteString.Builder (Builder)
+import Data.ByteString.Builder qualified as Builder
 import Data.ByteString.Lazy qualified as LBS
-import Data.ClientPath (fromClientPath)
+import Data.ClientPath (fromClientPath, ClientPath)
+import Data.File (File (..), FileContent (..))
 import Data.Foldable (forM_)
 import Data.Generics.Labels ()
 import Data.Generics.Labels ()
+import Data.Kind (Type)
 import Data.List (uncons)
 import Data.Maybe (fromMaybe)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
+import Data.Time (secondsToNominalDiffTime)
 import Effectful (Eff, Eff, MonadIO (..), runEff)
 import Effectful.Error.Dynamic (throwError)
+import Effectful.Extended.Cache qualified as Cache
 import Effectful.FileSystem (runFileSystem, removeFile)
-import Filehub.Session qualified as Session
 import Filehub.Error (FilehubError (..), Error' (..))
+import Filehub.Session qualified as Session
 import Filehub.Storage.Context qualified as Storage
 import Filehub.Target (TargetView(..), handleTarget, getTargetId)
 import Filehub.Target.S3 (Backend(..), S3)
 import Filehub.Target.Types (Storage(..))
 import Filehub.Target.Types (targetHandler)
-import Filehub.Types (File(..), FileContent(..), ClientPath, SessionId, TargetId)
+import Filehub.Target.Types.TargetId qualified as TargetId
+import Filehub.Types (SessionId, TargetId)
+import GHC.TypeLits (Symbol)
 import Lens.Micro
 import Lens.Micro.Platform ()
 import Network.Mime (defaultMimeLookup)
 import Prelude hiding (read, readFile, writeFile)
 import Servant.Multipart (MultipartData(..), Mem, FileData (..))
 import System.IO.Temp qualified as Temp
-import Data.ByteString.Builder qualified as Builder
-import Effectful.Extended.Cache qualified as Cache
-import Filehub.Target.Types.TargetId qualified as TargetId
-import Data.ByteString.Builder (Builder)
-import GHC.TypeLits (Symbol)
-import Data.Kind (Type)
-import Cache.Key (CacheKey)
-import Data.Time (secondsToNominalDiffTime)
 
 
 class CacheKeyComponent (s :: Symbol) a              where toCacheKeyComponent :: Builder

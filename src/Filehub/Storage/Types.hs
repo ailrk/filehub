@@ -1,6 +1,7 @@
 module Filehub.Storage.Types where
 
 import Conduit (ResourceT)
+import Data.File (File)
 import Data.ByteString (ByteString)
 import Data.ClientPath (ClientPath)
 import Data.Conduit (ConduitT)
@@ -8,7 +9,6 @@ import Data.Generics.Labels ()
 import Lens.Micro.Platform ()
 import Prelude hiding (readFile, writeFile)
 import Servant.Multipart ( MultipartData(..), Mem, MultipartData(..), Mem )
-import {-# SOURCE #-} Filehub.Types (File)
 
 
 data Storage m = Storage

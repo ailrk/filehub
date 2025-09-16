@@ -18,27 +18,22 @@ module Filehub.Template.Platform.Desktop
   )
   where
 
+import Control.Monad (when, join)
 import Data.ByteString (ByteString)
-import Data.Foldable (traverse_)
+import Data.ClientPath (ClientPath(..))
 import Data.ClientPath qualified as ClientPath
+import Data.File (File(..), FileContent (..))
+import Data.Foldable (traverse_)
 import Data.Maybe (fromMaybe)
 import Data.String.Interpolate (iii, i)
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.Time.Format (formatTime, defaultTimeLocale)
-import Filehub.Types
-    ( File(..),
-      FileContent(..),
-      Layout(..),
-      SortFileBy(..),
-      ClientPath(..),
-      Target(..))
-import Filehub.Routes (Api(..))
-import Control.Monad (when, join)
 import Effectful.Reader.Dynamic (asks)
 import Filehub.Links ( apiLinks, linkToText )
 import Filehub.Locale (Locale(..), Phrase (..), phrase)
+import Filehub.Routes (Api(..))
 import Filehub.Selected qualified as Selected
 import Filehub.Size (toReadableSize)
 import Filehub.Target (TargetView(..), handleTarget)
@@ -50,6 +45,7 @@ import Filehub.Template.Internal
 import Filehub.Template.Shared (bold, toClientPath, viewId, tableId, sideBarId, searchBar)
 import Filehub.Template.Shared qualified as Template
 import Filehub.Theme (Theme (..))
+import Filehub.Types (Layout(..), SortFileBy(..), Target(..))
 import Lens.Micro.Platform ()
 import Lucid
 import Network.Mime.Extended (isMime)

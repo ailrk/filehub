@@ -22,8 +22,6 @@ module Filehub.Types
   , Display(..)
   , TargetId(..)
   , Target(..)
-  , FileContent(..)
-  , File(..)
   , ClientPath(..)
   , RawClientPath(..)
   , SortFileBy(..)
@@ -43,7 +41,6 @@ module Filehub.Types
 
 import Data.Text (Text)
 import Data.Text.Lazy.Encoding qualified as LText
-import Data.Time (UTCTime)
 import Data.Aeson (ToJSON (..), (.=), Value)
 import Data.Aeson qualified as Aeson
 import Data.ClientPath (ClientPath(..), RawClientPath(..))
@@ -65,7 +62,7 @@ import Filehub.Sort (SortFileBy(..))
 import Filehub.Session.Types (SessionId(..), Session(..), TargetSessionData(..))
 import Filehub.Env (Env(..))
 import GHC.IsList (fromList)
-import Network.Mime (MimeType)
+import Data.File (File)
 
 
 -- | Simple Auth login form
@@ -113,29 +110,6 @@ instance FromHttpApiData Layout where
   parseUrlPiece "ThumbnailLayout" = pure ThumbnailLayout
   parseUrlPiece "ListLayout"      = pure ListLayout
   parseUrlPiece _                 = Left "Unknown layout"
-
-
--- | `FileContent` represents the tree structure of a folder without pulling in
--- any content. To read content from a file, use `Storage.read` or `Storage.readStream`
-data FileContent
-  = Content
-  | Dir (Maybe [File])
-  deriving (Show, Eq, Generic)
-
-
-data File = File
-  { path     :: FilePath -- absolute path
-  , atime    :: Maybe UTCTime
-  , mtime    :: Maybe UTCTime
-  , size     :: Maybe Integer
-  , mimetype :: MimeType
-  , content  :: FileContent
-  }
-  deriving (Show, Eq, Generic)
-
-
-instance Ord File where
-  compare a b = compare a.path b.path
 
 
 -- | State machine reprents the copy and paste process.

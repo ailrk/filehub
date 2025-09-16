@@ -6,10 +6,10 @@
 -- sorted with higher priority by default.
 module Filehub.Sort (SortFileBy(..), sortFiles) where
 
+import Data.File (File(..), FileContent(..))
 import Data.List ( sortOn )
 import System.FilePath ( takeFileName )
 import Servant (ToHttpApiData(..), FromHttpApiData(..))
-import {-# SOURCE #-} Filehub.Types (File(..), FileContent(..))
 
 
 data SortFileBy

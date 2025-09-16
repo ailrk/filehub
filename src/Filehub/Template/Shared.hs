@@ -4,7 +4,9 @@ module Filehub.Template.Shared where
 import Control.Monad (when)
 import Data.Aeson qualified as Aeson
 import Data.Aeson.Types (Pair)
+import Data.ClientPath (ClientPath(..))
 import Data.ClientPath qualified as ClientPath
+import Data.File (File(..), FileContent (..))
 import Data.Foldable (Foldable(..))
 import Data.Maybe (fromMaybe)
 import Data.Sequence (Seq(..))
@@ -22,7 +24,7 @@ import Filehub.Target.File (FileSys)
 import Filehub.Target.S3 (S3)
 import Filehub.Target.Types (targetHandler)
 import Filehub.Template.Internal
-import Filehub.Types ( ClientPath(..), Display(..), ControlPanelState (..), File(..), FileContent (..), OpenTarget (..), SearchWord (..))
+import Filehub.Types ( Display(..), ControlPanelState (..), OpenTarget (..), SearchWord (..))
 import Lens.Micro
 import Lens.Micro.Platform ()
 import Lucid

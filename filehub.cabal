@@ -145,6 +145,7 @@ library
     Cache.InMemory
     Cache.Key
     Data.ClientPath
+    Data.File
     Network.Wai.Middleware.Filehub
     Network.Wai.Middleware.Extended
     Network.Mime.Extended

@@ -13,6 +13,7 @@ import Control.Monad (forM_)
 import Data.ClientPath qualified as ClientPath
 import Data.Function (on)
 import Data.List (nub)
+import Data.File (File(..))
 import Data.String.Interpolate (i)
 import Effectful (Eff, (:>), Eff, (:>), IOE)
 import Effectful.Error.Dynamic (Error, throwError)
@@ -28,7 +29,7 @@ import Filehub.Session.Selected qualified as Selected
 import Filehub.Storage (getStorage, Storage(..))
 import Filehub.Target (TargetView(..))
 import Filehub.Target qualified as Target
-import Filehub.Types (Env, CopyState(..), SessionId, File(..), Selected (..))
+import Filehub.Types (Env, CopyState(..), SessionId, Selected (..))
 import Lens.Micro hiding (to)
 import Lens.Micro.Platform ()
 import System.FilePath (takeFileName, (</>))

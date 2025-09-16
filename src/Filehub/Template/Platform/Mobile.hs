@@ -1,8 +1,11 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Filehub.Template.Platform.Mobile where
 
+import Control.Monad (join)
 import Data.ByteString (ByteString)
+import Data.ClientPath (ClientPath(..))
 import Data.ClientPath qualified as ClientPath
+import Data.File (File(..))
 import Data.Foldable (traverse_)
 import Data.Maybe (fromMaybe)
 import Data.String.Interpolate (iii, i)
@@ -10,31 +13,25 @@ import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.Time.Format (formatTime, defaultTimeLocale)
-import Filehub.Types
-    ( File(..),
-      SortFileBy(..),
-      ClientPath(..),
-      Target(..),
-      Selected )
-import Filehub.Size (toReadableSize)
-import Filehub.Selected qualified as Selected
+import Effectful.Reader.Dynamic (asks)
+import Filehub.Links ( apiLinks, linkToText )
+import Filehub.Locale (Phrase(..), phrase, Locale (..))
 import Filehub.Routes (Api(..))
+import Filehub.Selected qualified as Selected
+import Filehub.Size (toReadableSize)
 import Filehub.Target (TargetView(..), handleTarget)
 import Filehub.Target qualified as Target
-import Filehub.Template.Shared (viewId, sideBarId, controlPanelId, toolBarId, tableId, searchBar)
-import Filehub.Template.Shared qualified as Template
-import Filehub.Template.Internal (Template, TemplateContext(..))
-import Filehub.Links ( apiLinks, linkToText )
-import Lens.Micro.Platform ()
-import Lucid
-import System.FilePath (takeFileName)
 import Filehub.Target.File (Backend (..), FileSys)
 import Filehub.Target.S3 (Backend (..), S3)
 import Filehub.Target.Types (targetHandler)
+import Filehub.Template.Internal (Template, TemplateContext(..))
+import Filehub.Template.Shared (viewId, sideBarId, controlPanelId, toolBarId, tableId, searchBar)
+import Filehub.Template.Shared qualified as Template
 import Filehub.Theme (Theme(..))
-import Effectful.Reader.Dynamic (asks)
-import Control.Monad (join)
-import Filehub.Locale (Phrase(..), phrase, Locale (..))
+import Filehub.Types ( SortFileBy(..), Target(..), Selected )
+import Lens.Micro.Platform ()
+import Lucid
+import System.FilePath (takeFileName)
 
 
 index :: Html ()

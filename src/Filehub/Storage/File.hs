@@ -15,19 +15,27 @@
 -- When updating, we first delete the cache, then write the full update.
 module Filehub.Storage.File (storage) where
 
+import Cache.Key (CacheKey)
 import Codec.Archive.Zip qualified as Zip
 import Conduit (ConduitT, ResourceT)
 import Conduit qualified
 import Control.Monad (unless, when, forM_, join)
 import Data.ByteString (ByteString)
 import Data.ByteString (readFile)
+import Data.ByteString.Builder (Builder)
+import Data.ByteString.Builder qualified as Builder
 import Data.ByteString.Lazy qualified as LBS
-import Data.ClientPath (fromClientPath)
+import Data.ClientPath (fromClientPath, ClientPath)
+import Data.File (File (..), FileContent (..))
 import Data.Generics.Labels ()
 import Data.Generics.Labels ()
+import Data.Kind (Type)
 import Data.Text qualified as Text
+import Data.Time (secondsToNominalDiffTime)
 import Effectful ( Eff, Eff, runEff)
 import Effectful.Error.Dynamic (throwError)
+import Effectful.Extended.Cache qualified as Cache
+import Effectful.Extended.LockManager qualified as LockManager
 import Effectful.FileSystem
 import Effectful.FileSystem.IO (withFile, IOMode (..))
 import Effectful.FileSystem.IO.ByteString (hPut)
@@ -36,24 +44,17 @@ import Filehub.Error (FilehubError(..), Error' (..))
 import Filehub.Session qualified as Session
 import Filehub.Storage.Context qualified as Storage
 import Filehub.Target.Types (Storage(..))
-import Filehub.Types ( SessionId, File(..), FileContent(..), ClientPath )
+import Filehub.Types ( SessionId )
+import GHC.TypeLits (Symbol)
 import Lens.Micro.Platform ()
 import Network.Mime (defaultMimeLookup)
 import Prelude hiding (read, readFile, writeFile)
 import Servant.Multipart (MultipartData(..), Mem, FileData (..))
 import System.FilePath ( (</>) )
+import System.IO.Error (isDoesNotExistError)
 import System.IO.Temp qualified as Temp
 import UnliftIO (MonadIO (..), tryIO, IOException, Handler (..))
 import UnliftIO.Retry (recovering, limitRetries, exponentialBackoff)
-import System.IO.Error (isDoesNotExistError)
-import Data.ByteString.Builder qualified as Builder
-import Effectful.Extended.Cache qualified as Cache
-import Effectful.Extended.LockManager qualified as LockManager
-import Data.Time (secondsToNominalDiffTime)
-import Data.ByteString.Builder (Builder)
-import Cache.Key (CacheKey)
-import GHC.TypeLits (Symbol)
-import Data.Kind (Type)
 
 
 class CacheKeyComponent (s :: Symbol) a              where toCacheKeyComponent :: Builder

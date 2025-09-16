@@ -23,7 +23,9 @@ import Data.Aeson (object, KeyValue (..), (.:), withObject, Value)
 import Data.Aeson.Types (parseMaybe)
 import Data.ByteString (ByteString)
 import Data.ByteString.Char8 qualified as ByteString
+import Data.ClientPath (ClientPath (..))
 import Data.ClientPath qualified as ClientPath
+import Data.File (FileContent(..), File(..))
 import Data.FileEmbed qualified as FileEmbed
 import Data.Foldable (forM_)
 import Data.Functor.Identity (Identity(..))
@@ -85,19 +87,19 @@ import Filehub.Template.Platform.Desktop qualified as Template.Desktop
 import Filehub.Template.Platform.Mobile qualified as Template.Mobile
 import Filehub.Template.Shared qualified as Template
 import Filehub.Theme qualified as Theme
-import Filehub.Types ( Display (..), Layout (..), Resource (..))
-import Filehub.Types ( FilehubEvent (..), LoginForm(..), MoveFile (..), UIComponent (..), FileContent (..), TargetId, SearchWord, OpenTarget, Resolution)
-import Filehub.Types (File(..), ClientPath(..), UpdatedFile(..), NewFile(..), NewFolder(..), SortFileBy(..), UpdatedFile(..), Theme(..), Selected (..))
+import Filehub.Types (Display (..), Layout (..), Resource (..))
+import Filehub.Types (FilehubEvent (..), LoginForm(..), MoveFile (..), UIComponent (..), TargetId, SearchWord, OpenTarget, Resolution)
 import Filehub.Types (Target(..))
+import Filehub.Types (UpdatedFile(..), NewFile(..), NewFolder(..), SortFileBy(..), UpdatedFile(..), Theme(..), Selected (..))
 import Lens.Micro
 import Lens.Micro.Platform ()
 import LockRegistry.Local qualified as LockRegistry.Local
 import Lucid
-import Network.Mime.Extended (isMime)
 import Network.HTTP.Client.TLS (newTlsManager)
 import Network.HTTP.Types.Header (hLocation)
 import Network.Mime (MimeType)
 import Network.Mime qualified as Mime
+import Network.Mime.Extended (isMime)
 import Network.URI qualified as URI
 import Network.Wai.Handler.Warp (setPort, defaultSettings, runSettings)
 import Network.Wai.Middleware.Extended qualified as Wai.Middleware
