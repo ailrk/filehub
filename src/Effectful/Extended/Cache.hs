@@ -71,8 +71,10 @@ lookup key = do
   pure result
 
 
-insert :: forall a es . (Cache :> es, Typeable a) => CacheKey -> Maybe NominalDiffTime -> a -> Eff es ()
-insert key mLast value = send (Insert key mLast value )
+insert :: forall a es . (Cache :> es, Log :> es, Typeable a) => CacheKey -> Maybe NominalDiffTime -> a -> Eff es ()
+insert key mLast value = do
+  logTrace_ [i|CACHE INSERT #{key}|]
+  send (Insert key mLast value)
 
 
 delete :: (Cache :> es, Log :> es) => CacheKey -> Eff es ()

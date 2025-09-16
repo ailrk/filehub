@@ -15,7 +15,6 @@
 -- When updating, we first delete the cache, then write the full update.
 module Storage.File where
 
-
 import Cache.Key (CacheKey)
 import Codec.Archive.Zip qualified as Zip
 import Conduit (ConduitT, ResourceT)
@@ -27,7 +26,6 @@ import Data.ByteString.Builder (Builder)
 import Data.ByteString.Builder qualified as Builder
 import Data.ByteString.Lazy qualified as LBS
 import Data.File (File (..), FileContent (..))
-import Data.Generics.Labels ()
 import Data.Generics.Labels ()
 import Data.Kind (Type)
 import Data.Text qualified as Text
@@ -45,7 +43,7 @@ import Lens.Micro.Platform ()
 import Network.Mime (defaultMimeLookup)
 import Prelude hiding (read, readFile, writeFile)
 import Servant.Multipart (MultipartData(..), Mem, FileData (..))
-import System.FilePath ( (</>) )
+import System.FilePath ( (</>), takeDirectory )
 import System.IO.Error (isDoesNotExistError)
 import System.IO.Temp qualified as Temp
 import UnliftIO (MonadIO (..), tryIO, IOException, Handler (..))
@@ -58,7 +56,7 @@ import Storage.Error (StorageError (..))
 class CacheKeyComponent (s :: Symbol) a              where toCacheKeyComponent :: Builder
 instance CacheKeyComponent "file"         File       where toCacheKeyComponent = "f"
 instance CacheKeyComponent "dir"          [File]     where toCacheKeyComponent = "d"
-instance CacheKeyComponent "file-content" ByteString where toCacheKeyComponent = "fcc"
+instance CacheKeyComponent "file-content" ByteString where toCacheKeyComponent = "fc"
 instance CacheKeyComponent "is-directory" Bool       where toCacheKeyComponent = "id"
 
 
@@ -181,7 +179,7 @@ newFolder currentDir name = do
   Cache.delete (createCacheKey @"file"         @File       (Builder.string8 name))
   Cache.delete (createCacheKey @"file-content" @ByteString (Builder.string8 name))
   Cache.delete (createCacheKey @"is-directory" @Bool       (Builder.string8 name))
-  Cache.delete (createCacheKey @"dir"          @[File]     (Builder.string8 name))
+  Cache.delete (createCacheKey @"dir"          @[File]     (Builder.string8 (takeDirectory name)))
 
 
 new
@@ -200,7 +198,7 @@ new currentDir name = do
   Cache.delete (createCacheKey @"file"         @File       (Builder.string8 name))
   Cache.delete (createCacheKey @"file-content" @ByteString (Builder.string8 name))
   Cache.delete (createCacheKey @"is-directory" @Bool       (Builder.string8 name))
-  Cache.delete (createCacheKey @"dir"          @[File]     (Builder.string8 name))
+  Cache.delete (createCacheKey @"dir"          @[File]     (Builder.string8 (takeDirectory name)))
 
 
 write
@@ -275,7 +273,7 @@ delete currentDir name = do
   Cache.delete (createCacheKey @"file"         @File       (Builder.string8 name))
   Cache.delete (createCacheKey @"file-content" @ByteString (Builder.string8 name))
   Cache.delete (createCacheKey @"is-directory" @Bool       (Builder.string8 name))
-  Cache.delete (createCacheKey @"dir"          @[File]     (Builder.string8 name))
+  Cache.delete (createCacheKey @"dir"          @[File]     (Builder.string8 (takeDirectory name)))
   where
     withRetry action = recovering policy handlers \_ -> do
       result <- tryIO action

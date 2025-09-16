@@ -58,10 +58,10 @@ import Effectful.Log (Log)
 
 
 class CacheKeyComponent (s :: Symbol) a              where toCacheKeyComponent :: Builder
-instance CacheKeyComponent "file"         File       where toCacheKeyComponent = "f:"
-instance CacheKeyComponent "dir"          [File]     where toCacheKeyComponent = "d:"
-instance CacheKeyComponent "file-content" ByteString where toCacheKeyComponent = "fcc:"
-instance CacheKeyComponent "is-directory" Bool       where toCacheKeyComponent = "id:"
+instance CacheKeyComponent "file"         File       where toCacheKeyComponent = "f"
+instance CacheKeyComponent "dir"          [File]     where toCacheKeyComponent = "d"
+instance CacheKeyComponent "file-content" ByteString where toCacheKeyComponent = "fc"
+instance CacheKeyComponent "is-directory" Bool       where toCacheKeyComponent = "id"
 
 
 cacheKeyPrefix :: Builder
@@ -70,7 +70,7 @@ cacheKeyPrefix = "st:s3:"
 
 createCacheKey :: forall (s :: Symbol) (a :: Type) . CacheKeyComponent s a => TargetId -> Builder -> CacheKey
 createCacheKey targetId identifier = Cache.mkCacheKey
-  [cacheKeyPrefix, TargetId.targetIdBuilder targetId, ":", toCacheKeyComponent @s @a, identifier]
+  [cacheKeyPrefix, TargetId.targetIdBuilder targetId, toCacheKeyComponent @s @a, identifier]
 
 
 get
@@ -155,7 +155,7 @@ read s3@S3Backend { targetId }  file = do
       Cache.insert cacheKey cacheTTL result
       pure result
   where
-    cacheKey =  createCacheKey @cacheName @cacheType targetId (Builder.string8 file.path)
+    cacheKey = createCacheKey @cacheName @cacheType targetId (Builder.string8 file.path)
     cacheTTL = Just (secondsToNominalDiffTime 10)
 
 
@@ -183,7 +183,7 @@ newFolder s3@S3Backend { targetId } filePath = do
   Cache.delete (createCacheKey @"file"         @File       targetId (Builder.string8 filePath))
   Cache.delete (createCacheKey @"file-content" @ByteString targetId (Builder.string8 filePath))
   Cache.delete (createCacheKey @"is-directory" @Bool       targetId (Builder.string8 filePath))
-  Cache.delete (createCacheKey @"dir"          @[File]     targetId (Builder.string8 filePath))
+  Cache.delete (createCacheKey @"dir"          @[File]     targetId (Builder.string8 ""))
 
 
 new
@@ -207,7 +207,7 @@ write s3@S3Backend { targetId } filePath bytes = do
   Cache.delete (createCacheKey @"file"         @File       targetId (Builder.string8 filePath))
   Cache.delete (createCacheKey @"file-content" @ByteString targetId (Builder.string8 filePath))
   Cache.delete (createCacheKey @"is-directory" @Bool       targetId (Builder.string8 filePath))
-  Cache.delete (createCacheKey @"dir"          @[File]     targetId (Builder.string8 filePath))
+  Cache.delete (createCacheKey @"dir"          @[File]     targetId (Builder.string8 ""))
 
 
 cp
@@ -235,7 +235,7 @@ delete s3@S3Backend { targetId } filePath = do
   Cache.delete (createCacheKey @"file"         @File       targetId (Builder.string8 filePath))
   Cache.delete (createCacheKey @"file-content" @ByteString targetId (Builder.string8 filePath))
   Cache.delete (createCacheKey @"is-directory" @Bool       targetId (Builder.string8 filePath))
-  Cache.delete (createCacheKey @"dir"          @[File]     targetId (Builder.string8 filePath))
+  Cache.delete (createCacheKey @"dir"          @[File]     targetId (Builder.string8 ""))
 
 
 ls
@@ -259,10 +259,11 @@ ls s3@S3Backend { targetId } _ = do
         let files = maybe [] (fmap toFile) $ resp ^. Amazonka.listObjectsV2Response_contents
         let dirs  = maybe [] (fmap toDir)  $ resp ^. Amazonka.listObjectsV2Response_commonPrefixes
         let result = files <> dirs
-        Cache.insert cacheKey Nothing result
+        Cache.insert cacheKey cacheTTL result
         pure result
   where
     cacheKey = createCacheKey @cacheName @cacheType targetId ""
+    cacheTTL = Just (secondsToNominalDiffTime 10)
 
     toDir (commonPrefix :: CommonPrefix) =
       let dirPath = fromMaybe mempty $ commonPrefix ^. Amazonka.commonPrefix_prefix

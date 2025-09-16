@@ -70,7 +70,7 @@ insert :: forall a . Typeable a
        -> Maybe NominalDiffTime
        -> a
        -> Cache -> Cache
-insert now key mLast value = insertDyn now key mLast (toDyn value)
+insert now key mTTL value = insertDyn now key mTTL (toDyn value)
 
 
 insertDyn :: UTCTime
@@ -78,9 +78,9 @@ insertDyn :: UTCTime
           -> Maybe NominalDiffTime
           -> Dynamic
           -> Cache -> Cache
-insertDyn now key mLast value cache = trim cache'
+insertDyn now key mTTL value cache = trim cache'
   where
-    entry = Entry value (fmap (`addUTCTime` now) mLast)
+    entry = Entry value (fmap (`addUTCTime` now) mTTL)
     (mEvicted, queue) = HashPSQ.insertView key cache.tick entry cache.queue
     cache' = cache
       { size  = maybe (cache.size + 1) (const cache.size) mEvicted
@@ -101,9 +101,11 @@ lookupDyn :: UTCTime -> CacheKey -> Cache -> Maybe (Maybe Dynamic, Cache)
 lookupDyn now key cache =
   case HashPSQ.alter lookupAndBump key cache.queue of
     (Nothing, _) -> Nothing
-    (Just (Entry val expiryAt), queue')
-      | Just t <- expiryAt
-      , now > t -> do
+    (Just (Entry val Nothing), queue') ->
+      Just (Just val, trim $ cache { tick = cache.tick + 1, queue = queue'})
+    (Just (Entry val (Just expiryAt)), queue')
+
+      | now < expiryAt -> do
         Just (Just val, trim $ cache { tick = cache.tick + 1, queue = queue'})
       | otherwise -> do
         Just (Nothing, delete key cache)
