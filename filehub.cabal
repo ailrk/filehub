@@ -210,6 +210,8 @@ library
     LockRegistry.Key
     LockRegistry.Local
     System.FilePath.Extended
+    Storage.Error
+    Storage.File
     Paths_filehub
   default-language: Haskell2010
 
