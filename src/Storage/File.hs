@@ -214,7 +214,7 @@ write currentDir name content = do
   Cache.delete (createCacheKey @"file"         @File       (Builder.string8 name))
   Cache.delete (createCacheKey @"file-content" @ByteString (Builder.string8 name))
   Cache.delete (createCacheKey @"is-directory" @Bool       (Builder.string8 name))
-  Cache.delete (createCacheKey @"dir"          @[File]     (Builder.string8 name))
+  Cache.delete (createCacheKey @"dir"          @[File]     (Builder.string8 (takeDirectory name)))
 
 
 cp
@@ -230,7 +230,12 @@ cp currentDir src dst = do
     isDir <- isDirectory src
     if isDir then copyDirectoryRecursive src dst
     else join $ copyFile <$> toFilePath currentDir src <*> toFilePath currentDir dst
-  Cache.delete (createCacheKey @"dir" @[File] (Builder.string8 dst))
+
+  Cache.delete (createCacheKey @"file"         @File       (Builder.string8 dst))
+  Cache.delete (createCacheKey @"file-content" @ByteString (Builder.string8 dst))
+  Cache.delete (createCacheKey @"is-directory" @Bool       (Builder.string8 dst))
+  Cache.delete (createCacheKey @"dir"          @[File]     (Builder.string8 (takeDirectory dst)))
+
 
 
 -- | Copy all files and subdirectories from src to dst.
@@ -253,7 +258,6 @@ copyDirectoryRecursive src dst = do
         if isDir
            then copyDirectoryRecursive srcPath dstPath
            else copyFile srcPath dstPath
-  Cache.delete (createCacheKey @"dir" @[File] (Builder.string8 dst))
 
 
 delete
