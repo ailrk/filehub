@@ -1,18 +1,18 @@
 module Cache.Dummy where
 
-import Cache.Key (CacheKey)
+import Cache.Key (CacheKey, SomeCacheKey)
 import Data.Time (NominalDiffTime)
 
 
-lookup :: CacheKey -> IO (Maybe a)
+lookup :: CacheKey a -> IO (Maybe a)
 lookup _ = pure Nothing
 
 
-insert :: CacheKey -> Maybe NominalDiffTime -> a -> IO ()
-insert _ _ _ = pure ()
+insert :: CacheKey a -> [SomeCacheKey] -> Maybe NominalDiffTime -> a -> IO ()
+insert _ _ _ _ = pure ()
 
 
-delete :: CacheKey -> IO ()
+delete :: SomeCacheKey -> IO ()
 delete _ = pure ()
 
 

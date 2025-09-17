@@ -15,7 +15,7 @@
 -- When updating, we first delete the cache, then write the full update.
 module Storage.File where
 
-import Cache.Key (CacheKey)
+import Cache.Key (CacheKey, SomeCacheKey (..))
 import Codec.Archive.Zip qualified as Zip
 import Conduit (ConduitT, ResourceT)
 import Conduit qualified
@@ -43,7 +43,7 @@ import Lens.Micro.Platform ()
 import Network.Mime (defaultMimeLookup)
 import Prelude hiding (read, readFile, writeFile)
 import Servant.Multipart (MultipartData(..), Mem, FileData (..))
-import System.FilePath ( (</>), takeDirectory )
+import System.FilePath ((</>), takeDirectory)
 import System.IO.Error (isDoesNotExistError)
 import System.IO.Temp qualified as Temp
 import UnliftIO (MonadIO (..), tryIO, IOException, Handler (..))
@@ -57,15 +57,20 @@ class CacheKeyComponent (s :: Symbol) a              where toCacheKeyComponent :
 instance CacheKeyComponent "file"         File       where toCacheKeyComponent = "f"
 instance CacheKeyComponent "dir"          [File]     where toCacheKeyComponent = "d"
 instance CacheKeyComponent "file-content" ByteString where toCacheKeyComponent = "fc"
-instance CacheKeyComponent "is-directory" Bool       where toCacheKeyComponent = "id"
 
 
 cacheKeyPrefix :: Builder
 cacheKeyPrefix = "st:fs"
 
 
-createCacheKey :: forall (s :: Symbol) (a :: Type) . CacheKeyComponent s a => Builder -> CacheKey
+createCacheKey :: forall (s :: Symbol) (a :: Type) . CacheKeyComponent s a => Builder -> CacheKey a
 createCacheKey identifier = Cache.mkCacheKey [cacheKeyPrefix, toCacheKeyComponent @s @a, identifier]
+
+
+-- when creating a new key:
+-- search for the group (group name is derived from key name)
+-- if the group is not there, create one
+-- delete any key in the group will delete the whole group.
 
 
 get
@@ -108,11 +113,12 @@ get path = do
                 , mimetype = "application/octet-stream"
                 , content  = Content
                 }
-      Cache.insert cacheKey cacheTTL file
+      Cache.insert cacheKey cacheDeps cacheTTL file
       pure file
   where
-    cacheKey = createCacheKey @cacheName @cacheType (Builder.string8 path)
-    cacheTTL = Just (secondsToNominalDiffTime 10)
+    cacheKey  = createCacheKey @cacheName @cacheType (Builder.string8 path)
+    cacheDeps = [ SomeCacheKey (createCacheKey @"dir" @[File] (Builder.string8 (takeDirectory path))) ]
+    cacheTTL  = Just (secondsToNominalDiffTime 10)
 
 
 isDirectory
@@ -120,22 +126,21 @@ isDirectory
   . ( FileSystem  :> es
     , Log         :> es
     , Cache       :> es
-    , cacheType ~ Bool
-    , cacheName ~ "is-directory")
+    , cacheType ~ File
+    , cacheName ~ "file")
   => FilePath -> Eff es Bool
 isDirectory filePath = do
   mCached <- Cache.lookup @cacheType cacheKey
   case mCached of
-    Just cached -> pure cached
+    Just (File { content = Content }) -> pure False
+    Just (File { content = Dir _})    -> pure True
     Nothing -> do
       pathExists <- doesPathExist filePath
       dirExists  <- doesDirectoryExist filePath
       result     <- if not pathExists then pure False else pure dirExists
-      Cache.insert cacheKey cacheTTL result
       pure result
   where
     cacheKey = createCacheKey @cacheName @cacheType (Builder.string8 filePath)
-    cacheTTL = Just (secondsToNominalDiffTime 10)
 
 
 read
@@ -152,11 +157,12 @@ read file = do
     Just cached -> pure cached
     Nothing -> do
       bytes <- liftIO $ readFile file.path
-      Cache.insert cacheKey cacheTTL bytes
+      Cache.insert cacheKey cacheDeps cacheTTL bytes
       pure bytes
   where
-    cacheKey = createCacheKey @cacheName @cacheType (Builder.string8 file.path)
-    cacheTTL = Just (secondsToNominalDiffTime 10)
+    cacheKey  = createCacheKey @cacheName @cacheType (Builder.string8 file.path)
+    cacheDeps = [ SomeCacheKey (createCacheKey @"file" @File (Builder.string8 file.path)) ]
+    cacheTTL  = Just (secondsToNominalDiffTime 10)
 
 
 readStream :: File -> Eff es (ConduitT () ByteString (ResourceT IO) ())
@@ -176,10 +182,7 @@ newFolder currentDir name = do
     logAttention "[newFolder] path doesn't exists:" filePath
     throwError (FileExists "Folder already exists")
   createDirectoryIfMissing True filePath
-  Cache.delete (createCacheKey @"file"         @File       (Builder.string8 name))
-  Cache.delete (createCacheKey @"file-content" @ByteString (Builder.string8 name))
-  Cache.delete (createCacheKey @"is-directory" @Bool       (Builder.string8 name))
-  Cache.delete (createCacheKey @"dir"          @[File]     (Builder.string8 (takeDirectory name)))
+  Cache.delete (createCacheKey @"dir" @[File] (Builder.string8 currentDir))
 
 
 new
@@ -195,10 +198,7 @@ new currentDir name = do
     logAttention "[new] path doesn't exists:" filePath
     throwError (FileExists "File already exists")
   withFile filePath ReadWriteMode (\_ -> pure ())
-  Cache.delete (createCacheKey @"file"         @File       (Builder.string8 name))
-  Cache.delete (createCacheKey @"file-content" @ByteString (Builder.string8 name))
-  Cache.delete (createCacheKey @"is-directory" @Bool       (Builder.string8 name))
-  Cache.delete (createCacheKey @"dir"          @[File]     (Builder.string8 (takeDirectory name)))
+  Cache.delete (createCacheKey @"dir" @[File] (Builder.string8 currentDir))
 
 
 write
@@ -211,10 +211,7 @@ write currentDir name content = do
   LockManager.withLock (LockManager.mkLockKey name) do
     filePath <- toFilePath currentDir name
     withFile filePath WriteMode (\h -> hPut h content)
-  Cache.delete (createCacheKey @"file"         @File       (Builder.string8 name))
-  Cache.delete (createCacheKey @"file-content" @ByteString (Builder.string8 name))
-  Cache.delete (createCacheKey @"is-directory" @Bool       (Builder.string8 name))
-  Cache.delete (createCacheKey @"dir"          @[File]     (Builder.string8 (takeDirectory name)))
+  Cache.delete (createCacheKey @"file" @File (Builder.string8 name))
 
 
 cp
@@ -230,12 +227,7 @@ cp currentDir src dst = do
     isDir <- isDirectory src
     if isDir then copyDirectoryRecursive src dst
     else join $ copyFile <$> toFilePath currentDir src <*> toFilePath currentDir dst
-
-  Cache.delete (createCacheKey @"file"         @File       (Builder.string8 dst))
-  Cache.delete (createCacheKey @"file-content" @ByteString (Builder.string8 dst))
-  Cache.delete (createCacheKey @"is-directory" @Bool       (Builder.string8 dst))
-  Cache.delete (createCacheKey @"dir"          @[File]     (Builder.string8 (takeDirectory dst)))
-
+  Cache.delete (createCacheKey @"dir" @[File] (Builder.string8 dst))
 
 
 -- | Copy all files and subdirectories from src to dst.
@@ -274,10 +266,7 @@ delete currentDir name = do
      | fileExists -> withRetry (removeFile filePath)
      | dirExists  -> withRetry (removeDirectoryRecursive filePath)
      | otherwise  -> pure ()
-  Cache.delete (createCacheKey @"file"         @File       (Builder.string8 name))
-  Cache.delete (createCacheKey @"file-content" @ByteString (Builder.string8 name))
-  Cache.delete (createCacheKey @"is-directory" @Bool       (Builder.string8 name))
-  Cache.delete (createCacheKey @"dir"          @[File]     (Builder.string8 (takeDirectory name)))
+  Cache.delete (createCacheKey @"file" @File (Builder.string8 name))
   where
     withRetry action = recovering policy handlers \_ -> do
       result <- tryIO action
@@ -316,11 +305,11 @@ ls path = do
         listDirectory path
           >>= traverse makeAbsolute
           >>= traverse get
-      Cache.insert cacheKey cacheTTL files
+      Cache.insert cacheKey [] cacheTTL files
       pure files
   where
-    cacheKey = createCacheKey @cacheName @cacheType (Builder.string8 path)
-    cacheTTL = Just (secondsToNominalDiffTime 10)
+    cacheKey  = createCacheKey @cacheName @cacheType (Builder.string8 path)
+    cacheTTL  = Just (secondsToNominalDiffTime 10)
 
 
 lsCwd

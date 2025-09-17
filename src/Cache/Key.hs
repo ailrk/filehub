@@ -1,4 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingVia #-}
 module Cache.Key where
 
 import Data.ByteString.Builder (Builder)
@@ -6,14 +8,32 @@ import Data.ByteString.Builder qualified as Builder
 import Data.ByteString.Lazy qualified as LazyByteString
 import Data.ByteString (ByteString)
 import Data.List (intersperse)
-import Data.Hashable (Hashable)
+import Data.Hashable (Hashable (..))
 import Control.Category ((>>>))
+import GHC.Generics (Generic)
+import Data.Function (on)
 
 
-newtype CacheKey = CacheKey ByteString deriving (Show, Eq, Ord, Hashable)
+data SomeCacheKey = forall a . SomeCacheKey (CacheKey a)
+instance Show     SomeCacheKey where show = show . toRep
+instance Eq       SomeCacheKey where (==) = (==) `on` toRep
+instance Ord      SomeCacheKey where compare = compare `on` toRep
+instance Hashable SomeCacheKey where hashWithSalt salt = hashWithSalt salt . toRep
 
 
-mkCacheKey :: [Builder] -> CacheKey
+newtype SomeCacheKeyRep = SomeCacheKeyRep ByteString
+  deriving (Show, Eq, Ord, Hashable)
+
+
+-- Conversion function
+toRep :: SomeCacheKey -> SomeCacheKeyRep
+toRep (SomeCacheKey (CacheKey bs)) = SomeCacheKeyRep bs
+
+
+newtype CacheKey a = CacheKey ByteString deriving (Show, Eq, Ord, Generic, Hashable)
+
+
+mkCacheKey :: [Builder] -> CacheKey a
 mkCacheKey =
   intersperse (Builder.charUtf8 ':')
   >>> mconcat
