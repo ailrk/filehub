@@ -604,10 +604,12 @@ move sessionId _ _ (MoveFile src tgt) = do
     when (takeDirectory srcPath == tgtPath)  do
       throwError (FilehubError InvalidDir "Already in the current directory")
 
-  forM_ srcPaths \srcPath -> withServerError do
-    let fileName = takeFileName srcPath
-    storage.cp srcPath (tgtPath </> fileName)
-    storage.delete srcPath
+  let mvPairs = fmap (\srcPath -> (srcPath, tgtPath </> (takeFileName srcPath)) ) srcPaths
+
+  withServerError do
+    storage.mv mvPairs
+
+  Server.Internal.clear sessionId
   addHeader FileMoved <$> index sessionId
 
 

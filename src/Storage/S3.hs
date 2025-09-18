@@ -14,13 +14,31 @@
 -- when reading data, we first try to read from the cache. if it's a miss, we then
 -- perform the full read, then cache the result.
 -- When updating, we first delete the cache, then write the full update.
-module Storage.S3 where
+module Storage.S3
+  ( get
+  , isDirectory
+  , read
+  , readStream
+  , newFolder
+  , new
+  , write
+  , writeStream
+  , mv
+  , delete
+  , ls
+  , lsCwd
+  , upload
+  , download
+  )
+  where
 
-import Amazonka (send, runResourceT, toBody, ResponseBody (..), ChunkedBody (..), RequestBody (..))
+import Amazonka (send, runResourceT, toBody, ResponseBody (..))
 import Amazonka.Data qualified as Amazonka
 import Amazonka.S3 (Object(..), CommonPrefix)
 import Amazonka.S3 qualified as Amazonka
 import Amazonka.S3.Lens qualified as Amazonka
+import Amazonka.S3.CreateMultipartUpload (CreateMultipartUploadResponse(..))
+import Amazonka.S3.UploadPart (UploadPartResponse(..))
 import Cache.Key (CacheKey, SomeCacheKey (..))
 import Codec.Archive.Zip qualified as Zip
 import Conduit (ResourceT, MonadTrans (..))
@@ -54,8 +72,11 @@ import Prelude hiding (read, readFile, writeFile)
 import Servant.Multipart (MultipartData(..), Mem, FileData (..))
 import System.IO.Temp qualified as Temp
 import Effectful.Extended.Cache (Cache)
-import Effectful.Log (Log)
 import Data.Conduit
+import Storage.Error (StorageError (..))
+import Effectful.Error.Dynamic (Error, throwError)
+import Effectful.Log (Log)
+import Data.Function (fix)
 
 
 class CacheKeyComponent (s :: Symbol) a              where toCacheKeyComponent :: Builder
@@ -77,6 +98,7 @@ createCacheKey targetId identifier = Cache.mkCacheKey
 get
   :: forall es cacheType cacheName
   . ( IOE   :> es
+    , Log   :> es
     , Cache :> es
     , cacheType ~ File
     , cacheName ~ "file")
@@ -114,6 +136,7 @@ get (s3@S3Backend { targetId }) path = do
 isDirectory
   :: forall es
   . ( Cache :> es
+    , Log   :> es
     , IOE   :> es )
   => Backend S3 -> FilePath -> Eff es Bool
 isDirectory s3@S3Backend { targetId } filePath = do
@@ -136,6 +159,7 @@ isDirectory s3@S3Backend { targetId } filePath = do
 read
   :: forall es cacheType cacheName
   . ( IOE   :> es
+    , Log   :> es
     , Cache :> es
     , cacheType ~ ByteString
     , cacheName ~ "file-content")
@@ -169,6 +193,7 @@ readStream s3 file = do
 
 newFolder
   :: ( Cache :> es
+     , Log   :> es
      , IOE   :> es)
   => Backend S3 -> FilePath -> Eff es ()
 newFolder s3@S3Backend { targetId } filePath = do
@@ -181,6 +206,7 @@ newFolder s3@S3Backend { targetId } filePath = do
 
 new
   :: ( Cache :> es
+     , Log   :> es
      , IOE   :> es)
   => Backend S3 -> FilePath -> Eff es ()
 new s3@S3Backend { targetId } filePath = do
@@ -190,6 +216,7 @@ new s3@S3Backend { targetId } filePath = do
 
 write
   :: ( Cache :> es
+     , Log   :> es
      , IOE   :> es)
   => Backend S3 -> FilePath -> ByteString -> Eff es ()
 write s3@S3Backend { targetId } filePath bytes = do
@@ -201,37 +228,62 @@ write s3@S3Backend { targetId } filePath bytes = do
   Cache.delete (createCacheKey @"dir" @[File] targetId "")
 
 
+-- | writeStream uses S3's mutlipart upload.
 writeStream
   :: ( Cache :> es
+     , Log   :> es
      , IOE   :> es)
   => Backend S3 -> FilePath -> ConduitT () ByteString (ResourceT IO) () -> Eff es ()
 writeStream s3@S3Backend { targetId } filePath conduit = do
-  let bucket  = Amazonka.BucketName s3.bucket
-  let key     = Amazonka.ObjectKey (Text.pack filePath)
-  let request = Amazonka.newPutObject bucket key $ Chunked ChunkedBody
-                  { size = Amazonka.defaultChunkSize
-                  , length = 0 -- unknown, you can just set to 0
-                  , body = conduit
-                  }
-  void . runResourceT $ send s3.env request
+  let bucket   = Amazonka.BucketName s3.bucket
+  let key      = Amazonka.ObjectKey (Text.pack filePath)
+  let partSize = 5 * 1024 * 1024
+
+  createMultipartUploadResp <- runResourceT $ send s3.env (Amazonka.newCreateMultipartUpload bucket key)
+  let uploadId = createMultipartUploadResp.uploadId
+
+  _ <- liftIO . runResourceT $ flip fix (1, conduit, [])
+    \rec (partNum, c, acc) -> do
+        mChunk <- runConduit $ c .| sinkExactly partSize
+        case mChunk of
+          Just chunk -> do
+            uploadPartResp <- send s3.env (Amazonka.newUploadPart bucket key partNum uploadId (toBody chunk))
+            let etag = case uploadPartResp.eTag of
+                         Just x -> x
+                         Nothing -> error "handle later"
+            let completedPart = Amazonka.newCompletedPart partNum etag : acc
+            rec (partNum + 1, c, completedPart)
+          Nothing -> pure (reverse acc)
+
+  _ <- runResourceT $ send s3.env (Amazonka.newCompleteMultipartUpload bucket key uploadId)
+  -- TODO check if we are good
   Cache.delete (createCacheKey @"file" @File targetId (Builder.string8 filePath))
   Cache.delete (createCacheKey @"dir" @[File] targetId "")
+  where
+      sinkExactly :: Monad m => Int -> ConduitT ByteString o m (Maybe ByteString)
+      sinkExactly n = undefined
 
 
-cp
-  :: ( IOE   :> es
-     , Cache :> es)
-   => Backend S3 -> FilePath -> FilePath -> Eff es ()
-cp s3@S3Backend { targetId } src dst = do
-  let bucket  = Amazonka.BucketName s3.bucket
-  let destKey = Amazonka.ObjectKey (Text.pack dst)
-  let request = Amazonka.newCopyObject bucket (Text.pack src) destKey
-  void . runResourceT $ send s3.env request
-  Cache.delete (createCacheKey @"dir" @[File] targetId "")
+mv
+  :: ( IOE                :> es
+     , Log                :> es
+     , Cache              :> es
+     , Error StorageError :> es)
+   => Backend S3 -> [(FilePath, FilePath)] -> Eff es ()
+mv _ [] = throwError (CopyError "Nothing to copy")
+mv s3@S3Backend { targetId } cpPairs = do
+  forM_ cpPairs \(src, dst) -> do
+    let bucket  = Amazonka.BucketName s3.bucket
+    let destKey = Amazonka.ObjectKey (Text.pack dst)
+    let request = Amazonka.newCopyObject bucket (Text.pack src) destKey
+    void . runResourceT $ send s3.env request
+    delete s3 src
+    Cache.delete (createCacheKey @"dir" @[File] targetId "")
 
 
 delete
   :: ( IOE   :> es
+     , Log   :> es
      , Cache :> es)
   => Backend S3 -> FilePath -> Eff es ()
 delete s3@S3Backend { targetId } filePath = do
@@ -245,6 +297,7 @@ delete s3@S3Backend { targetId } filePath = do
 ls
   :: forall es cacheType cacheName
   . ( Cache :> es
+    , Log   :> es
     , IOE   :> es
     , cacheType ~ [File]
     , cacheName ~ "dir")
@@ -305,6 +358,7 @@ lsCwd s3 = ls s3 ""
 
 upload
   :: ( Cache :> es
+     , Log   :> es
      , IOE   :> es)
   => Backend S3 -> MultipartData Mem -> Eff es ()
 upload s3 multipart = do
@@ -315,8 +369,9 @@ upload s3 multipart = do
 
 
 download
-  :: ( IOE        :> es
-     , Cache      :> es)
+  :: ( IOE   :> es
+     , Log   :> es
+     , Cache :> es)
   => Backend S3 -> FilePath -> Eff es (ConduitT () ByteString (ResourceT IO) ())
 download s3 path = do
   file     <- get s3 path

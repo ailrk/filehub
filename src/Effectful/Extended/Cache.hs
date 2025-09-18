@@ -10,16 +10,18 @@ module Effectful.Extended.Cache
   )
   where
 
-import Effectful
-import Cache.Key (CacheKey, mkCacheKey, SomeCacheKey (..))
-import Cache.InMemory qualified as InMemory
 import Cache.Dummy qualified as Dummy
-import Effectful.Dispatch.Dynamic (interpret, send)
-import Data.Dynamic (Typeable)
-import UnliftIO (atomicModifyIORef', readIORef)
+import Cache.InMemory qualified as InMemory
+import Cache.Key (CacheKey, mkCacheKey, SomeCacheKey (..))
 import Control.Monad (void)
-import Prelude hiding (lookup)
+import Data.Dynamic (Typeable)
+import Data.String.Interpolate (i)
 import Data.Time (NominalDiffTime, getCurrentTime)
+import Effectful
+import Effectful.Dispatch.Dynamic (interpret, send)
+import Effectful.Log (logTrace_, Log)
+import Prelude hiding (lookup)
+import UnliftIO (atomicModifyIORef', readIORef)
 
 
 -- | A generic cache effect
@@ -60,8 +62,13 @@ runCacheDummy = interpret \_ -> \case
   Flush                       -> liftIO Dummy.flush
 
 
-lookup :: forall a es . (Cache :> es, Typeable a) => CacheKey a -> Eff es (Maybe a)
-lookup key = send (Lookup key)
+lookup :: forall a es . (Cache :> es, Log :> es, Typeable a) => CacheKey a -> Eff es (Maybe a)
+lookup key = do
+  result <- send (Lookup key)
+  case result of
+    Just _ -> logTrace_ [i|CACHE HIT #{key}|]
+    Nothing -> pure ()
+  pure result
 
 
 insert :: forall a es . (Cache :> es, Typeable a)
@@ -69,8 +76,10 @@ insert :: forall a es . (Cache :> es, Typeable a)
 insert key deps mTTL value = send (Insert key deps mTTL value)
 
 
-delete :: (Cache :> es) => CacheKey a -> Eff es ()
-delete key = send (Delete (SomeCacheKey key))
+delete :: (Cache :> es, Log :> es) => CacheKey a -> Eff es ()
+delete key = do
+  logTrace_ [i|CACHE DELETE #{key}|]
+  send (Delete (SomeCacheKey key))
 
 
 flush :: (Cache :> es) => Eff es ()

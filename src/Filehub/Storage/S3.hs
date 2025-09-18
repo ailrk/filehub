@@ -14,24 +14,25 @@
 -- When updating, we first delete the cache, then write the full update.
 module Filehub.Storage.S3 (storage) where
 
+import Data.ClientPath (fromClientPath)
 import Data.Generics.Labels ()
 import Data.Generics.Labels ()
 import Effectful (Eff, Eff, (:>), IOE)
+import Effectful.Error.Dynamic (throwError, Error)
+import Effectful.Extended.Cache (Cache)
+import Effectful.Log (Log)
+import Effectful.Reader.Dynamic
+import Filehub.Error
+import Filehub.Session.Types (TargetView(..))
+import Filehub.Storage.Error (withStorageError)
+import Filehub.Storage.Types (Storage(..))
 import Filehub.Types (SessionId, Env)
 import Lens.Micro.Platform ()
 import Prelude hiding (read, readFile, writeFile)
-import Filehub.Storage.Types (Storage(..))
 import Storage.S3 qualified
-import Filehub.Session.Types (TargetView(..))
 import Target.S3 (Backend, S3)
-import {-# SOURCE #-} Filehub.Session qualified as Session
-import Effectful.Error.Dynamic (throwError, Error)
-import Filehub.Error
 import Target.Types (handleTarget, targetHandler)
-import Data.ClientPath (fromClientPath)
-import Effectful.Reader.Dynamic
-import Effectful.Log (Log)
-import Effectful.Extended.Cache (Cache)
+import {-# SOURCE #-} Filehub.Session qualified as Session
 
 
 storage
@@ -64,9 +65,9 @@ storage sessionId =
         s3 <- getS3 sessionId
         Storage.S3.writeStream s3 filePath conduit
 
-    , cp = \src dst -> do
+    , mv = \mvPairs -> withStorageError do
         s3 <- getS3 sessionId
-        Storage.S3.cp s3 src dst
+        Storage.S3.mv s3 mvPairs
 
     , delete = \filePath -> do
         s3 <- getS3 sessionId

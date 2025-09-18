@@ -183,6 +183,7 @@ library
     Filehub.Session.Types.SessionId
     Filehub.Size
     Filehub.Sort
+    Filehub.Storage.Error
     Filehub.Storage.File
     Filehub.Storage.S3
     Filehub.Storage.Types

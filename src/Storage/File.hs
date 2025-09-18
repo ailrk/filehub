@@ -22,7 +22,7 @@ module Storage.File
   , new
   , write
   , writeStream
-  , cp
+  , mv
   , delete
   , ls
   , lsCwd
@@ -69,6 +69,8 @@ import Effectful.Extended.LockManager (LockManager)
 import Storage.Error (StorageError (..))
 import Effectful.Temporary (withTempFile, Temporary)
 import Data.String.Interpolate (i)
+import Data.Bifunctor (bimap)
+import Data.List (nub)
 
 
 class CacheKeyComponent (s :: Symbol) a              where toCacheKeyComponent :: Builder
@@ -87,8 +89,9 @@ createCacheKey identifier = Cache.mkCacheKey [cacheKeyPrefix, toCacheKeyComponen
 
 get
   :: forall es cacheType cacheName
-  . ( FileSystem  :> es
-    , Cache       :> es
+  . ( FileSystem :> es
+    , Cache      :> es
+    , Log        :> es
     , cacheType ~ File
     , cacheName ~ "file")
   => FilePath -> Eff es File
@@ -135,6 +138,7 @@ get path = do
 isDirectory
   :: forall es cacheType cacheName
   . ( FileSystem  :> es
+    , Log   :> es
     , Cache       :> es
     , cacheType ~ File
     , cacheName ~ "file")
@@ -215,6 +219,7 @@ new currentDir name = do
 write
   :: ( FileSystem  :> es
      , Temporary   :> es
+     , Log         :> es
      , IOE         :> es
      , Cache       :> es
      , LockManager :> es)
@@ -226,6 +231,7 @@ write currentDir name content = do
 writeStream
   :: ( FileSystem  :> es
      , Temporary   :> es
+     , Log         :> es
      , IOE         :> es
      , Cache       :> es
      , LockManager :> es)
@@ -240,6 +246,7 @@ write'
   :: ( FileSystem  :> es
      , Temporary   :> es
      , IOE         :> es
+     , Log         :> es
      , Cache       :> es
      , LockManager :> es)
   => FilePath -> FilePath -> (FilePath -> Handle -> Eff es ()) -> Eff es ()
@@ -259,19 +266,27 @@ write' currentDir name performWrite = do
       Cache.delete (createCacheKey @"dir" @[File] (Builder.string8 currentDir))
 
 
-cp
+mv
   :: ( FileSystem         :> es
      , IOE                :> es
+     , Log                :> es
      , Cache              :> es
      , LockManager        :> es
      , Error StorageError :> es)
-  => FilePath -> FilePath -> FilePath -> Eff es ()
-cp currentDir src dst = do
-  LockManager.withLock (LockManager.mkLockKey dst) do
-    isDir <- isDirectory src
-    if isDir then copyDirectoryRecursive src dst
-    else join $ copyFile <$> toFilePath currentDir src <*> toFilePath currentDir dst
-  Cache.delete (createCacheKey @"dir" @[File] (Builder.string8 dst))
+  => FilePath -> [(FilePath, FilePath)] -> Eff es ()
+mv _ [] = throwError (CopyError "Nothing to copy")
+mv currentDir cpPairs = do
+  forM_ cpPairs \(src, dst) -> do
+    LockManager.withLock (LockManager.mkLockKey dst) do
+      LockManager.withLock (LockManager.mkLockKey src) do
+        isDir <- isDirectory src
+        if isDir then copyDirectoryRecursive src dst
+        else join $ copyFile <$> toFilePath currentDir src <*> toFilePath currentDir dst
+        delete currentDir src
+        -- cache needs to be deleted within the critical section, otherwise a fast click
+        -- can look at the staled page
+        Cache.delete (createCacheKey @"dir" @[File] (Builder.string8 (takeDirectory src)))
+        Cache.delete (createCacheKey @"dir" @[File] (Builder.string8 (takeDirectory dst)))
 
 
 -- | Copy all files and subdirectories from src to dst.
@@ -377,6 +392,7 @@ lsCwd currentDir = do
 upload
   :: ( FileSystem  :> es
      , Temporary   :> es
+     , Log         :> es
      , IOE         :> es
      , Cache       :> es
      , LockManager :> es)
@@ -391,6 +407,7 @@ upload currentDir multipart = do
 download
   :: ( FileSystem :> es
      , IOE        :> es
+     , Log        :> es
      , Cache      :> es)
   => FilePath -> Eff es (ConduitT () ByteString (ResourceT IO) ())
 download path = do

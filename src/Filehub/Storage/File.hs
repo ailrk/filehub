@@ -20,22 +20,21 @@ import Data.ClientPath (fromClientPath)
 import Data.Generics.Labels ()
 import Data.Generics.Labels ()
 import Effectful ( Eff, Eff, (:>), IOE)
-import Effectful.Error.Dynamic (throwError, Error, runErrorNoCallStack)
+import Effectful.Error.Dynamic (throwError, Error)
+import Effectful.Extended.Cache (Cache)
+import Effectful.Extended.LockManager (LockManager)
 import Effectful.FileSystem
 import Effectful.Log
+import Effectful.Reader.Dynamic (Reader)
+import Effectful.Temporary (Temporary)
 import Filehub.Error (FilehubError(..), Error' (..))
-import {-# SOURCE #-} Filehub.Session qualified as Session
+import Filehub.Storage.Error (withStorageError)
 import Filehub.Storage.Types (Storage (..))
 import Filehub.Types ( SessionId, Env )
 import Lens.Micro.Platform ()
 import Prelude hiding (read, readFile, writeFile)
 import Storage.File qualified
-import Storage.Error (StorageError)
-import Storage.Error qualified as StorageError
-import Effectful.Reader.Dynamic (Reader)
-import Effectful.Extended.LockManager (LockManager)
-import Effectful.Extended.Cache (Cache)
-import Effectful.Temporary (Temporary)
+import {-# SOURCE #-} Filehub.Session qualified as Session
 
 
 cd
@@ -53,16 +52,6 @@ cd sessionId path = do
     throwError (FilehubError InvalidDir "Can enter, not a directory")
   Session.setCurrentDir sessionId path
 
-
-mapError :: StorageError -> FilehubError
-mapError = \case
-  StorageError.InvalidDir t -> FilehubError InvalidDir t
-  StorageError.FileExists t -> FilehubError FileExists t
-  StorageError.TargetError t -> FilehubError TargetError t
-
-
-withStorageError :: (Error FilehubError :> es) => Eff (Error StorageError : es) b -> Eff es b
-withStorageError action = runErrorNoCallStack action >>= either (\err -> throwError (mapError err)) pure
 
 
 storage
@@ -93,9 +82,9 @@ storage sessionId =
         currentDir <- Session.getCurrentDir sessionId
         Storage.File.writeStream currentDir name conduit
 
-    , cp = \src dst -> withStorageError do
+    , mv = \mvPairs -> withStorageError do
         currentDir <- Session.getCurrentDir sessionId
-        Storage.File.cp currentDir src dst
+        Storage.File.mv currentDir mvPairs
 
     , delete = \name -> do
         currentDir <- Session.getCurrentDir sessionId

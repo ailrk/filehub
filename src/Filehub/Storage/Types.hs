@@ -17,7 +17,7 @@ data Storage m = Storage
   , readStream  :: File -> m (ConduitT () ByteString (ResourceT IO) ())
   , write       :: FilePath -> ByteString -> m ()
   , writeStream :: FilePath -> ConduitT () ByteString (ResourceT IO) () -> m ()
-  , cp          :: FilePath -> FilePath -> m ()
+  , mv          :: [(FilePath, FilePath)] -> m ()
   , delete      :: FilePath -> m ()
   , new         :: FilePath -> m ()
   , newFolder   :: FilePath -> m ()

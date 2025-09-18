@@ -29,6 +29,7 @@ function register1() {
 
 
 function handleDragOver(e: Event) {
+  console.log('over')
   e.preventDefault()
 }
 
@@ -153,6 +154,7 @@ function fillRoundedRect(ctx: CanvasRenderingContext2D, x: number, y: number, wi
 
 
 function handleDrop(e: Event) {
+  console.log('drop')
   if (!(e instanceof DragEvent)) return;
   e.preventDefault();
   if (e.target instanceof HTMLElement) {
