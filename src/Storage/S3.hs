@@ -21,7 +21,7 @@ import Amazonka.Data qualified as Amazonka
 import Amazonka.S3 (Object(..), CommonPrefix)
 import Amazonka.S3 qualified as Amazonka
 import Amazonka.S3.Lens qualified as Amazonka
-import Cache.Key (CacheKey)
+import Cache.Key (CacheKey, SomeCacheKey (..))
 import Codec.Archive.Zip qualified as Zip
 import Conduit (ResourceT, MonadTrans (..))
 import Conduit qualified
@@ -102,27 +102,27 @@ get (s3@S3Backend { targetId }) path = do
             , mimetype = maybe "application/octet-stream" Text.encodeUtf8 contentType
             , content = Content
             }
-      Cache.insert cacheKey [] cacheTTL file
+      Cache.insert cacheKey cacheDeps cacheTTL file
       pure file
   where
     cacheKey  =  createCacheKey @cacheName @cacheType targetId (Builder.string8 path)
+    cacheDeps = [ SomeCacheKey (createCacheKey @cacheName @cacheType targetId "") ]
     cacheTTL  = Just (secondsToNominalDiffTime 10)
 
 
 -- | Because S3 doesn't have real directory, we need to list all keys in the
 -- bucket and check if the file path is prefix of any key.
 isDirectory
-  :: forall es cacheType cacheName
+  :: forall es
   . ( Cache :> es
     , Log   :> es
-    , IOE   :> es
-    , cacheType ~ Bool
-    , cacheName ~ "is-directory")
+    , IOE   :> es )
   => Backend S3 -> FilePath -> Eff es Bool
 isDirectory s3@S3Backend { targetId } filePath = do
-  mCached      <- Cache.lookup @cacheType cacheKey
+  mCached <- Cache.lookup @File cacheKey
   case mCached of
-    Just cached -> pure cached
+    Just (File { content = Content }) -> pure False
+    Just (File { content = Dir })     -> pure True
     Nothing -> do
       let bucket = Amazonka.BucketName s3.bucket
       let request = Amazonka.newListObjectsV2 bucket
@@ -130,11 +130,9 @@ isDirectory s3@S3Backend { targetId } filePath = do
                   & Amazonka.listObjectsV2_maxKeys ?~ 1
       resp <- runResourceT $ send s3.env request
       let result = maybe False (> 0) (resp ^. Amazonka.listObjectsV2Response_keyCount)
-      Cache.insert cacheKey [] cacheTTL result
       pure result
   where
-    cacheKey =  createCacheKey @cacheName @cacheType targetId (Builder.string8 filePath)
-    cacheTTL = Just (secondsToNominalDiffTime 10)
+    cacheKey = createCacheKey @"file" @File targetId (Builder.string8 filePath)
 
 
 read
@@ -146,17 +144,18 @@ read
     , cacheName ~ "file-content")
   => Backend S3 -> File -> Eff es ByteString
 read s3@S3Backend { targetId }  file = do
-  mCached      <- Cache.lookup @cacheType cacheKey
+  mCached <- Cache.lookup @cacheType cacheKey
   case mCached of
     Just cached -> pure cached
     Nothing -> do
       stream <- readStream s3 file
       chunks <- liftIO $ runResourceT . Conduit.runConduit $ stream Conduit..| Conduit.sinkList
       let result = LBS.toStrict (LBS.fromChunks chunks)
-      Cache.insert cacheKey [] cacheTTL result
+      Cache.insert cacheKey cacheDeps cacheTTL result
       pure result
   where
     cacheKey  = createCacheKey @cacheName @cacheType targetId (Builder.string8 file.path)
+    cacheDeps = [ SomeCacheKey (createCacheKey @"file" @File targetId (Builder.string8 file.path)) ]
     cacheTTL  = Just (secondsToNominalDiffTime 10)
 
 
@@ -181,7 +180,7 @@ newFolder s3@S3Backend { targetId } filePath = do
   let key     = Amazonka.ObjectKey (Text.pack (normalizeDirPath filePath))
   let request = Amazonka.newPutObject bucket key (toBody LBS.empty)
   void . runResourceT $ send s3.env request
-  Cache.delete (createCacheKey @"file" @File targetId (Builder.string8 filePath))
+  Cache.delete (createCacheKey @"dir" @[File] targetId "")
 
 
 new
@@ -189,7 +188,9 @@ new
      , Log   :> es
      , IOE   :> es)
   => Backend S3 -> FilePath -> Eff es ()
-new s3 filePath = write s3 filePath mempty
+new s3@S3Backend { targetId } filePath = do
+  write s3 filePath mempty
+  Cache.delete (createCacheKey @"dir" @[File] targetId "")
 
 
 write
@@ -203,6 +204,7 @@ write s3@S3Backend { targetId } filePath bytes = do
   let request = Amazonka.newPutObject bucket key (toBody bytes)
   void . runResourceT $ send s3.env request
   Cache.delete (createCacheKey @"file" @File targetId (Builder.string8 filePath))
+  Cache.delete (createCacheKey @"dir" @[File] targetId "")
 
 
 writeStream
@@ -220,6 +222,7 @@ writeStream s3@S3Backend { targetId } filePath conduit = do
                   }
   void . runResourceT $ send s3.env request
   Cache.delete (createCacheKey @"file" @File targetId (Builder.string8 filePath))
+  Cache.delete (createCacheKey @"dir" @[File] targetId "")
 
 
 cp
@@ -232,7 +235,7 @@ cp s3@S3Backend { targetId } src dst = do
   let destKey = Amazonka.ObjectKey (Text.pack dst)
   let request = Amazonka.newCopyObject bucket (Text.pack src) destKey
   void . runResourceT $ send s3.env request
-  Cache.delete (createCacheKey @"dir" @[File] targetId (Builder.string8 dst))
+  Cache.delete (createCacheKey @"dir" @[File] targetId "")
 
 
 delete
@@ -245,6 +248,7 @@ delete s3@S3Backend { targetId } filePath = do
   let key    = Amazonka.ObjectKey (Text.pack filePath)
   void . runResourceT $ send s3.env (Amazonka.newDeleteObject bucket key)
   Cache.delete (createCacheKey @"file" @File targetId (Builder.string8 filePath))
+  Cache.delete (createCacheKey @"dir" @[File] targetId "")
 
 
 ls
@@ -268,7 +272,11 @@ ls s3@S3Backend { targetId } _ = do
         let files = maybe [] (fmap toFile) $ resp ^. Amazonka.listObjectsV2Response_contents
         let dirs  = maybe [] (fmap toDir)  $ resp ^. Amazonka.listObjectsV2Response_commonPrefixes
         let result = files <> dirs
-        Cache.insert cacheKey [] cacheTTL result
+        Cache.insert
+          cacheKey
+          (fmap (\r -> SomeCacheKey (createCacheKey @"file" @File targetId (Builder.string8 r.path))) result)
+          cacheTTL
+          result
         pure result
   where
     cacheKey = createCacheKey @cacheName @cacheType targetId ""
