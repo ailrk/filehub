@@ -72,9 +72,9 @@ copy sessionId = withServerError do
 paste :: SessionId -> Filehub ()
 paste sessionId = do
   withRunInIO \unlift -> do
-    unlift (Copy.paste sessionId & withServerError) `catch` \(e :: SomeException) -> unlift do
+    unlift (Copy.paste sessionId & withServerError) `catch` \(e :: IOError) -> unlift do
       logAttention [i|Paste Failed |] (show e)
-      throwError (err500 { errBody = [i|Paste failed #{e}|]})
+      throwError (err500 { errBody = [i|Paste failed|]})
 
 
 -- | Ensure a query parameter presents, otherwise it's a client error
