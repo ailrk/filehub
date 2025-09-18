@@ -423,10 +423,11 @@ deleteFile sessionId _ _ clientPaths deleteSelected = do
     when deleteSelected do
       allSelecteds <- Selected.allSelecteds sessionId
       forM_ allSelecteds \(target, selected) -> do
-        Session.withTarget sessionId (Target.getTargetId target) \_ -> do
+        Session.withTarget sessionId (Target.getTargetId target) \_ _ -> do
           case selected of
             NoSelection -> pure ()
             Selected x xs -> do
+              -- TODO this looks sus
               forM_ (fmap (ClientPath.fromClientPath root) (x:xs)) \path -> do
                 storage.delete path
   Server.Internal.clear sessionId

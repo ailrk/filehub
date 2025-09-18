@@ -1,3 +1,4 @@
+{-# LANGUAGE NamedFieldPuns #-}
 module Filehub.Session.Copy
   ( select
   , copy
@@ -11,7 +12,7 @@ module Filehub.Session.Copy
 
 import Control.Monad (forM_)
 import Data.ClientPath qualified as ClientPath
-import Data.Function (on)
+import Data.Function (on, fix)
 import Data.List (nub)
 import Data.File (File(..), FileContent (..))
 import Data.String.Interpolate (i)
@@ -26,13 +27,14 @@ import Filehub.Error (FilehubError (..), Error' (..))
 import Filehub.Session qualified as Session
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Session.Selected qualified as Selected
-import Filehub.Types (Env, CopyState(..), SessionId, Selected (..))
+import Filehub.Types (Env, CopyState(..), SessionId, Selected (..), TargetSessionData (..))
 import Lens.Micro hiding (to)
 import Lens.Micro.Platform ()
-import System.FilePath (takeFileName, (</>))
+import System.FilePath (takeFileName, (</>), takeDirectory)
 import Target.Types qualified as Target
 import Filehub.Session (TargetView(..))
 import Effectful.Temporary (Temporary)
+import Debug.Trace (traceShow, trace, traceShowM)
 
 
 getCopyState :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es CopyState
@@ -63,7 +65,7 @@ select sessionId = do
     do
       let tid = Target.getTargetId target
       logAttention_ [i|#{tid}, #{selected}|]
-    Session.withTarget sessionId (Target.getTargetId target) \_ -> do
+    Session.withTarget sessionId (Target.getTargetId target) \_ storage -> do
       case selected of
         NoSelection -> do
           state <- getCopyState sessionId
@@ -75,7 +77,6 @@ select sessionId = do
               throwError err
         Selected x xs -> do
           root      <- Session.getRoot sessionId
-          storage   <- Session.getStorage sessionId
           let paths =  (x:xs) & fmap (ClientPath.fromClientPath root)
           files     <- traverse storage.get paths
           state     <- getCopyState sessionId
@@ -130,30 +131,28 @@ paste sessionId = do
   state <- getCopyState sessionId
   case state of
     Paste selections -> do
-      TargetView to _ _ <- Session.currentTarget sessionId
+      TargetView to sessionData _ <- Session.currentTarget sessionId
       forM_ selections \(from, files) -> do
-        forM_ files \file -> do
-          case file.content of
-            Content -> do
-              conduit <- Session.withTarget sessionId (Target.getTargetId from) \_ -> do
-                storage <- Session.getStorage sessionId
-                storage.readStream file
-              Session.withTarget sessionId (Target.getTargetId to) \_ -> do
-                storage         <- Session.getStorage sessionId
-                dirPath         <- Session.getCurrentDir sessionId
-                let destination =  dirPath </> takeFileName file.path
-                storage.writeStream destination conduit
-            Dir -> do
-              -- TODO
-              error "paste dir is not support"
-          -- bytes <- Session.withTarget sessionId (Target.getTargetId from) \_ -> do
-          --   storage <- Session.getStorage sessionId
-          --   storage.read file
-          -- Session.withTarget sessionId (Target.getTargetId to) \_ -> do
-          --   storage         <- Session.getStorage sessionId
-          --   dirPath         <- Session.getCurrentDir sessionId
-          --   let destination =  dirPath </> takeFileName file.path
-          --   storage.write destination bytes
+        forM_ files $ flip fix sessionData.currentDir
+          \rec currentDir file -> do -- expose the recursion with the fix point
+            case file.content of
+              Content -> do
+                conduit <- Session.withTarget sessionId (Target.getTargetId from) \_ storage -> do
+                  storage.readStream file
+                Session.withTarget sessionId (Target.getTargetId to) \_ storage -> do
+                  storage.writeStream (currentDir </> takeFileName file.path) conduit
+              Dir -> do -- copy directory layer by layer
+                dst <- Session.withTarget sessionId (Target.getTargetId to) \_ storage -> do
+                  let dst = currentDir </> takeFileName file.path
+                  storage.newFolder dst
+                  pure dst
+                Session.withTarget sessionId (Target.getTargetId from)
+                  \(TargetView _ (TargetSessionData { currentDir = savedDir }) _) storage -> do
+                    storage.cd file.path
+                    do
+                      dirFiles <- storage.lsCwd
+                      forM_ dirFiles (rec dst)
+                    storage.cd savedDir -- go back
       setCopyState sessionId NoCopyPaste
       Selected.clearSelectedAllTargets sessionId
     _ -> do

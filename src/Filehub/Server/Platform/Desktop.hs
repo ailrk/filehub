@@ -74,7 +74,7 @@ sideBar sessionId = do
   targets  <- asks @Env (.targets)
   targets' <- forM targets \(Target backend) -> withServerError do
     let targetId = getTargetIdFromBackend backend
-    Session.withTarget sessionId targetId \(TargetView target targetData _) -> do
+    Session.withTarget sessionId targetId \(TargetView target targetData _) _ -> do
       case targetData.selected of
         Selected _ sels -> pure (target, length sels + 1)
         NoSelection     -> pure (target, 0)

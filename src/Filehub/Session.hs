@@ -231,11 +231,20 @@ changeCurrentTarget sessionId targetId = do
            throwError (FilehubError InvalidSession "Invalid session")
 
 
-withTarget :: (Reader Env :> es, IOE :> es, Error FilehubError :> es, Log :> es) => SessionId -> TargetId -> (TargetView -> Eff es a) -> Eff es a
+withTarget :: ( Reader Env         :> es
+              , FileSystem         :> es
+              , Temporary          :> es
+              , Cache              :> es
+              , LockManager        :> es
+              , IOE                :> es
+              , Error FilehubError :> es
+              , Log                :> es)
+           => SessionId -> TargetId -> (TargetView -> Storage (Eff es) -> Eff es a) -> Eff es a
 withTarget sessionId targetId action = do
   TargetView saved _ _ <- currentTarget sessionId
   changeCurrentTarget sessionId targetId
-  result <- currentTarget sessionId >>= action
+  storage <- getStorage sessionId
+  result <- currentTarget sessionId >>= flip action storage
   changeCurrentTarget sessionId (getTargetId saved)
   pure result
 
@@ -259,10 +268,12 @@ getStorage
 getStorage sessionId = do
   TargetView target _ _ <- currentTarget sessionId
   maybe onError pure $ handleTarget target
-    [ targetHandler @FileSys \_ -> File.storage sessionId
-    , targetHandler @S3      \_ -> S3.storage sessionId
+    [ targetHandler @FileSys \_ -> fileStorage
+    , targetHandler @S3      \_ -> s3Storage
     ]
   where
-    onError = do
+    s3Storage   = S3.storage sessionId
+    fileStorage = File.storage sessionId
+    onError     = do
       logAttention_ "[getStorage] target error"
       throwError (FilehubError TargetError "Invalid target")
