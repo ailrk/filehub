@@ -84,11 +84,6 @@ createCacheKey :: forall (s :: Symbol) (a :: Type) . CacheKeyComponent s a => Bu
 createCacheKey identifier = Cache.mkCacheKey [cacheKeyPrefix, toCacheKeyComponent @s @a, identifier]
 
 
--- when creating a new key:
--- search for the group (group name is derived from key name)
--- if the group is not there, create one
--- delete any key in the group will delete the whole group.
-
 
 get
   :: forall es cacheType cacheName
