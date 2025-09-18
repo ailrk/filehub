@@ -210,8 +210,9 @@ write
 write currentDir name content = do
   LockManager.withLock (LockManager.mkLockKey name) do
     filePath <- toFilePath currentDir name
-    withFile filePath WriteMode (\h -> hPut h content)
+    withFile filePath WriteMode (flip hPut content)
   Cache.delete (createCacheKey @"file" @File (Builder.string8 name))
+  Cache.delete (createCacheKey @"dir" @[File] (Builder.string8 currentDir))
 
 
 cp
@@ -301,15 +302,19 @@ ls path = do
       unless exists do
         logAttention "[lsDir] dir doesn't exists:" path
         throwError (InvalidDir "Can't list, not a directory")
-      files <- withCurrentDirectory path $
-        listDirectory path
-          >>= traverse makeAbsolute
-          >>= traverse get
-      Cache.insert cacheKey [] cacheTTL files
+      (files, cacheDeps) <- withCurrentDirectory path do
+        unzip <$> do
+          listDirectory path
+            >>= traverse makeAbsolute
+            >>= traverse \x -> do
+              file <- get x
+              let depKey = SomeCacheKey (createCacheKey @"file" @File (Builder.string8 x))
+              pure (file, depKey)
+      Cache.insert cacheKey cacheDeps cacheTTL files
       pure files
   where
-    cacheKey  = createCacheKey @cacheName @cacheType (Builder.string8 path)
-    cacheTTL  = Just (secondsToNominalDiffTime 10)
+    cacheKey = createCacheKey @cacheName @cacheType (Builder.string8 path)
+    cacheTTL = Just (secondsToNominalDiffTime 10)
 
 
 lsCwd
