@@ -68,6 +68,7 @@ import Effectful.Extended.Cache (Cache)
 import Effectful.Extended.LockManager (LockManager)
 import Storage.Error (StorageError (..))
 import Effectful.Temporary (withTempFile, Temporary)
+import Data.String.Interpolate (i)
 
 
 class CacheKeyComponent (s :: Symbol) a              where toCacheKeyComponent :: Builder
@@ -87,7 +88,6 @@ createCacheKey identifier = Cache.mkCacheKey [cacheKeyPrefix, toCacheKeyComponen
 get
   :: forall es cacheType cacheName
   . ( FileSystem  :> es
-    , Log         :> es
     , Cache       :> es
     , cacheType ~ File
     , cacheName ~ "file")
@@ -135,7 +135,6 @@ get path = do
 isDirectory
   :: forall es cacheType cacheName
   . ( FileSystem  :> es
-    , Log         :> es
     , Cache       :> es
     , cacheType ~ File
     , cacheName ~ "file")
@@ -163,6 +162,7 @@ read
     , cacheName ~ "file-content")
     => File -> Eff es ByteString
 read file = do
+  logTrace_ [i|file read|]
   mCached <- Cache.lookup @cacheType cacheKey
   case mCached of
     Just cached -> pure cached
@@ -217,10 +217,10 @@ write
      , Temporary   :> es
      , IOE         :> es
      , Cache       :> es
-     , Log         :> es
      , LockManager :> es)
   => FilePath -> FilePath -> ByteString -> Eff es ()
-write currentDir name content = write' currentDir name \_ h -> do hPut h content
+write currentDir name content = do
+  write' currentDir name \_ h -> do hPut h content
 
 
 writeStream
@@ -228,7 +228,6 @@ writeStream
      , Temporary   :> es
      , IOE         :> es
      , Cache       :> es
-     , Log         :> es
      , LockManager :> es)
   => FilePath -> FilePath -> ConduitT () ByteString (ResourceT IO) () -> Eff es ()
 writeStream currentDir name conduit = do
@@ -242,7 +241,6 @@ write'
      , Temporary   :> es
      , IOE         :> es
      , Cache       :> es
-     , Log         :> es
      , LockManager :> es)
   => FilePath -> FilePath -> (FilePath -> Handle -> Eff es ()) -> Eff es ()
 write' currentDir name performWrite = do
@@ -264,7 +262,6 @@ write' currentDir name performWrite = do
 cp
   :: ( FileSystem         :> es
      , IOE                :> es
-     , Log                :> es
      , Cache              :> es
      , LockManager        :> es
      , Error StorageError :> es)
@@ -281,7 +278,6 @@ cp currentDir src dst = do
 copyDirectoryRecursive
   :: ( FileSystem         :> es
      , IOE                :> es
-     , Log                :> es
      , Cache              :> es
      , LockManager        :> es
      , Error StorageError :> es)
@@ -316,6 +312,7 @@ delete currentDir name = do
   Cache.delete (createCacheKey @"file" @File (Builder.string8 name))
   where
     withRetry action = recovering policy handlers \_ -> do
+      logInfo_ [i|Retrying delete #{name}|]
       result <- tryIO action
       case result of
         Left e | isDoesNotExistError e -> pure () -- it's already gone
@@ -382,7 +379,6 @@ upload
      , Temporary   :> es
      , IOE         :> es
      , Cache       :> es
-     , Log         :> es
      , LockManager :> es)
   => FilePath -> MultipartData Mem -> Eff es ()
 upload currentDir multipart = do
@@ -395,7 +391,6 @@ upload currentDir multipart = do
 download
   :: ( FileSystem :> es
      , IOE        :> es
-     , Log        :> es
      , Cache      :> es)
   => FilePath -> Eff es (ConduitT () ByteString (ResourceT IO) ())
 download path = do

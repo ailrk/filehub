@@ -154,6 +154,7 @@ server = Api
   , upload                = upload
   , download              = download
   , copy                  = copy
+  , copy1                 = copy1
   , paste                 = paste
   , move                  = move
   , cancel                = cancel
@@ -436,7 +437,16 @@ deleteFile sessionId _ _ clientPaths deleteSelected = do
 
 
 copy :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> Filehub (Html ())
-copy sessionId _ _  = Server.Internal.copy sessionId >> controlPanel sessionId
+copy sessionId _ _ = Server.Internal.copy sessionId >> controlPanel sessionId
+
+
+copy1 :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> Maybe ClientPath -> Filehub (Html ())
+copy1 sessionId _ _ mClientPath = do
+  clientPath <- withQueryParam mClientPath
+  Server.Internal.clear sessionId
+  Selected.setSelected sessionId (Selected clientPath [])
+  Server.Internal.copy sessionId
+  index sessionId
 
 
 paste :: SessionId -> ConfirmLogin -> ConfirmReadOnly

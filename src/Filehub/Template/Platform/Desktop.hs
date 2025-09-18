@@ -758,6 +758,7 @@ contextMenu [file] = do
     , contextmenu_open
     , contextmenu_view
     , contextmenu_play
+    , contextmenu_copy
     , contextmenu_edit
     , contextmenu_download
     , confirm_delete1
@@ -777,6 +778,14 @@ contextMenu [file] = do
           | file.mimetype `isMime` "text"            -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bxs-edit" ] mempty >> span_ (toHtml contextmenu_edit)
           | otherwise -> mempty
         `with` Template.open root file
+
+      div_ [ class_ "dropdown-item"
+           , term "hx-get" (linkToText (apiLinks.copy1 (Just clientPath)))
+           , term "hx-target" "#index"
+           , term "hx-swap" "outerHTML"
+           ] do
+        i_ [ class_ "bx bx-detail" ] mempty
+        span_ (toHtml contextmenu_copy)
 
       a_ [ class_ "dropdown-item" ,  href_ (linkToText (apiLinks.download [clientPath])) ] do
         i_ [ class_ "bx bx-download" ] mempty

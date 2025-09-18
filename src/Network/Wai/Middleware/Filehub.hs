@@ -75,10 +75,8 @@ sessionMiddleware env app req respond = toIO onErr env do
       eSession <- runErrorNoCallStack @FilehubError $ Session.Pool.get sessionId
       case eSession of
         Left _ -> do
-          logTrace_ [i|Invalid session: #{sessionId}|]
           respondWithNewSession
         Right _ -> do
-          logTrace_ [i|Existed session, #{sessionId} |]
           liftIO $ app req respond
     Nothing -> do
       logTrace_ [i|No session found.|]

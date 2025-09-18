@@ -77,7 +77,6 @@ createCacheKey targetId identifier = Cache.mkCacheKey
 get
   :: forall es cacheType cacheName
   . ( IOE   :> es
-    , Log   :> es
     , Cache :> es
     , cacheType ~ File
     , cacheName ~ "file")
@@ -115,7 +114,6 @@ get (s3@S3Backend { targetId }) path = do
 isDirectory
   :: forall es
   . ( Cache :> es
-    , Log   :> es
     , IOE   :> es )
   => Backend S3 -> FilePath -> Eff es Bool
 isDirectory s3@S3Backend { targetId } filePath = do
@@ -138,7 +136,6 @@ isDirectory s3@S3Backend { targetId } filePath = do
 read
   :: forall es cacheType cacheName
   . ( IOE   :> es
-    , Log   :> es
     , Cache :> es
     , cacheType ~ ByteString
     , cacheName ~ "file-content")
@@ -172,7 +169,6 @@ readStream s3 file = do
 
 newFolder
   :: ( Cache :> es
-     , Log   :> es
      , IOE   :> es)
   => Backend S3 -> FilePath -> Eff es ()
 newFolder s3@S3Backend { targetId } filePath = do
@@ -185,7 +181,6 @@ newFolder s3@S3Backend { targetId } filePath = do
 
 new
   :: ( Cache :> es
-     , Log   :> es
      , IOE   :> es)
   => Backend S3 -> FilePath -> Eff es ()
 new s3@S3Backend { targetId } filePath = do
@@ -195,7 +190,6 @@ new s3@S3Backend { targetId } filePath = do
 
 write
   :: ( Cache :> es
-     , Log   :> es
      , IOE   :> es)
   => Backend S3 -> FilePath -> ByteString -> Eff es ()
 write s3@S3Backend { targetId } filePath bytes = do
@@ -209,7 +203,6 @@ write s3@S3Backend { targetId } filePath bytes = do
 
 writeStream
   :: ( Cache :> es
-     , Log   :> es
      , IOE   :> es)
   => Backend S3 -> FilePath -> ConduitT () ByteString (ResourceT IO) () -> Eff es ()
 writeStream s3@S3Backend { targetId } filePath conduit = do
@@ -227,7 +220,6 @@ writeStream s3@S3Backend { targetId } filePath conduit = do
 
 cp
   :: ( IOE   :> es
-     , Log   :> es
      , Cache :> es)
    => Backend S3 -> FilePath -> FilePath -> Eff es ()
 cp s3@S3Backend { targetId } src dst = do
@@ -240,7 +232,6 @@ cp s3@S3Backend { targetId } src dst = do
 
 delete
   :: ( IOE   :> es
-     , Log   :> es
      , Cache :> es)
   => Backend S3 -> FilePath -> Eff es ()
 delete s3@S3Backend { targetId } filePath = do
@@ -254,7 +245,6 @@ delete s3@S3Backend { targetId } filePath = do
 ls
   :: forall es cacheType cacheName
   . ( Cache :> es
-    , Log   :> es
     , IOE   :> es
     , cacheType ~ [File]
     , cacheName ~ "dir")
@@ -315,7 +305,6 @@ lsCwd s3 = ls s3 ""
 
 upload
   :: ( Cache :> es
-     , Log   :> es
      , IOE   :> es)
   => Backend S3 -> MultipartData Mem -> Eff es ()
 upload s3 multipart = do
@@ -327,7 +316,6 @@ upload s3 multipart = do
 
 download
   :: ( IOE        :> es
-     , Log        :> es
      , Cache      :> es)
   => Backend S3 -> FilePath -> Eff es (ConduitT () ByteString (ResourceT IO) ())
 download s3 path = do
