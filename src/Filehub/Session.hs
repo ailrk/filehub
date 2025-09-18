@@ -72,6 +72,7 @@ import Effectful.Extended.LockManager (LockManager)
 import Effectful.FileSystem (FileSystem)
 import Effectful.Log (Log, logAttention, logTrace_, logAttention_)
 import Effectful.Reader.Dynamic (Reader, asks)
+import Effectful.Temporary (Temporary)
 import Filehub.Auth.Types (AuthId)
 import Filehub.Display qualified as Display
 import Filehub.Error (FilehubError (..), Error' (..))
@@ -247,6 +248,7 @@ withTarget sessionId targetId action = do
 getStorage
   :: ( Reader Env         :> es
      , FileSystem         :> es
+     , Temporary          :> es
      , Log                :> es
      , IOE                :> es
      , Cache              :> es

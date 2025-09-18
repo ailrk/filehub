@@ -22,9 +22,10 @@ import Control.Monad.Trans.Except (ExceptT(ExceptT), runExceptT)
 import Control.Monad ((>=>))
 import Effectful.Extended.LockManager (LockManager, runLockManagerLocal)
 import Effectful.Extended.Cache (Cache, runCacheInMemory)
+import Effectful.Temporary (Temporary, runTemporary)
 
 
-type Filehub = Eff [Reader Env, Log, Error ServerError, FileSystem, Concurrent, LockManager, Cache, IOE]
+type Filehub = Eff [Reader Env, Log, Error ServerError, FileSystem, Temporary, Concurrent, LockManager, Cache, IOE]
 
 
 -- | Discharge a `Filehub` effect
@@ -34,6 +35,7 @@ runFilehub env eff =
     runCacheInMemory env.cache
   . runLockManagerLocal env.lockRegistry
   . runConcurrent
+  . runTemporary
   . runFileSystem
   . runErrorNoCallStack
   . runLog "filehub" env.logger env.logLevel

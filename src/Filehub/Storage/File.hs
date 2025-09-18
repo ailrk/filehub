@@ -35,6 +35,7 @@ import Storage.Error qualified as StorageError
 import Effectful.Reader.Dynamic (Reader)
 import Effectful.Extended.LockManager (LockManager)
 import Effectful.Extended.Cache (Cache)
+import Effectful.Temporary (Temporary)
 
 
 cd
@@ -67,6 +68,7 @@ withStorageError action = runErrorNoCallStack action >>= either (\err -> throwEr
 storage
   :: ( Reader Env         :> es
      , FileSystem         :> es
+     , Temporary          :> es
      , Log                :> es
      , IOE                :> es
      , Cache              :> es

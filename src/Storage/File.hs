@@ -43,7 +43,7 @@ import Lens.Micro.Platform ()
 import Network.Mime (defaultMimeLookup)
 import Prelude hiding (read, readFile, writeFile)
 import Servant.Multipart (MultipartData(..), Mem, FileData (..))
-import System.FilePath ((</>), takeDirectory)
+import System.FilePath ((</>), takeDirectory, takeFileName)
 import System.IO.Error (isDoesNotExistError)
 import System.IO.Temp qualified as Temp
 import UnliftIO (MonadIO (..), tryIO, IOException, Handler (..))
@@ -51,6 +51,7 @@ import UnliftIO.Retry (recovering, limitRetries, exponentialBackoff)
 import Effectful.Extended.Cache (Cache)
 import Effectful.Extended.LockManager (LockManager)
 import Storage.Error (StorageError (..))
+import Effectful.Temporary (withTempFile, Temporary)
 
 
 class CacheKeyComponent (s :: Symbol) a              where toCacheKeyComponent :: Builder
@@ -203,16 +204,22 @@ new currentDir name = do
 
 write
   :: ( FileSystem  :> es
+     , Temporary   :> es
      , Cache       :> es
      , Log         :> es
      , LockManager :> es)
   => FilePath -> FilePath -> ByteString -> Eff es ()
 write currentDir name content = do
   LockManager.withLock (LockManager.mkLockKey name) do
-    filePath <- toFilePath currentDir name
-    withFile filePath WriteMode (flip hPut content)
-  Cache.delete (createCacheKey @"file" @File (Builder.string8 name))
-  Cache.delete (createCacheKey @"dir" @[File] (Builder.string8 currentDir))
+    filePath    <- toFilePath currentDir name
+    creatingNew <- doesFileExist filePath
+    withTempFile currentDir (takeFileName name) \tempFile h -> do
+      hPut h content
+      removeFile filePath
+      renameFile tempFile filePath
+    Cache.delete (createCacheKey @"file" @File (Builder.string8 name))
+    when (not creatingNew) do
+      Cache.delete (createCacheKey @"dir" @[File] (Builder.string8 currentDir))
 
 
 cp
@@ -333,6 +340,7 @@ lsCwd currentDir = do
 
 upload
   :: ( FileSystem  :> es
+     , Temporary   :> es
      , Cache       :> es
      , Log         :> es
      , LockManager :> es)
