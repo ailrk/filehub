@@ -6,7 +6,7 @@
 -- Utilities for Server.
 module Filehub.Server.Internal where
 
-import Control.Exception (SomeException, catch)
+import Control.Exception (catch)
 import Data.ByteString (ByteString)
 import Data.String.Interpolate (i)
 import Effectful ( Eff, (:>), IOE, MonadUnliftIO (..) )

@@ -13,7 +13,7 @@ import Control.Monad (forM_)
 import Data.ClientPath qualified as ClientPath
 import Data.Function (on)
 import Data.List (nub)
-import Data.File (File(..))
+import Data.File (File(..), FileContent (..))
 import Data.String.Interpolate (i)
 import Effectful (Eff, (:>), Eff, (:>), IOE)
 import Effectful.Error.Dynamic (Error, throwError)
@@ -116,7 +116,7 @@ copy sessionId = do
       _                       -> Left (FilehubError SelectError "Not in a copyable state")
 
 
--- | Paste files
+-- | Paste files.
 paste :: ( Reader Env          :> es
          , IOE                 :> es
          , FileSystem          :> es
@@ -133,14 +133,27 @@ paste sessionId = do
       TargetView to _ _ <- Session.currentTarget sessionId
       forM_ selections \(from, files) -> do
         forM_ files \file -> do
-          bytes <- Session.withTarget sessionId (Target.getTargetId from) \_ -> do
-            storage <- Session.getStorage sessionId
-            storage.read file
-          Session.withTarget sessionId (Target.getTargetId to) \_ -> do
-            storage         <- Session.getStorage sessionId
-            dirPath         <- Session.getCurrentDir sessionId
-            let destination =  dirPath </> takeFileName file.path
-            storage.write destination bytes
+          case file.content of
+            Content -> do
+              conduit <- Session.withTarget sessionId (Target.getTargetId from) \_ -> do
+                storage <- Session.getStorage sessionId
+                storage.readStream file
+              Session.withTarget sessionId (Target.getTargetId to) \_ -> do
+                storage         <- Session.getStorage sessionId
+                dirPath         <- Session.getCurrentDir sessionId
+                let destination =  dirPath </> takeFileName file.path
+                storage.writeStream destination conduit
+            Dir -> do
+              -- TODO
+              error "paste dir is not support"
+          -- bytes <- Session.withTarget sessionId (Target.getTargetId from) \_ -> do
+          --   storage <- Session.getStorage sessionId
+          --   storage.read file
+          -- Session.withTarget sessionId (Target.getTargetId to) \_ -> do
+          --   storage         <- Session.getStorage sessionId
+          --   dirPath         <- Session.getCurrentDir sessionId
+          --   let destination =  dirPath </> takeFileName file.path
+          --   storage.write destination bytes
       setCopyState sessionId NoCopyPaste
       Selected.clearSelectedAllTargets sessionId
     _ -> do

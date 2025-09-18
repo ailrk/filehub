@@ -603,7 +603,7 @@ listLayout files = do
                 , draggable_ "true"
                 ]
               , case file.content of
-                  Dir _   -> [ class_ "dir "]
+                  Dir     -> [ class_ "dir "]
                   Content -> mempty
               ]
   let sortIconName =
@@ -678,7 +678,7 @@ thumbnailLayout files = do
                   , draggable_ "true"
                   ]
                 , case file.content of
-                    Dir _   -> [ class_ "dir "]
+                    Dir     -> [ class_ "dir "]
                     Content -> mempty
                 ]
           clientPath@(ClientPath path) = ClientPath.toClientPath root file.path
@@ -768,7 +768,7 @@ contextMenu [file] = do
 
     div_ [ class_ "dropdown-content " , id_ contextMenuId ] do
       case file.content of
-        Dir _ -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bxs-folder-open" ] mempty >> span_ (toHtml contextmenu_open)
+        Dir -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bxs-folder-open" ] mempty >> span_ (toHtml contextmenu_open)
         Content
           | file.mimetype `isMime` "application/pdf" -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bx-show" ] mempty >> span_ (toHtml contextmenu_view)
           | file.mimetype `isMime` "audio"           -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bx-play" ] mempty >> span_ (toHtml contextmenu_play)

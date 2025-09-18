@@ -264,7 +264,7 @@ ls s3@S3Backend { targetId } _ = do
          , mtime    = Nothing
          , size     = Nothing
          , mimetype = "" -- content type can be unreliable because it's derived from the extension.
-         , content  = Dir Nothing
+         , content  = Dir
          }
 
     toFile (object :: Object) =
@@ -308,7 +308,7 @@ download s3 path = do
   file     <- get s3 path
   case file.content of
     Content -> readStream s3 file
-    Dir _ -> do
+    Dir -> do
       (zipPath, _) <- liftIO do
         tempDir <- Temp.getCanonicalTemporaryDirectory
         Temp.openTempFile tempDir "DXXXXXX.zip"

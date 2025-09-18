@@ -10,7 +10,7 @@ import Network.Mime (MimeType)
 -- any content. To read content from a file, use `Storage.read` or `Storage.readStream`
 data FileContent
   = Content
-  | Dir (Maybe [File])
+  | Dir
   deriving (Show, Eq, Generic)
 
 

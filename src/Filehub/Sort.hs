@@ -45,7 +45,7 @@ byFileNamewithDirFirst :: File -> String
 byFileNamewithDirFirst file = do
   let pre = case file.content of
               Content -> '1'
-              Dir _   -> '0'
+              Dir     -> '0'
   let name = takeFileName file.path :: String
   pre : name
 

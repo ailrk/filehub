@@ -89,6 +89,10 @@ storage sessionId =
         currentDir <- Session.getCurrentDir sessionId
         Storage.File.write currentDir name content
 
+    , writeStream = \name conduit -> do
+        currentDir <- Session.getCurrentDir sessionId
+        Storage.File.writeStream currentDir name conduit
+
     , cp = \src dst -> withStorageError do
         currentDir <- Session.getCurrentDir sessionId
         Storage.File.cp currentDir src dst

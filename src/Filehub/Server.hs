@@ -549,7 +549,7 @@ download sessionId _ clientPaths = do
       let filename =
             case file.content of
               Content -> printf "attachement; filename=%s" (takeFileName path)
-              Dir _   -> printf "attachement; filename=%s.zip" (takeFileName path)
+              Dir     -> printf "attachement; filename=%s.zip" (takeFileName path)
       pure $ addHeader filename conduit
     _ -> do
       (zipPath, _) <- liftIO do

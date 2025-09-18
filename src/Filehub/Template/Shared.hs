@@ -207,7 +207,7 @@ controlPanel
 icon :: File -> Html ()
 icon file =
   case file.content of
-    Dir _ -> i_ [ class_ "bx bxs-folder "] mempty
+    Dir -> i_ [ class_ "bx bxs-folder "] mempty
     Content
       | file.mimetype `isMime` "application/pdf"                       -> i_ [ class_ "bx bxs-file-pdf"] mempty
       | file.mimetype `isMime` "video" || file.mimetype `isMime` "mp4" -> i_ [ class_ "bx bxs-videos"] mempty
@@ -233,7 +233,7 @@ open :: FilePath -> File -> [Attribute]
 open root file = do
   let clientPath = ClientPath.toClientPath root file.path
   case file.content of
-    Dir _ ->
+    Dir ->
         [ term "hx-get" (linkToText (apiLinks.cd (Just clientPath)))
         , term "hx-target" ("#" <> viewId)
         , term "hx-swap" "outerHTML"

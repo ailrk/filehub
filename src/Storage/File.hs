@@ -13,11 +13,27 @@
 -- when reading data, we first try to read from the cache. if it's a miss, we then
 -- perform the full read, then cache the result.
 -- When updating, we first delete the cache, then write the full update.
-module Storage.File where
+module Storage.File
+  ( get
+  , isDirectory
+  , read
+  , readStream
+  , newFolder
+  , new
+  , write
+  , writeStream
+  , cp
+  , delete
+  , ls
+  , lsCwd
+  , upload
+  , download
+  )
+  where
 
 import Cache.Key (CacheKey, SomeCacheKey (..))
 import Codec.Archive.Zip qualified as Zip
-import Conduit (ConduitT, ResourceT)
+import Conduit (ConduitT, ResourceT, (.|), runResourceT)
 import Conduit qualified
 import Control.Monad (unless, when, forM_, join)
 import Data.ByteString (ByteString)
@@ -35,7 +51,7 @@ import Effectful.Error.Dynamic (throwError, Error)
 import Effectful.Extended.Cache qualified as Cache
 import Effectful.Extended.LockManager qualified as LockManager
 import Effectful.FileSystem
-import Effectful.FileSystem.IO (withFile, IOMode (..))
+import Effectful.FileSystem.IO (withFile, IOMode (..), hClose)
 import Effectful.FileSystem.IO.ByteString (hPut)
 import Effectful.Log
 import GHC.TypeLits (Symbol)
@@ -46,7 +62,7 @@ import Servant.Multipart (MultipartData(..), Mem, FileData (..))
 import System.FilePath ((</>), takeDirectory, takeFileName)
 import System.IO.Error (isDoesNotExistError)
 import System.IO.Temp qualified as Temp
-import UnliftIO (MonadIO (..), tryIO, IOException, Handler (..), catch, throwIO)
+import UnliftIO (MonadIO (..), tryIO, IOException, Handler (..), catch, throwIO, Handle)
 import UnliftIO.Retry (recovering, limitRetries, exponentialBackoff)
 import Effectful.Extended.Cache (Cache)
 import Effectful.Extended.LockManager (LockManager)
@@ -103,7 +119,7 @@ get path = do
                , mtime    = Just mtime
                , atime    = Just atime
                , mimetype = mimetype
-               , content  = if isDir then Dir Nothing else Content
+               , content  = if isDir then Dir else Content
                }
             else do
               pure File
@@ -134,7 +150,7 @@ isDirectory filePath = do
   mCached <- Cache.lookup @cacheType cacheKey
   case mCached of
     Just (File { content = Content }) -> pure False
-    Just (File { content = Dir _})    -> pure True
+    Just (File { content = Dir })     -> pure True
     Nothing -> do
       pathExists <- doesPathExist filePath
       dirExists  <- doesDirectoryExist filePath
@@ -210,15 +226,40 @@ write
      , Log         :> es
      , LockManager :> es)
   => FilePath -> FilePath -> ByteString -> Eff es ()
-write currentDir name content = do
+write currentDir name content = write' currentDir name \_ h -> do hPut h content
+
+
+writeStream
+  :: ( FileSystem  :> es
+     , Temporary   :> es
+     , IOE         :> es
+     , Cache       :> es
+     , Log         :> es
+     , LockManager :> es)
+  => FilePath -> FilePath -> ConduitT () ByteString (ResourceT IO) () -> Eff es ()
+writeStream currentDir name conduit = do
+  write' currentDir name \path h -> do
+    hClose h -- close the handle, sinkFile will create a handle for itself.
+    liftIO . runResourceT $ Conduit.runConduit (conduit .| Conduit.sinkFile path)
+
+
+write'
+  :: ( FileSystem  :> es
+     , Temporary   :> es
+     , IOE         :> es
+     , Cache       :> es
+     , Log         :> es
+     , LockManager :> es)
+  => FilePath -> FilePath -> (FilePath -> Handle -> Eff es ()) -> Eff es ()
+write' currentDir name performWrite = do
   LockManager.withLock (LockManager.mkLockKey name) do
     filePath      <- toFilePath currentDir name
     isCreatingNew <- doesFileExist filePath
     withTempFile currentDir (takeFileName name) \tempFile h -> do
-      hPut h content
+      performWrite tempFile h
       when (not isCreatingNew) do
         removeFile filePath `catch` \(e :: IOError) -> do
-          when (not (isDoesNotExistError e)) do
+          when (not (isDoesNotExistError e)) do -- it's ok if file is not there.
             throwIO e
       renameFile tempFile filePath
     Cache.delete (createCacheKey @"file" @File (Builder.string8 name))
@@ -367,7 +408,7 @@ download path = do
   file <- get path
   case file.content of
     Content -> readStream file
-    Dir _ -> do
+    Dir     -> do
       (zipPath, _) <- liftIO do
         tempDir <- Temp.getCanonicalTemporaryDirectory
         Temp.openTempFile tempDir "DXXXXXX.zip"
