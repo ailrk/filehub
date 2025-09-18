@@ -60,7 +60,9 @@ storage sessionId =
         s3 <- getS3 sessionId
         Storage.S3.write s3 filePath bytes
 
-    , writeStream = undefined -- TODO
+    , writeStream = \filePath conduit -> do
+        s3 <- getS3 sessionId
+        Storage.S3.writeStream s3 filePath conduit
 
     , cp = \src dst -> do
         s3 <- getS3 sessionId

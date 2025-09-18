@@ -16,14 +16,14 @@
 -- When updating, we first delete the cache, then write the full update.
 module Storage.S3 where
 
-import Amazonka (send, runResourceT, toBody, ResponseBody (..))
+import Amazonka (send, runResourceT, toBody, ResponseBody (..), ChunkedBody (..), RequestBody (..))
 import Amazonka.Data qualified as Amazonka
 import Amazonka.S3 (Object(..), CommonPrefix)
 import Amazonka.S3 qualified as Amazonka
 import Amazonka.S3.Lens qualified as Amazonka
 import Cache.Key (CacheKey)
 import Codec.Archive.Zip qualified as Zip
-import Conduit (ConduitT, ResourceT, MonadTrans (..))
+import Conduit (ResourceT, MonadTrans (..))
 import Conduit qualified
 import Control.Monad (void)
 import Data.ByteString (ByteString)
@@ -55,6 +55,7 @@ import Servant.Multipart (MultipartData(..), Mem, FileData (..))
 import System.IO.Temp qualified as Temp
 import Effectful.Extended.Cache (Cache)
 import Effectful.Log (Log)
+import Data.Conduit
 
 
 class CacheKeyComponent (s :: Symbol) a              where toCacheKeyComponent :: Builder
@@ -200,6 +201,23 @@ write s3@S3Backend { targetId } filePath bytes = do
   let bucket  = Amazonka.BucketName s3.bucket
   let key     = Amazonka.ObjectKey (Text.pack filePath)
   let request = Amazonka.newPutObject bucket key (toBody bytes)
+  void . runResourceT $ send s3.env request
+  Cache.delete (createCacheKey @"file" @File targetId (Builder.string8 filePath))
+
+
+writeStream
+  :: ( Cache :> es
+     , Log   :> es
+     , IOE   :> es)
+  => Backend S3 -> FilePath -> ConduitT () ByteString (ResourceT IO) () -> Eff es ()
+writeStream s3@S3Backend { targetId } filePath conduit = do
+  let bucket  = Amazonka.BucketName s3.bucket
+  let key     = Amazonka.ObjectKey (Text.pack filePath)
+  let request = Amazonka.newPutObject bucket key $ Chunked ChunkedBody
+                  { size = Amazonka.defaultChunkSize
+                  , length = 0 -- unknown, you can just set to 0
+                  , body = conduit
+                  }
   void . runResourceT $ send s3.env request
   Cache.delete (createCacheKey @"file" @File targetId (Builder.string8 filePath))
 
