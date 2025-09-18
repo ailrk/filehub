@@ -30,11 +30,10 @@ import Filehub.Session.Selected qualified as Selected
 import Filehub.Types (Env, CopyState(..), SessionId, Selected (..), TargetSessionData (..))
 import Lens.Micro hiding (to)
 import Lens.Micro.Platform ()
-import System.FilePath (takeFileName, (</>), takeDirectory)
+import System.FilePath (takeFileName, (</>))
 import Target.Types qualified as Target
 import Filehub.Session (TargetView(..))
 import Effectful.Temporary (Temporary)
-import Debug.Trace (traceShow, trace, traceShowM)
 
 
 getCopyState :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es CopyState
@@ -50,14 +49,14 @@ clearCopyState sessionId = setCopyState sessionId NoCopyPaste
 
 
 -- | Add selected to copy state.
-select :: ( Reader Env :> es
-          , IOE                  :> es
-          , FileSystem           :> es
-          , Temporary            :> es
-          , Log                  :> es
-          , Cache                :> es
-          , LockManager          :> es
-          , Error FilehubError   :> es)
+select :: ( Reader Env         :> es
+          , IOE                :> es
+          , FileSystem         :> es
+          , Temporary          :> es
+          , Log                :> es
+          , Cache              :> es
+          , LockManager        :> es
+          , Error FilehubError :> es)
        => SessionId -> Eff es ()
 select sessionId = do
   allSelecteds <- Selected.allSelecteds sessionId
@@ -118,14 +117,14 @@ copy sessionId = do
 
 
 -- | Paste files.
-paste :: ( Reader Env          :> es
-         , IOE                 :> es
-         , FileSystem          :> es
-         , Temporary           :> es
-         , Log                 :> es
-         , Cache               :> es
-         , LockManager         :> es
-         , Error FilehubError  :> es)
+paste :: ( Reader Env         :> es
+         , IOE                :> es
+         , FileSystem         :> es
+         , Temporary          :> es
+         , Log                :> es
+         , Cache              :> es
+         , LockManager        :> es
+         , Error FilehubError :> es)
       => SessionId -> Eff es ()
 paste sessionId = do
   state <- getCopyState sessionId

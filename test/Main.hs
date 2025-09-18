@@ -152,11 +152,14 @@ serverSpec = before setup  $ after_ teardown do
   describe "Paste a dir" $ do
     env <- runIO $ mkEnv
     with (pure $ Filehub.application env) do
-      it "should fail, we don't support pasting directory" do
+      it "dir1 should be pasted into dir2 completely" do
         postHtmlForm "/table/select" [("selected", "/dir1")] `shouldRespondWith` 200
         get "/files/copy" `shouldRespondWith` 200
         get "/cd?dir=dir2" `shouldRespondWith` 200
-        post "/files/paste" "" `shouldRespondWith` 500
+        post "/files/paste" "" `shouldRespondWith` 200
+        liftIO do
+          exists <- allPathsExist root ["dir2/dir1/x"]
+          exists `shouldBe` True
 
 
   describe "Delete a single file" $ do
