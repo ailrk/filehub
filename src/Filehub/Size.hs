@@ -18,7 +18,7 @@ toReadableSize nbytes =
      | otherwise -> "unknown"
   where
     nB  = fromIntegral nbytes
-    nKb = fromIntegral nbytes / (2 ^ 10)
-    nMb = fromIntegral nbytes / (2 ^ 20)
-    nGb = fromIntegral nbytes / (2 ^ 30)
-    nTb = fromIntegral nbytes / (2 ^ 40)
+    nKb = fromIntegral nbytes / (2 ^ (10 :: Integer))
+    nMb = fromIntegral nbytes / (2 ^ (20 :: Integer))
+    nGb = fromIntegral nbytes / (2 ^ (30 :: Integer))
+    nTb = fromIntegral nbytes / (2 ^ (40 :: Integer))
