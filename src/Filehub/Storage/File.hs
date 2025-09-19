@@ -74,13 +74,9 @@ storage sessionId =
     , cd          = cd sessionId
     , isDirectory = Storage.File.isDirectory
 
-    , write = \name content -> do
+    , write = \name fileWithContent -> do
         currentDir <- Session.getCurrentDir sessionId
-        Storage.File.write currentDir name content
-
-    , writeStream = \name conduit _ -> do
-        currentDir <- Session.getCurrentDir sessionId
-        Storage.File.writeStream currentDir name conduit
+        Storage.File.write currentDir name fileWithContent
 
     , mv = \mvPairs -> withStorageError do
         currentDir <- Session.getCurrentDir sessionId

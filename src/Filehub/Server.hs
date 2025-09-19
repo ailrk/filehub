@@ -22,7 +22,7 @@ import Data.ByteString (ByteString)
 import Data.ByteString.Char8 qualified as ByteString
 import Data.ClientPath (ClientPath (..))
 import Data.ClientPath qualified as ClientPath
-import Data.File (FileType(..), File(..), FileInfo)
+import Data.File (FileType(..), File(..), FileInfo, defaultFileWithContent, FileContent (..))
 import Data.FileEmbed qualified as FileEmbed
 import Data.Foldable (forM_)
 import Data.List qualified as List
@@ -400,7 +400,10 @@ updateFile sessionId _ _ (UpdatedFile clientPath content) = do
   let path = clientPath.unClientPath
   withServerError do
     storage <- Session.getStorage sessionId
-    storage.write path (Text.encodeUtf8 content)
+    storage.write path $ defaultFileWithContent
+      { path     = path
+      , content  = FileContentRaw (Text.encodeUtf8 content)
+      }
   view sessionId
 
 

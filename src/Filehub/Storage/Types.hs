@@ -1,7 +1,7 @@
 module Filehub.Storage.Types where
 
 import Conduit (ResourceT)
-import Data.File (FileInfo)
+import Data.File (FileInfo, FileWithContent)
 import Data.ByteString (ByteString)
 import Data.ClientPath (ClientPath)
 import Data.Conduit (ConduitT)
@@ -18,12 +18,7 @@ data Storage m = Storage
 
   , readStream  :: FileInfo -> m (ConduitT () ByteString (ResourceT IO) ())
 
-  , write       :: FilePath -> ByteString -> m ()
-
-  , writeStream :: FilePath                                 -- the path to write to
-                -> ConduitT () ByteString (ResourceT IO) () -- file source as a conduit
-                -> Maybe Integer                            -- optional file size
-                -> m ()
+  , write       :: FilePath -> FileWithContent -> m ()
 
   , mv          :: [(FilePath, FilePath)] -> m ()
 

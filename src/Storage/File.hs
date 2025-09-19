@@ -2,6 +2,7 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NamedFieldPuns #-}
 -- |
 -- Maintainer  :  jimmy@ailrk.com
 -- Copyright   :  (c) 2025-present Jinyang yao
@@ -21,7 +22,6 @@ module Storage.File
   , newFolder
   , new
   , write
-  , writeStream
   , mv
   , delete
   , ls
@@ -41,34 +41,35 @@ import Data.ByteString (readFile)
 import Data.ByteString.Builder (Builder)
 import Data.ByteString.Builder qualified as Builder
 import Data.ByteString.Lazy qualified as LBS
-import Data.File (File (..), FileInfo, FileType (..))
+import Data.File (File (..), FileInfo, FileType (..), FileWithContent, FileContent (..), defaultFileWithContent)
 import Data.Generics.Labels ()
 import Data.Kind (Type)
+import Data.String.Interpolate (i)
 import Data.Text qualified as Text
+import Data.Text.Encoding qualified as Text
 import Data.Time (secondsToNominalDiffTime)
 import Effectful ( Eff, Eff, runEff, (:>), IOE)
 import Effectful.Error.Dynamic (throwError, Error)
+import Effectful.Extended.Cache (Cache)
 import Effectful.Extended.Cache qualified as Cache
+import Effectful.Extended.LockManager (LockManager)
 import Effectful.Extended.LockManager qualified as LockManager
 import Effectful.FileSystem
 import Effectful.FileSystem.IO (withFile, IOMode (..), hClose)
 import Effectful.FileSystem.IO.ByteString (hPut)
 import Effectful.Log
+import Effectful.Temporary (withTempFile, Temporary)
 import GHC.TypeLits (Symbol)
 import Lens.Micro.Platform ()
 import Network.Mime (defaultMimeLookup)
 import Prelude hiding (read, readFile, writeFile)
 import Servant.Multipart (MultipartData(..), Mem, FileData (..))
+import Storage.Error (StorageError (..))
 import System.FilePath ((</>), takeDirectory, takeFileName)
 import System.IO.Error (isDoesNotExistError)
 import System.IO.Temp qualified as Temp
 import UnliftIO (MonadIO (..), tryIO, IOException, Handler (..), catch, throwIO, Handle)
 import UnliftIO.Retry (recovering, limitRetries, exponentialBackoff)
-import Effectful.Extended.Cache (Cache)
-import Effectful.Extended.LockManager (LockManager)
-import Storage.Error (StorageError (..))
-import Effectful.Temporary (withTempFile, Temporary)
-import Data.String.Interpolate (i)
 
 
 class CacheKeyComponent (s :: Symbol) a              where toCacheKeyComponent :: Builder
@@ -221,25 +222,18 @@ write
      , IOE         :> es
      , Cache       :> es
      , LockManager :> es)
-  => FilePath -> FilePath -> ByteString -> Eff es ()
-write currentDir name content = do
-  write' currentDir name \_ h -> do hPut h content
-
-
-writeStream
-  :: ( FileSystem  :> es
-     , Temporary   :> es
-     , Log         :> es
-     , IOE         :> es
-     , Cache       :> es
-     , LockManager :> es)
-  => FilePath -> FilePath -> ConduitT () ByteString (ResourceT IO) () -> Eff es ()
-writeStream currentDir name conduit = do
-  write' currentDir name \path h -> do
-    hClose h -- close the handle, sinkFile will create a handle for itself.
-    liftIO . runResourceT . Conduit.runConduit
-      $ conduit
-      .| Conduit.sinkFile path
+  => FilePath -> FilePath -> FileWithContent -> Eff es ()
+write currentDir name File{ content } = do
+  case content of
+    FileContentRaw bytes -> write' currentDir name \_ h -> do hPut h bytes
+    FileContentConduit conduit -> do
+      write' currentDir name \path h -> do
+        hClose h -- close the handle, sinkFile will create a handle for itself.
+        liftIO . runResourceT . Conduit.runConduit
+          $ conduit
+          .| Conduit.sinkFile path
+    FileContentDir -> pure ()
+    FileContentNull -> pure ()
 
 
 write'
@@ -399,9 +393,15 @@ upload
   => FilePath -> MultipartData Mem -> Eff es ()
 upload currentDir multipart = do
   forM_ multipart.files \file -> do
-    let name    = Text.unpack file.fdFileName
-    let content = LBS.toStrict file.fdPayload
-    write currentDir name content
+    let mimetype = Text.encodeUtf8 file.fdFileCType
+    let name     = Text.unpack file.fdFileName
+    let bytes    = LBS.toStrict file.fdPayload
+    write currentDir name $ defaultFileWithContent
+      { path     = name
+      , mimetype = mimetype
+      , content  = FileContentRaw bytes
+      }
+
 
 
 download

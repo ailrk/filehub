@@ -21,7 +21,6 @@ module Storage.S3
   , readStream
   , new
   , write
-  , writeStream
   , mv
   , delete
   , ls
@@ -50,7 +49,7 @@ import Data.ByteString.Builder (Builder)
 import Data.ByteString.Builder qualified as Builder
 import Data.ByteString.Lazy qualified as LBS
 import Data.Conduit
-import Data.File (File (..), FileType (..), FileInfo)
+import Data.File (File (..), FileType (..), FileInfo, FileWithContent, FileContent (..), defaultFileWithContent)
 import Data.Foldable (forM_)
 import Data.Function (fix)
 import Data.Generics.Labels ()
@@ -200,7 +199,11 @@ new
      , IOE   :> es)
   => Backend S3 -> FilePath -> Eff es ()
 new s3@S3Backend { targetId } filePath = do
-  write s3 filePath mempty
+  write s3 filePath $ defaultFileWithContent
+    { path     = filePath
+    , mimetype = "text/plain"
+    , content  = FileContentRaw ""
+    }
   Cache.delete (createCacheKey @"dir" @[FileInfo] targetId "")
 
 
@@ -208,32 +211,28 @@ write
   :: ( Cache :> es
      , Log   :> es
      , IOE   :> es)
-  => Backend S3 -> FilePath -> ByteString -> Eff es ()
-write s3@S3Backend { targetId } filePath bytes = do
-  let bucket  = Amazonka.BucketName s3.bucket
-  let key     = Amazonka.ObjectKey (Text.pack filePath)
-  let request = Amazonka.newPutObject bucket key (toBody bytes)
-  void . runResourceT $ send s3.env request
-  Cache.delete (createCacheKey @"file" @FileInfo targetId (Builder.string8 filePath))
-  Cache.delete (createCacheKey @"dir" @[FileInfo] targetId "")
-
-
--- | Streaming data to S3.
-writeStream
-  :: ( Cache :> es
-     , Log   :> es
-     , IOE   :> es)
-  => Backend S3 -> FilePath -> ConduitT () ByteString (ResourceT IO) () -> Maybe Integer -> Eff es ()
-writeStream s3@S3Backend { targetId } filePath conduit mSize = do
-  case mSize of
-    Nothing -> writeMultipart s3 filePath conduit
-    Just size
-      | size < threshold  -> writePutObject s3 filePath conduit
-      | otherwise -> writeMultipart s3 filePath conduit
-  Cache.delete (createCacheKey @"file" @FileInfo targetId (Builder.string8 filePath))
-  Cache.delete (createCacheKey @"dir" @[FileInfo] targetId "")
-  where
-    threshold = 5 * 1024 * 1024 -- use putObject if it's smaller than single part.
+  => Backend S3 -> FilePath -> FileWithContent -> Eff es ()
+write s3@S3Backend { targetId } filePath File { content, size = mSize } = do
+  case content of
+    FileContentRaw bytes -> do
+      let bucket  = Amazonka.BucketName s3.bucket
+      let key     = Amazonka.ObjectKey (Text.pack filePath)
+      let request = Amazonka.newPutObject bucket key (toBody bytes)
+      void . runResourceT $ send s3.env request
+      Cache.delete (createCacheKey @"file" @FileInfo targetId (Builder.string8 filePath))
+      Cache.delete (createCacheKey @"dir" @[FileInfo] targetId "")
+    FileContentConduit conduit -> do
+      case mSize of
+        Nothing -> writeMultipart s3 filePath conduit
+        Just size
+          | size < threshold  -> writePutObject s3 filePath conduit
+          | otherwise -> writeMultipart s3 filePath conduit
+      Cache.delete (createCacheKey @"file" @FileInfo targetId (Builder.string8 filePath))
+      Cache.delete (createCacheKey @"dir" @[FileInfo] targetId "")
+      where
+        threshold = 5 * 1024 * 1024 -- use putObject if it's smaller than single part.
+    FileContentDir -> pure ()
+    FileContentNull -> pure ()
 
 
 -- | Write with S3:PutObject api. Suitable for writing small files.
@@ -427,9 +426,16 @@ upload
   => Backend S3 -> MultipartData Mem -> Eff es ()
 upload s3 multipart = do
   forM_ multipart.files \file -> do
-    let name    = Text.unpack file.fdFileName
-    let content = LBS.toStrict (file.fdPayload)
-    write s3 name content
+    let mimetype = Text.encodeUtf8 file.fdFileCType
+    let name     = Text.unpack file.fdFileName
+    let bytes    = LBS.toStrict (file.fdPayload)
+    write s3 name $ defaultFileWithContent
+      { path     = name
+      , mimetype = mimetype
+      , content  = FileContentRaw bytes
+      }
+
+
 
 
 download

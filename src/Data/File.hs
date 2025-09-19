@@ -16,9 +16,13 @@ data FileType
 
 data FileContent
   = FileContentRaw     ByteString
+  -- ^ Raw bytestring content
   | FileContentConduit (ConduitT () ByteString (ResourceT IO) ())
+  -- ^ Content is ready as conduit
   | FileContentDir
-
+  -- ^ Directory structure
+  | FileContentNull
+  -- ^ No content
 
 
 data File a = File
@@ -34,3 +38,39 @@ data File a = File
 
 type FileInfo        = File FileType
 type FileWithContent = File FileContent
+
+
+defaultFileInfo :: FileInfo
+defaultFileInfo =
+  File
+    { path      = ""
+    , atime     = Nothing
+    , mtime     = Nothing
+    , size      = Nothing
+    , mimetype  = "application/octet-stream"
+    , content   = Regular
+    }
+
+
+defaultFileWithContent :: FileWithContent
+defaultFileWithContent =
+  File
+    { path      = ""
+    , atime     = Nothing
+    , mtime     = Nothing
+    , size      = Nothing
+    , mimetype  = "application/octet-stream"
+    , content   = FileContentNull
+    }
+
+
+withContent :: FileInfo -> FileContent -> FileWithContent
+withContent file content =
+  defaultFileWithContent
+    { path      = file.path
+    , atime     = file.atime
+    , mtime     = file.mtime
+    , size      = file.size
+    , mimetype  = file.mimetype
+    , content   = content
+    }

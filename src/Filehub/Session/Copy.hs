@@ -14,7 +14,7 @@ import Control.Monad (forM_)
 import Data.ClientPath qualified as ClientPath
 import Data.Function (on, fix)
 import Data.List (nub)
-import Data.File (File(..), FileType(..))
+import Data.File (File(..), FileType(..), withContent, FileContent (..))
 import Data.String.Interpolate (i)
 import Effectful (Eff, (:>), Eff, (:>), IOE)
 import Effectful.Error.Dynamic (Error, throwError)
@@ -139,7 +139,7 @@ paste sessionId = do
                 conduit <- Session.withTarget sessionId (Target.getTargetId from) \_ storage -> do
                   storage.readStream file
                 Session.withTarget sessionId (Target.getTargetId to) \_ storage -> do
-                  storage.writeStream (currentDir </> takeFileName file.path) conduit file.size
+                  storage.write (currentDir </> takeFileName file.path) (file `withContent` (FileContentConduit conduit))
               Dir -> do -- copy directory layer by layer
                 dst <- Session.withTarget sessionId (Target.getTargetId to) \_ storage -> do
                   let dst = currentDir </> takeFileName file.path
