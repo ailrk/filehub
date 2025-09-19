@@ -77,9 +77,7 @@ storage sessionId =
         s3 <- getS3 sessionId
         Storage.S3.new s3 filePath
 
-    , newFolder = \filePath -> do
-        s3 <- getS3 sessionId
-        Storage.S3.newFolder s3 filePath
+    , newFolder = \_ -> pure ()
 
     , ls = \filePath -> do
         s3 <- getS3 sessionId

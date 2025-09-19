@@ -19,7 +19,6 @@ module Storage.S3
   , isDirectory
   , read
   , readStream
-  , newFolder
   , new
   , write
   , writeStream
@@ -192,19 +191,6 @@ readStream s3 file = do
     resp <- lift $ send s3.env request
     let (ResponseBody conduit) = resp ^. Amazonka.getObjectResponse_body
     conduit
-
-
-newFolder
-  :: ( Cache :> es
-     , Log   :> es
-     , IOE   :> es)
-  => Backend S3 -> FilePath -> Eff es ()
-newFolder s3@S3Backend { targetId } filePath = do
-  let bucket  = Amazonka.BucketName s3.bucket
-  let key     = Amazonka.ObjectKey (Text.pack (normalizeDirPath filePath))
-  let request = Amazonka.newPutObject bucket key (toBody LBS.empty)
-  void . runResourceT $ send s3.env request
-  Cache.delete (createCacheKey @"dir" @[File] targetId "")
 
 
 new
