@@ -14,7 +14,7 @@ import Control.Monad (forM_)
 import Data.ClientPath qualified as ClientPath
 import Data.Function (on, fix)
 import Data.List (nub)
-import Data.File (File(..), FileContent (..))
+import Data.File (File(..), FileType(..))
 import Data.String.Interpolate (i)
 import Effectful (Eff, (:>), Eff, (:>), IOE)
 import Effectful.Error.Dynamic (Error, throwError)
@@ -134,8 +134,8 @@ paste sessionId = do
       forM_ selections \(from, files) -> do
         forM_ files $ flip fix sessionData.currentDir
           \rec currentDir file -> do -- expose the recursion with the fix point
-            case file.content of
-              Content -> do
+            case file.filetype of
+              Regular -> do
                 conduit <- Session.withTarget sessionId (Target.getTargetId from) \_ storage -> do
                   storage.readStream file
                 Session.withTarget sessionId (Target.getTargetId to) \_ storage -> do

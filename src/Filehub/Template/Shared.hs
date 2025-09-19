@@ -6,7 +6,7 @@ import Data.Aeson qualified as Aeson
 import Data.Aeson.Types (Pair)
 import Data.ClientPath (ClientPath(..))
 import Data.ClientPath qualified as ClientPath
-import Data.File (File(..), FileContent (..))
+import Data.File (File(..), FileType(..))
 import Data.Foldable (Foldable(..))
 import Data.Maybe (fromMaybe)
 import Data.Sequence (Seq(..))
@@ -206,9 +206,9 @@ controlPanel
 
 icon :: File -> Html ()
 icon file =
-  case file.content of
+  case file.filetype of
     Dir -> i_ [ class_ "bx bxs-folder "] mempty
-    Content
+    Regular
       | file.mimetype `isMime` "application/pdf"                       -> i_ [ class_ "bx bxs-file-pdf"] mempty
       | file.mimetype `isMime` "video" || file.mimetype `isMime` "mp4" -> i_ [ class_ "bx bxs-videos"] mempty
       | file.mimetype `isMime` "audio" || file.mimetype `isMime` "mp3" -> i_ [ class_ "bx bxs-music"] mempty
@@ -232,13 +232,13 @@ icon file =
 open :: FilePath -> File -> [Attribute]
 open root file = do
   let clientPath = ClientPath.toClientPath root file.path
-  case file.content of
+  case file.filetype of
     Dir ->
         [ term "hx-get" (linkToText (apiLinks.cd (Just clientPath)))
         , term "hx-target" ("#" <> viewId)
         , term "hx-swap" "outerHTML"
         ]
-    Content
+    Regular
       | file.mimetype `isMime` "application/pdf" ->
           [ term "hx-get" (linkToText (apiLinks.open (Just OpenDOMBlank) (Just clientPath)))
           , term "hx-target" "this"

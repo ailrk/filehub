@@ -22,7 +22,7 @@ import Control.Monad (when, join)
 import Data.ByteString (ByteString)
 import Data.ClientPath (ClientPath(..))
 import Data.ClientPath qualified as ClientPath
-import Data.File (File(..), FileContent (..))
+import Data.File (File(..), FileType(..))
 import Data.Foldable (traverse_)
 import Data.Maybe (fromMaybe)
 import Data.String.Interpolate (iii, i)
@@ -602,9 +602,9 @@ listLayout files = do
                 , class_ "table-item "
                 , draggable_ "true"
                 ]
-              , case file.content of
+              , case file.filetype of
                   Dir     -> [ class_ "dir "]
-                  Content -> mempty
+                  Regular -> mempty
               ]
   let sortIconName =
         case order of
@@ -677,9 +677,9 @@ thumbnailLayout files = do
                   , class_ "thumbnail table-item "
                   , draggable_ "true"
                   ]
-                , case file.content of
+                , case file.filetype of
                     Dir     -> [ class_ "dir "]
-                    Content -> mempty
+                    Regular -> mempty
                 ]
           clientPath@(ClientPath path) = ClientPath.toClientPath root file.path
 
@@ -768,9 +768,9 @@ contextMenu [file] = do
     let clientPath = ClientPath.toClientPath root file.path
 
     div_ [ class_ "dropdown-content " , id_ contextMenuId ] do
-      case file.content of
+      case file.filetype of
         Dir -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bxs-folder-open" ] mempty >> span_ (toHtml contextmenu_open)
-        Content
+        Regular
           | file.mimetype `isMime` "application/pdf" -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bx-show" ] mempty >> span_ (toHtml contextmenu_view)
           | file.mimetype `isMime` "audio"           -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bx-play" ] mempty >> span_ (toHtml contextmenu_play)
           | file.mimetype `isMime` "video"           -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bx-play" ] mempty >> span_ (toHtml contextmenu_play)

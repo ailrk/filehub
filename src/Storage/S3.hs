@@ -50,7 +50,7 @@ import Data.ByteString.Builder (Builder)
 import Data.ByteString.Builder qualified as Builder
 import Data.ByteString.Lazy qualified as LBS
 import Data.Conduit
-import Data.File (File (..), FileContent (..))
+import Data.File (File (..), FileType (..))
 import Data.Foldable (forM_)
 import Data.Function (fix)
 import Data.Generics.Labels ()
@@ -124,7 +124,7 @@ get (s3@S3Backend { targetId }) path = do
             , mtime = mtime
             , size = size
             , mimetype = maybe "application/octet-stream" Text.encodeUtf8 contentType
-            , content = Content
+            , filetype = Regular
             }
       Cache.insert cacheKey cacheDeps cacheTTL file
       pure file
@@ -145,8 +145,8 @@ isDirectory
 isDirectory s3@S3Backend { targetId } filePath = do
   mCached <- Cache.lookup @File cacheKey
   case mCached of
-    Just (File { content = Content }) -> pure False
-    Just (File { content = Dir })     -> pure True
+    Just (File { filetype = Regular }) -> pure False
+    Just (File { filetype = Dir })     -> pure True
     Nothing -> do
       let bucket = Amazonka.BucketName s3.bucket
       let request = Amazonka.newListObjectsV2 bucket
@@ -397,7 +397,7 @@ ls s3@S3Backend { targetId } _ = do
          , mtime    = Nothing
          , size     = Nothing
          , mimetype = "" -- content type can be unreliable because it's derived from the extension.
-         , content  = Dir
+         , filetype = Dir
          }
 
     toFile (object :: Object) =
@@ -408,7 +408,7 @@ ls s3@S3Backend { targetId } _ = do
          , mtime    = Just (object ^. Amazonka.object_lastModified)
          , size     = Just (object ^. Amazonka.object_size)
          , mimetype = defaultMimeLookup filePath -- content type can be unreliable because it's derived from the extension.
-         , content  = Content
+         , filetype = Regular
          }
 
 
@@ -439,9 +439,9 @@ download
   => Backend S3 -> FilePath -> Eff es (ConduitT () ByteString (ResourceT IO) ())
 download s3 path = do
   file     <- get s3 path
-  case file.content of
-    Content -> readStream s3 file
-    Dir -> do
+  case file.filetype of
+    Regular -> readStream s3 file
+    Dir     -> do
       (zipPath, _) <- liftIO do
         tempDir <- Temp.getCanonicalTemporaryDirectory
         Temp.openTempFile tempDir "DXXXXXX.zip"

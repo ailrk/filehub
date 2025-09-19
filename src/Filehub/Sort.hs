@@ -6,7 +6,7 @@
 -- sorted with higher priority by default.
 module Filehub.Sort (SortFileBy(..), sortFiles) where
 
-import Data.File (File(..), FileContent(..))
+import Data.File (File(..), FileType(..))
 import Data.List ( sortOn )
 import System.FilePath ( takeFileName )
 import Servant (ToHttpApiData(..), FromHttpApiData(..))
@@ -43,8 +43,8 @@ instance FromHttpApiData SortFileBy where
 
 byFileNamewithDirFirst :: File -> String
 byFileNamewithDirFirst file = do
-  let pre = case file.content of
-              Content -> '1'
+  let pre = case file.filetype of
+              Regular -> '1'
               Dir     -> '0'
   let name = takeFileName file.path :: String
   pre : name

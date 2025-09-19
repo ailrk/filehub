@@ -22,7 +22,7 @@ import Data.ByteString (ByteString)
 import Data.ByteString.Char8 qualified as ByteString
 import Data.ClientPath (ClientPath (..))
 import Data.ClientPath qualified as ClientPath
-import Data.File (FileContent(..), File(..))
+import Data.File (FileType(..), File(..))
 import Data.FileEmbed qualified as FileEmbed
 import Data.Foldable (forM_)
 import Data.List qualified as List
@@ -558,8 +558,8 @@ download sessionId _ clientPaths = do
       file    <- storage.get (ClientPath.fromClientPath root clientPath) & withServerError
       conduit <- withServerError (storage.download clientPath)
       let filename =
-            case file.content of
-              Content -> printf "attachement; filename=%s" (takeFileName path)
+            case file.filetype of
+              Regular -> printf "attachement; filename=%s" (takeFileName path)
               Dir     -> printf "attachement; filename=%s.zip" (takeFileName path)
       pure $ addHeader filename conduit
     _ -> do

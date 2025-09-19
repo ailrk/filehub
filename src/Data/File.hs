@@ -8,8 +8,8 @@ import Network.Mime (MimeType)
 
 -- | `FileContent` represents the tree structure of a folder without pulling in
 -- any content. To read content from a file, use `Storage.read` or `Storage.readStream`
-data FileContent
-  = Content
+data FileType
+  = Regular
   | Dir
   deriving (Show, Eq, Generic)
 
@@ -20,7 +20,7 @@ data File = File
   , mtime    :: Maybe UTCTime
   , size     :: Maybe Integer
   , mimetype :: MimeType
-  , content  :: FileContent
+  , filetype :: FileType
   }
   deriving (Show, Eq, Generic)
 

@@ -41,7 +41,7 @@ import Data.ByteString (readFile)
 import Data.ByteString.Builder (Builder)
 import Data.ByteString.Builder qualified as Builder
 import Data.ByteString.Lazy qualified as LBS
-import Data.File (File (..), FileContent (..))
+import Data.File (File (..), FileType (..))
 import Data.Generics.Labels ()
 import Data.Kind (Type)
 import Data.Text qualified as Text
@@ -114,7 +114,7 @@ get path = do
                , mtime    = Just mtime
                , atime    = Just atime
                , mimetype = mimetype
-               , content  = if isDir then Dir else Content
+               , filetype = if isDir then Dir else Regular
                }
             else do
               pure File
@@ -123,7 +123,7 @@ get path = do
                 , atime    = Nothing
                 , mtime    = Nothing
                 , mimetype = "application/octet-stream"
-                , content  = Content
+                , filetype = Regular
                 }
       Cache.insert cacheKey cacheDeps cacheTTL file
       pure file
@@ -144,8 +144,8 @@ isDirectory
 isDirectory filePath = do
   mCached <- Cache.lookup @cacheType cacheKey
   case mCached of
-    Just (File { content = Content }) -> pure False
-    Just (File { content = Dir })     -> pure True
+    Just (File { filetype = Regular }) -> pure False
+    Just (File { filetype = Dir })     -> pure True
     Nothing -> do
       pathExists <- doesPathExist filePath
       dirExists  <- doesDirectoryExist filePath
@@ -412,8 +412,8 @@ download
   => FilePath -> Eff es (ConduitT () ByteString (ResourceT IO) ())
 download path = do
   file <- get path
-  case file.content of
-    Content -> readStream file
+  case file.filetype of
+    Regular -> readStream file
     Dir     -> do
       (zipPath, _) <- liftIO do
         tempDir <- Temp.getCanonicalTemporaryDirectory
