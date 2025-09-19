@@ -21,11 +21,9 @@ function register1() {
     }
 }
 function handleDragOver(e) {
-    console.log('over');
     e.preventDefault();
 }
 function handleDragStart(e) {
-    console.log('drag');
     if (!(e instanceof DragEvent))
         return;
     if (e.target instanceof HTMLElement) {
@@ -134,7 +132,6 @@ function fillRoundedRect(ctx, x, y, width, height, radius, fillStyle) {
     ctx.fill();
 }
 function handleDrop(e) {
-    console.log('drop');
     if (!(e instanceof DragEvent))
         return;
     e.preventDefault();

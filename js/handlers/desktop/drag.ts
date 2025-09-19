@@ -29,13 +29,11 @@ function register1() {
 
 
 function handleDragOver(e: Event) {
-  console.log('over')
   e.preventDefault()
 }
 
 
 function handleDragStart(e: Event) {
-  console.log('drag')
   if (!(e instanceof DragEvent)) return;
   if (e.target instanceof HTMLElement) {
     const path = e.target.dataset.path;
@@ -154,7 +152,6 @@ function fillRoundedRect(ctx: CanvasRenderingContext2D, x: number, y: number, wi
 
 
 function handleDrop(e: Event) {
-  console.log('drop')
   if (!(e instanceof DragEvent)) return;
   e.preventDefault();
   if (e.target instanceof HTMLElement) {

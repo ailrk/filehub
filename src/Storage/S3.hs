@@ -43,7 +43,7 @@ import Cache.Key (CacheKey, SomeCacheKey (..))
 import Codec.Archive.Zip qualified as Zip
 import Conduit (ResourceT, MonadTrans (..), sinkLazy)
 import Conduit qualified
-import Control.Monad (void, when)
+import Control.Monad (void)
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as ByteString
 import Data.ByteString.Builder (Builder)
@@ -79,6 +79,7 @@ import System.IO.Temp qualified as Temp
 import Target.S3 (Backend(..), S3)
 import Target.Types (TargetId)
 import Target.Types.TargetId qualified as TargetId
+import Debug.Trace
 
 
 class CacheKeyComponent (s :: Symbol) a              where toCacheKeyComponent :: Builder
@@ -247,12 +248,8 @@ writePutObject s3 filePath conduit = do
   void . runResourceT $ send s3.env request
 
 
-writeMultipart
-  :: ( Cache :> es
-     , Log   :> es
-     , IOE   :> es)
-  => Backend S3 -> FilePath -> ConduitT () ByteString (ResourceT IO) () -> Eff es ()
-writeMultipart s3@S3Backend { targetId } filePath conduit = do
+writeMultipart :: (IOE :> es) => Backend S3 -> FilePath -> ConduitT () ByteString (ResourceT IO) () -> Eff es ()
+writeMultipart s3 filePath conduit = do
   let bucket   = Amazonka.BucketName s3.bucket
   let key      = Amazonka.ObjectKey (Text.pack filePath)
   let partSize = 5 * 1024 * 1024
@@ -260,42 +257,75 @@ writeMultipart s3@S3Backend { targetId } filePath conduit = do
   let uploadId = createMultipartUploadResp.uploadId
   completedParts <- liftIO . runResourceT . runConduit
     $ conduit
-    .| chunkWithCount partSize
-    .| do
+    .| chunking partSize
+    .| fix (\loop -> do
         mRes <- await
         case mRes of
-         Just (partNum, chunk) -> do
+         Just (partNum, chunkBuilder) -> do
+           let chunk = chunkBuilderToByteString chunkBuilder
            uploadPartResp <- send s3.env (Amazonka.newUploadPart bucket key partNum uploadId (toBody chunk))
            let etag = case uploadPartResp.eTag of
                         Just x -> x
                         Nothing -> error "handle later"
            let completedPart = Amazonka.newCompletedPart partNum etag
            yield completedPart
-         Nothing -> pure ()
+           loop
+         Nothing -> pure ())
     .| Conduit.sinkList
-  _ <- runResourceT $ send s3.env
+  void . runResourceT $ send s3.env
         (Amazonka.newCompleteMultipartUpload bucket key uploadId)
           { multipartUpload = Just (CompletedMultipartUpload' (Just (NonEmpty.fromList completedParts)))
           }
-  Cache.delete (createCacheKey @"file" @File targetId (Builder.string8 filePath))
-  Cache.delete (createCacheKey @"dir" @[File] targetId "")
-  where
-    -- Chunk a ByteString Conduit into exact n-byte pieces and track chunk count
-    chunkWithCount :: Monad m => Int -> ConduitT ByteString (Int, ByteString) m ()
-    chunkWithCount chunkSize = flip fix (1, ByteString.empty) \rec (idx, remaining) -> do
-      mbs <- await
-      case mbs of
-        Nothing -> when (not $ ByteString.null remaining) do
-          yield (idx, remaining)  -- yield remaining bytes
-        Just bs -> do
-          let combined = remaining `ByteString.append` bs -- TODO can be builder
-          if ByteString.length combined >= chunkSize
-            then do
-              let (chunk, rest) = ByteString.splitAt chunkSize combined
-              yield (idx, chunk)
-              rec (idx + 1, rest)
-            else
-              rec (idx, combined)
+
+
+data ChunkBuilder
+  = ChunkBuilder Builder Int
+  | ChunkBuilded ByteString
+
+
+chunkBuilderToByteString :: ChunkBuilder -> ByteString
+chunkBuilderToByteString = \case
+  ChunkBuilder builder _ -> ByteString.toStrict . Builder.toLazyByteString $ builder
+  ChunkBuilded bytes     -> bytes
+
+
+chunkBuilderSize :: ChunkBuilder -> Int
+chunkBuilderSize = \case
+  ChunkBuilder _ size -> size
+  ChunkBuilded bytes  -> ByteString.length bytes
+
+
+-- | It's slow if any one parameter is ChunkBuiled.
+instance Semigroup ChunkBuilder where
+  ChunkBuilder b1 s1 <> ChunkBuilder b2 s2 = ChunkBuilder (b1 <> b2) (s1 + s2)
+  ChunkBuilded b1 <> c2 = ChunkBuilder (Builder.byteString b1) (ByteString.length b1) <> c2
+  c1 <> ChunkBuilded b2 = c1 <> ChunkBuilder (Builder.byteString b2) (ByteString.length b2)
+
+
+-- Chunk a ByteString Conduit into exact n-byte pieces and track chunk count
+chunking :: MonadIO m => Int -> ConduitT ByteString (Int, ChunkBuilder) m ()
+chunking chunkSize = flip fix (1, ChunkBuilder (Builder.byteString ByteString.empty) 0)
+  \rec (idx, acc) -> do
+    mBytes <- await
+    case mBytes of
+      Nothing ->
+        case acc of
+          ChunkBuilder _ size
+            | not (size == 0) -> yield (idx, acc) -- done
+            | otherwise       -> pure ()
+          ChunkBuilded _ -> pure ()
+      Just bytes -> do
+        let combined  = acc <> ChunkBuilder (Builder.byteString bytes) (ByteString.length bytes)
+        let cbSize    = chunkBuilderSize combined
+        traceShowM ("got bytes " <> show cbSize)
+        if cbSize >= chunkSize
+          then do
+            let combinedBytes = chunkBuilderToByteString combined
+            let (chunk, rest) = ByteString.splitAt chunkSize combinedBytes
+            yield (idx, ChunkBuilded chunk)
+            rec (idx + 1, ChunkBuilder (Builder.byteString rest) (cbSize - chunkSize))
+          else
+            rec (idx, combined)
 
 
 mv
