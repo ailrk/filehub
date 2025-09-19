@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 module Target.S3 where
 
 import Target.Types.TargetId (TargetId(..))
@@ -18,6 +19,11 @@ import System.Environment qualified as Environment
 import Data.Functor ((<&>))
 import Amazonka.S3 qualified as Amazonka
 import Data.Text qualified as Text
+
+#ifdef DEBUG
+import Effectful.FileSystem.IO (stdout)
+import Amazonka.Env (Env'(..))
+#endif
 
 
 data S3
@@ -45,9 +51,14 @@ initialize opt = do
   targetId   <- liftIO $ TargetId <$> UUID.nextRandom
   let bucket =  Text.pack opt.bucket
   service    <- liftIO makeS3Service
-  env        <- liftIO $ Amazonka.configureService service <$> Amazonka.newEnv Amazonka.discover
+  env        <- liftIO do Amazonka.configureService service <$> Amazonka.newEnv Amazonka.discover
   logInfo_ [i|Initialized: #{targetId} - S3 #{bucket}|]
+#ifdef DEBUG
+  logger <- Amazonka.newLogger Amazonka.Debug stdout
+  pure $ S3Backend targetId bucket $ env { logger = logger }
+#else
   pure $ S3Backend targetId bucket env
+#endif
   where
     makeS3Service :: IO Amazonka.Service
     makeS3Service = do

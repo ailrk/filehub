@@ -78,7 +78,7 @@ storage sessionId =
         currentDir <- Session.getCurrentDir sessionId
         Storage.File.write currentDir name content
 
-    , writeStream = \name conduit -> do
+    , writeStream = \name conduit _ -> do
         currentDir <- Session.getCurrentDir sessionId
         Storage.File.writeStream currentDir name conduit
 

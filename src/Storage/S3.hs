@@ -34,49 +34,52 @@ module Storage.S3
 
 import Amazonka (send, runResourceT, toBody, ResponseBody (..))
 import Amazonka.Data qualified as Amazonka
-import Amazonka.S3 (Object(..), CommonPrefix)
+import Amazonka.S3 (Object(..), CommonPrefix, CompletedMultipartUpload (CompletedMultipartUpload'))
 import Amazonka.S3 qualified as Amazonka
-import Amazonka.S3.Lens qualified as Amazonka
+import Amazonka.S3.CompleteMultipartUpload (CompleteMultipartUpload(..))
 import Amazonka.S3.CreateMultipartUpload (CreateMultipartUploadResponse(..))
+import Amazonka.S3.Lens qualified as Amazonka
 import Amazonka.S3.UploadPart (UploadPartResponse(..))
 import Cache.Key (CacheKey, SomeCacheKey (..))
 import Codec.Archive.Zip qualified as Zip
-import Conduit (ResourceT, MonadTrans (..))
+import Conduit (ResourceT, MonadTrans (..), sinkLazy)
 import Conduit qualified
-import Control.Monad (void)
+import Control.Monad (void, when)
 import Data.ByteString (ByteString)
+import Data.ByteString qualified as ByteString
 import Data.ByteString.Builder (Builder)
 import Data.ByteString.Builder qualified as Builder
 import Data.ByteString.Lazy qualified as LBS
+import Data.Conduit
 import Data.File (File (..), FileContent (..))
 import Data.Foldable (forM_)
+import Data.Function (fix)
 import Data.Generics.Labels ()
 import Data.Generics.Labels ()
 import Data.Kind (Type)
 import Data.List (uncons)
+import Data.List.NonEmpty qualified as NonEmpty
 import Data.Maybe (fromMaybe)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.Time (secondsToNominalDiffTime)
 import Effectful (Eff, Eff, MonadIO (..), runEff, (:>), IOE)
+import Effectful.Error.Dynamic (Error, throwError)
+import Effectful.Extended.Cache (Cache)
 import Effectful.Extended.Cache qualified as Cache
 import Effectful.FileSystem (runFileSystem, removeFile)
-import Target.S3 (Backend(..), S3)
-import Target.Types (TargetId)
-import Target.Types.TargetId qualified as TargetId
+import Effectful.Log (Log)
 import GHC.TypeLits (Symbol)
 import Lens.Micro
 import Lens.Micro.Platform ()
 import Network.Mime (defaultMimeLookup)
 import Prelude hiding (read, readFile, writeFile)
 import Servant.Multipart (MultipartData(..), Mem, FileData (..))
-import System.IO.Temp qualified as Temp
-import Effectful.Extended.Cache (Cache)
-import Data.Conduit
 import Storage.Error (StorageError (..))
-import Effectful.Error.Dynamic (Error, throwError)
-import Effectful.Log (Log)
-import Data.Function (fix)
+import System.IO.Temp qualified as Temp
+import Target.S3 (Backend(..), S3)
+import Target.Types (TargetId)
+import Target.Types.TargetId qualified as TargetId
 
 
 class CacheKeyComponent (s :: Symbol) a              where toCacheKeyComponent :: Builder
@@ -228,40 +231,85 @@ write s3@S3Backend { targetId } filePath bytes = do
   Cache.delete (createCacheKey @"dir" @[File] targetId "")
 
 
--- | writeStream uses S3's mutlipart upload.
+-- | Streaming data to S3.
 writeStream
   :: ( Cache :> es
      , Log   :> es
      , IOE   :> es)
-  => Backend S3 -> FilePath -> ConduitT () ByteString (ResourceT IO) () -> Eff es ()
-writeStream s3@S3Backend { targetId } filePath conduit = do
-  let bucket   = Amazonka.BucketName s3.bucket
-  let key      = Amazonka.ObjectKey (Text.pack filePath)
-  let partSize = 5 * 1024 * 1024
-
-  createMultipartUploadResp <- runResourceT $ send s3.env (Amazonka.newCreateMultipartUpload bucket key)
-  let uploadId = createMultipartUploadResp.uploadId
-
-  _ <- liftIO . runResourceT $ flip fix (1, conduit, [])
-    \rec (partNum, c, acc) -> do
-        mChunk <- runConduit $ c .| sinkExactly partSize
-        case mChunk of
-          Just chunk -> do
-            uploadPartResp <- send s3.env (Amazonka.newUploadPart bucket key partNum uploadId (toBody chunk))
-            let etag = case uploadPartResp.eTag of
-                         Just x -> x
-                         Nothing -> error "handle later"
-            let completedPart = Amazonka.newCompletedPart partNum etag : acc
-            rec (partNum + 1, c, completedPart)
-          Nothing -> pure (reverse acc)
-
-  _ <- runResourceT $ send s3.env (Amazonka.newCompleteMultipartUpload bucket key uploadId)
-  -- TODO check if we are good
+  => Backend S3 -> FilePath -> ConduitT () ByteString (ResourceT IO) () -> Maybe Integer -> Eff es ()
+writeStream s3@S3Backend { targetId } filePath conduit mSize = do
+  case mSize of
+    Nothing -> writeMultipart s3 filePath conduit
+    Just size
+      | size < threshold  -> writePutObject s3 filePath conduit
+      | otherwise -> writeMultipart s3 filePath conduit
   Cache.delete (createCacheKey @"file" @File targetId (Builder.string8 filePath))
   Cache.delete (createCacheKey @"dir" @[File] targetId "")
   where
-      sinkExactly :: Monad m => Int -> ConduitT ByteString o m (Maybe ByteString)
-      sinkExactly n = undefined
+    threshold = 5 * 1024 * 1024 -- use putObject if it's smaller than single part.
+
+
+-- | Write with S3:PutObject api. Suitable for writing small files.
+-- We need to load the whole file into memory to compute the checksum. AWS S3 has chunked protocol allows you to sign chunk
+-- by chunk, but it's not supported by most other S3 providers.
+writePutObject :: ( IOE :> es) => Backend S3 -> FilePath -> ConduitT () ByteString (ResourceT IO) () ->  Eff es ()
+writePutObject s3 filePath conduit = do
+  lazyBytes <- liftIO . runResourceT . runConduit $ conduit .| sinkLazy
+  let bucket  = Amazonka.BucketName s3.bucket
+  let key     = Amazonka.ObjectKey (Text.pack filePath)
+  let request = Amazonka.newPutObject bucket key (toBody lazyBytes)
+  void . runResourceT $ send s3.env request
+
+
+writeMultipart
+  :: ( Cache :> es
+     , Log   :> es
+     , IOE   :> es)
+  => Backend S3 -> FilePath -> ConduitT () ByteString (ResourceT IO) () -> Eff es ()
+writeMultipart s3@S3Backend { targetId } filePath conduit = do
+  let bucket   = Amazonka.BucketName s3.bucket
+  let key      = Amazonka.ObjectKey (Text.pack filePath)
+  let partSize = 5 * 1024 * 1024
+  createMultipartUploadResp <- runResourceT $ send s3.env (Amazonka.newCreateMultipartUpload bucket key)
+  let uploadId = createMultipartUploadResp.uploadId
+  completedParts <- liftIO . runResourceT . runConduit
+    $ conduit
+    .| chunkWithCount partSize
+    .| do
+        mRes <- await
+        case mRes of
+         Just (partNum, chunk) -> do
+           uploadPartResp <- send s3.env (Amazonka.newUploadPart bucket key partNum uploadId (toBody chunk))
+           let etag = case uploadPartResp.eTag of
+                        Just x -> x
+                        Nothing -> error "handle later"
+           let completedPart = Amazonka.newCompletedPart partNum etag
+           yield completedPart
+         Nothing -> pure ()
+    .| Conduit.sinkList
+  _ <- runResourceT $ send s3.env
+        (Amazonka.newCompleteMultipartUpload bucket key uploadId)
+          { multipartUpload = Just (CompletedMultipartUpload' (Just (NonEmpty.fromList completedParts)))
+          }
+  Cache.delete (createCacheKey @"file" @File targetId (Builder.string8 filePath))
+  Cache.delete (createCacheKey @"dir" @[File] targetId "")
+  where
+    -- Chunk a ByteString Conduit into exact n-byte pieces and track chunk count
+    chunkWithCount :: Monad m => Int -> ConduitT ByteString (Int, ByteString) m ()
+    chunkWithCount chunkSize = flip fix (1, ByteString.empty) \rec (idx, remaining) -> do
+      mbs <- await
+      case mbs of
+        Nothing -> when (not $ ByteString.null remaining) do
+          yield (idx, remaining)  -- yield remaining bytes
+        Just bs -> do
+          let combined = remaining `ByteString.append` bs -- TODO can be builder
+          if ByteString.length combined >= chunkSize
+            then do
+              let (chunk, rest) = ByteString.splitAt chunkSize combined
+              yield (idx, chunk)
+              rec (idx + 1, rest)
+            else
+              rec (idx, combined)
 
 
 mv

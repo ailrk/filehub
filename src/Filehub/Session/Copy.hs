@@ -34,7 +34,6 @@ import System.FilePath (takeFileName, (</>))
 import Target.Types qualified as Target
 import Filehub.Session (TargetView(..))
 import Effectful.Temporary (Temporary)
-import Debug.Trace
 
 
 getCopyState :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es CopyState
@@ -137,14 +136,10 @@ paste sessionId = do
           \rec currentDir file -> do -- expose the recursion with the fix point
             case file.content of
               Content -> do
-                traceShowM "1"
                 conduit <- Session.withTarget sessionId (Target.getTargetId from) \_ storage -> do
-                  traceShowM "2"
                   storage.readStream file
                 Session.withTarget sessionId (Target.getTargetId to) \_ storage -> do
-                  traceShowM "3"
-                  storage.writeStream (currentDir </> takeFileName file.path) conduit
-                traceShowM "4"
+                  storage.writeStream (currentDir </> takeFileName file.path) conduit file.size
               Dir -> do -- copy directory layer by layer
                 dst <- Session.withTarget sessionId (Target.getTargetId to) \_ storage -> do
                   let dst = currentDir </> takeFileName file.path

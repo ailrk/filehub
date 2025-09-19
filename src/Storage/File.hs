@@ -69,8 +69,6 @@ import Effectful.Extended.LockManager (LockManager)
 import Storage.Error (StorageError (..))
 import Effectful.Temporary (withTempFile, Temporary)
 import Data.String.Interpolate (i)
-import Data.Bifunctor (bimap)
-import Data.List (nub)
 
 
 class CacheKeyComponent (s :: Symbol) a              where toCacheKeyComponent :: Builder
@@ -239,7 +237,9 @@ writeStream
 writeStream currentDir name conduit = do
   write' currentDir name \path h -> do
     hClose h -- close the handle, sinkFile will create a handle for itself.
-    liftIO . runResourceT $ Conduit.runConduit (conduit .| Conduit.sinkFile path)
+    liftIO . runResourceT . Conduit.runConduit
+      $ conduit
+      .| Conduit.sinkFile path
 
 
 write'

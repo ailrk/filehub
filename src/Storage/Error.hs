@@ -6,3 +6,4 @@ data StorageError
   | FileExists  String
   | TargetError String
   | CopyError   String
+  | WriteError  String
