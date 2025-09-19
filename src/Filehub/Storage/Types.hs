@@ -1,7 +1,7 @@
 module Filehub.Storage.Types where
 
 import Conduit (ResourceT)
-import Data.File (File)
+import Data.File (FileInfo)
 import Data.ByteString (ByteString)
 import Data.ClientPath (ClientPath)
 import Data.Conduit (ConduitT)
@@ -12,11 +12,11 @@ import Servant.Multipart ( MultipartData(..), Mem, MultipartData(..), Mem )
 
 
 data Storage m = Storage
-  { get         :: FilePath -> m File
+  { get         :: FilePath -> m FileInfo
 
-  , read        :: File -> m ByteString
+  , read        :: FileInfo -> m ByteString
 
-  , readStream  :: File -> m (ConduitT () ByteString (ResourceT IO) ())
+  , readStream  :: FileInfo -> m (ConduitT () ByteString (ResourceT IO) ())
 
   , write       :: FilePath -> ByteString -> m ()
 
@@ -33,11 +33,11 @@ data Storage m = Storage
 
   , newFolder   :: FilePath -> m ()
 
-  , ls          :: FilePath -> m [File]
+  , ls          :: FilePath -> m [FileInfo]
 
   , cd          :: FilePath -> m ()
 
-  , lsCwd       :: m [File]
+  , lsCwd       :: m [FileInfo]
 
   , upload      :: MultipartData Mem -> m ()
 

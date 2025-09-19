@@ -40,7 +40,7 @@ module Filehub.Types
 import Data.Aeson (ToJSON (..), (.=), Value)
 import Data.Aeson qualified as Aeson
 import Data.ClientPath (ClientPath(..), RawClientPath(..))
-import Data.File (File)
+import Data.File (FileInfo)
 import Data.Text (Text)
 import Data.Text.Lazy.Encoding qualified as LText
 import Filehub.Display (Display(..), Resolution(..))
@@ -108,9 +108,9 @@ instance FromHttpApiData Layout where
 -- | State machine reprents the copy and paste process.
 data CopyState
  -- | Ready to paste
-  = CopySelected [(Target, [File])]
+  = CopySelected [(Target, [FileInfo])]
   -- | Start pasting files to target path
-  | Paste [(Target, [File])]
+  | Paste [(Target, [FileInfo])]
   -- | No copy paste action being performed at the moment.
   | NoCopyPaste
 

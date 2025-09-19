@@ -41,7 +41,7 @@ import Data.ByteString (readFile)
 import Data.ByteString.Builder (Builder)
 import Data.ByteString.Builder qualified as Builder
 import Data.ByteString.Lazy qualified as LBS
-import Data.File (File (..), FileType (..))
+import Data.File (File (..), FileInfo, FileType (..))
 import Data.Generics.Labels ()
 import Data.Kind (Type)
 import Data.Text qualified as Text
@@ -72,8 +72,8 @@ import Data.String.Interpolate (i)
 
 
 class CacheKeyComponent (s :: Symbol) a              where toCacheKeyComponent :: Builder
-instance CacheKeyComponent "file"         File       where toCacheKeyComponent = "f"
-instance CacheKeyComponent "dir"          [File]     where toCacheKeyComponent = "d"
+instance CacheKeyComponent "file"         FileInfo   where toCacheKeyComponent = "f"
+instance CacheKeyComponent "dir"          [FileInfo] where toCacheKeyComponent = "d"
 instance CacheKeyComponent "file-content" ByteString where toCacheKeyComponent = "fc"
 
 
@@ -90,9 +90,9 @@ get
   . ( FileSystem :> es
     , Cache      :> es
     , Log        :> es
-    , cacheType ~ File
+    , cacheType ~ FileInfo
     , cacheName ~ "file")
-  => FilePath -> Eff es File
+  => FilePath -> Eff es FileInfo
 get path = do
   mCached <- Cache.lookup @cacheType cacheKey
   case mCached of
@@ -114,7 +114,7 @@ get path = do
                , mtime    = Just mtime
                , atime    = Just atime
                , mimetype = mimetype
-               , filetype = if isDir then Dir else Regular
+               , content  = if isDir then Dir else Regular
                }
             else do
               pure File
@@ -123,13 +123,13 @@ get path = do
                 , atime    = Nothing
                 , mtime    = Nothing
                 , mimetype = "application/octet-stream"
-                , filetype = Regular
+                , content  = Regular
                 }
       Cache.insert cacheKey cacheDeps cacheTTL file
       pure file
   where
     cacheKey  = createCacheKey @cacheName @cacheType (Builder.string8 path)
-    cacheDeps = [ SomeCacheKey (createCacheKey @"dir" @[File] (Builder.string8 (takeDirectory path))) ]
+    cacheDeps = [ SomeCacheKey (createCacheKey @"dir" @[FileInfo] (Builder.string8 (takeDirectory path))) ]
     cacheTTL  = Just (secondsToNominalDiffTime 10)
 
 
@@ -138,14 +138,14 @@ isDirectory
   . ( FileSystem  :> es
     , Log   :> es
     , Cache       :> es
-    , cacheType ~ File
+    , cacheType ~ FileInfo
     , cacheName ~ "file")
   => FilePath -> Eff es Bool
 isDirectory filePath = do
   mCached <- Cache.lookup @cacheType cacheKey
   case mCached of
-    Just (File { filetype = Regular }) -> pure False
-    Just (File { filetype = Dir })     -> pure True
+    Just (File { content = Regular }) -> pure False
+    Just (File { content = Dir })     -> pure True
     Nothing -> do
       pathExists <- doesPathExist filePath
       dirExists  <- doesDirectoryExist filePath
@@ -162,7 +162,7 @@ read
     , Cache :> es
     , cacheType ~ ByteString
     , cacheName ~ "file-content")
-    => File -> Eff es ByteString
+    => FileInfo -> Eff es ByteString
 read file = do
   logTrace_ [i|file read|]
   mCached <- Cache.lookup @cacheType cacheKey
@@ -174,11 +174,11 @@ read file = do
       pure bytes
   where
     cacheKey  = createCacheKey @cacheName @cacheType (Builder.string8 file.path)
-    cacheDeps = [ SomeCacheKey (createCacheKey @"file" @File (Builder.string8 file.path)) ]
+    cacheDeps = [ SomeCacheKey (createCacheKey @"file" @FileInfo (Builder.string8 file.path)) ]
     cacheTTL  = Just (secondsToNominalDiffTime 10)
 
 
-readStream :: File -> Eff es (ConduitT () ByteString (ResourceT IO) ())
+readStream :: FileInfo -> Eff es (ConduitT () ByteString (ResourceT IO) ())
 readStream file = pure $ Conduit.sourceFile file.path
 
 
@@ -195,7 +195,7 @@ newFolder currentDir name = do
     logAttention "[newFolder] path doesn't exists:" filePath
     throwError (FileExists "Folder already exists")
   createDirectoryIfMissing True filePath
-  Cache.delete (createCacheKey @"dir" @[File] (Builder.string8 currentDir))
+  Cache.delete (createCacheKey @"dir" @[FileInfo] (Builder.string8 currentDir))
 
 
 new
@@ -211,7 +211,7 @@ new currentDir name = do
     logAttention "[new] path doesn't exists:" filePath
     throwError (FileExists "File already exists")
   withFile filePath ReadWriteMode (\_ -> pure ())
-  Cache.delete (createCacheKey @"dir" @[File] (Builder.string8 currentDir))
+  Cache.delete (createCacheKey @"dir" @[FileInfo] (Builder.string8 currentDir))
 
 
 write
@@ -261,9 +261,9 @@ write' currentDir name performWrite = do
           when (not (isDoesNotExistError e)) do -- it's ok if file is not there.
             throwIO e
       renameFile tempFile filePath
-    Cache.delete (createCacheKey @"file" @File (Builder.string8 name))
+    Cache.delete (createCacheKey @"file" @FileInfo (Builder.string8 name))
     when (not isCreatingNew) do
-      Cache.delete (createCacheKey @"dir" @[File] (Builder.string8 currentDir))
+      Cache.delete (createCacheKey @"dir" @[FileInfo] (Builder.string8 currentDir))
 
 
 mv
@@ -285,8 +285,8 @@ mv currentDir cpPairs = do
         delete currentDir src
         -- cache needs to be deleted within the critical section, otherwise a fast click
         -- can look at the staled page
-        Cache.delete (createCacheKey @"dir" @[File] (Builder.string8 (takeDirectory src)))
-        Cache.delete (createCacheKey @"dir" @[File] (Builder.string8 (takeDirectory dst)))
+        Cache.delete (createCacheKey @"dir" @[FileInfo] (Builder.string8 (takeDirectory src)))
+        Cache.delete (createCacheKey @"dir" @[FileInfo] (Builder.string8 (takeDirectory dst)))
 
 
 -- | Copy all files and subdirectories from src to dst.
@@ -324,7 +324,7 @@ delete currentDir name = do
      | fileExists -> withRetry (removeFile filePath)
      | dirExists  -> withRetry (removeDirectoryRecursive filePath)
      | otherwise  -> pure ()
-  Cache.delete (createCacheKey @"file" @File (Builder.string8 name))
+  Cache.delete (createCacheKey @"file" @FileInfo (Builder.string8 name))
   where
     withRetry action = recovering policy handlers \_ -> do
       logInfo_ [i|Retrying delete #{name}|]
@@ -348,9 +348,9 @@ ls
     , Log                :> es
     , Cache              :> es
     , Error StorageError :> es
-    , cacheType ~ [File]
+    , cacheType ~ [FileInfo]
     , cacheName ~ "dir")
-    => FilePath -> Eff es [File]
+    => FilePath -> Eff es [FileInfo]
 ls path = do
   mCached <- Cache.lookup @cacheType cacheKey
   case mCached of
@@ -366,7 +366,7 @@ ls path = do
             >>= traverse makeAbsolute
             >>= traverse \x -> do
               file <- get x
-              let depKey = SomeCacheKey (createCacheKey @"file" @File (Builder.string8 x))
+              let depKey = SomeCacheKey (createCacheKey @"file" @FileInfo (Builder.string8 x))
               pure (file, depKey)
       Cache.insert cacheKey cacheDeps cacheTTL files
       pure files
@@ -380,7 +380,7 @@ lsCwd
      , Log                :> es
      , Cache              :> es
      , Error StorageError :> es)
-    => FilePath -> Eff es [File]
+    => FilePath -> Eff es [FileInfo]
 lsCwd currentDir = do
   exists <- doesDirectoryExist currentDir
   unless exists do
@@ -412,7 +412,7 @@ download
   => FilePath -> Eff es (ConduitT () ByteString (ResourceT IO) ())
 download path = do
   file <- get path
-  case file.filetype of
+  case file.content of
     Regular -> readStream file
     Dir     -> do
       (zipPath, _) <- liftIO do

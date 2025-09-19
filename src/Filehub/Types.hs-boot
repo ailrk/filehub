@@ -1,7 +1,7 @@
 module Filehub.Types where
 
 import Target.Types (Target)
-import Data.File (File)
+import Data.File (FileInfo)
 
 
 data Layout
@@ -10,8 +10,8 @@ data Layout
 
 
 data CopyState
-  = CopySelected [(Target, [File])]
-  | Paste [(Target, [File])]
+  = CopySelected [(Target, [FileInfo])]
+  | Paste [(Target, [FileInfo])]
   | NoCopyPaste
 
 

@@ -134,7 +134,7 @@ paste sessionId = do
       forM_ selections \(from, files) -> do
         forM_ files $ flip fix sessionData.currentDir
           \rec currentDir file -> do -- expose the recursion with the fix point
-            case file.filetype of
+            case file.content of
               Regular -> do
                 conduit <- Session.withTarget sessionId (Target.getTargetId from) \_ storage -> do
                   storage.readStream file

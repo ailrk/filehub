@@ -22,7 +22,7 @@ import Data.ByteString (ByteString)
 import Data.ByteString.Char8 qualified as ByteString
 import Data.ClientPath (ClientPath (..))
 import Data.ClientPath qualified as ClientPath
-import Data.File (FileType(..), File(..))
+import Data.File (FileType(..), File(..), FileInfo)
 import Data.FileEmbed qualified as FileEmbed
 import Data.Foldable (forM_)
 import Data.List qualified as List
@@ -558,7 +558,7 @@ download sessionId _ clientPaths = do
       file    <- storage.get (ClientPath.fromClientPath root clientPath) & withServerError
       conduit <- withServerError (storage.download clientPath)
       let filename =
-            case file.filetype of
+            case file.content of
               Regular -> printf "attachement; filename=%s" (takeFileName path)
               Dir     -> printf "attachement; filename=%s.zip" (takeFileName path)
       pure $ addHeader filename conduit
@@ -646,10 +646,10 @@ initViewer sessionId _ mClientPath = do
     isResource :: MimeType -> Bool
     isResource s = any (s `isMime`)  ["image", "video", "audio"]
 
-    takeResourceFiles :: [File] -> [File]
+    takeResourceFiles :: [FileInfo] -> [FileInfo]
     takeResourceFiles = filter (isResource . (.mimetype))
 
-    toResource :: FilePath -> File -> Resource
+    toResource :: FilePath -> FileInfo -> Resource
     toResource root f =
       Resource
         { url = let ClientPath path = ClientPath.toClientPath root f.path -- encode path url

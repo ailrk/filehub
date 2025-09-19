@@ -6,7 +6,7 @@ import Data.Aeson qualified as Aeson
 import Data.Aeson.Types (Pair)
 import Data.ClientPath (ClientPath(..))
 import Data.ClientPath qualified as ClientPath
-import Data.File (File(..), FileType(..))
+import Data.File (File(..), FileType(..), FileInfo)
 import Data.Foldable (Foldable(..))
 import Data.Maybe (fromMaybe)
 import Data.Sequence (Seq(..))
@@ -100,7 +100,7 @@ pathBreadcrumb = do
         _ -> ""
 
 
-search :: SearchWord -> [File] -> ([File] -> Template (Html ())) -> Template (Html ())
+search :: SearchWord -> [FileInfo] -> ([FileInfo] -> Template (Html ())) -> Template (Html ())
 search (SearchWord searchWord) files table = do
   let matched = files <&> Text.pack . (.path) & simpleFilter searchWord
   let isMatched file = Text.pack file.path `elem` matched
@@ -204,9 +204,9 @@ controlPanel
         ]
 
 
-icon :: File -> Html ()
+icon :: FileInfo -> Html ()
 icon file =
-  case file.filetype of
+  case file.content of
     Dir -> i_ [ class_ "bx bxs-folder "] mempty
     Regular
       | file.mimetype `isMime` "application/pdf"                       -> i_ [ class_ "bx bxs-file-pdf"] mempty
@@ -229,10 +229,10 @@ icon file =
       | otherwise                                                      -> i_ [ class_ "bx bxs-file-blank "] mempty
 
 
-open :: FilePath -> File -> [Attribute]
+open :: FilePath -> FileInfo -> [Attribute]
 open root file = do
   let clientPath = ClientPath.toClientPath root file.path
-  case file.filetype of
+  case file.content of
     Dir ->
         [ term "hx-get" (linkToText (apiLinks.cd (Just clientPath)))
         , term "hx-target" ("#" <> viewId)

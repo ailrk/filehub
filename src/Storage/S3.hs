@@ -50,7 +50,7 @@ import Data.ByteString.Builder (Builder)
 import Data.ByteString.Builder qualified as Builder
 import Data.ByteString.Lazy qualified as LBS
 import Data.Conduit
-import Data.File (File (..), FileType (..))
+import Data.File (File (..), FileType (..), FileInfo)
 import Data.Foldable (forM_)
 import Data.Function (fix)
 import Data.Generics.Labels ()
@@ -83,8 +83,8 @@ import Debug.Trace
 
 
 class CacheKeyComponent (s :: Symbol) a              where toCacheKeyComponent :: Builder
-instance CacheKeyComponent "file"         File       where toCacheKeyComponent = "f"
-instance CacheKeyComponent "dir"          [File]     where toCacheKeyComponent = "d"
+instance CacheKeyComponent "file"         FileInfo   where toCacheKeyComponent = "f"
+instance CacheKeyComponent "dir"          [FileInfo] where toCacheKeyComponent = "d"
 instance CacheKeyComponent "file-content" ByteString where toCacheKeyComponent = "fc"
 instance CacheKeyComponent "is-directory" Bool       where toCacheKeyComponent = "id"
 
@@ -103,9 +103,9 @@ get
   . ( IOE   :> es
     , Log   :> es
     , Cache :> es
-    , cacheType ~ File
+    , cacheType ~ FileInfo
     , cacheName ~ "file")
-    => Backend S3 -> FilePath -> Eff es File
+    => Backend S3 -> FilePath -> Eff es FileInfo
 get (s3@S3Backend { targetId }) path = do
   mCached      <- Cache.lookup @cacheType cacheKey
   case mCached of
@@ -119,12 +119,12 @@ get (s3@S3Backend { targetId }) path = do
       let size        = resp ^. Amazonka.headObjectResponse_contentLength
       let contentType = resp ^. Amazonka.headObjectResponse_contentType
       let file = File
-            { path = path
-            , atime = Nothing
-            , mtime = mtime
-            , size = size
+            { path     = path
+            , atime    = Nothing
+            , mtime    = mtime
+            , size     = size
             , mimetype = maybe "application/octet-stream" Text.encodeUtf8 contentType
-            , filetype = Regular
+            , content  = Regular
             }
       Cache.insert cacheKey cacheDeps cacheTTL file
       pure file
@@ -143,10 +143,10 @@ isDirectory
     , IOE   :> es )
   => Backend S3 -> FilePath -> Eff es Bool
 isDirectory s3@S3Backend { targetId } filePath = do
-  mCached <- Cache.lookup @File cacheKey
+  mCached <- Cache.lookup @FileInfo cacheKey
   case mCached of
-    Just (File { filetype = Regular }) -> pure False
-    Just (File { filetype = Dir })     -> pure True
+    Just (File { content = Regular }) -> pure False
+    Just (File { content = Dir })     -> pure True
     Nothing -> do
       let bucket = Amazonka.BucketName s3.bucket
       let request = Amazonka.newListObjectsV2 bucket
@@ -156,7 +156,7 @@ isDirectory s3@S3Backend { targetId } filePath = do
       let result = maybe False (> 0) (resp ^. Amazonka.listObjectsV2Response_keyCount)
       pure result
   where
-    cacheKey = createCacheKey @"file" @File targetId (Builder.string8 filePath)
+    cacheKey = createCacheKey @"file" @FileInfo targetId (Builder.string8 filePath)
 
 
 read
@@ -166,7 +166,7 @@ read
     , Cache :> es
     , cacheType ~ ByteString
     , cacheName ~ "file-content")
-  => Backend S3 -> File -> Eff es ByteString
+  => Backend S3 -> FileInfo -> Eff es ByteString
 read s3@S3Backend { targetId }  file = do
   mCached <- Cache.lookup @cacheType cacheKey
   case mCached of
@@ -179,11 +179,11 @@ read s3@S3Backend { targetId }  file = do
       pure result
   where
     cacheKey  = createCacheKey @cacheName @cacheType targetId (Builder.string8 file.path)
-    cacheDeps = [ SomeCacheKey (createCacheKey @"file" @File targetId (Builder.string8 file.path)) ]
+    cacheDeps = [ SomeCacheKey (createCacheKey @"file" @FileInfo targetId (Builder.string8 file.path)) ]
     cacheTTL  = Just (secondsToNominalDiffTime 10)
 
 
-readStream :: Backend S3 -> File -> Eff es (ConduitT () ByteString (ResourceT IO) ())
+readStream :: Backend S3 -> FileInfo -> Eff es (ConduitT () ByteString (ResourceT IO) ())
 readStream s3 file = do
   let bucket  = Amazonka.BucketName s3.bucket
       key     = Amazonka.ObjectKey (Text.pack file.path)
@@ -201,7 +201,7 @@ new
   => Backend S3 -> FilePath -> Eff es ()
 new s3@S3Backend { targetId } filePath = do
   write s3 filePath mempty
-  Cache.delete (createCacheKey @"dir" @[File] targetId "")
+  Cache.delete (createCacheKey @"dir" @[FileInfo] targetId "")
 
 
 write
@@ -214,8 +214,8 @@ write s3@S3Backend { targetId } filePath bytes = do
   let key     = Amazonka.ObjectKey (Text.pack filePath)
   let request = Amazonka.newPutObject bucket key (toBody bytes)
   void . runResourceT $ send s3.env request
-  Cache.delete (createCacheKey @"file" @File targetId (Builder.string8 filePath))
-  Cache.delete (createCacheKey @"dir" @[File] targetId "")
+  Cache.delete (createCacheKey @"file" @FileInfo targetId (Builder.string8 filePath))
+  Cache.delete (createCacheKey @"dir" @[FileInfo] targetId "")
 
 
 -- | Streaming data to S3.
@@ -230,8 +230,8 @@ writeStream s3@S3Backend { targetId } filePath conduit mSize = do
     Just size
       | size < threshold  -> writePutObject s3 filePath conduit
       | otherwise -> writeMultipart s3 filePath conduit
-  Cache.delete (createCacheKey @"file" @File targetId (Builder.string8 filePath))
-  Cache.delete (createCacheKey @"dir" @[File] targetId "")
+  Cache.delete (createCacheKey @"file" @FileInfo targetId (Builder.string8 filePath))
+  Cache.delete (createCacheKey @"dir" @[FileInfo] targetId "")
   where
     threshold = 5 * 1024 * 1024 -- use putObject if it's smaller than single part.
 
@@ -342,7 +342,7 @@ mv s3@S3Backend { targetId } cpPairs = do
     let request = Amazonka.newCopyObject bucket (Text.pack src) destKey
     void . runResourceT $ send s3.env request
     delete s3 src
-    Cache.delete (createCacheKey @"dir" @[File] targetId "")
+    Cache.delete (createCacheKey @"dir" @[FileInfo] targetId "")
 
 
 delete
@@ -354,8 +354,8 @@ delete s3@S3Backend { targetId } filePath = do
   let bucket = Amazonka.BucketName s3.bucket
   let key    = Amazonka.ObjectKey (Text.pack filePath)
   void . runResourceT $ send s3.env (Amazonka.newDeleteObject bucket key)
-  Cache.delete (createCacheKey @"file" @File targetId (Builder.string8 filePath))
-  Cache.delete (createCacheKey @"dir" @[File] targetId "")
+  Cache.delete (createCacheKey @"file" @FileInfo targetId (Builder.string8 filePath))
+  Cache.delete (createCacheKey @"dir" @[FileInfo] targetId "")
 
 
 ls
@@ -363,9 +363,9 @@ ls
   . ( Cache :> es
     , Log   :> es
     , IOE   :> es
-    , cacheType ~ [File]
+    , cacheType ~ [FileInfo]
     , cacheName ~ "dir")
-  => Backend S3 -> FilePath -> Eff es [File]
+  => Backend S3 -> FilePath -> Eff es [FileInfo]
 ls s3@S3Backend { targetId } _ = do
     mCached <- Cache.lookup @cacheType cacheKey
     case mCached of
@@ -381,7 +381,7 @@ ls s3@S3Backend { targetId } _ = do
         let result = files <> dirs
         Cache.insert
           cacheKey
-          (fmap (\r -> SomeCacheKey (createCacheKey @"file" @File targetId (Builder.string8 r.path))) result)
+          (fmap (\r -> SomeCacheKey (createCacheKey @"file" @FileInfo targetId (Builder.string8 r.path))) result)
           cacheTTL
           result
         pure result
@@ -397,7 +397,7 @@ ls s3@S3Backend { targetId } _ = do
          , mtime    = Nothing
          , size     = Nothing
          , mimetype = "" -- content type can be unreliable because it's derived from the extension.
-         , filetype = Dir
+         , content  = Dir
          }
 
     toFile (object :: Object) =
@@ -408,7 +408,7 @@ ls s3@S3Backend { targetId } _ = do
          , mtime    = Just (object ^. Amazonka.object_lastModified)
          , size     = Just (object ^. Amazonka.object_size)
          , mimetype = defaultMimeLookup filePath -- content type can be unreliable because it's derived from the extension.
-         , filetype = Regular
+         , content  = Regular
          }
 
 
@@ -416,7 +416,7 @@ lsCwd
   :: ( Cache :> es
      , Log   :> es
      , IOE   :> es)
-  => Backend S3 -> Eff es [File]
+  => Backend S3 -> Eff es [FileInfo]
 lsCwd s3 = ls s3 ""
 
 
@@ -439,7 +439,7 @@ download
   => Backend S3 -> FilePath -> Eff es (ConduitT () ByteString (ResourceT IO) ())
 download s3 path = do
   file     <- get s3 path
-  case file.filetype of
+  case file.content of
     Regular -> readStream s3 file
     Dir     -> do
       (zipPath, _) <- liftIO do

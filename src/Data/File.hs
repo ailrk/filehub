@@ -4,26 +4,33 @@ module Data.File where
 import GHC.Generics (Generic)
 import Data.Time (UTCTime)
 import Network.Mime (MimeType)
+import Data.ByteString (ByteString)
+import Conduit (ConduitT, ResourceT)
 
 
--- | `FileContent` represents the tree structure of a folder without pulling in
--- any content. To read content from a file, use `Storage.read` or `Storage.readStream`
 data FileType
   = Regular
   | Dir
   deriving (Show, Eq, Generic)
 
 
-data File = File
+data FileContent
+  = FileContentRaw     ByteString
+  | FileContentConduit (ConduitT () ByteString (ResourceT IO) ())
+  | FileContentDir
+
+
+
+data File a = File
   { path     :: FilePath -- absolute path
   , atime    :: Maybe UTCTime
   , mtime    :: Maybe UTCTime
   , size     :: Maybe Integer
   , mimetype :: MimeType
-  , filetype :: FileType
+  , content  :: a
   }
-  deriving (Show, Eq, Generic)
+  deriving (Eq)
 
 
-instance Ord File where
-  compare a b = compare a.path b.path
+type FileInfo        = File FileType
+type FileWithContent = File FileContent

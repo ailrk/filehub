@@ -5,7 +5,7 @@ import Control.Monad (join)
 import Data.ByteString (ByteString)
 import Data.ClientPath (ClientPath(..))
 import Data.ClientPath qualified as ClientPath
-import Data.File (File(..))
+import Data.File (File(..), FileInfo)
 import Data.Foldable (traverse_)
 import Data.Maybe (fromMaybe)
 import Data.String.Interpolate (iii, i)
@@ -179,7 +179,7 @@ sortTool = do
         _          -> i_ [ class_ "bx bx-sort"] mempty
 
 
-table :: [File] -> Template (Html ())
+table :: [FileInfo] -> Template (Html ())
 table files = do
   root <- asks @TemplateContext (.root)
   TargetView { target } <- asks @TemplateContext (.currentTarget)
@@ -189,7 +189,7 @@ table files = do
       tbody_ $ traverse_ (record root target selected) ([0..] `zip` files)
 
 
-record :: FilePath -> Target -> Selected -> (Int, File) -> Html ()
+record :: FilePath -> Target -> Selected -> (Int, FileInfo) -> Html ()
 record root target selected (idx, file) =
   tr_ attrs do
     td_ do
@@ -209,7 +209,7 @@ record root target selected (idx, file) =
     clientPath@(ClientPath path) = ClientPath.toClientPath root file.path
 
 
-sizeElement :: File -> Html ()
+sizeElement :: FileInfo -> Html ()
 sizeElement file =
   span_ (toHtml displaySize)
     `with` [ class_ "field "
@@ -219,7 +219,7 @@ sizeElement file =
     displaySize = toReadableSize $ fromMaybe 0 file.size
 
 
-modifiedDateElement :: File -> Html ()
+modifiedDateElement :: FileInfo -> Html ()
 modifiedDateElement file =
   span_ (toHtml displayTime)
     `with` [ class_ "field "
@@ -229,7 +229,7 @@ modifiedDateElement file =
     displayTime = maybe mempty (formatTime defaultTimeLocale "%Y/%m/%d") file.mtime
 
 
-fileNameElement :: Target -> File -> Html ()
+fileNameElement :: Target -> FileInfo -> Html ()
 fileNameElement target file = do
   span_ (Template.icon file >> name)
     `with` [ class_ "field"

@@ -22,7 +22,7 @@ import Control.Monad (when, join)
 import Data.ByteString (ByteString)
 import Data.ClientPath (ClientPath(..))
 import Data.ClientPath qualified as ClientPath
-import Data.File (File(..), FileType(..))
+import Data.File (File(..), FileType(..), FileInfo)
 import Data.Foldable (traverse_)
 import Data.Maybe (fromMaybe)
 import Data.String.Interpolate (iii, i)
@@ -423,7 +423,7 @@ newFolderModal = do
                   ] (toHtml modal_create)
 
 
-fileDetailModal :: File -> Template (Html ())
+fileDetailModal :: FileInfo -> Template (Html ())
 fileDetailModal file = do
   Phrase
     { modal_detail
@@ -565,7 +565,7 @@ modal attrs body = do
 -----------------------------------------------------------------------------------------
 
 
-table :: [File] ->  Template (Html ())
+table :: [FileInfo] ->  Template (Html ())
 table files = do
   layout <- asks @TemplateContext (.layout)
   case layout of
@@ -573,7 +573,7 @@ table files = do
     ThumbnailLayout -> thumbnailLayout files
 
 
-listLayout :: [File]  -> Template (Html ())
+listLayout :: [FileInfo]  -> Template (Html ())
 listLayout files = do
   root <- asks @TemplateContext (.root)
   selected <- asks @TemplateContext (.selected)
@@ -585,7 +585,7 @@ listLayout files = do
     , detail_size
     } <- phrase <$> asks @TemplateContext (.locale)
 
-  let record :: (Int, File) -> Html ()
+  let record :: (Int, FileInfo) -> Html ()
       record (idx, file) = do
         let clientPath@(ClientPath path) = ClientPath.toClientPath root file.path
         tr_ do
@@ -602,7 +602,7 @@ listLayout files = do
                 , class_ "table-item "
                 , draggable_ "true"
                 ]
-              , case file.filetype of
+              , case file.content of
                   Dir     -> [ class_ "dir "]
                   Regular -> mempty
               ]
@@ -658,12 +658,12 @@ listLayout files = do
       tbody_ $ traverse_ record ([0..] `zip` files)
 
 
-thumbnailLayout :: [File] -> Template (Html ())
+thumbnailLayout :: [FileInfo] -> Template (Html ())
 thumbnailLayout files = do
   root <- asks @TemplateContext (.root)
   selected <- asks @TemplateContext (.selected)
   TargetView target _ _ <- asks @TemplateContext (.currentTarget)
-  let thumbnail :: (Int, File) -> Html ()
+  let thumbnail :: (Int, FileInfo) -> Html ()
       thumbnail (idx, file) = card `with` Template.open root file
         where
           card = div_ do
@@ -677,7 +677,7 @@ thumbnailLayout files = do
                   , class_ "thumbnail table-item "
                   , draggable_ "true"
                   ]
-                , case file.filetype of
+                , case file.content of
                     Dir     -> [ class_ "dir "]
                     Regular -> mempty
                 ]
@@ -688,7 +688,7 @@ thumbnailLayout files = do
       tbody_ $ traverse_ thumbnail ([0..] `zip` files)
 
 
-previewElement :: FilePath -> File -> Html ()
+previewElement :: FilePath -> FileInfo -> Html ()
 previewElement root file = do
   div_ [ class_ "thumbnail-preview " ] do
     div_ [  class_ "image-wrapper " ] do
@@ -701,7 +701,7 @@ previewElement root file = do
          | otherwise -> Template.icon file
 
 
-fileNameElement :: File -> Target -> Bool -> Html ()
+fileNameElement :: FileInfo -> Target -> Bool -> Html ()
 fileNameElement file target withIcon = do
   span_ ((if withIcon then Template.icon file else mempty) >> name)
     `with` [ title_ (Text.pack displayName) ]
@@ -715,7 +715,7 @@ fileNameElement file target withIcon = do
         ]
 
 
-sizeElement :: File -> Html ()
+sizeElement :: FileInfo -> Html ()
 sizeElement file =
   span_ (toHtml displaySize)
     `with` [ class_ "field file-meta"
@@ -725,7 +725,7 @@ sizeElement file =
     displaySize = toReadableSize (fromMaybe 0 file.size)
 
 
-modifiedDateElement :: File -> Html ()
+modifiedDateElement :: FileInfo -> Html ()
 modifiedDateElement file =
   span_ (toHtml displayTime)
     `with` [ class_ "field file-meta"
@@ -748,7 +748,7 @@ sortControl o =
 ------------------------------------
 
 
-contextMenu :: [File] -> Template (Html ())
+contextMenu :: [FileInfo] -> Template (Html ())
 contextMenu [file] = do
   root <- asks @TemplateContext (.root)
   readOnly <- asks @TemplateContext (.readOnly)
@@ -768,7 +768,7 @@ contextMenu [file] = do
     let clientPath = ClientPath.toClientPath root file.path
 
     div_ [ class_ "dropdown-content " , id_ contextMenuId ] do
-      case file.filetype of
+      case file.content of
         Dir -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bxs-folder-open" ] mempty >> span_ (toHtml contextmenu_open)
         Regular
           | file.mimetype `isMime` "application/pdf" -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bx-show" ] mempty >> span_ (toHtml contextmenu_view)
