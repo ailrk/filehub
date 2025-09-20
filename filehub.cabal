@@ -146,6 +146,7 @@ library
     Cache.Key
     Data.ClientPath
     Data.File
+    Data.Queue
     Effectful.Extended.Cache
     Effectful.Extended.LockManager
     Filehub

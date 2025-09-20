@@ -78,7 +78,6 @@ import System.IO.Temp qualified as Temp
 import Target.S3 (Backend(..), S3)
 import Target.Types (TargetId)
 import Target.Types.TargetId qualified as TargetId
-import Debug.Trace
 
 
 class CacheKeyComponent (s :: Symbol) a              where toCacheKeyComponent :: Builder
@@ -316,7 +315,6 @@ chunking chunkSize = flip fix (1, ChunkBuilder (Builder.byteString ByteString.em
       Just bytes -> do
         let combined  = acc <> ChunkBuilder (Builder.byteString bytes) (ByteString.length bytes)
         let cbSize    = chunkBuilderSize combined
-        traceShowM ("got bytes " <> show cbSize)
         if cbSize >= chunkSize
           then do
             let combinedBytes = chunkBuilderToByteString combined
