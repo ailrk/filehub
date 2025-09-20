@@ -48,13 +48,14 @@ import Servant
       NoContent,
       CaptureAll,
       QueryParams,
-      Capture
+      Capture, SourceIO
     )
 import Lucid
 import Lens.Micro.Platform ()
 import Servant.Multipart (Mem, MultipartForm, MultipartData(..))
 import Servant.HTML.Lucid (HTML)
 import Servant.API.Experimental.Auth (AuthProtect)
+import Servant.API.EventStream (ServerSentEvents, RecommendedEventSourceHeaders)
 import Servant.Server.Experimental.Auth (AuthServerData)
 import Prelude hiding (readFile)
 import Filehub.Types
@@ -83,6 +84,7 @@ import Amazonka.Data (Value)
 import Web.Cookie (SetCookie)
 import Filehub.Locale (Locale)
 import Target.Types (TargetId)
+import Filehub.Notification (Notification)
 
 
 type instance AuthServerData (AuthProtect "session")      = SessionId
@@ -117,6 +119,14 @@ data Api mode = Api
                           :> AuthProtect "login"
                           :> QueryParam "component" UIComponent
                           :> Get '[HTML] (Html ())
+
+
+  , listen                :: mode
+                          :- "listen"
+                          :> AuthProtect "session"
+                          :> AuthProtect "login"
+                          :> ServerSentEvents
+                              (RecommendedEventSourceHeaders (ConduitT () Notification IO ()))
 
 
   , loginPage             :: mode

@@ -12,7 +12,7 @@
 module Filehub.Server (application) where
 
 import Codec.Archive.Zip qualified as Zip
-import Conduit (ConduitT, ResourceT)
+import Conduit (ConduitT, ResourceT, yield)
 import Conduit qualified
 import Control.Applicative (Alternative((<|>)))
 import Control.Monad (when, forM, replicateM)
@@ -88,7 +88,6 @@ import Prelude hiding (init, readFile)
 import Servant (addHeader, err500, err303)
 import Servant (errBody, Headers, Header, NoContent (..), err404, errHeaders, err301, noHeader, err400)
 import Servant (serveWithContextT, Context (..), Application)
-import Servant.Conduit ()
 import Servant.Multipart (MultipartData, Mem)
 import Servant.Server.Generic (AsServerT)
 import System.Directory (removeFile)
@@ -100,6 +99,8 @@ import Text.Printf (printf)
 import Web.Cookie (SetCookie (..))
 import Target.Types qualified as Target
 import UnliftIO.Exception (catchIO)
+import Servant.API.EventStream (RecommendedEventSourceHeaders, recommendedEventSourceHeaders)
+import Filehub.Notification (Notification(..))
 #ifdef DEBUG
 import Effectful ( MonadIO (liftIO) )
 import System.FilePath ((</>))
@@ -131,6 +132,7 @@ server = Api
   { init                  = init
   , home                  = home
   , refresh               = refresh
+  , listen                = listen
   , loginPage             = loginPage
   , loginToggleTheme      = loginToggleTheme
   , loginChangeLocale     = loginChangeLocale
@@ -236,6 +238,12 @@ refresh sessionId _ mUIComponent = do
       index sessionId
     Nothing ->
       throwError (err400 { errBody = [i|Invalid ui component|]})
+
+
+listen :: SessionId -> ConfirmLogin -> Filehub (RecommendedEventSourceHeaders (ConduitT () Notification IO ()))
+listen sesionId _ = do
+  pure $ recommendedEventSourceHeaders $ do
+    yield Pong
 
 
 -- | Return the login page

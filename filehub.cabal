@@ -116,6 +116,7 @@ library
     , servant-client
     , servant-conduit
     , servant-lucid
+    , servant-event-stream
     , servant-multipart
     , servant-server
     , split
@@ -144,6 +145,7 @@ library
     Cache.Dummy
     Cache.InMemory
     Cache.Key
+    Worker.Pool
     Data.ClientPath
     Data.File
     Data.Queue
@@ -167,6 +169,7 @@ library
     Filehub.Locale
     Filehub.Log
     Filehub.Monad
+    Filehub.Notification
     Filehub.Orphan
     Filehub.Routes
     Filehub.Selected
