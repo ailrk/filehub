@@ -128,7 +128,7 @@ a.dropdown-item {
   animation: fadeInBallon 0.3s ease;
   font-size: 0.9rem;
   z-index: 1500;
- display: flex;
+  display: flex;
   flex-direction: column;
 }
 

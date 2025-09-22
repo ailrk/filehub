@@ -442,11 +442,13 @@ data Api mode = Api
                           :> AuthProtect "login"
                           :> Get '[HTML] (Headers '[ Header "HX-Trigger-After-Settle" FilehubEvent ] (Html ()))
 
+
   , changeLocale          :: mode
                           :- "locale" :> "change"
                           :> AuthProtect "session"
                           :> QueryParam "locale" Locale
                           :> Get '[HTML] (Headers '[ Header "HX-Trigger-After-Settle" FilehubEvent ] (Html ()))
+
 
   , manifest              :: mode :- "manifest.json" :> Get '[Manifest] Value
 

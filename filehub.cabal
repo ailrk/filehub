@@ -170,7 +170,6 @@ library
     Filehub.Locale
     Filehub.Log
     Filehub.Monad
-    Filehub.Notification
     Filehub.Notification.Types
     Filehub.Orphan
     Filehub.Routes
