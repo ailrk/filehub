@@ -56,6 +56,8 @@ module Filehub.Session
   , changeCurrentTarget
   , currentTarget
   , withTarget
+  , getSessionNotifications
+  , getPendingTasks
   )
   where
 
@@ -93,6 +95,10 @@ import Target.S3 (S3)
 import Target.Types (TargetId, Target (..), getTargetId, handleTarget, targetHandler)
 import {-# SOURCE #-} Filehub.Session.Copy qualified as Copy
 import {-# SOURCE #-} Filehub.Session.Selected qualified as Selected
+import UnliftIO.STM (TBQueue, TVar)
+import Filehub.Notification.Types (Notification)
+import Data.Set (Set)
+import Worker.Task (TaskId)
 
 
 -- | Get the current target root. The meaning of the root depends on the target. e.g for
@@ -204,6 +210,7 @@ getControlPanelState sessionId = do
 -- Target
 ------------------------------
 
+
 currentTarget :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es TargetView
 currentTarget sessionId = do
   mSession <- Session.Pool.get sessionId
@@ -277,3 +284,26 @@ getStorage sessionId = do
     onError     = do
       logAttention_ "[getStorage] target error"
       throwError (FilehubError TargetError "Invalid target")
+
+
+------------------------------
+-- Notification
+-----------------------------
+
+
+getSessionNotifications
+  :: ( Reader Env         :> es
+     , Log                :> es
+     , IOE                :> es
+     , Error FilehubError :> es)
+  => SessionId -> Eff es (TBQueue Notification)
+getSessionNotifications sessionId = (^. #notifications) <$> Session.Pool.get sessionId
+
+
+getPendingTasks
+  :: ( Reader Env :> es
+     , IOE :> es
+     , Log :> es
+     , Error FilehubError :> es)
+  => SessionId -> Eff es (TVar (Set TaskId))
+getPendingTasks sessionId = (^. #pendingTasks) <$> Session.Pool.get sessionId

@@ -20,6 +20,7 @@ mapError = \case
   StorageError.FileExists t  -> FilehubError FileExists t
   StorageError.TargetError t -> FilehubError TargetError t
   StorageError.CopyError t   -> FilehubError CopyError t
+  StorageError.WriteError t  -> FilehubError WriteError t
 
 
 withStorageError :: (Error FilehubError :> es) => Eff (Error StorageError : es) b -> Eff es b

@@ -40,6 +40,7 @@ data Error'
   | MimeTypeMissing
   | S3Error
   | SelectError
+  | WriteError
   | CopyError
   | PasteError
   | LoginFailed
@@ -67,6 +68,7 @@ toServerError (FilehubError err msg) =
     MimeTypeMissing     -> err400 { errBody = fromString msg }
     S3Error             -> err500 { errBody = fromString msg }
     SelectError         -> err500 { errBody = fromString msg }
+    WriteError          -> err500 { errBody = fromString msg }
     CopyError           -> err500 { errBody = fromString msg }
     PasteError          -> err500 { errBody = fromString msg }
     LoginFailed         -> err500 { errBody = fromString msg }

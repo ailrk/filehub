@@ -12,7 +12,7 @@
 module Filehub.Server (application) where
 
 import Codec.Archive.Zip qualified as Zip
-import Conduit (ConduitT, ResourceT, yield)
+import Conduit (ConduitT, ResourceT)
 import Conduit qualified
 import Control.Applicative (Alternative((<|>)))
 import Control.Monad (when, forM, replicateM)
@@ -98,9 +98,16 @@ import Target.Types (TargetId)
 import Text.Printf (printf)
 import Web.Cookie (SetCookie (..))
 import Target.Types qualified as Target
-import UnliftIO.Exception (catchIO)
+import UnliftIO.Exception (SomeException, catch)
 import Servant.API.EventStream (RecommendedEventSourceHeaders, recommendedEventSourceHeaders)
-import Filehub.Notification (Notification(..))
+import Filehub.Notification.Types (Notification(..))
+import Filehub.Notification qualified as Notification
+import Worker.Task (newTaskId)
+import Effectful.Concurrent.Async (async)
+import Effectful.Concurrent.STM
+import Data.Ratio
+import Data.Set qualified as Set
+import Effectful.Concurrent (threadDelay)
 #ifdef DEBUG
 import Effectful ( MonadIO (liftIO) )
 import System.FilePath ((</>))
@@ -241,9 +248,32 @@ refresh sessionId _ mUIComponent = do
 
 
 listen :: SessionId -> ConfirmLogin -> Filehub (RecommendedEventSourceHeaders (ConduitT () Notification IO ()))
-listen sesionId _ = do
-  pure $ recommendedEventSourceHeaders $ do
-    yield Pong
+listen sessionId _ = do
+
+  _ <- do -- @TODO
+    notifications <- Session.getSessionNotifications sessionId & withServerError
+    pendingTasks  <- Session.getPendingTasks sessionId         & withServerError
+
+    tid1 <- newTaskId
+    tid2 <- newTaskId
+
+    async do
+        atomically $ modifyTVar' pendingTasks (Set.insert tid1 . Set.insert tid2)
+        threadDelay 500000
+        atomically $ writeTBQueue notifications (PasteProgressed tid1 (1 % 2))
+        threadDelay 500000
+        atomically $ writeTBQueue notifications (PasteProgressed tid2 (1 % 2))
+        threadDelay 500000
+        atomically $ writeTBQueue notifications (PasteProgressed tid1 1)
+        threadDelay 500000
+        atomically $ writeTBQueue notifications (TaskCompleted tid1)
+        threadDelay 500000
+        atomically $ writeTBQueue notifications (PasteProgressed tid2 1)
+        threadDelay 500000
+        atomically $ writeTBQueue notifications (TaskCompleted tid2)
+
+  conduit <- Notification.notify sessionId
+  pure $ recommendedEventSourceHeaders $ conduit
 
 
 -- | Return the login page
@@ -689,9 +719,10 @@ changeTarget sessionId _ mTargetId = do
   Session.changeCurrentTarget sessionId targetId & withServerError
 
   html <- withRunInIO \unlift -> do
-    unlift (index sessionId) `catchIO` \(_ :: IOError) -> unlift do
-      restore
-      throwError (err500 { errBody = [i|Invalid target|]})
+    unlift (index sessionId)
+      `catch` \(_ :: SomeException) -> unlift do
+        restore
+        throwError (err500 { errBody = [i|Invalid target|]})
   pure $ addHeader TargetChanged html
 
 

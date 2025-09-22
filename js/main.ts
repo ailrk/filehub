@@ -2,17 +2,18 @@
 
 declare var htmx: any;
 
-import * as DesktopLocale from './handlers/desktop/locale.js';
+import * as Balloon from './balloon.js';
+import * as Cookie from './cookie.js';
 import * as DesktopContextmenu from './handlers/desktop/contextmenu.js';
-import * as DesktopSelected from './handlers/desktop/selected.js';
 import * as DesktopDrag from './handlers/desktop/drag.js';
+import * as DesktopLocale from './handlers/desktop/locale.js';
 import * as DesktopScroll from './handlers/desktop/scroll.js';
+import * as DesktopSelected from './handlers/desktop/selected.js';
 import * as MobileCloseSidebar from './handlers/mobile/closeSidebar.js';
 import * as MobileSelected from './handlers/mobile/selected.js';
-import * as Cookie from './cookie.js';
-import { Display } from './def.js';
-import type { Opened, UIComponent, ViewerInited } from './def.js';
 import Viewer from './viewer.js';
+import type { Opened, UIComponent, ViewerInited } from './def.js';
+import { Display } from './def.js';
 
 
 // import * as Debug from './debug.js';
@@ -118,7 +119,11 @@ function handleError(e: any) {
       message = "Something went wrong"
     }
   }
-  showBalloon(`${message} ${status}`, ballonWaitTime);
+  Balloon.pushBalloon({
+    kind: "ErrorMsg",
+    msg: `${message} ${status}`,
+    duration: ballonWaitTime
+  });
 }
 
 
@@ -277,20 +282,4 @@ function reloadUIComponent (e: any) {
         });
       break;
   }
-}
-
-
-function showBalloon(message: string, duration = 3000) {
-  const body = document.getElementsByTagName('body')[0]
-  const balloon = document.createElement('div')
-  balloon.className = 'balloon'
-  balloon.textContent = message
-
-  body.appendChild(balloon)
-
-  setTimeout(() => {
-    balloon.style.opacity = '0'
-    balloon.style.transition = 'opacity 0.5s'
-    setTimeout(() => balloon.remove(), 500)
-  }, duration)
 }

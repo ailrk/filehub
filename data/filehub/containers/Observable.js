@@ -4,17 +4,17 @@ export function createObservableSet(onChange) {
     return {
         add(value) {
             const result = set.add(value);
-            onChange(set);
+            onChange(set, value, "add");
             return result;
         },
         delete(value) {
             const result = set.delete(value);
-            onChange(set);
+            onChange(set, value, "delete");
             return result;
         },
         clear() {
             set.clear();
-            onChange(set);
+            onChange(set, null, "clear");
         },
         has: set.has.bind(set),
         forEach: set.forEach.bind(set),

@@ -52,6 +52,12 @@ index sideBar' toolBar' view' selectedCount = do
       controlPanel'
       languagePanel
       controlPanelBtn
+      balloonContainer
+
+
+balloonContainer :: Html ()
+balloonContainer = do
+  div_ [ id_ "balloon-container"] mempty
 
 
 safeAreaShim :: Html ()

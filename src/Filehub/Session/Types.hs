@@ -9,35 +9,41 @@ module Filehub.Session.Types
   )
   where
 
-import Filehub.Display (Resolution)
-import Filehub.UserAgent (DeviceType)
-import Data.Time (UTCTime)
-import GHC.Generics (Generic)
-import Filehub.Session.Types.SessionId (SessionId(..))
-import Filehub.Sort (SortFileBy)
-import {-# SOURCE #-} Filehub.Types (Layout(..), CopyState(..), Selected)
-import Filehub.Theme (Theme)
-import Filehub.Auth.Types (AuthId)
 import Control.Concurrent.Timer qualified as Timer
 import Data.HashTable.IO (BasicHashTable)
+import Data.Set (Set)
+import Data.Time (UTCTime)
+import Filehub.Auth.Types (AuthId)
+import Filehub.Display (Resolution)
 import Filehub.Locale (Locale)
-import {-# SOURCE #-} Filehub.Auth.OIDC (SomeOIDCFlow)
+import Filehub.Notification.Types (Notification(..))
+import Filehub.Session.Types.SessionId (SessionId(..))
+import Filehub.Sort (SortFileBy)
+import Filehub.Theme (Theme)
+import Filehub.UserAgent (DeviceType)
+import GHC.Generics (Generic)
 import Target.Types (Target)
+import UnliftIO (TBQueue, TVar)
+import Worker.Task (TaskId)
+import {-# SOURCE #-} Filehub.Auth.OIDC (SomeOIDCFlow)
+import {-# SOURCE #-} Filehub.Types (Layout(..), CopyState(..), Selected)
 
 
 data Session = Session
-  { sessionId  :: SessionId
-  , authId     :: Maybe AuthId
-  , resolution :: Maybe Resolution
-  , deviceType :: DeviceType
-  , expireDate :: UTCTime
-  , targets    :: [TargetSessionData]
-  , copyState  :: CopyState
-  , index      :: Int
-  , layout     :: Layout
-  , theme      :: Theme
-  , locale     :: Locale
-  , oidcFlow   :: Maybe SomeOIDCFlow
+  { sessionId     :: SessionId
+  , authId        :: Maybe AuthId
+  , resolution    :: Maybe Resolution
+  , deviceType    :: DeviceType
+  , expireDate    :: UTCTime
+  , targets       :: [TargetSessionData]
+  , copyState     :: CopyState
+  , index         :: Int
+  , layout        :: Layout
+  , theme         :: Theme
+  , locale        :: Locale
+  , oidcFlow      :: Maybe SomeOIDCFlow
+  , notifications :: TBQueue Notification
+  , pendingTasks  :: TVar (Set TaskId)
   }
   deriving (Generic)
 

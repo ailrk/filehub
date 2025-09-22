@@ -48,7 +48,7 @@ import Servant
       NoContent,
       CaptureAll,
       QueryParams,
-      Capture, SourceIO
+      Capture,
     )
 import Lucid
 import Lens.Micro.Platform ()
@@ -84,7 +84,7 @@ import Amazonka.Data (Value)
 import Web.Cookie (SetCookie)
 import Filehub.Locale (Locale)
 import Target.Types (TargetId)
-import Filehub.Notification (Notification)
+import Filehub.Notification.Types (Notification)
 
 
 type instance AuthServerData (AuthProtect "session")      = SessionId

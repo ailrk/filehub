@@ -6,6 +6,7 @@ module Filehub.Session.Internal
 
 import Data.Functor ((<&>))
 import Data.Maybe (fromMaybe)
+import Data.Set qualified as Set
 import Data.Time (UTCTime, addUTCTime, NominalDiffTime)
 import Data.Time qualified as Time
 import Data.Typeable (cast)
@@ -18,6 +19,7 @@ import Options.Applicative (asum)
 import Target.File (FileSys, Backend(..))
 import Target.S3 (S3)
 import Target.Types (Target (..))
+import UnliftIO.STM (newTBQueueIO, newTVarIO)
 
 
 createSessionId :: (IOE :> es) => Eff es SessionId
@@ -33,24 +35,28 @@ createExpireDate = do
 
 createSession :: (Reader Env :> es, IOE :> es) => Eff es Session
 createSession = do
-  targets    <- asks @Env (.targets)
-  theme      <- asks @Env (.theme)
-  locale     <- asks @Env (.locale)
-  sessionId  <- createSessionId
-  expireDate <- createExpireDate
+  targets       <- asks @Env (.targets)
+  theme         <- asks @Env (.theme)
+  locale        <- asks @Env (.locale)
+  sessionId     <- createSessionId
+  expireDate    <- createExpireDate
+  notifications <- liftIO (newTBQueueIO 16)
+  pendingTasks  <- newTVarIO Set.empty
   pure Session
-    { sessionId  = sessionId
-    , authId     = Nothing
-    , resolution = Nothing
-    , deviceType = UserAgent.Unknown
-    , expireDate = expireDate
-    , targets    = targetToSessionData <$> targets
-    , copyState  = NoCopyPaste
-    , index      = 0
-    , layout     = ThumbnailLayout
-    , theme      = theme
-    , locale     = locale
-    , oidcFlow   = Nothing
+    { sessionId     = sessionId
+    , authId        = Nothing
+    , resolution    = Nothing
+    , deviceType    = UserAgent.Unknown
+    , expireDate    = expireDate
+    , targets       = targetToSessionData <$> targets
+    , copyState     = NoCopyPaste
+    , index         = 0
+    , layout        = ThumbnailLayout
+    , theme         = theme
+    , locale        = locale
+    , oidcFlow      = Nothing
+    , notifications = notifications
+    , pendingTasks  = pendingTasks
     }
 
 

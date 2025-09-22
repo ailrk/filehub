@@ -11,23 +11,26 @@ export type ObservableSet<T> = {
   raw: Set<T>;
 } & { __brand: 'ObservableSet' };
 
+type ObservableSetAction = "add" | "delete" | "clear";
 
-export function createObservableSet<T>(onChange: (self: Set<T>) => void): ObservableSet<T> {
+
+export function createObservableSet<T>
+  (onChange: (self: Set<T>, value: T | null, action: ObservableSetAction) => void): ObservableSet<T> {
   const set = new Set<T>();
   return {
     add(value: T) {
       const result = set.add(value);
-      onChange(set);
+      onChange(set, value, "add");
       return result;
     },
     delete(value: T) {
       const result = set.delete(value);
-      onChange(set);
+      onChange(set, value, "delete");
       return result;
     },
     clear() {
       set.clear();
-      onChange(set);
+      onChange(set, null, "clear");
     },
     has: set.has.bind(set),
     forEach: set.forEach.bind(set),

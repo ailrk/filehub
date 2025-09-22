@@ -146,6 +146,7 @@ library
     Cache.InMemory
     Cache.Key
     Worker.Pool
+    Worker.Task
     Data.ClientPath
     Data.File
     Data.Queue
@@ -170,6 +171,7 @@ library
     Filehub.Log
     Filehub.Monad
     Filehub.Notification
+    Filehub.Notification.Types
     Filehub.Orphan
     Filehub.Routes
     Filehub.Selected

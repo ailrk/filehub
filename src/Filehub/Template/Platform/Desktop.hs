@@ -69,6 +69,12 @@ index sideBar' view' toolBar' = do
       controlPanel'
       toolBar'
       view'
+      balloonContainer
+
+
+balloonContainer :: Html ()
+balloonContainer = do
+  div_ [ id_ "balloon-container"] mempty
 
 
 view :: Html () -> Html ()
