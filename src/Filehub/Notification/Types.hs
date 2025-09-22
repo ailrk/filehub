@@ -16,45 +16,47 @@ data Notification
   deriving (Show, Eq)
 
 
-instance ToJSON Notification where
-  toJSON Pong = toJSON (show Pong)
-  toJSON (TaskCompleted taskId) = toJSON
-    [ "TaskCompleted"
-    , Aeson.object [ "taskId" .= toJSON taskId ]
-    ]
-  toJSON (DeleteProgressed taskId progress) = toJSON
-    [ "DeleteProgressed"
-    , Aeson.object
+-- https://html.spec.whatwg.org/multipage/server-sent-events.html
+instance ToServerEvent Notification where
+  toServerEvent Pong = ServerEvent
+    { eventType = Nothing
+    , eventId   = Nothing
+    , eventData = "Pong"
+    }
+  toServerEvent (TaskCompleted taskId) = ServerEvent
+    { eventType = Just "TaskCompleted"
+    , eventId   = Nothing
+    , eventData = Aeson.encode $ Aeson.object [ "taskId" .= toJSON taskId ]
+    }
+  toServerEvent (DeleteProgressed taskId progress) = ServerEvent
+    { eventType = Just "DeleteProgressed"
+    , eventId   = Nothing
+    , eventData = Aeson.encode $ Aeson.object
         [ "taskId"   .= toJSON taskId
         , "progress" .= toJSON progress
         ]
-    ]
-  toJSON (PasteProgressed taskId progress) = toJSON
-    [ "DeleteProgressed"
-    , Aeson.object
-        [ "taskId" .= toJSON taskId
-        , "progress" .= toJSON progress
-        ]
-    ]
-  toJSON (MoveProgressed taskId progress) = toJSON
-    [ "DeleteProgressed"
-    , Aeson.object
-        [ "taskId" .= toJSON taskId
-        , "progress" .= toJSON progress
-        ]
-    ]
-  toJSON (UploadProgressed taskId progress) = toJSON
-    [ "DeleteProgressed"
-    , Aeson.object
-        [ "taskId" .= toJSON taskId
-        , "progress" .= toJSON progress
-        ]
-    ]
-
-
-instance ToServerEvent Notification where
-  toServerEvent notification = ServerEvent
-    { eventType = Nothing
+    }
+  toServerEvent (PasteProgressed taskId progress) = ServerEvent
+    { eventType = Just "PasteProgressed"
     , eventId   = Nothing
-    , eventData = Aeson.encode notification
+    , eventData = Aeson.encode $ Aeson.object
+        [ "taskId"   .= toJSON taskId
+        , "progress" .= toJSON progress
+        ]
+    }
+  toServerEvent (MoveProgressed taskId progress) = ServerEvent
+    { eventType = Just "MoveProgressed"
+    , eventId   = Nothing
+    , eventData = Aeson.encode $ Aeson.object
+        [ "taskId"   .= toJSON taskId
+        , "progress" .= toJSON progress
+        ]
+    }
+  toServerEvent (UploadProgressed taskId progress) = ServerEvent
+    { eventType = Just "UploadProgressed"
+    , eventId   = Nothing
+    , eventData = Aeson.encode $ Aeson.object
+        [ "taskId"   .= toJSON taskId
+        , "progress" .= toJSON progress
+        ]
     }

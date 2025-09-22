@@ -52,12 +52,6 @@ index sideBar' toolBar' view' selectedCount = do
       controlPanel'
       languagePanel
       controlPanelBtn
-      balloonContainer
-
-
-balloonContainer :: Html ()
-balloonContainer = do
-  div_ [ id_ "balloon-container"] mempty
 
 
 safeAreaShim :: Html ()
@@ -401,7 +395,7 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
       Phrase { control_panel_delete } <- phrase <$> asks @TemplateContext (.locale)
       pure do
         button_ [ class_ "action-btn urgent "
-                , term "hx-delete" (linkToText (apiLinks.deleteFile [] True))
+                , term "hx-delete" (linkToText (apiLinks.delete [] True))
                 , term "hx-target" "#index"
                 , term "hx-swap" "outerHTML"
                 , term "hx-confirm" ("Are you sure about deleting selected files?")

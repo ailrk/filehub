@@ -4,14 +4,17 @@
 -- Copyright   :  (c) 2025-present Jinyang yao
 --
 -- Utilities for Server.
-module Filehub.Server.Internal where
+module Filehub.Server.Internal
+  ( makeTemplateContext
+  , withQueryParam
+  , clear
+  , parseHeader'
+  )
+  where
 
-import Control.Exception (catch)
 import Data.ByteString (ByteString)
-import Data.String.Interpolate (i)
-import Effectful ( Eff, (:>), IOE, MonadUnliftIO (..) )
+import Effectful ( Eff, (:>), IOE )
 import Effectful.Error.Dynamic (throwError, Error)
-import Effectful.Log (logAttention)
 import Effectful.Reader.Dynamic (Reader, asks, ask)
 import Filehub.Session.Copy qualified as Copy
 import Filehub.Session.Selected qualified as Selected
@@ -25,7 +28,7 @@ import Lens.Micro ((&))
 import Lens.Micro.Platform ()
 import Prelude hiding (elem)
 import Prelude hiding (readFile)
-import Servant ( ServerError(..), ServerError, FromHttpApiData (..), err500 )
+import Servant ( ServerError(..), ServerError, FromHttpApiData (..) )
 import Servant.Server (err400)
 
 
@@ -61,20 +64,6 @@ makeTemplateContext sessionId = do
     , simpleAuthUserDB   = simpleAuthUserDB
     , oidcAuthProviders  = oidcAuthProviders
     }
-
-
-copy :: SessionId -> Filehub ()
-copy sessionId = withServerError do
-  Copy.select sessionId
-  Copy.copy sessionId
-
-
-paste :: SessionId -> Filehub ()
-paste sessionId = do
-  withRunInIO \unlift -> do
-    unlift (Copy.paste sessionId & withServerError) `catch` \(e :: IOError) -> unlift do
-      logAttention [i|Paste Failed |] (show e)
-      throwError (err500 { errBody = [i|Paste failed|]})
 
 
 -- | Ensure a query parameter presents, otherwise it's a client error

@@ -69,12 +69,6 @@ index sideBar' view' toolBar' = do
       controlPanel'
       toolBar'
       view'
-      balloonContainer
-
-
-balloonContainer :: Html ()
-balloonContainer = do
-  div_ [ id_ "balloon-container"] mempty
 
 
 view :: Html () -> Html ()
@@ -246,7 +240,7 @@ deleteBtn = do
   pure do
     button_ [ class_ "btn btn-control urgent"
             , type_ "submit"
-            , term "hx-delete" (linkToText (apiLinks.deleteFile (Selected.toList selected) True))
+            , term "hx-delete" (linkToText (apiLinks.delete (Selected.toList selected) True))
             , term "hx-target" "#index"
             , term "hx-swap" "outerHTML"
             , term "hx-confirm" confirm_delete_all
@@ -801,7 +795,7 @@ contextMenu [file] = do
         True -> mempty
         False -> do
           div_ [ class_ "dropdown-item"
-               , term "hx-delete" (linkToText (apiLinks.deleteFile [clientPath] False))
+               , term "hx-delete" (linkToText (apiLinks.delete [clientPath] False))
                , term "hx-target" "#index"
                , term "hx-swap" "outerHTML"
                , term "hx-confirm" (Text.replace "{}" textClientPath confirm_delete1)
@@ -839,7 +833,7 @@ contextMenu files = do
         True -> mempty
         False -> do
           div_ [ class_ "dropdown-item"
-               , term "hx-delete" (linkToText (apiLinks.deleteFile clientPaths False))
+               , term "hx-delete" (linkToText (apiLinks.delete clientPaths False))
                , term "hx-target" "#index"
                , term "hx-swap" "outerHTML"
                , term "hx-confirm" (Text.replace "{}" (Text.pack (show (length clientPaths))) confirm_delete_local)

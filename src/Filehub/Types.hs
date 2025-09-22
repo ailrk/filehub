@@ -208,6 +208,7 @@ data FilehubEvent
   | Canceled -- Action canceled
   | Opened OpenTarget ClientPath -- load a resource into tab/window/iframe. Hook  for window.open
   | UIComponentReloaded UIComponent
+  | SSEStarted
   | Dummy Text -- dummy event for testing
   deriving (Show)
 
@@ -241,7 +242,9 @@ instance ToJSON FilehubEvent where
           [ "component" .= toJSON comp
           ]
       ]
-  toJSON (Dummy t) = Aeson.object [ "Dummy" .= Aeson.object [ "msg" .= t ] ]
+  toJSON SSEStarted = Aeson.object [ "SSEStarted" .= Aeson.object [] ]
+  toJSON (Dummy t)  = Aeson.object [ "Dummy"      .= Aeson.object [ "msg" .= t ] ]
+
 
 instance ToHttpApiData FilehubEvent where
   toUrlPiece v = (v & Aeson.encode & LText.decodeUtf8) ^. strict

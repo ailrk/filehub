@@ -15,14 +15,14 @@ import Codec.Archive.Zip qualified as Zip
 import Conduit (ConduitT, ResourceT)
 import Conduit qualified
 import Control.Applicative (Alternative((<|>)))
-import Control.Monad (when, forM, replicateM)
+import Control.Monad (when, forM, replicateM, void)
 import Data.Aeson (object, KeyValue (..), (.:), withObject, Value)
 import Data.Aeson.Types (parseMaybe)
 import Data.ByteString (ByteString)
 import Data.ByteString.Char8 qualified as ByteString
 import Data.ClientPath (ClientPath (..))
 import Data.ClientPath qualified as ClientPath
-import Data.File (FileType(..), File(..), FileInfo, defaultFileWithContent, FileContent (..))
+import Data.File (FileType(..), File(..), FileInfo, defaultFileWithContent, FileContent (..), withContent)
 import Data.FileEmbed qualified as FileEmbed
 import Data.Foldable (forM_)
 import Data.List qualified as List
@@ -34,7 +34,7 @@ import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.Time (UTCTime (..), fromGregorian)
-import Effectful ( withRunInIO, MonadIO (liftIO) )
+import Effectful ( withRunInIO, MonadIO (liftIO), raise )
 import Effectful.Error.Dynamic (throwError)
 import Effectful.Log (logInfo_, logAttention_)
 import Effectful.Reader.Dynamic (asks)
@@ -69,10 +69,9 @@ import Filehub.Template.Platform.Desktop qualified as Template.Desktop
 import Filehub.Template.Platform.Mobile qualified as Template.Mobile
 import Filehub.Template.Shared qualified as Template
 import Filehub.Theme qualified as Theme
-import Filehub.Types (Display (..), Layout (..), Resource (..))
+import Filehub.Types (Display (..), Layout (..), Resource (..), CopyState (..), TargetSessionData (..))
 import Filehub.Types (FilehubEvent (..), LoginForm(..), MoveFile (..), UIComponent (..), SearchWord, OpenTarget, Resolution)
 import Filehub.Types (UpdatedFile(..), NewFile(..), NewFolder(..), SortFileBy(..), UpdatedFile(..), Theme(..), Selected (..))
-import Lens.Micro
 import Lens.Micro.Platform ()
 import Lucid
 import Network.HTTP.Types.Header (hLocation)
@@ -105,9 +104,11 @@ import Filehub.Notification qualified as Notification
 import Worker.Task (newTaskId)
 import Effectful.Concurrent.Async (async)
 import Effectful.Concurrent.STM
-import Data.Ratio
-import Data.Set qualified as Set
-import Effectful.Concurrent (threadDelay)
+import Effectful.State.Static.Local (modify, get, evalState, execState)
+import Data.Ratio ((%))
+import Filehub.Session.Copy qualified as Copy
+import Data.Function (fix, (&))
+import Lens.Micro ((.~))
 #ifdef DEBUG
 import Effectful ( MonadIO (liftIO) )
 import System.FilePath ((</>))
@@ -150,7 +151,7 @@ server = Api
   , cd                    = cd
   , newFile               = newFile
   , updateFile            = updateFile
-  , deleteFile            = deleteFile
+  , delete                = delete
   , newFolder             = newFolder
   , newFileModal          = newFileModal
   , newFolderModal        = newFolderModal
@@ -248,32 +249,7 @@ refresh sessionId _ mUIComponent = do
 
 
 listen :: SessionId -> ConfirmLogin -> Filehub (RecommendedEventSourceHeaders (ConduitT () Notification IO ()))
-listen sessionId _ = do
-
-  _ <- do -- @TODO
-    notifications <- Session.getSessionNotifications sessionId & withServerError
-    pendingTasks  <- Session.getPendingTasks sessionId         & withServerError
-
-    tid1 <- newTaskId
-    tid2 <- newTaskId
-
-    async do
-        atomically $ modifyTVar' pendingTasks (Set.insert tid1 . Set.insert tid2)
-        threadDelay 500000
-        atomically $ writeTBQueue notifications (PasteProgressed tid1 (1 % 2))
-        threadDelay 500000
-        atomically $ writeTBQueue notifications (PasteProgressed tid2 (1 % 2))
-        threadDelay 500000
-        atomically $ writeTBQueue notifications (PasteProgressed tid1 1)
-        threadDelay 500000
-        atomically $ writeTBQueue notifications (TaskCompleted tid1)
-        threadDelay 500000
-        atomically $ writeTBQueue notifications (PasteProgressed tid2 1)
-        threadDelay 500000
-        atomically $ writeTBQueue notifications (TaskCompleted tid2)
-
-  conduit <- Notification.notify sessionId
-  pure $ recommendedEventSourceHeaders $ conduit
+listen sessionId _ = recommendedEventSourceHeaders <$> Notification.notify sessionId
 
 
 -- | Return the login page
@@ -453,32 +429,52 @@ newFolder = \sessionId _ _ (NewFolder path) -> do
   view sessionId
 
 
-deleteFile :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> [ClientPath] -> Bool
-           -> Filehub (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))
-deleteFile sessionId _ _ clientPaths deleteSelected = do
-  withServerError do
-    storage <- Session.getStorage sessionId
-    root    <- Session.getRoot sessionId
-    forM_ clientPaths \clientPath -> do
-      let path = ClientPath.fromClientPath root clientPath
-      storage.delete path
-    when deleteSelected do
-      allSelecteds <- Selected.allSelecteds sessionId
-      forM_ allSelecteds \(target, selected) -> do
-        Session.withTarget sessionId (Target.getTargetId target) \_ _ -> do
-          case selected of
-            NoSelection -> pure ()
-            Selected x xs -> do
-              -- TODO this looks sus
-              forM_ (fmap (ClientPath.fromClientPath root) (x:xs)) \path -> do
-                storage.delete path
-  Server.Internal.clear sessionId
+delete :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> [ClientPath] -> Bool
+       -> Filehub (Headers '[ Header "X-Filehub-Selected-Count" Int
+                            , Header "HX-Trigger" FilehubEvent
+                            ] (Html ()))
+delete sessionId _ _ clientPaths deleteSelected = do
   count <- Selected.countSelected sessionId & withServerError
-  addHeader count <$> index sessionId
+  void $ async do
+    taskId <- newTaskId
+    withServerError do
+      notifications <- Session.getSessionNotifications sessionId
+      storage <- Session.getStorage sessionId
+      root    <- Session.getRoot sessionId
+      atomically $ writeTBQueue notifications (DeleteProgressed taskId 0)
+      nDeleted <- execState @Integer 0 do
+        forM_ clientPaths \clientPath -> do
+          modify @Integer (+ 1)
+          n <- get @Integer
+          let path = ClientPath.fromClientPath root clientPath
+          raise $ storage.delete path
+          atomically $ writeTBQueue notifications (DeleteProgressed taskId (n % max 1 (fromIntegral count)))
+      when deleteSelected do
+        allSelecteds <- Selected.allSelecteds sessionId
+        evalState @Integer nDeleted do
+          forM_ allSelecteds \(target, selected) -> do
+            Session.withTarget sessionId (Target.getTargetId target) \_ _ -> do
+              case selected of
+                NoSelection -> pure ()
+                Selected x xs -> do
+                  forM_ (fmap (ClientPath.fromClientPath root) (x:xs)) \path -> do
+                    modify @Integer (+ 1)
+                    n <- get @Integer
+                    raise $ storage.delete path
+                    atomically $ writeTBQueue notifications (DeleteProgressed taskId (n % max 1 (fromIntegral count)))
+      atomically do
+        writeTBQueue notifications (DeleteProgressed taskId 1)
+        writeTBQueue notifications (TaskCompleted taskId)
+  Server.Internal.clear sessionId
+  addHeader count . addHeader SSEStarted <$> index sessionId
 
 
 copy :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> Filehub (Html ())
-copy sessionId _ _ = Server.Internal.copy sessionId >> controlPanel sessionId
+copy sessionId _ _ = do
+  withServerError do
+    Copy.select sessionId
+    Copy.copy sessionId
+  controlPanel sessionId
 
 
 copy1 :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> Maybe ClientPath -> Filehub (Html ())
@@ -486,17 +482,63 @@ copy1 sessionId _ _ mClientPath = do
   clientPath <- withQueryParam mClientPath
   Server.Internal.clear sessionId
   Selected.setSelected sessionId (Selected clientPath [])
-  Server.Internal.copy sessionId
+  withServerError do
+    Copy.select sessionId
+    Copy.copy sessionId
   index sessionId
 
 
 paste :: SessionId -> ConfirmLogin -> ConfirmReadOnly
-      -> Filehub (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))
+      -> Filehub (Headers '[ Header "X-Filehub-Selected-Count" Int
+                           , Header "HX-Trigger" FilehubEvent
+                           ] (Html ()))
 paste sessionId _ _ = do
-  Server.Internal.paste sessionId
-  Server.Internal.clear sessionId
   count <- (Selected.countSelected sessionId & withServerError)
-  addHeader count <$> index sessionId
+  taskId <- newTaskId
+  withServerError do
+    notifications <- Session.getSessionNotifications sessionId
+    state <- Copy.getCopyState sessionId
+    case state of
+      Paste selections -> do
+        void $ async do
+          TargetView to sessionData _ <- Session.currentTarget sessionId
+          atomically $ writeTBQueue notifications (PasteProgressed taskId 0)
+          evalState @Integer 0 do
+            forM_ selections \(from, files) -> do
+              forM_ files do
+                flip fix sessionData.currentDir \rec currentDir file -> do -- expose the recursion with the fix point
+                  case file.content of
+                    Regular -> do
+                      conduit <- Session.withTarget sessionId (Target.getTargetId from) \_ storage -> do
+                        storage.readStream file
+                      Session.withTarget sessionId (Target.getTargetId to) \_ storage -> do
+                        storage.write (currentDir </> takeFileName file.path) (file `withContent` (FileContentConduit conduit))
+                    Dir -> do -- copy directory layer by layer
+                      dst <- Session.withTarget sessionId (Target.getTargetId to) \_ storage -> do
+                        let dst = currentDir </> takeFileName file.path
+                        storage.newFolder dst
+                        pure dst
+                      Session.withTarget sessionId (Target.getTargetId from)
+                        \(TargetView _ (TargetSessionData { currentDir = savedDir }) _) storage -> do
+                          storage.cd file.path
+                          do
+                            dirFiles <- storage.lsCwd
+                            forM_ dirFiles (rec dst)
+                          storage.cd savedDir -- go back
+                  modify @Integer (+ 1)
+                  n <- get @Integer
+                  atomically $ writeTBQueue notifications (PasteProgressed taskId (n % max 1 (fromIntegral count)))
+          Copy.setCopyState sessionId NoCopyPaste
+          Selected.clearSelectedAllTargets sessionId
+          atomically do
+            writeTBQueue notifications (PasteProgressed taskId 1)
+            writeTBQueue notifications (TaskCompleted taskId)
+        pure ()
+      _ -> do
+        logAttention_ [i|Paste error: #{sessionId}, not in pastable state.|]
+        throwError (FilehubError SelectError "Not in a pastable state")
+  Server.Internal.clear sessionId
+  addHeader count . addHeader SSEStarted <$> index sessionId
 
 
 newFileModal :: SessionId -> ConfirmLogin -> ConfirmDesktopOnly -> ConfirmReadOnly -> Filehub (Html ())
@@ -583,9 +625,16 @@ selectRows sessionId _ selected = do
 
 upload :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> MultipartData Mem -> Filehub (Html ())
 upload sessionId _ _ multipart = do
-  withServerError do
-    storage <- Session.getStorage sessionId
-    storage.upload multipart
+  void $ async do
+    taskId <- newTaskId
+    withServerError do
+      notifications <- Session.getSessionNotifications sessionId
+      atomically $ writeTBQueue notifications (MoveProgressed taskId 0)
+      storage <- Session.getStorage sessionId
+      storage.upload multipart
+      atomically do
+        writeTBQueue notifications (MoveProgressed taskId 1)
+        writeTBQueue notifications (TaskCompleted taskId)
   index sessionId
 
 
@@ -626,32 +675,40 @@ download sessionId _ clientPaths = do
 
 
 move :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> MoveFile
-     -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
+     -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent
+                          , Header "HX-Trigger" FilehubEvent
+                          ] (Html ()))
 move sessionId _ _ (MoveFile src tgt) = do
   root         <- Session.getRoot sessionId & withServerError
   storage      <- Session.getStorage sessionId & withServerError
   let srcPaths =  fmap (ClientPath.fromClientPath root) src
   let tgtPath  =  ClientPath.fromClientPath root tgt
+  void $ async do
+    taskId <- newTaskId
+    -- check before take action
+    forM_ srcPaths \srcPath -> withServerError do
+      isTgtDir <- storage.isDirectory tgtPath
+      when (not isTgtDir) do
+        throwError (FilehubError InvalidDir "Target is not a directory")
 
-  -- check before take action
-  forM_ srcPaths \srcPath -> withServerError do
-    isTgtDir <- storage.isDirectory tgtPath
-    when (not isTgtDir) do
-      throwError (FilehubError InvalidDir "Target is not a directory")
+      when (srcPath == tgtPath)  do
+        throwError (FilehubError InvalidDir "Can't move to the same directory")
 
-    when (srcPath == tgtPath)  do
-      throwError (FilehubError InvalidDir "Can't move to the same directory")
+      when (takeDirectory srcPath == tgtPath)  do
+        throwError (FilehubError InvalidDir "Already in the current directory")
 
-    when (takeDirectory srcPath == tgtPath)  do
-      throwError (FilehubError InvalidDir "Already in the current directory")
+    let mvPairs = fmap (\srcPath -> (srcPath, tgtPath </> (takeFileName srcPath))) srcPaths
 
-  let mvPairs = fmap (\srcPath -> (srcPath, tgtPath </> (takeFileName srcPath)) ) srcPaths
-
-  withServerError do
-    storage.mv mvPairs
+    withServerError do
+      notifications <- Session.getSessionNotifications sessionId
+      atomically $ writeTBQueue notifications (MoveProgressed taskId 0)
+      storage.mv mvPairs
+      atomically do
+        writeTBQueue notifications (MoveProgressed taskId 1)
+        writeTBQueue notifications (TaskCompleted taskId)
 
   Server.Internal.clear sessionId
-  addHeader FileMoved <$> index sessionId
+  addHeader FileMoved . addHeader SSEStarted <$> index sessionId
 
 
 contextMenu :: SessionId -> ConfirmLogin -> ConfirmDesktopOnly -> [ClientPath] -> Filehub (Html ())

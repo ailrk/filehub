@@ -2,7 +2,6 @@
 module Filehub.Session.Copy
   ( select
   , copy
-  , paste
   , getCopyState
   , setCopyState
   , clearCopyState
@@ -12,9 +11,8 @@ module Filehub.Session.Copy
 
 import Control.Monad (forM_)
 import Data.ClientPath qualified as ClientPath
-import Data.Function (on, fix)
+import Data.Function (on)
 import Data.List (nub)
-import Data.File (File(..), FileType(..), withContent, FileContent (..))
 import Data.String.Interpolate (i)
 import Effectful (Eff, (:>), Eff, (:>), IOE)
 import Effectful.Error.Dynamic (Error, throwError)
@@ -27,12 +25,10 @@ import Filehub.Error (FilehubError (..), Error' (..))
 import Filehub.Session qualified as Session
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Session.Selected qualified as Selected
-import Filehub.Types (Env, CopyState(..), SessionId, Selected (..), TargetSessionData (..))
+import Filehub.Types (Env, CopyState(..), SessionId, Selected (..))
 import Lens.Micro hiding (to)
 import Lens.Micro.Platform ()
-import System.FilePath (takeFileName, (</>))
 import Target.Types qualified as Target
-import Filehub.Session (TargetView(..))
 import Effectful.Temporary (Temporary)
 
 
@@ -114,46 +110,3 @@ copy sessionId = do
     step = \case
       CopySelected selections -> Right (Paste selections)
       _                       -> Left (FilehubError SelectError "Not in a copyable state")
-
-
--- | Paste files.
-paste :: ( Reader Env         :> es
-         , IOE                :> es
-         , FileSystem         :> es
-         , Temporary          :> es
-         , Log                :> es
-         , Cache              :> es
-         , LockManager        :> es
-         , Error FilehubError :> es)
-      => SessionId -> Eff es ()
-paste sessionId = do
-  state <- getCopyState sessionId
-  case state of
-    Paste selections -> do
-      TargetView to sessionData _ <- Session.currentTarget sessionId
-      forM_ selections \(from, files) -> do
-        forM_ files $ flip fix sessionData.currentDir
-          \rec currentDir file -> do -- expose the recursion with the fix point
-            case file.content of
-              Regular -> do
-                conduit <- Session.withTarget sessionId (Target.getTargetId from) \_ storage -> do
-                  storage.readStream file
-                Session.withTarget sessionId (Target.getTargetId to) \_ storage -> do
-                  storage.write (currentDir </> takeFileName file.path) (file `withContent` (FileContentConduit conduit))
-              Dir -> do -- copy directory layer by layer
-                dst <- Session.withTarget sessionId (Target.getTargetId to) \_ storage -> do
-                  let dst = currentDir </> takeFileName file.path
-                  storage.newFolder dst
-                  pure dst
-                Session.withTarget sessionId (Target.getTargetId from)
-                  \(TargetView _ (TargetSessionData { currentDir = savedDir }) _) storage -> do
-                    storage.cd file.path
-                    do
-                      dirFiles <- storage.lsCwd
-                      forM_ dirFiles (rec dst)
-                    storage.cd savedDir -- go back
-      setCopyState sessionId NoCopyPaste
-      Selected.clearSelectedAllTargets sessionId
-    _ -> do
-      logAttention_ [i|Paste error: #{sessionId}, not in pastable state.|]
-      throwError (FilehubError SelectError "Not in a pastable state")

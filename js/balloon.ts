@@ -12,6 +12,7 @@ export interface ErrorMessage {
 
 export interface ProgressMessage {
   kind: "ProgressMsg";
+  taskId: number;
   msg: string;
   progress: [number, number];
 }
@@ -20,13 +21,7 @@ export interface ProgressMessage {
 export type Message = ErrorMessage | ProgressMessage
 
 
-const balloons: Map<number, HTMLElement> = new Map();
-
-let nextId: number = 0;
-
-function getNextId(): number {
-  return nextId++;
-}
+const longLivedBallons: Map<number, HTMLElement> = new Map();
 
 
 export function pushBalloon(message: Message) {
@@ -35,18 +30,12 @@ export function pushBalloon(message: Message) {
       pushErrorMsgBalloon(message.msg, message.duration);
       break;
     case "ProgressMsg":
+      let { msg, taskId, progress } = message;
+      pushProgressBarBalloon(msg, taskId, progress)
       break;
   }
- }
-
-
-function deleteBalloon(id: number) {
-  let balloon = balloons.get(id)
-  if (balloon) {
-    balloon.remove()
-    balloons.delete(id)
-  }
 }
+
 
 function pushErrorMsgBalloon(message: string, duration = 3000) {
   const container = document.getElementById('balloon-container')!
@@ -55,15 +44,63 @@ function pushErrorMsgBalloon(message: string, duration = 3000) {
   balloon.classList.add('balloon-err-msg')
   balloon.textContent = message
   container.appendChild(balloon)
-  let id = getNextId()
-  balloons.set(id, balloon)
   setTimeout(() => {
     balloon.style.opacity = '0'
     balloon.style.transition = 'opacity 0.5s'
-    setTimeout(() => deleteBalloon(id), 500)
+    setTimeout(() => balloon.remove(), 500)
   }, duration)
 }
 
 
-function pushProgressBarBalloon() {
+function pushProgressBarBalloon(message: string, taskId: number, progress: [number, number]) {
+  const [numerator, denominator] = progress;
+  const percent = Math.min(100, Math.max(0, (numerator / denominator) * 100));
+
+  if (longLivedBallons.get(taskId)) { // update exsting ballon
+    let balloon = document.getElementById(`progress-balloon-${taskId}`)
+    if (balloon === null) {
+      deleteLongLivedBalloon(taskId)
+      return
+    }
+    balloon.innerHTML = `
+      <span>${message}</span>
+      <div class="progress-container">
+        <div class="progress-bar">
+      </div>
+    `;
+    (balloon.querySelector('.progress-bar') as HTMLElement).style.width = `${percent}%`;
+    if (numerator / denominator === 1) {
+      setTimeout(() => {
+        balloon.style.opacity = '0'
+        balloon.style.transition = 'opacity 1s'
+        setTimeout(() => deleteLongLivedBalloon(taskId), 1100)
+      }, 500)
+    }
+  } else { // create new balloon
+    if (numerator / denominator === 1) return;
+    const container = document.getElementById('balloon-container')!
+    const balloon = document.createElement('div')
+    balloon.classList.add('balloon')
+    balloon.classList.add('balloon-progress-msg')
+    balloon.id = `progress-balloon-${taskId}`
+    balloon.innerHTML = `
+      <span>${message}</span>
+      <div class="progress-container">
+        <div class="progress-bar">
+      </div>
+    `;
+    (balloon.querySelector('.progress-bar') as HTMLElement).style.width = `${percent}%`;
+    container.appendChild(balloon)
+    longLivedBallons.set(taskId, balloon)
+  }
+}
+
+
+export function deleteLongLivedBalloon(id: number): number {
+  let balloon = longLivedBallons.get(id)
+  if (balloon) {
+    balloon.remove()
+    longLivedBallons.delete(id)
+  }
+  return longLivedBallons.size
 }

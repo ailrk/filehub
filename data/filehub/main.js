@@ -14,8 +14,9 @@ import Viewer from './viewer.js';
 const ballonWaitTime = 2000;
 let viewer = null;
 let display = Cookie.getCookie('display');
+let evtSource;
 document.addEventListener("DOMContentLoaded", () => {
-    if (display == 'Desktop') {
+    if (display === 'Desktop') {
         document.addEventListener('click', closeDropdowns);
         DesktopContextmenu.register();
         DesktopSelected.register();
@@ -23,7 +24,7 @@ document.addEventListener("DOMContentLoaded", () => {
         DesktopScroll.register();
         DesktopLocale.register();
     }
-    if (display == 'Mobile') {
+    if (display === 'Mobile') {
         document.addEventListener('click', closePanel);
         MobileCloseSidebar.register();
         MobileSelected.register();
@@ -32,9 +33,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     /* HX-Trigger */
     document.addEventListener('Dummy', (e) => { console.log("testing dummy event", e.detail); });
-    document.addEventListener('ViewerInited', (e) => initViewer(e.detail));
+    document.addEventListener('ViewerInited', initViewer);
     document.addEventListener('Opened', open);
     document.addEventListener('ThemeChanged', reloadTheme);
+    document.addEventListener('SSEStarted', listenSSE);
     document.addEventListener('UIComponentReloaded', reloadUIComponent);
     /* Preserve scroll positions */
     document.body.addEventListener('htmx:responseError', handleError);
@@ -139,7 +141,8 @@ function restoreViewScrollTop(e) {
         document.querySelector('#view').scrollTop = parseInt(saved, 10);
     }
 }
-function initViewer(o) {
+function initViewer(e) {
+    const o = e.detail;
     viewer = new Viewer(o.resources, { index: o.index });
     viewer.show();
     // Make sure the viewer content has context menu enabled.
@@ -221,20 +224,81 @@ function reloadUIComponent(e) {
         case 'UIComponentView':
             htmx.ajax('GET', `/refresh?component=UIComponentView`, { target: '#view',
                 source: '#view',
-                swap: 'outerHtml'
+                swap: 'outerHTML'
             });
             break;
         case 'UIComponentSideBar':
             htmx.ajax('GET', `/refresh?component=UIComponentSideBar`, { target: '#side-bar',
                 source: '#side-bar',
-                swap: 'outerHtml'
+                swap: 'outerHTML'
             });
             break;
         case 'UIComponentContronPanel':
             htmx.ajax('GET', `/refresh?component=UIComponentContronPanel`, { target: '#control-panel',
                 source: '#control-panel',
-                swap: 'outerHtml'
+                swap: 'outerHTML'
+            });
+            break;
+        case 'UIComponentIndex':
+            htmx.ajax('GET', `/refresh?component=UIComponentIndex`, { target: '#index',
+                source: '#index',
+                swap: 'outerHTML'
             });
             break;
     }
+}
+function listenSSE(_) {
+    if (!evtSource) {
+        evtSource = new EventSource("/listen");
+    }
+    evtSource.addEventListener('Pong', _ => { console.log('pong'); });
+    evtSource.addEventListener('TaskCompleted', e => {
+        console.log('Task completed');
+        let data = JSON.parse(e.data);
+        let remaining = Balloon.deleteLongLivedBalloon(data.taskId);
+        if (remaining === 0 && evtSource) {
+            evtSource.close();
+            evtSource = null;
+        }
+        htmx.ajax('GET', `/refresh?component=UIComponentIndex`, { target: '#index',
+            source: '#index',
+            swap: 'outerHTML'
+        });
+    });
+    evtSource.addEventListener('DeleteProgressed', e => {
+        let data = JSON.parse(e.data);
+        Balloon.pushBalloon({
+            kind: "ProgressMsg",
+            msg: `Deleting ${data.taskId}`,
+            taskId: data.taskId,
+            progress: [data.progress.numerator, data.progress.denominator]
+        });
+    });
+    evtSource.addEventListener('PasteProgressed', e => {
+        let data = JSON.parse(e.data);
+        Balloon.pushBalloon({
+            kind: "ProgressMsg",
+            msg: `Pasting ${data.taskId}`,
+            taskId: data.taskId,
+            progress: [data.progress.numerator, data.progress.denominator]
+        });
+    });
+    evtSource.addEventListener('MoveProgressed', e => {
+        let data = JSON.parse(e.data);
+        Balloon.pushBalloon({
+            kind: "ProgressMsg",
+            msg: `Moving ${data.taskId}`,
+            taskId: data.taskId,
+            progress: [data.progress.numerator, data.progress.denominator]
+        });
+    });
+    evtSource.addEventListener('UploadProgressed', e => {
+        let data = JSON.parse(e.data);
+        Balloon.pushBalloon({
+            kind: "ProgressMsg",
+            msg: `Uploading ${data.taskId}`,
+            taskId: data.taskId,
+            progress: [data.progress.numerator, data.progress.denominator]
+        });
+    });
 }

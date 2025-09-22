@@ -61,6 +61,7 @@ withDefault display background html = do
     Mobile    -> link_ [ rel_ "stylesheet", href_ "/static/mobile.css" ]
     NoDisplay -> link_ [ rel_ "stylesheet", href_ "/static/mobile.css" ]
   html
+  div_ [ id_ "balloon-container"] mempty
 
 
 pathBreadcrumb :: Template (Html ())

@@ -34,7 +34,7 @@ sitemapLinks =
   , apiLinks.cd (Just (ClientPath "dummy.txt"))
   , apiLinks.newFile
   , apiLinks.updateFile
-  , apiLinks.deleteFile [ClientPath "dummy.txt"] True
+  , apiLinks.delete [ClientPath "dummy.txt"] True
   , apiLinks.copy
   , apiLinks.paste
   , apiLinks.newFolder

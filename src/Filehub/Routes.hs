@@ -215,14 +215,16 @@ data Api mode = Api
                           :> Post '[HTML] (Html ())
 
 
-  , deleteFile            :: mode
+  , delete                :: mode
                           :- "files" :> "delete"
                           :> AuthProtect "session"
                           :> AuthProtect "login"
                           :> AuthProtect "readonly"
                           :> QueryParams "file" ClientPath
                           :> QueryFlag "selected"
-                          :> Delete '[HTML] (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))
+                          :> Delete '[HTML] (Headers '[ Header "X-Filehub-Selected-Count" Int
+                                                      , Header "HX-Trigger" FilehubEvent
+                                                      ] (Html ()))
 
 
   , copy                  :: mode
@@ -247,7 +249,9 @@ data Api mode = Api
                           :> AuthProtect "session"
                           :> AuthProtect "login"
                           :> AuthProtect "readonly"
-                          :> Post '[HTML] (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))
+                          :> Post '[HTML] (Headers '[ Header "X-Filehub-Selected-Count" Int
+                                                    , Header "HX-Trigger" FilehubEvent
+                                                    ] (Html ()))
 
 
   , move                  :: mode
@@ -256,7 +260,9 @@ data Api mode = Api
                           :> AuthProtect "login"
                           :> AuthProtect "readonly"
                           :> ReqBody '[FormUrlEncoded] MoveFile
-                          :> Post '[HTML] (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
+                          :> Post '[HTML] (Headers '[ Header "HX-Trigger" FilehubEvent
+                                                    , Header "HX-Trigger" FilehubEvent
+                                                    ] (Html ()))
 
 
   , newFolder             :: mode
