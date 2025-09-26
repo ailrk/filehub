@@ -25,19 +25,24 @@ import Data.ClientPath qualified as ClientPath
 import Data.File (FileType(..), File(..), FileInfo, defaultFileWithContent, FileContent (..), withContent)
 import Data.FileEmbed qualified as FileEmbed
 import Data.Foldable (forM_)
+import Data.Function (fix)
 import Data.List qualified as List
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (fromMaybe)
+import Data.Ratio ((%))
+import Data.Set qualified as Set
 import Data.String.Interpolate (i)
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.Time (UTCTime (..), fromGregorian)
 import Effectful ( withRunInIO, MonadIO (liftIO), raise )
+import Effectful.Concurrent.Async (async)
 import Effectful.Error.Dynamic (throwError)
 import Effectful.Log (logInfo_, logAttention_)
 import Effectful.Reader.Dynamic (asks)
+import Effectful.State.Static.Local (modify, get, evalState, execState)
 import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
 import Filehub.Auth.OIDC (AuthUrl (..), SomeOIDCFlow (..))
 import Filehub.Auth.OIDC qualified as Auth.OIDC
@@ -48,6 +53,7 @@ import Filehub.Env (Env(..))
 import Filehub.Error ( withServerError, FilehubError(..), withServerError, Error' (..) )
 import Filehub.Locale (Locale)
 import Filehub.Monad
+import Filehub.Notification.Types (Notification(..))
 import Filehub.Orphan ()
 import Filehub.Routes (Api (..))
 import Filehub.Routes qualified as Routes
@@ -59,6 +65,7 @@ import Filehub.Server.Platform.Desktop qualified as Server.Desktop
 import Filehub.Server.Platform.Mobile qualified as Server.Mobile
 import Filehub.Session (SessionId(..), TargetView (..))
 import Filehub.Session qualified as Session
+import Filehub.Session.Copy qualified as Copy
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Session.Selected qualified as Selected
 import Filehub.Sort qualified as Sort
@@ -72,7 +79,7 @@ import Filehub.Theme qualified as Theme
 import Filehub.Types (Display (..), Layout (..), Resource (..), CopyState (..), TargetSessionData (..))
 import Filehub.Types (FilehubEvent (..), LoginForm(..), MoveFile (..), UIComponent (..), SearchWord, OpenTarget, Resolution)
 import Filehub.Types (UpdatedFile(..), NewFile(..), NewFolder(..), SortFileBy(..), UpdatedFile(..), Theme(..), Selected (..))
-import Lens.Micro.Platform ()
+import Lens.Micro hiding (to)
 import Lucid
 import Network.HTTP.Types.Header (hLocation)
 import Network.Mime (MimeType)
@@ -87,6 +94,7 @@ import Prelude hiding (init, readFile)
 import Servant (addHeader, err500, err303)
 import Servant (errBody, Headers, Header, NoContent (..), err404, errHeaders, err301, noHeader, err400)
 import Servant (serveWithContextT, Context (..), Application)
+import Servant.API.EventStream (RecommendedEventSourceHeaders, recommendedEventSourceHeaders)
 import Servant.Multipart (MultipartData, Mem)
 import Servant.Server.Generic (AsServerT)
 import System.Directory (removeFile)
@@ -94,21 +102,12 @@ import System.FilePath (takeFileName, (</>), takeDirectory, makeRelative)
 import System.IO.Temp qualified as Temp
 import System.Random (randomRIO)
 import Target.Types (TargetId)
-import Text.Printf (printf)
-import Web.Cookie (SetCookie (..))
 import Target.Types qualified as Target
+import Text.Printf (printf)
 import UnliftIO.Exception (SomeException, catch)
-import Servant.API.EventStream (RecommendedEventSourceHeaders, recommendedEventSourceHeaders)
-import Filehub.Notification.Types (Notification(..))
-import Worker.Task (newTaskId)
-import Effectful.Concurrent.Async (async)
-import Effectful.State.Static.Local (modify, get, evalState, execState)
-import Data.Ratio ((%))
-import Filehub.Session.Copy qualified as Copy
-import Data.Function (fix, (&))
-import Lens.Micro ((.~))
-import Data.Set qualified as Set
 import UnliftIO.STM (readTBQueue, writeTBQueue, atomically, modifyTVar', readTVar, isEmptyTBQueue)
+import Web.Cookie (SetCookie (..))
+import Worker.Task (newTaskId)
 
 
 #ifdef DEBUG
