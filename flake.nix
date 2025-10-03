@@ -44,7 +44,10 @@
           pkgs = import inputs.nixpkgs {
             inherit system;
             overlays = [ overlay ];
-            config.stripDebugInfo = true; # strip all debug infos
+            config = {
+              stripDebugInfo = true; # strip all debug infos
+              allowBroken = true;
+            };
           };
           hspkgs = pkgs.haskellPackages;
         in

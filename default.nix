@@ -8,10 +8,11 @@
 , log-effectful, lucid, microlens, microlens-platform, mime-types
 , network-uri, optparse-applicative, process, psqueues, QuickCheck
 , random, req, retry, servant, servant-client, servant-conduit
-, servant-lucid, servant-multipart, servant-server, split, stm
-, string-interpolate, suspend, temporary, text, time, timers
-, tomland, transformers, unliftio, unordered-containers, uri-encode
-, uuid, vault, vector, wai, wai-app-static, wai-extra, warp, zip
+, servant-event-stream, servant-lucid, servant-multipart
+, servant-server, split, stm, string-interpolate, suspend
+, temporary, text, time, timers, tomland, transformers, unliftio
+, unordered-containers, uri-encode, uuid, vault, vector, wai
+, wai-app-static, wai-extra, warp, zip
 }:
 mkDerivation {
   pname = "filehub";
@@ -29,10 +30,11 @@ mkDerivation {
     JuicyPixels JuicyPixels-stbir jwt log-base log-effectful lucid
     microlens microlens-platform mime-types network-uri
     optparse-applicative psqueues random retry servant servant-client
-    servant-conduit servant-lucid servant-multipart servant-server
-    split stm string-interpolate suspend temporary text time timers
-    tomland transformers unliftio unordered-containers uri-encode uuid
-    vault vector wai wai-app-static wai-extra warp zip
+    servant-conduit servant-event-stream servant-lucid
+    servant-multipart servant-server split stm string-interpolate
+    suspend temporary text time timers tomland transformers unliftio
+    unordered-containers uri-encode uuid vault vector wai
+    wai-app-static wai-extra warp zip
   ];
   executableHaskellDepends = [ base ];
   testHaskellDepends = [
