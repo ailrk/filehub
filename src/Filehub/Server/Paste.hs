@@ -9,7 +9,7 @@ import Data.String.Interpolate (i)
 import Effectful.Concurrent.Async (async)
 import Effectful.Error.Dynamic (throwError)
 import Effectful.Log (logAttention_)
-import Effectful.State.Static.Local (modify, get, evalState)
+import Effectful.State.Static.Local (modify, get, evalState, execState)
 import Filehub.Error ( withServerError, FilehubError(..), withServerError, Error' (..) )
 import Filehub.Handler (ConfirmLogin, ConfirmReadOnly)
 import Filehub.Monad
@@ -30,6 +30,7 @@ import Servant (addHeader)
 import System.FilePath (takeFileName, (</>))
 import Target.Types qualified as Target
 import Worker.Task (newTaskId)
+import Control.Monad.Fix (fix)
 
 
 paste :: SessionId -> ConfirmLogin -> ConfirmReadOnly
@@ -37,48 +38,72 @@ paste :: SessionId -> ConfirmLogin -> ConfirmReadOnly
                            , Header "HX-Trigger" FilehubEvent
                            ] (Html ()))
 paste sessionId _ _ = do
-  count <- Selected.countSelected sessionId & withServerError
-  taskId <- newTaskId
+  selectedCount <- Selected.countSelected sessionId & withServerError
+  taskId        <- newTaskId
+
   withServerError do
     state <- Copy.getCopyState sessionId
     case state of
       Paste selections -> do
+        totalPasteCount <- countTotalFiles selections
+
         void $ async do
           TargetView to sessionData _ <- Session.currentTarget sessionId
           Session.notify sessionId (PasteProgressed taskId 0)
+
           evalState @Integer 0 do
-            forM_ selections \(from, files) -> do
-              forM_ files \file -> do
-                goPaste from to sessionData.currentDir file
-                n <- modify @Integer (+ 1) >> get @Integer
-                Session.notify sessionId (PasteProgressed taskId (n % max 1 (fromIntegral count)))
+            forM_ selections \(from, files) -> do {
+              forM_ files do {
+                flip fix sessionData.currentDir \rec currentDir file -> do
+                  case file.content of
+                    Regular -> do
+                      conduit <- Session.withTarget sessionId (Target.getTargetId from) \_ storage -> do
+                        storage.readStream file
+
+                      Session.withTarget sessionId (Target.getTargetId to) \_ storage -> do
+                        storage.write (currentDir </> takeFileName file.path) (file `withContent` (FileContentConduit conduit))
+
+                    Dir -> do -- copy directory layer by layer
+                      dst <- Session.withTarget sessionId (Target.getTargetId to) \_ storage -> do
+                        let dst = currentDir </> takeFileName file.path
+                        storage.newFolder dst
+                        pure dst
+                      Session.withTarget sessionId (Target.getTargetId from) \(TargetView _ (TargetSessionData { currentDir = savedDir }) _) storage -> do
+                        storage.cd file.path
+                        dirFiles <- storage.lsCwd
+                        forM_ dirFiles (rec dst)
+                        storage.cd savedDir -- go back
+
+                  n <- modify @Integer (+ 1) >> get @Integer
+                  Session.notify sessionId (PasteProgressed taskId (n % max 1 totalPasteCount))
+                }
+              }
+
           Copy.setCopyState sessionId NoCopyPaste
           Selected.clearSelectedAllTargets sessionId
+
           Session.notify sessionId (PasteProgressed taskId 1)
           Session.notify sessionId (TaskCompleted taskId)
         pure ()
       _ -> do
         logAttention_ [i|Paste error: #{sessionId}, not in pastable state.|]
         throwError (FilehubError SelectError "Not in a pastable state")
+
   Server.Internal.clear sessionId
-  addHeader count . addHeader SSEStarted <$> index sessionId
+  addHeader selectedCount. addHeader SSEStarted <$> index sessionId
+
   where
-    goPaste from to currentDir file = do
-      case file.content of
-        Regular -> do
-          conduit <- Session.withTarget sessionId (Target.getTargetId from) \_ storage -> do
-            storage.readStream file
-          Session.withTarget sessionId (Target.getTargetId to) \_ storage -> do
-            storage.write (currentDir </> takeFileName file.path) (file `withContent` (FileContentConduit conduit))
-        Dir -> do -- copy directory layer by layer
-          dst <- Session.withTarget sessionId (Target.getTargetId to) \_ storage -> do
-            let dst = currentDir </> takeFileName file.path
-            storage.newFolder dst
-            pure dst
-          Session.withTarget sessionId (Target.getTargetId from)
-            \(TargetView _ (TargetSessionData { currentDir = savedDir }) _) storage -> do
-              storage.cd file.path
-              do
-                dirFiles <- storage.lsCwd
-                forM_ dirFiles (goPaste from to dst)
-              storage.cd savedDir -- go back
+    countTotalFiles selections = execState @Integer 0 do
+        forM_ selections \(from, files) -> do
+          forM_ files $ fix \rec file -> do
+            case file.content of
+              Regular -> do
+                modify @Integer (+ 1)
+              Dir -> do
+                Session.withTarget sessionId (Target.getTargetId from) \(TargetView _ (TargetSessionData { currentDir = savedDir }) _) storage -> do
+                  storage.cd file.path
+                  do
+                    dirFiles <- storage.lsCwd
+                    forM_ dirFiles \dfile -> do
+                      rec dfile
+                  storage.cd savedDir -- go back
