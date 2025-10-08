@@ -105,7 +105,7 @@ import Target.Types (TargetId)
 import Target.Types qualified as Target
 import Text.Printf (printf)
 import UnliftIO.Exception (SomeException, catch)
-import UnliftIO.STM (readTBQueue, atomically, modifyTVar', readTVar, isEmptyTBQueue)
+import UnliftIO.STM (readTBQueue, writeTBQueue, atomically, modifyTVar', readTVar, isEmptyTBQueue)
 import Web.Cookie (SetCookie (..))
 import Worker.Task (newTaskId)
 

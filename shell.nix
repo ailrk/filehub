@@ -12,6 +12,7 @@ hspkgs.shellFor {
     pkgs.ghciwatch
     pkgs.bashInteractive
     pkgs.upx
+    pkgs.nodePackages.typescript
   ];
 
   shellHook = ''

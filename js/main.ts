@@ -254,7 +254,7 @@ function removeClassOnIndex() {
   const el = document.querySelector("#index");
   if (el) {
     el.addEventListener("animationend", () => {
-      el.classList = "";
+      el.classList.remove(...el.classList);
     });
   }
 }
