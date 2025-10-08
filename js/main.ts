@@ -326,7 +326,7 @@ function listenSSE(_: Event) {
       }
     };
     Balloon.pushBalloon({
-      kind: "ProgressMsg",
+      kind: "ProgressedMsg",
       msg: `Deleting ${data.taskId}`,
       taskId: data.taskId,
       progress: [data.progress.numerator, data.progress.denominator]
@@ -342,7 +342,7 @@ function listenSSE(_: Event) {
       }
     };
     Balloon.pushBalloon({
-      kind: "ProgressMsg",
+      kind: "ProgressedMsg",
       msg: `Pasting ${data.taskId}`,
       taskId: data.taskId,
       progress: [data.progress.numerator, data.progress.denominator]
@@ -358,7 +358,7 @@ function listenSSE(_: Event) {
       }
     };
     Balloon.pushBalloon({
-      kind: "ProgressMsg",
+      kind: "ProgressedMsg",
       msg: `Moving ${data.taskId}`,
       taskId: data.taskId,
       progress: [data.progress.numerator, data.progress.denominator]
@@ -374,10 +374,20 @@ function listenSSE(_: Event) {
       }
     };
     Balloon.pushBalloon({
-      kind: "ProgressMsg",
+      kind: "ProgressedMsg",
       msg: `Uploading ${data.taskId}`,
       taskId: data.taskId,
       progress: [data.progress.numerator, data.progress.denominator]
+    })
+  })
+
+  evtSource.addEventListener('Progressing', e => {
+    let data = JSON.parse(e.data) as {
+      taskId: number
+    };
+    Balloon.pushBalloon({
+      kind: "ProgressingMsg",
+      taskId: data.taskId,
     })
   })
 }

@@ -58,6 +58,7 @@ module Filehub.Session
   , withTarget
   , getSessionNotifications
   , getPendingTasks
+  , notify
   )
   where
 
@@ -95,7 +96,7 @@ import Target.S3 (S3)
 import Target.Types (TargetId, Target (..), getTargetId, handleTarget, targetHandler)
 import {-# SOURCE #-} Filehub.Session.Copy qualified as Copy
 import {-# SOURCE #-} Filehub.Session.Selected qualified as Selected
-import UnliftIO.STM (TBQueue, TVar)
+import UnliftIO.STM (TBQueue, TVar, atomically, writeTBQueue)
 import Filehub.Notification.Types (Notification)
 import Data.Set (Set)
 import Worker.Task (TaskId)
@@ -307,3 +308,14 @@ getPendingTasks
      , Error FilehubError :> es)
   => SessionId -> Eff es (TVar (Set TaskId))
 getPendingTasks sessionId = (^. #pendingTasks) <$> Session.Pool.get sessionId
+
+
+notify
+  :: ( Reader Env         :> es
+     , Log                :> es
+     , IOE                :> es
+     , Error FilehubError :> es)
+  => SessionId -> Notification -> Eff es ()
+notify sessionId notification = do
+  notifications <- getSessionNotifications sessionId
+  atomically $ writeTBQueue notifications notification

@@ -4,7 +4,7 @@ export function pushBalloon(message) {
         case "ErrorMsg":
             pushErrorMsgBalloon(message.msg, message.duration);
             break;
-        case "ProgressMsg":
+        case "ProgressedMsg":
             let { msg, taskId, progress } = message;
             pushProgressBarBalloon(msg, taskId, progress);
             break;

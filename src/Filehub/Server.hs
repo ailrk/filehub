@@ -25,19 +25,24 @@ import Data.ClientPath qualified as ClientPath
 import Data.File (FileType(..), File(..), FileInfo, defaultFileWithContent, FileContent (..), withContent)
 import Data.FileEmbed qualified as FileEmbed
 import Data.Foldable (forM_)
+import Data.Function (fix, (&))
 import Data.List qualified as List
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (fromMaybe)
+import Data.Ratio ((%))
+import Data.Set qualified as Set
 import Data.String.Interpolate (i)
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.Time (UTCTime (..), fromGregorian)
 import Effectful ( withRunInIO, MonadIO (liftIO), raise )
+import Effectful.Concurrent.Async (async)
 import Effectful.Error.Dynamic (throwError)
 import Effectful.Log (logInfo_, logAttention_)
 import Effectful.Reader.Dynamic (asks)
+import Effectful.State.Static.Local (modify, get, evalState, execState)
 import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
 import Filehub.Auth.OIDC (AuthUrl (..), SomeOIDCFlow (..))
 import Filehub.Auth.OIDC qualified as Auth.OIDC
@@ -48,6 +53,7 @@ import Filehub.Env (Env(..))
 import Filehub.Error ( withServerError, FilehubError(..), withServerError, Error' (..) )
 import Filehub.Locale (Locale)
 import Filehub.Monad
+import Filehub.Notification.Types (Notification(..))
 import Filehub.Orphan ()
 import Filehub.Routes (Api (..))
 import Filehub.Routes qualified as Routes
@@ -59,6 +65,7 @@ import Filehub.Server.Platform.Desktop qualified as Server.Desktop
 import Filehub.Server.Platform.Mobile qualified as Server.Mobile
 import Filehub.Session (SessionId(..), TargetView (..))
 import Filehub.Session qualified as Session
+import Filehub.Session.Copy qualified as Copy
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Session.Selected qualified as Selected
 import Filehub.Sort qualified as Sort
@@ -72,8 +79,8 @@ import Filehub.Theme qualified as Theme
 import Filehub.Types (Display (..), Layout (..), Resource (..), CopyState (..), TargetSessionData (..))
 import Filehub.Types (FilehubEvent (..), LoginForm(..), MoveFile (..), UIComponent (..), SearchWord, OpenTarget, Resolution)
 import Filehub.Types (UpdatedFile(..), NewFile(..), NewFolder(..), SortFileBy(..), UpdatedFile(..), Theme(..), Selected (..))
-import Lens.Micro.Platform ()
-import Lucid
+import Lens.Micro ((.~), (<&>))
+import Lucid ( Html, class_, Term(term), With(with) )
 import Network.HTTP.Types.Header (hLocation)
 import Network.Mime (MimeType)
 import Network.Mime qualified as Mime
@@ -87,6 +94,7 @@ import Prelude hiding (init, readFile)
 import Servant (addHeader, err500, err303)
 import Servant (errBody, Headers, Header, NoContent (..), err404, errHeaders, err301, noHeader, err400)
 import Servant (serveWithContextT, Context (..), Application)
+import Servant.API.EventStream (RecommendedEventSourceHeaders, recommendedEventSourceHeaders)
 import Servant.Multipart (MultipartData, Mem)
 import Servant.Server.Generic (AsServerT)
 import System.Directory (removeFile)
@@ -94,21 +102,12 @@ import System.FilePath (takeFileName, (</>), takeDirectory, makeRelative)
 import System.IO.Temp qualified as Temp
 import System.Random (randomRIO)
 import Target.Types (TargetId)
-import Text.Printf (printf)
-import Web.Cookie (SetCookie (..))
 import Target.Types qualified as Target
+import Text.Printf (printf)
 import UnliftIO.Exception (SomeException, catch)
-import Servant.API.EventStream (RecommendedEventSourceHeaders, recommendedEventSourceHeaders)
-import Filehub.Notification.Types (Notification(..))
+import UnliftIO.STM (readTBQueue, atomically, modifyTVar', readTVar, isEmptyTBQueue)
+import Web.Cookie (SetCookie (..))
 import Worker.Task (newTaskId)
-import Effectful.Concurrent.Async (async)
-import Effectful.State.Static.Local (modify, get, evalState, execState)
-import Data.Ratio ((%))
-import Filehub.Session.Copy qualified as Copy
-import Data.Function (fix, (&))
-import Lens.Micro ((.~))
-import Data.Set qualified as Set
-import UnliftIO.STM (readTBQueue, writeTBQueue, atomically, modifyTVar', readTVar, isEmptyTBQueue)
 
 
 #ifdef DEBUG
@@ -482,17 +481,18 @@ delete sessionId _ _ clientPaths deleteSelected = do
   void $ async do
     taskId <- newTaskId
     withServerError do
-      notifications <- Session.getSessionNotifications sessionId
       storage <- Session.getStorage sessionId
       root    <- Session.getRoot sessionId
-      atomically $ writeTBQueue notifications (DeleteProgressed taskId 0)
+      Session.notify sessionId (DeleteProgressed taskId 0)
+
       nDeleted <- execState @Integer 0 do
         forM_ clientPaths \clientPath -> do
           modify @Integer (+ 1)
           n <- get @Integer
           let path = ClientPath.fromClientPath root clientPath
           raise $ storage.delete path
-          atomically $ writeTBQueue notifications (DeleteProgressed taskId (n % max 1 (fromIntegral count)))
+          Session.notify sessionId (DeleteProgressed taskId (n % max 1 (fromIntegral count)))
+
       when deleteSelected do
         allSelecteds <- Selected.allSelecteds sessionId
         evalState @Integer nDeleted do
@@ -505,10 +505,9 @@ delete sessionId _ _ clientPaths deleteSelected = do
                     modify @Integer (+ 1)
                     n <- get @Integer
                     raise $ storage.delete path
-                    atomically $ writeTBQueue notifications (DeleteProgressed taskId (n % max 1 (fromIntegral count)))
-      atomically do
-        writeTBQueue notifications (DeleteProgressed taskId 1)
-        writeTBQueue notifications (TaskCompleted taskId)
+                    Session.notify sessionId (DeleteProgressed taskId (n % max 1 (fromIntegral count)))
+      Session.notify sessionId (DeleteProgressed taskId 1)
+      Session.notify sessionId (TaskCompleted taskId)
   Server.Internal.clear sessionId
   addHeader count . addHeader SSEStarted <$> index sessionId
 
@@ -537,46 +536,45 @@ paste :: SessionId -> ConfirmLogin -> ConfirmReadOnly
                            , Header "HX-Trigger" FilehubEvent
                            ] (Html ()))
 paste sessionId _ _ = do
-  count <- (Selected.countSelected sessionId & withServerError)
+  count <- Selected.countSelected sessionId & withServerError
   taskId <- newTaskId
   withServerError do
-    notifications <- Session.getSessionNotifications sessionId
     state <- Copy.getCopyState sessionId
     case state of
       Paste selections -> do
         void $ async do
           TargetView to sessionData _ <- Session.currentTarget sessionId
-          atomically $ writeTBQueue notifications (PasteProgressed taskId 0)
+          Session.notify sessionId (PasteProgressed taskId 0)
           evalState @Integer 0 do
             forM_ selections \(from, files) -> do
-              forM_ files do
-                flip fix sessionData.currentDir \rec currentDir file -> do -- expose the recursion with the fix point
-                  case file.content of
-                    Regular -> do
-                      conduit <- Session.withTarget sessionId (Target.getTargetId from) \_ storage -> do
-                        storage.readStream file
-                      Session.withTarget sessionId (Target.getTargetId to) \_ storage -> do
-                        storage.write (currentDir </> takeFileName file.path) (file `withContent` (FileContentConduit conduit))
-                    Dir -> do -- copy directory layer by layer
-                      dst <- Session.withTarget sessionId (Target.getTargetId to) \_ storage -> do
-                        let dst = currentDir </> takeFileName file.path
-                        storage.newFolder dst
-                        pure dst
-                      Session.withTarget sessionId (Target.getTargetId from)
-                        \(TargetView _ (TargetSessionData { currentDir = savedDir }) _) storage -> do
-                          storage.cd file.path
-                          do
-                            dirFiles <- storage.lsCwd
-                            forM_ dirFiles (rec dst)
-                          storage.cd savedDir -- go back
-                  modify @Integer (+ 1)
-                  n <- get @Integer
-                  atomically $ writeTBQueue notifications (PasteProgressed taskId (n % max 1 (fromIntegral count)))
+              forM_ files \f -> do
+                let go currentDir file = do -- expose the recursion with the fix point
+                      case file.content of
+                        Regular -> do
+                          conduit <- Session.withTarget sessionId (Target.getTargetId from) \_ storage -> do
+                            storage.readStream file
+                          Session.withTarget sessionId (Target.getTargetId to) \_ storage -> do
+                            storage.write (currentDir </> takeFileName file.path) (file `withContent` (FileContentConduit conduit))
+                        Dir -> do -- copy directory layer by layer
+                          dst <- Session.withTarget sessionId (Target.getTargetId to) \_ storage -> do
+                            let dst = currentDir </> takeFileName file.path
+                            storage.newFolder dst
+                            pure dst
+                          Session.withTarget sessionId (Target.getTargetId from)
+                            \(TargetView _ (TargetSessionData { currentDir = savedDir }) _) storage -> do
+                              storage.cd file.path
+                              do
+                                dirFiles <- storage.lsCwd
+                                forM_ dirFiles (go dst)
+                              storage.cd savedDir -- go back
+                go sessionData.currentDir f
+                modify @Integer (+ 1)
+                n <- get @Integer
+                Session.notify sessionId (PasteProgressed taskId (n % max 1 (fromIntegral count)))
           Copy.setCopyState sessionId NoCopyPaste
           Selected.clearSelectedAllTargets sessionId
-          atomically do
-            writeTBQueue notifications (PasteProgressed taskId 1)
-            writeTBQueue notifications (TaskCompleted taskId)
+          Session.notify sessionId (PasteProgressed taskId 1)
+          Session.notify sessionId (TaskCompleted taskId)
         pure ()
       _ -> do
         logAttention_ [i|Paste error: #{sessionId}, not in pastable state.|]
@@ -672,13 +670,11 @@ upload sessionId _ _ multipart = do
   void $ async do
     taskId <- newTaskId
     withServerError do
-      notifications <- Session.getSessionNotifications sessionId
-      atomically $ writeTBQueue notifications (MoveProgressed taskId 0)
+      Session.notify sessionId (UploadProgressed taskId 0)
       storage <- Session.getStorage sessionId
       storage.upload multipart
-      atomically do
-        writeTBQueue notifications (MoveProgressed taskId 1)
-        writeTBQueue notifications (TaskCompleted taskId)
+      Session.notify sessionId (UploadProgressed taskId 1)
+      Session.notify sessionId (TaskCompleted taskId)
   index sessionId
 
 
@@ -744,12 +740,10 @@ move sessionId _ _ (MoveFile src tgt) = do
     let mvPairs = fmap (\srcPath -> (srcPath, tgtPath </> (takeFileName srcPath))) srcPaths
 
     withServerError do
-      notifications <- Session.getSessionNotifications sessionId
-      atomically $ writeTBQueue notifications (MoveProgressed taskId 0)
+      Session.notify sessionId (MoveProgressed taskId 0)
       storage.mv mvPairs
-      atomically do
-        writeTBQueue notifications (MoveProgressed taskId 1)
-        writeTBQueue notifications (TaskCompleted taskId)
+      Session.notify sessionId (MoveProgressed taskId 1)
+      Session.notify sessionId (TaskCompleted taskId)
 
   Server.Internal.clear sessionId
   addHeader FileMoved . addHeader SSEStarted <$> index sessionId

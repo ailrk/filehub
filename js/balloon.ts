@@ -1,24 +1,24 @@
 export type MessageKind
   = "ErrorMsg"
-  | "ProgressMsg"
+  | "ProgressedMsg"
+  | "ProgressingMsg"
 
 
-export interface ErrorMessage {
-  kind: "ErrorMsg";
-  msg: string;
-  duration: number;
-}
-
-
-export interface ProgressMessage {
-  kind: "ProgressMsg";
-  taskId: number;
-  msg: string;
-  progress: [number, number];
-}
-
-
-export type Message = ErrorMessage | ProgressMessage
+export type Message
+  = { kind: "ErrorMsg";
+    msg: string;
+    duration: number;
+  }
+  | {
+    kind: "ProgressedMsg";
+    taskId: number;
+    msg: string;
+    progress: [number, number];
+  }
+  | {
+    kind: "ProgressingMsg";
+    taskId: number;
+  }
 
 
 const longLivedBallons: Map<number, HTMLElement> = new Map();
@@ -29,7 +29,7 @@ export function pushBalloon(message: Message) {
     case "ErrorMsg":
       pushErrorMsgBalloon(message.msg, message.duration);
       break;
-    case "ProgressMsg":
+    case "ProgressedMsg":
       let { msg, taskId, progress } = message;
       pushProgressBarBalloon(msg, taskId, progress)
       break;
