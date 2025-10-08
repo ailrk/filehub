@@ -25,8 +25,6 @@ import Filehub.Types (Session(..), SessionId(..))
 import Filehub.UserAgent qualified as UserAgent
 import Lens.Micro
 import Lens.Micro.Platform ()
-import Lens.Micro.Platform ()
-import Lens.Micro.Platform ()
 import Log (logTrace_)
 import Network.HTTP.Types (hUserAgent, status500)
 import Network.HTTP.Types.Header (hSetCookie)

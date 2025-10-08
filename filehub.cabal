@@ -212,6 +212,13 @@ library
     System.FilePath.Extended
     Target.Class
     Target.File
+    Filehub.Server.Paste
+    Filehub.Server.Delete
+    Filehub.Server.Upload
+    Filehub.Server.Download
+    Filehub.Server.Move
+    Filehub.Server.InitViewer
+    Filehub.Server.Components
     Target.Internal
     Target.S3
     Target.Types
