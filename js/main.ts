@@ -235,7 +235,7 @@ function closeDropdowns(e: any) {
 }
 
 
-function closePanel (e: MouseEvent) {
+function closePanel(e: MouseEvent) {
   if ((e.target as Element).closest('#control-panel-btn')) return;
   if ((e.target as Element).closest('#locale-langauge-btn')) return;
   let panels = document.querySelectorAll('.panel')

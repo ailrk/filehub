@@ -145,8 +145,6 @@ library
     Cache.Dummy
     Cache.InMemory
     Cache.Key
-    Worker.Pool
-    Worker.Task
     Data.ClientPath
     Data.File
     Data.Queue
@@ -166,6 +164,7 @@ library
     Filehub.Display
     Filehub.Env
     Filehub.Error
+    Filehub.Handler
     Filehub.Links
     Filehub.Locale
     Filehub.Log
@@ -175,7 +174,6 @@ library
     Filehub.Routes
     Filehub.Selected
     Filehub.Server
-    Filehub.Server.Handler
     Filehub.Server.Internal
     Filehub.Server.Platform.Desktop
     Filehub.Server.Platform.Mobile
@@ -207,6 +205,7 @@ library
     Network.Mime.Extended
     Network.Wai.Middleware.Extended
     Network.Wai.Middleware.Filehub
+    Paths_filehub
     Storage.Error
     Storage.File
     Storage.S3
@@ -217,7 +216,8 @@ library
     Target.S3
     Target.Types
     Target.Types.TargetId
-    Paths_filehub
+    Worker.Pool
+    Worker.Task
   default-language: Haskell2010
 
 

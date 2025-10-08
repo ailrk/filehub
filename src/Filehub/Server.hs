@@ -57,8 +57,8 @@ import Filehub.Notification.Types (Notification(..))
 import Filehub.Orphan ()
 import Filehub.Routes (Api (..))
 import Filehub.Routes qualified as Routes
-import Filehub.Server.Handler (ConfirmLogin, ConfirmReadOnly, ConfirmDesktopOnly)
-import Filehub.Server.Handler qualified as Server.Handler
+import Filehub.Handler (ConfirmLogin, ConfirmReadOnly, ConfirmDesktopOnly)
+import Filehub.Handler qualified
 import Filehub.Server.Internal (withQueryParam, parseHeader', makeTemplateContext)
 import Filehub.Server.Internal qualified as Server.Internal
 import Filehub.Server.Platform.Desktop qualified as Server.Desktop
@@ -105,7 +105,7 @@ import Target.Types (TargetId)
 import Target.Types qualified as Target
 import Text.Printf (printf)
 import UnliftIO.Exception (SomeException, catch)
-import UnliftIO.STM (readTBQueue, writeTBQueue, atomically, modifyTVar', readTVar, isEmptyTBQueue)
+import UnliftIO.STM (readTBQueue, atomically, modifyTVar', readTVar, isEmptyTBQueue)
 import Web.Cookie (SetCookie (..))
 import Worker.Task (newTaskId)
 
@@ -292,6 +292,7 @@ listen sessionId _ = recommendedEventSourceHeaders <$> do
       PasteProgressed _ _  -> pure do yield notification >> loop
       MoveProgressed _ _   -> pure do yield notification >> loop
       UploadProgressed _ _ -> pure do yield notification >> loop
+      Progressing _        -> pure do yield notification >> loop
       Pong                 -> pure do yield notification >> loop
 
 
@@ -1033,12 +1034,12 @@ application env
   . Wai.Middleware.sessionMiddleware env
   . Wai.Middleware.dedupHeadersKeepLast
   . Wai.Middleware.displayMiddleware env
-  . serveWithContextT Routes.api ctx (Server.Handler.toServantHandler env)
+  . serveWithContextT Routes.api ctx (Filehub.Handler.toServantHandler env)
   $ server
   where
-    ctx = Server.Handler.sessionHandler env
-        :. Server.Handler.readOnlyHandler env
-        :. Server.Handler.desktopOnlyHandler env
-        :. Server.Handler.mobileOnlyHandler env
-        :. Server.Handler.loginHandler env
+    ctx = Filehub.Handler.sessionHandler env
+        :. Filehub.Handler.readOnlyHandler env
+        :. Filehub.Handler.desktopOnlyHandler env
+        :. Filehub.Handler.mobileOnlyHandler env
+        :. Filehub.Handler.loginHandler env
         :. EmptyContext

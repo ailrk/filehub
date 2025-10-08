@@ -153,9 +153,9 @@ a.dropdown-item {
 
 .progress-container {
   width: 300px;         /* total width */
-  height: 20px;         /* thickness */
+  height: 5px;         /* thickness */
   border: 1px solid #444;
-  border-radius: 10px;
+  border-radius: 5px;
   background: #eee;
   overflow: hidden;
 }

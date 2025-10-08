@@ -1,4 +1,4 @@
-module Filehub.Server.Handler
+module Filehub.Handler
   ( toServantHandler
   , readOnlyHandler
   , sessionHandler

@@ -77,7 +77,7 @@ import Filehub.Types
     , UIComponent
     )
 import GHC.Generics (Generic)
-import Filehub.Server.Handler (ConfirmReadOnly, ConfirmMobilOnly, ConfirmDesktopOnly, ConfirmLogin)
+import Filehub.Handler (ConfirmReadOnly, ConfirmMobilOnly, ConfirmDesktopOnly, ConfirmLogin)
 import Data.ByteString (ByteString)
 import Conduit (ConduitT, ResourceT)
 import Amazonka.Data (Value)

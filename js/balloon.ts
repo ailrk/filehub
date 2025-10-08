@@ -30,9 +30,16 @@ export function pushBalloon(message: Message) {
       pushErrorMsgBalloon(message.msg, message.duration);
       break;
     case "ProgressedMsg":
-      let { msg, taskId, progress } = message;
-      pushProgressBarBalloon(msg, taskId, progress)
-      break;
+      {
+        let { msg, taskId, progress } = message;
+        pushProgressBarBalloon(msg, taskId, progress)
+        break;
+      }
+    case "ProgressingMsg":
+      {
+        let { taskId } = message;
+        break;
+      }
   }
 }
 
