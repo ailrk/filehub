@@ -8,7 +8,6 @@
 module Filehub.Error
   ( FilehubError(..)
   , Error'(..)
-  , withServerError
   , toServerError
   )
   where
@@ -16,13 +15,14 @@ module Filehub.Error
 import Servant
     ( ServerError(errBody))
 import Lens.Micro.Platform ()
-import Effectful (Eff, (:>))
-import Effectful.Error.Dynamic (runErrorNoCallStack, throwError, Error)
 import Data.String (IsString(..))
 import Servant.Server (err500, err400)
 
 
-data FilehubError = FilehubError Error' String deriving (Show, Eq)
+data FilehubError
+  = FilehubError Error' String
+  | HTTPError ServerError
+  deriving (Show, Eq)
 
 
 data Error'
@@ -47,10 +47,6 @@ data Error'
   deriving (Show, Eq)
 
 
-withServerError :: (Error ServerError :> es) => Eff (Error FilehubError : es) b -> Eff es b
-withServerError action = runErrorNoCallStack action >>= either (\err -> throwError (toServerError err)) pure
-
-
 toServerError :: FilehubError -> ServerError
 toServerError (FilehubError err msg) =
   case err of
@@ -72,3 +68,4 @@ toServerError (FilehubError err msg) =
     CopyError           -> err500 { errBody = fromString msg }
     PasteError          -> err500 { errBody = fromString msg }
     LoginFailed         -> err500 { errBody = fromString msg }
+toServerError (HTTPError err) = err

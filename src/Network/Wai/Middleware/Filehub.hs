@@ -15,7 +15,6 @@ import Effectful ( MonadIO(liftIO), liftIO, liftIO )
 import Effectful.Error.Dynamic (runErrorNoCallStack)
 import Filehub.Cookie qualified as Cookies
 import Filehub.Env (Env (..))
-import Filehub.Error ( withServerError, withServerError )
 import Filehub.Error (FilehubError)
 import Filehub.Monad ( toIO )
 import Filehub.Server.Internal (parseHeader')
@@ -36,7 +35,7 @@ displayMiddleware :: Env -> Middleware
 displayMiddleware  env app req respond = toIO onErr env do
   let mCookie        = lookup "Cookie" (requestHeaders req)
   let Just sessionId = mCookie >>= parseHeader' >>= Cookies.getSessionId
-  session <- Session.Pool.get sessionId & withServerError
+  session <- Session.Pool.get sessionId
 
   -- set device type
   do
@@ -51,7 +50,7 @@ displayMiddleware  env app req respond = toIO onErr env do
   -- set display cookie
   -- Note only the server set the cookie.
   setCookieHeader <- do
-    currentDisplay <- Session.getDisplay sessionId & withServerError
+    currentDisplay <- Session.getDisplay sessionId
     let header     =  ("Set-Cookie", Cookies.renderSetCookie (Cookies.setDisplay currentDisplay))
     pure (header :)
 

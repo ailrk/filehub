@@ -9,7 +9,7 @@ import Data.String.Interpolate (i)
 import Effectful.Concurrent.Async (async, mapConcurrently_)
 import Effectful.Error.Dynamic (throwError)
 import Effectful.Log (logAttention_)
-import Filehub.Error ( withServerError, FilehubError(..), withServerError, Error' (..) )
+import Filehub.Error ( FilehubError(..), Error' (..) )
 import Filehub.Handler (ConfirmLogin, ConfirmReadOnly)
 import Filehub.Monad
 import Filehub.Notification.Types (Notification(..))
@@ -48,29 +48,28 @@ paste :: SessionId -> ConfirmLogin -> ConfirmReadOnly
                            , Header "HX-Trigger" FilehubEvent
                            ] (Html ()))
 paste sessionId _ _ = do
-  selectedCount <- Selected.countSelected sessionId & withServerError
+  selectedCount <- Selected.countSelected sessionId
   taskId        <- newTaskId
   pasteCounter  <- newTVarIO @_ @Integer 0
 
-  withServerError do
-    state <- Copy.getCopyState sessionId
-    notifications <- Session.getSessionNotifications sessionId
+  state <- Copy.getCopyState sessionId
+  notifications <- Session.getSessionNotifications sessionId
 
-    case state of
-      Paste selections -> do
-        -- totalPasteCount <- countTotalFiles selections
-        TargetView to sessionData _ <- currentTarget sessionId
-        tasks <- createPasteTasks sessionData.currentDir to selections
-        let taskCount = fromIntegral (length tasks)
+  case state of
+    Paste selections -> do
+      -- totalPasteCount <- countTotalFiles selections
+      TargetView to sessionData _ <- currentTarget sessionId
+      tasks <- createPasteTasks sessionData.currentDir to selections
+      let taskCount = fromIntegral (length tasks)
 
-        (void . async) do
-          mapConcurrently_ (runTask taskId notifications pasteCounter taskCount) tasks
-          Copy.setCopyState sessionId NoCopyPaste
-          Selected.clearSelectedAllTargets sessionId
-          notify sessionId (TaskCompleted taskId)
-      _ -> do
-        logAttention_ [i|Paste error: #{sessionId}, not in pastable state.|]
-        throwError (FilehubError SelectError "Not in a pastable state")
+      (void . async) do
+        mapConcurrently_ (runTask taskId notifications pasteCounter taskCount) tasks
+        Copy.setCopyState sessionId NoCopyPaste
+        Selected.clearSelectedAllTargets sessionId
+        notify sessionId (TaskCompleted taskId)
+    _ -> do
+      logAttention_ [i|Paste error: #{sessionId}, not in pastable state.|]
+      throwError (FilehubError SelectError "Not in a pastable state")
 
   Server.Internal.clear sessionId
   addHeader selectedCount. addHeader SSEStarted <$> index sessionId

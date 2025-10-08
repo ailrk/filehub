@@ -3,6 +3,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE MultiWayIf #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-}
 -- |
 -- Maintainer  :  jimmy@ailrk.com
 -- Copyright   :  (c) 2025-present Jinyang yao
@@ -44,7 +45,7 @@ import Filehub.Auth.Simple qualified as Auth.Simple
 import Filehub.Cookie qualified as Cookie
 import Filehub.Cookie qualified as Cookies
 import Filehub.Env (Env(..))
-import Filehub.Error ( withServerError, FilehubError(..), withServerError, Error' (..) )
+import Filehub.Error ( FilehubError(..), Error' (..) )
 import Filehub.Handler (ConfirmLogin, ConfirmReadOnly, ConfirmDesktopOnly)
 import Filehub.Handler qualified
 import Filehub.Locale (Locale)
@@ -203,7 +204,7 @@ init sessionId res = do
 -- start a full reload from the bootstrap stage.
 home :: SessionId -> ConfirmLogin -> Filehub (Html ())
 home sessionId _  = do
-  display <- Session.getDisplay sessionId & withServerError
+  display <- Session.getDisplay sessionId
   m <- manifest
   let background
         = fromMaybe "#000000"
@@ -240,7 +241,7 @@ refresh sessionId _ mUIComponent = do
     Just UIComponentIndex -> do
       index sessionId
     Nothing ->
-      throwError (err400 { errBody = [i|Invalid ui component|]})
+      throwError do HTTPError (err400 { errBody = [i|Invalid ui component|]})
 
 
 -- | Creating a notification conduit. The conduit tries to read notifications
@@ -261,8 +262,8 @@ refresh sessionId _ mUIComponent = do
 -- no conduit.
 listen :: SessionId -> ConfirmLogin -> Filehub (RecommendedEventSourceHeaders (ConduitT () Notification IO ()))
 listen sessionId _ = recommendedEventSourceHeaders <$> do
-  notifications <- Session.getSessionNotifications sessionId & withServerError
-  pendingTasks  <- Session.getPendingTasks sessionId         & withServerError
+  notifications <- Session.getSessionNotifications sessionId
+  pendingTasks  <- Session.getPendingTasks sessionId
   pure $ fix \loop -> join $ atomically do
     notification <- readTBQueue notifications
     case notification of
@@ -299,13 +300,13 @@ loginPage sessionId cookie Nothing = do
      else do
        case fmap Text.encodeUtf8 cookie >>= parseHeader' >>= Cookies.getAuthId of
          Just authId' -> do
-           authId <- Session.getAuthId sessionId & withServerError
+           authId <- Session.getAuthId sessionId
            if authId == Just authId'
               then go
               else pure $ runTemplate ctx Template.Login.login
          Nothing -> pure $ runTemplate ctx Template.Login.login
   where
-    go = throwError (err301 { errHeaders = [(hLocation, "/")] })
+    go = throwError do HTTPError (err301 { errHeaders = [(hLocation, "/")] })
 loginPage sessionId _ (Just _) = do
   ctx <- makeTemplateContext sessionId
   pure $ runTemplate ctx Template.Login.login
@@ -313,7 +314,7 @@ loginPage sessionId _ (Just _) = do
 
 loginToggleTheme :: SessionId -> Filehub (Headers '[ Header "HX-Trigger-After-Settle" FilehubEvent ] (Html ()))
 loginToggleTheme sessionId = do
-  theme <- Session.getSessionTheme sessionId & withServerError
+  theme <- Session.getSessionTheme sessionId
   case theme of
     Theme.Light -> Session.setSessionTheme sessionId Theme.Dark
     Theme.Dark  -> Session.setSessionTheme sessionId Theme.Light
@@ -323,7 +324,7 @@ loginToggleTheme sessionId = do
 
 
 loginChangeLocale :: SessionId -> Maybe Locale -> Filehub (Headers '[ Header "HX-Trigger-After-Settle" FilehubEvent ] (Html ()))
-loginChangeLocale _ Nothing = withServerError $ throwError (FilehubError LocaleError "Invalid locale")
+loginChangeLocale _ Nothing = throwError (FilehubError LocaleError "Invalid locale")
 loginChangeLocale sessionId (Just locale) = do
   Session.setSessionLocale sessionId locale
   ctx <- makeTemplateContext sessionId
@@ -339,7 +340,7 @@ loginAuthSimple :: SessionId -> LoginForm
 loginAuthSimple sessionId form@(LoginForm username _) =  do
   ctx <- makeTemplateContext sessionId
   let failed = runTemplate ctx (Template.Login.loginFailed Nothing)
-  mSession <- Auth.Simple.authenticateSession sessionId form & withServerError
+  mSession <- Auth.Simple.authenticateSession sessionId form
   case mSession of
     Just session -> do
       case Cookie.setAuthId session of
@@ -354,17 +355,17 @@ loginAuthSimple sessionId form@(LoginForm username _) =  do
 
 loginAuthOIDCRedirect :: SessionId -> Text -> Filehub NoContent
 loginAuthOIDCRedirect sessionId providerName = do
-  stage <- withServerError do
-    Auth.OIDC.init providerName >>= Auth.OIDC.authorize
+  stage <- Auth.OIDC.init providerName >>= Auth.OIDC.authorize
   Auth.OIDC.setSessionOIDCFlow sessionId (Just stage)
   case stage of
     Auth.OIDC.AuthRequestPrepared _ _ _ _ (AuthUrl url) ->
-      throwError err303
-        { errHeaders =
-            [( "Location"
-             , ByteString.pack (URI.uriToString id url "")
-             )]
-        }
+      throwError do
+        HTTPError err303
+          { errHeaders =
+              [( "Location"
+               , ByteString.pack (URI.uriToString id url "")
+               )]
+          }
 
 
 loginAuthOIDCCallback :: SessionId
@@ -376,38 +377,40 @@ loginAuthOIDCCallback :: SessionId
                       -> Maybe Text
                       -> Filehub NoContent
 loginAuthOIDCCallback sessionId (Just code) (Just state) _ _ _ _ = do
-  withServerError do
-    Auth.OIDC.getSessionOIDCFlow sessionId >>= \case
-      Just (SomeOIDCFlow (stage@Auth.OIDC.AuthRequestPrepared {})) -> do
-          Auth.OIDC.callback stage code state
-            >>= Auth.OIDC.exchangeToken
-            >>= Auth.OIDC.verifyToken
-            >>= Auth.OIDC.authenticateSession sessionId
-            >>= Auth.OIDC.setSessionOIDCFlow sessionId . Just
-      _ -> do
-        logAttention_ "OIDC Error: invalid stage"
-        pure ()
-  session <- Session.Pool.get sessionId & withServerError
+  Auth.OIDC.getSessionOIDCFlow sessionId >>= \case
+    Just (SomeOIDCFlow (stage@Auth.OIDC.AuthRequestPrepared {})) -> do
+        Auth.OIDC.callback stage code state
+          >>= Auth.OIDC.exchangeToken
+          >>= Auth.OIDC.verifyToken
+          >>= Auth.OIDC.authenticateSession sessionId
+          >>= Auth.OIDC.setSessionOIDCFlow sessionId . Just
+    _ -> do
+      logAttention_ "OIDC Error: invalid stage"
+      pure ()
+  session <- Session.Pool.get sessionId
   case Cookie.setAuthId session of
     Just setCookie -> do
-      throwError err303
-        { errHeaders = [( "Location" , "/"), ("Set-Cookie", Cookies.renderSetCookie setCookie)]
-        }
+      throwError do
+        HTTPError err303
+          { errHeaders = [( "Location" , "/"), ("Set-Cookie", Cookies.renderSetCookie setCookie)]
+          }
     Nothing ->
-      throwError err303
-        { errHeaders = [( "Location" , "/login")]
-        }
+      throwError do
+        HTTPError err303
+          { errHeaders = [( "Location" , "/login")]
+          }
 loginAuthOIDCCallback _ _ _ mErr mErrDescription _ _ = do
   let message = fromMaybe "" mErr <> ", " <> fromMaybe "" mErrDescription
-  throwError err303
-    { errHeaders = [( "Location" , "/login?error=\"" <> Text.encodeUtf8 message <> "\"" )]
-    }
+  throwError do
+    HTTPError err303
+      { errHeaders = [( "Location" , "/login?error=\"" <> Text.encodeUtf8 message <> "\"" )]
+      }
 
 
 logout :: SessionId -> ConfirmLogin -> Filehub (Headers '[ Header "Set-Cookie" SetCookie
                                                          , Header "HX-Redirect" Text
                                                          ] NoContent)
-logout sessionId _ = withServerError do
+logout sessionId _ = do
   session <- Session.Pool.get sessionId
   case (,) <$> Cookie.setAuthId session <*> session.authId of
     Just (setCookie, authId) -> do
@@ -426,10 +429,9 @@ cd :: SessionId -> ConfirmLogin -> Maybe ClientPath
    ->  Filehub (Headers '[ Header "HX-Trigger-After-Swap" FilehubEvent ] (Html ()))
 cd sessionId _ mClientPath = do
   clientPath <- withQueryParam mClientPath
-  withServerError do
-    root    <- Session.getRoot sessionId
-    storage <- Session.getStorage sessionId
-    storage.cd (ClientPath.fromClientPath root clientPath)
+  root    <- Session.getRoot sessionId
+  storage <- Session.getStorage sessionId
+  storage.cd (ClientPath.fromClientPath root clientPath)
   html <- do
     toolBar' <- toolBar sessionId
     view'    <- view sessionId
@@ -441,37 +443,33 @@ cd sessionId _ mClientPath = do
 
 newFile :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> NewFile -> Filehub (Html ())
 newFile sessionId _ _ (NewFile path) = do
-  withServerError do
-    storage <- Session.getStorage sessionId
-    storage.new (Text.unpack path)
+  storage <- Session.getStorage sessionId
+  storage.new (Text.unpack path)
   view sessionId
 
 
 updateFile :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> UpdatedFile -> Filehub (Html ())
 updateFile sessionId _ _ (UpdatedFile clientPath content) = do
   let path = clientPath.unClientPath
-  withServerError do
-    storage <- Session.getStorage sessionId
-    storage.write path $ defaultFileWithContent
-      { path     = path
-      , content  = FileContentRaw (Text.encodeUtf8 content)
-      }
+  storage <- Session.getStorage sessionId
+  storage.write path $ defaultFileWithContent
+    { path     = path
+    , content  = FileContentRaw (Text.encodeUtf8 content)
+    }
   view sessionId
 
 
 newFolder :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> NewFolder -> Filehub (Html ())
 newFolder = \sessionId _ _ (NewFolder path) -> do
-  withServerError do
-    storage <- Session.getStorage sessionId
-    storage.newFolder (Text.unpack path)
+  storage <- Session.getStorage sessionId
+  storage.newFolder (Text.unpack path)
   view sessionId
 
 
 copy :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> Filehub (Html ())
 copy sessionId _ _ = do
-  withServerError do
-    Copy.select sessionId
-    Copy.copy sessionId
+  Copy.select sessionId
+  Copy.copy sessionId
   controlPanel sessionId
 
 
@@ -480,9 +478,8 @@ copy1 sessionId _ _ mClientPath = do
   clientPath <- withQueryParam mClientPath
   Server.Internal.clear sessionId
   Selected.setSelected sessionId (Selected clientPath [])
-  withServerError do
-    Copy.select sessionId
-    Copy.copy sessionId
+  Copy.select sessionId
+  Copy.copy sessionId
   index sessionId
 
 
@@ -505,7 +502,7 @@ fileDetailModal sessionId _ _ mPath = do
 
 editorModal :: SessionId -> ConfirmLogin -> Maybe ClientPath -> Filehub (Html ())
 editorModal sessionId _ mClientPath = do
-  display <- Session.getDisplay sessionId & withServerError
+  display <- Session.getDisplay sessionId
   case display of
     Mobile    -> Server.Mobile.editorModal sessionId mClientPath
     Desktop   -> Server.Desktop.editorModal sessionId mClientPath
@@ -520,7 +517,7 @@ selectLayout sessionId _ layout = do
 
 sortTable :: SessionId ->  ConfirmLogin -> Maybe SortFileBy -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
 sortTable sessionId _ order = do
-  display <- Session.getDisplay sessionId & withServerError
+  display <- Session.getDisplay sessionId
   Session.setSortFileBy sessionId (fromMaybe ByNameUp order)
   html <- do
     view' <- view sessionId
@@ -538,14 +535,13 @@ sortTable sessionId _ order = do
 search :: SessionId -> ConfirmLogin -> SearchWord -> Filehub (Html ())
 search sessionId _ searchWord = do
   ctx <- makeTemplateContext sessionId
-  withServerError do
-    display <- Session.getDisplay sessionId
-    storage <- Session.getStorage sessionId
-    files   <- storage.lsCwd
-    case display of
-      Mobile    -> pure $ runTemplate ctx (Template.search searchWord files Template.Mobile.table)
-      Desktop   -> pure $ runTemplate ctx (Template.search searchWord files Template.Desktop.table)
-      NoDisplay -> error "impossible"
+  display <- Session.getDisplay sessionId
+  storage <- Session.getStorage sessionId
+  files   <- storage.lsCwd
+  case display of
+    Mobile    -> pure $ runTemplate ctx (Template.search searchWord files Template.Mobile.table)
+    Desktop   -> pure $ runTemplate ctx (Template.search searchWord files Template.Desktop.table)
+    NoDisplay -> error "impossible"
 
 
 selectRows :: SessionId -> ConfirmLogin -> Selected -> Filehub (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))
@@ -560,7 +556,7 @@ selectRows sessionId _ selected = do
         controlPanel'
     _ -> do
       Selected.setSelected sessionId selected
-      count         <- Selected.countSelected sessionId & withServerError
+      count         <- Selected.countSelected sessionId
       sideBar'      <- sideBar sessionId
       controlPanel' <- controlPanel sessionId
       pure $ addHeader count do
@@ -575,7 +571,7 @@ contextMenu sessionId _ _ paths = Server.Desktop.contextMenu sessionId paths
 cancel :: SessionId -> ConfirmLogin -> Filehub (Headers '[Header "X-Filehub-Selected-Count" Int] (Html ()))
 cancel sessionId _ = do
   Server.Internal.clear sessionId
-  count <- Selected.countSelected sessionId & withServerError
+  count <- Selected.countSelected sessionId
   addHeader count <$> index sessionId
 
 
@@ -590,19 +586,20 @@ open _ _ mTarget mClientPath = do
 changeTarget :: SessionId -> ConfirmLogin -> Maybe TargetId
              -> Filehub (Headers '[Header "HX-Trigger-After-Swap" FilehubEvent] (Html ()))
 changeTarget sessionId _ mTargetId = do
-  savedTargetId <- withServerError do
+  savedTargetId <- do
     TargetView saved _ _ <- Session.currentTarget sessionId
     pure $ Target.getTargetId saved
 
-  let restore = Session.changeCurrentTarget sessionId savedTargetId & withServerError
+  let restore = Session.changeCurrentTarget sessionId savedTargetId
   targetId <- withQueryParam mTargetId
-  Session.changeCurrentTarget sessionId targetId & withServerError
+  Session.changeCurrentTarget sessionId targetId
 
   html <- withRunInIO \unlift -> do
     unlift (index sessionId)
       `catch` \(_ :: SomeException) -> unlift do
         restore
-        throwError (err500 { errBody = [i|Invalid target|]})
+        throwError (HTTPError (err500 { errBody = [i|Invalid target|]}))
+
   pure $ addHeader TargetChanged html
 
 
@@ -617,7 +614,7 @@ themeCss sessionId = do
     Dark  -> liftIO $ maybe (readFile (dir </> "theme-dark.css")) pure customThemeDark
     Light -> liftIO $ maybe (readFile (dir </> "theme-light.css")) pure customThemeLight
 #else
-  theme <- Session.getSessionTheme sessionId & withServerError
+  theme <- Session.getSessionTheme sessionId
   pure
     case theme of
       Dark  -> fromMaybe "no-theme" $ customThemeDark <|> Map.lookup "theme-dark.css" staticFiles
@@ -630,7 +627,7 @@ themeCss sessionId = do
 -- to be removed by the frontend.
 toggleTheme :: SessionId -> ConfirmLogin -> Filehub (Headers '[ Header "HX-Trigger-After-Settle" FilehubEvent ] (Html ()))
 toggleTheme sessionId _ = do
-  theme <- Session.getSessionTheme sessionId & withServerError
+  theme <- Session.getSessionTheme sessionId
   case theme of
     Theme.Light -> Session.setSessionTheme sessionId Theme.Dark
     Theme.Dark  -> Session.setSessionTheme sessionId Theme.Light
@@ -639,7 +636,7 @@ toggleTheme sessionId _ = do
 
 
 changeLocale :: SessionId -> Maybe Locale -> Filehub (Headers '[ Header "HX-Trigger-After-Settle" FilehubEvent ] (Html ()))
-changeLocale _ Nothing = withServerError $ throwError (FilehubError LocaleError "Invalid locale")
+changeLocale _ Nothing = throwError (FilehubError LocaleError "Invalid locale")
 changeLocale sessionId (Just locale) = do
   Session.setSessionLocale sessionId locale
   addHeader LocaleChanged <$> index sessionId
@@ -652,18 +649,17 @@ serve :: SessionId -> ConfirmLogin -> Maybe ClientPath
                            ]
                            (ConduitT () ByteString (ResourceT IO) ()))
 serve sessionId _ mFile = do
-  withServerError do
-    storage    <- Session.getStorage sessionId
-    root       <- Session.getRoot sessionId
-    clientPath <- withQueryParam mFile
-    let path   = ClientPath.fromClientPath root clientPath
-    file       <- storage.get path
-    conduit    <- storage.readStream file
-    pure
-      . addHeader (ByteString.unpack file.mimetype)
-      . addHeader (printf "inline; filename=%s" (takeFileName path))
-      . addHeader "public, max-age=31536000, immutable"
-      $ conduit
+  storage    <- Session.getStorage sessionId
+  root       <- Session.getRoot sessionId
+  clientPath <- withQueryParam mFile
+  let path   = ClientPath.fromClientPath root clientPath
+  file       <- storage.get path
+  conduit    <- storage.readStream file
+  pure
+    . addHeader (ByteString.unpack file.mimetype)
+    . addHeader (printf "inline; filename=%s" (takeFileName path))
+    . addHeader "public, max-age=31536000, immutable"
+    $ conduit
 
 
 thumbnail :: SessionId -> ConfirmLogin -> Maybe ClientPath
@@ -673,23 +669,22 @@ thumbnail :: SessionId -> ConfirmLogin -> Maybe ClientPath
                                ]
                                (ConduitT () ByteString (ResourceT IO) ()))
 thumbnail sessionId _ mFile = do
-  withServerError do
-    storage    <- Session.getStorage sessionId
-    root       <- Session.getRoot sessionId
-    clientPath <- withQueryParam mFile
-    let path   = ClientPath.fromClientPath root clientPath
-    file       <- storage.get path
-    conduit    <- serveOriginal storage file
-    pure
-      . addHeader (ByteString.unpack file.mimetype)
-      . addHeader (printf "inline; filename=%s" (takeFileName path))
-      . addHeader "public, max-age=31536000, immutable"
-      $ conduit
+  storage    <- Session.getStorage sessionId
+  root       <- Session.getRoot sessionId
+  clientPath <- withQueryParam mFile
+  let path   = ClientPath.fromClientPath root clientPath
+  file       <- storage.get path
+  conduit    <- serveOriginal storage file
+  pure
+    . addHeader (ByteString.unpack file.mimetype)
+    . addHeader (printf "inline; filename=%s" (takeFileName path))
+    . addHeader "public, max-age=31536000, immutable"
+    $ conduit
   where
     serveOriginal storage file =
       if
         | file.mimetype `isMime` "image" -> storage.readStream file
-        | otherwise                      -> throwError (FilehubError FormatError "Invalid mime type for thumbnail") & withServerError
+        | otherwise                      -> throwError (FilehubError FormatError "Invalid mime type for thumbnail")
 
 
 
@@ -749,7 +744,7 @@ static paths = do
         . addHeader (ByteString.unpack mimetype)
         . addHeader "public, max-age=31536000, immutable"
         $ content
-    Nothing -> throwError (err404 { errBody = [i|File doesn't exist|]})
+    Nothing -> throwError do HTTPError (err404 { errBody = [i|File doesn't exist|]})
 #endif
 
 

@@ -23,13 +23,14 @@ import Control.Monad ((>=>))
 import Effectful.Extended.LockManager (LockManager, runLockManagerLocal)
 import Effectful.Extended.Cache (Cache, runCacheInMemory)
 import Effectful.Temporary (Temporary, runTemporary)
+import Filehub.Error (FilehubError, toServerError)
 
 
-type Filehub = Eff [Reader Env, Log, Error ServerError, FileSystem, Temporary, Concurrent, LockManager, Cache, IOE]
+type Filehub = Eff [Reader Env, Log, Error FilehubError, FileSystem, Temporary, Concurrent, LockManager, Cache, IOE]
 
 
 -- | Discharge a `Filehub` effect
-runFilehub :: Env -> Filehub a -> IO (Either ServerError a)
+runFilehub :: Env -> Filehub a -> IO (Either FilehubError a)
 runFilehub env eff =
   runEff $
     runCacheInMemory env.cache
@@ -46,7 +47,7 @@ runFilehub env eff =
 -- | Convenient helper to run Filehub effect in IO.
 toIO :: (ServerError -> IO a) -> Env -> Filehub a -> IO a
 toIO onErr env eff = do
-  (runExceptT >=> either onErr pure)
+  (runExceptT >=> either (onErr . toServerError) pure)
   . ExceptT
   . runFilehub env
   $ eff

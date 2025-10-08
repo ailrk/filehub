@@ -19,33 +19,32 @@ import Effectful.Reader.Dynamic (Reader, asks, ask)
 import Filehub.Session.Copy qualified as Copy
 import Filehub.Session.Selected qualified as Selected
 import Filehub.Env qualified as Env
-import Filehub.Error (withServerError)
+import Filehub.Error (FilehubError (..))
 import Filehub.Monad (Filehub)
 import Filehub.Session qualified as Session
 import Filehub.Template.Internal (TemplateContext(..))
 import Filehub.Types
-import Lens.Micro ((&))
 import Lens.Micro.Platform ()
 import Prelude hiding (elem)
 import Prelude hiding (readFile)
-import Servant ( ServerError(..), ServerError, FromHttpApiData (..) )
+import Servant ( FromHttpApiData (..) )
 import Servant.Server (err400)
 
 
 makeTemplateContext :: SessionId -> Filehub TemplateContext
 makeTemplateContext sessionId = do
-  theme             <- Session.getSessionTheme sessionId      & withServerError
-  layout            <- Session.getLayout sessionId            & withServerError
+  theme             <- Session.getSessionTheme sessionId
+  layout            <- Session.getLayout sessionId
   readOnly          <- asks @Env (.readOnly)
   noLogin           <- Env.hasNoLogin <$> ask @Env
-  display           <- Session.getDisplay sessionId           & withServerError
-  state             <- Session.getControlPanelState sessionId & withServerError
-  root              <- Session.getRoot sessionId              & withServerError
-  sortedBy          <- Session.getSortFileBy sessionId        & withServerError
-  selected          <- Selected.getSelected sessionId         & withServerError
-  currentDir        <- Session.getCurrentDir sessionId        & withServerError
-  currentTarget     <- Session.currentTarget sessionId        & withServerError
-  locale            <- Session.getSessionLocale sessionId     & withServerError
+  display           <- Session.getDisplay sessionId
+  state             <- Session.getControlPanelState sessionId
+  root              <- Session.getRoot sessionId
+  sortedBy          <- Session.getSortFileBy sessionId
+  selected          <- Selected.getSelected sessionId
+  currentDir        <- Session.getCurrentDir sessionId
+  currentTarget     <- Session.currentTarget sessionId
+  locale            <- Session.getSessionLocale sessionId
   simpleAuthUserDB  <- asks @Env (.simpleAuthUserDB)
   oidcAuthProviders <- asks @Env (.oidcAuthProviders)
   pure TemplateContext
@@ -67,11 +66,11 @@ makeTemplateContext sessionId = do
 
 
 -- | Ensure a query parameter presents, otherwise it's a client error
-withQueryParam :: (Error ServerError :> es) => Maybe a -> Eff es a
+withQueryParam :: (Error FilehubError :> es) => Maybe a -> Eff es a
 withQueryParam m =
   case m of
     Just a  -> pure a
-    Nothing -> throwError err400
+    Nothing -> throwError do HTTPError err400
 
 
 -- | Completely reset all state machines. This should be the only place to reset state.

@@ -23,11 +23,10 @@ import Filehub.Env (Env(..))
 import Filehub.Env qualified as Env
 import Filehub.Session qualified as Session
 import Filehub.Session (Session(..))
-import Filehub.Error (withServerError)
+import Filehub.Error (toServerError)
 import Network.Wai
 import Prelude hiding (readFile)
 import Lens.Micro.Platform ()
-import Lens.Micro
 import Servant
 import Filehub.Types (Display (..))
 import Filehub.Cookie qualified as Cookies
@@ -35,7 +34,7 @@ import Filehub.Server.Internal (parseHeader')
 import Filehub.Monad (runFilehub, Filehub)
 import UnliftIO (MonadIO(..))
 import Data.ByteString.Lazy (ByteString)
-import Control.Monad.Trans.Except (ExceptT(..))
+import Control.Monad.Trans.Except (ExceptT(..), withExceptT)
 import Network.HTTP.Types.Header (hLocation)
 import Control.Monad.Trans.Maybe (MaybeT(..))
 import Control.Monad (guard)
@@ -45,6 +44,7 @@ import Filehub.Session.Pool qualified as Session.Pool
 toServantHandler :: Env -> Filehub a -> Handler a
 toServantHandler env eff
   = Handler
+  . withExceptT toServerError
   . ExceptT
   . runFilehub env
   $ eff
@@ -76,7 +76,7 @@ sessionHandler env = mkAuthHandler handler
         header <- toEither "cookie not found" $ lookup "Cookie" (requestHeaders req)
         cookie <- bimap (Text.encodeUtf8 . Text.fromStrict) id $ parseHeader header
         toEither "can't get sessionId" (Cookie.getSessionId cookie)
-      _ <- toServantHandler env (Session.Pool.get sessionId & withServerError)
+      _ <- toServantHandler env (Session.Pool.get sessionId)
       pure sessionId
 
 
@@ -111,7 +111,7 @@ displayOnlyHandler witness predicate msg env =
     sessionId <- maybe (throwError err401 { errBody = "invalid session" }) pure do
       cookie <-  lookup "Cookie" (requestHeaders req)
       parseHeader' cookie >>= Cookies.getSessionId
-    display <- liftIO $ runFilehub env (Session.getDisplay sessionId & withServerError)
+    display <- liftIO $ runFilehub env (Session.getDisplay sessionId)
     case display of
       Right d | predicate d -> pure witness
       _                     -> throwError err400 { errBody = msg }
@@ -130,7 +130,7 @@ loginHandler env
         cookie    <- MaybeT . pure $ lookup "Cookie" (requestHeaders req)
         sessionId <- MaybeT . pure $ parseHeader' cookie >>= Cookies.getSessionId
         authId    <- MaybeT . pure $ parseHeader' cookie >>= Cookies.getAuthId
-        eSession  <- liftIO $ runFilehub env (Session.Pool.get sessionId & withServerError)
+        eSession  <- liftIO $ runFilehub env (Session.Pool.get sessionId)
         session   <- MaybeT . pure $ either (const Nothing) Just eSession
         guard (session.authId == Just authId)
         pure ConfirmLogin

@@ -12,7 +12,6 @@ import Data.Foldable (forM_)
 import Data.Function ((&))
 import Data.Text qualified as Text
 import Effectful ( MonadIO (liftIO) )
-import Filehub.Error ( withServerError, withServerError )
 import Filehub.Handler (ConfirmLogin)
 import Filehub.Monad
 import Filehub.Orphan ()
@@ -31,12 +30,12 @@ import Text.Printf (printf)
 download :: SessionId -> ConfirmLogin -> [ClientPath]
          -> Filehub (Headers '[ Header "Content-Disposition" String ] (ConduitT () ByteString (ResourceT IO) ()))
 download sessionId _ clientPaths = do
-  storage <- Session.getStorage sessionId & withServerError
-  root    <- Session.getRoot sessionId & withServerError
+  storage <- Session.getStorage sessionId
+  root    <- Session.getRoot sessionId
   case clientPaths of
     [clientPath@(ClientPath path)] -> do
-      file    <- storage.get (ClientPath.fromClientPath root clientPath) & withServerError
-      conduit <- withServerError (storage.download clientPath)
+      file    <- storage.get (ClientPath.fromClientPath root clientPath)
+      conduit <- storage.download clientPath
       let filename =
             case file.content of
               Regular -> printf "attachement; filename=%s" (takeFileName path)
@@ -47,7 +46,7 @@ download sessionId _ clientPaths = do
         tempDir <- Temp.getCanonicalTemporaryDirectory
         Temp.openTempFile tempDir "DXXXXXX.zip"
       tasks <- do
-        forM (fmap (ClientPath.fromClientPath root) clientPaths) \path -> withServerError do
+        forM (fmap (ClientPath.fromClientPath root) clientPaths) \path -> do
           file    <- storage.get path
           conduit <- storage.readStream file
           pure (path, conduit)

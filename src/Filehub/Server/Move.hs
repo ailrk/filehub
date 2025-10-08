@@ -3,10 +3,9 @@ module Filehub.Server.Move where
 import Control.Monad (when, void)
 import Data.ClientPath qualified as ClientPath
 import Data.Foldable (forM_)
-import Data.Function ((&))
 import Effectful.Concurrent.Async (async)
 import Effectful.Error.Dynamic (throwError)
-import Filehub.Error ( withServerError, FilehubError(..), withServerError, Error' (..) )
+import Filehub.Error ( FilehubError(..), Error' (..) )
 import Filehub.Handler (ConfirmLogin, ConfirmReadOnly)
 import Filehub.Monad
 import Filehub.Notification.Types (Notification(..))
@@ -29,14 +28,14 @@ move :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> MoveFile
                           , Header "HX-Trigger" FilehubEvent
                           ] (Html ()))
 move sessionId _ _ (MoveFile src tgt) = do
-  root         <- Session.getRoot sessionId & withServerError
-  storage      <- Session.getStorage sessionId & withServerError
+  root         <- Session.getRoot sessionId
+  storage      <- Session.getStorage sessionId
   let srcPaths =  fmap (ClientPath.fromClientPath root) src
   let tgtPath  =  ClientPath.fromClientPath root tgt
   void $ async do
     taskId <- newTaskId
     -- check before take action
-    forM_ srcPaths \srcPath -> withServerError do
+    forM_ srcPaths \srcPath -> do
       isTgtDir <- storage.isDirectory tgtPath
       when (not isTgtDir) do
         throwError (FilehubError InvalidDir "Target is not a directory")
@@ -49,11 +48,10 @@ move sessionId _ _ (MoveFile src tgt) = do
 
     let mvPairs = fmap (\srcPath -> (srcPath, tgtPath </> (takeFileName srcPath))) srcPaths
 
-    withServerError do
-      Session.notify sessionId (MoveProgressed taskId 0)
-      storage.mv mvPairs
-      Session.notify sessionId (MoveProgressed taskId 1)
-      Session.notify sessionId (TaskCompleted taskId)
+    Session.notify sessionId (MoveProgressed taskId 0)
+    storage.mv mvPairs
+    Session.notify sessionId (MoveProgressed taskId 1)
+    Session.notify sessionId (TaskCompleted taskId)
 
   Server.Internal.clear sessionId
   addHeader FileMoved . addHeader SSEStarted <$> index sessionId

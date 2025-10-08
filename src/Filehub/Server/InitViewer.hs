@@ -7,7 +7,6 @@ import Data.List qualified as List
 import Data.Maybe (fromMaybe)
 import Data.String.Interpolate (i)
 import Data.Text.Encoding qualified as Text
-import Filehub.Error ( withServerError, withServerError )
 import Filehub.Handler (ConfirmLogin)
 import Filehub.Monad
 import Filehub.Orphan ()
@@ -28,11 +27,10 @@ import System.FilePath (takeDirectory)
 initViewer :: SessionId -> ConfirmLogin -> Maybe ClientPath
            -> Filehub (Headers '[Header "HX-Trigger" FilehubEvent] NoContent)
 initViewer sessionId _ mClientPath = do
-  withServerError do
-    clientPath <- withQueryParam mClientPath
-    root       <- Session.getRoot sessionId
-    payload    <- initViewer' root clientPath
-    pure $ addHeader payload NoContent
+  clientPath <- withQueryParam mClientPath
+  root       <- Session.getRoot sessionId
+  payload    <- initViewer' root clientPath
+  pure $ addHeader payload NoContent
   where
     initViewer' root clientPath = do
       storage <- Session.getStorage sessionId

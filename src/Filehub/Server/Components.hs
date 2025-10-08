@@ -8,7 +8,6 @@ module Filehub.Server.Components
   where
 
 import Data.Function ((&))
-import Filehub.Error ( withServerError, withServerError )
 import Filehub.Monad
 import Filehub.Orphan ()
 import Filehub.Server.Internal (makeTemplateContext)
@@ -27,7 +26,7 @@ import Prelude hiding (init, readFile)
 
 index :: SessionId -> Filehub (Html ())
 index sessionId = do
-  display <- Session.getDisplay sessionId & withServerError
+  display <- Session.getDisplay sessionId
   case display of
     NoDisplay -> pure Template.bootstrap
     Desktop   -> Server.Desktop.index sessionId
@@ -36,7 +35,7 @@ index sessionId = do
 
 view :: SessionId -> Filehub (Html ())
 view sessionId = do
-  display <- Session.getDisplay sessionId & withServerError
+  display <- Session.getDisplay sessionId
   case display of
     Desktop   -> Server.Desktop.view sessionId
     Mobile    -> Server.Mobile.view sessionId
@@ -46,18 +45,17 @@ view sessionId = do
 controlPanel :: SessionId -> Filehub (Html ())
 controlPanel sessionId = do
   ctx <- makeTemplateContext sessionId
-  withServerError do
-    display <- Session.getDisplay sessionId
-    pure $
-      case display of
-        Desktop -> runTemplate ctx Template.Desktop.controlPanel
-        Mobile  -> runTemplate ctx Template.Mobile.controlPanel
-        _       -> runTemplate ctx Template.Mobile.controlPanel
+  display <- Session.getDisplay sessionId
+  pure $
+    case display of
+      Desktop -> runTemplate ctx Template.Desktop.controlPanel
+      Mobile  -> runTemplate ctx Template.Mobile.controlPanel
+      _       -> runTemplate ctx Template.Mobile.controlPanel
 
 
 sideBar :: SessionId -> Filehub (Html ())
 sideBar sessionId = do
-  display <- Session.getDisplay sessionId & withServerError
+  display <- Session.getDisplay sessionId
   case display of
     Desktop -> Server.Desktop.sideBar sessionId
     _       -> Server.Mobile.sideBar sessionId
@@ -65,7 +63,7 @@ sideBar sessionId = do
 
 toolBar :: SessionId -> Filehub (Html ())
 toolBar sessionId = do
-  display <- Session.getDisplay sessionId & withServerError
+  display <- Session.getDisplay sessionId
   case display of
     Desktop -> Server.Desktop.toolBar sessionId
     _       -> Server.Mobile.toolBar sessionId

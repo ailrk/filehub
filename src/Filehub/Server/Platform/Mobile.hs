@@ -6,7 +6,6 @@ import Data.ClientPath qualified as ClientPath
 import Effectful.Reader.Dynamic (asks)
 import Filehub.Env (Env)
 import Filehub.Env qualified as Env
-import Filehub.Error ( withServerError, withServerError )
 import Filehub.Monad ( Filehub )
 import Filehub.Server.Internal (withQueryParam, makeTemplateContext)
 import Filehub.Session (SessionId)
@@ -16,7 +15,6 @@ import Filehub.Sort (sortFiles)
 import Filehub.Template.Internal (runTemplate, TemplateContext(..))
 import Filehub.Template.Platform.Mobile qualified as Template.Mobile
 import Filehub.Types (ClientPath)
-import Lens.Micro
 import Lens.Micro.Platform ()
 import Lucid
 import Prelude hiding (readFile)
@@ -28,13 +26,13 @@ index sessionId = do
   ctx           <- makeTemplateContext sessionId
   sideBar'      <- sideBar sessionId
   view'         <- view sessionId
-  selectedCount <- Selected.countSelected sessionId & withServerError
+  selectedCount <- Selected.countSelected sessionId
   toolBar'      <- toolBar sessionId
   pure $ runTemplate ctx (Template.Mobile.index sideBar' toolBar' view' selectedCount)
 
 
 sideBar :: SessionId -> Filehub (Html ())
-sideBar sessionId = withServerError $
+sideBar sessionId = do
   Template.Mobile.sideBar
   <$> asks @Env (.targets)
   <*> Session.currentTarget sessionId
@@ -47,7 +45,7 @@ toolBar sessionId = do
 
 
 editorModal :: SessionId -> Maybe ClientPath -> Filehub (Html ())
-editorModal sessionId mClientPath = withServerError do
+editorModal sessionId mClientPath = do
   clientPath <- withQueryParam mClientPath
   storage    <- Session.getStorage sessionId
   root       <- Session.getRoot sessionId
@@ -63,7 +61,7 @@ editorModal sessionId mClientPath = withServerError do
 view :: SessionId -> Filehub (Html ())
 view sessionId = do
   ctx@TemplateContext{ sortedBy = order } <- makeTemplateContext sessionId
-  table <- withServerError do
+  table <- do
     storage <- Session.getStorage sessionId
     files   <- sortFiles order <$> storage.lsCwd
     pure $ runTemplate ctx (Template.Mobile.table files)
