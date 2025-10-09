@@ -174,9 +174,16 @@ library
     Filehub.Routes
     Filehub.Selected
     Filehub.Server
+    Filehub.Server.Components
+    Filehub.Server.Delete
+    Filehub.Server.Download
+    Filehub.Server.InitViewer
     Filehub.Server.Internal
+    Filehub.Server.Move
+    Filehub.Server.Paste
     Filehub.Server.Platform.Desktop
     Filehub.Server.Platform.Mobile
+    Filehub.Server.Upload
     Filehub.Session
     Filehub.Session.Copy
     Filehub.Session.Internal
@@ -184,6 +191,7 @@ library
     Filehub.Session.Selected
     Filehub.Session.Types
     Filehub.Session.Types.SessionId
+    Filehub.SharedLink
     Filehub.Size
     Filehub.Sort
     Filehub.Storage.Error
@@ -212,13 +220,6 @@ library
     System.FilePath.Extended
     Target.Class
     Target.File
-    Filehub.Server.Paste
-    Filehub.Server.Delete
-    Filehub.Server.Upload
-    Filehub.Server.Download
-    Filehub.Server.Move
-    Filehub.Server.InitViewer
-    Filehub.Server.Components
     Target.Internal
     Target.S3
     Target.Types
