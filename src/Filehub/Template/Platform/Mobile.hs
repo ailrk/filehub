@@ -194,7 +194,7 @@ record root target selected (idx, file) =
   tr_ attrs do
     td_ do
       fileNameElement target file
-      span_ [class_ "file-meta"] do
+      span_ [class_ "file-meta mobile "] do
         modifiedDateElement file
         i_ [ class_ "bx bx-wifi-0"] mempty
         sizeElement file
@@ -392,10 +392,11 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
 
     deleteBtn :: Template (Html ())
     deleteBtn = do
+      selected <- asks @TemplateContext (.selected)
       Phrase { control_panel_delete } <- phrase <$> asks @TemplateContext (.locale)
       pure do
         button_ [ class_ "action-btn urgent "
-                , term "hx-delete" (linkToText (apiLinks.delete [] True))
+                , term "hx-delete" (linkToText (apiLinks.delete (Selected.toList selected) True))
                 , term "hx-target" "#index"
                 , term "hx-swap" "outerHTML"
                 , term "hx-confirm" ("Are you sure about deleting selected files?")

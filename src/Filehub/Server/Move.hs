@@ -37,6 +37,7 @@ move sessionId _ _ (MoveFile src tgt) = do
   let srcPaths  =  fmap (ClientPath.fromClientPath root) src
   let tgtPath   =  ClientPath.fromClientPath root tgt
 
+  -- check before take action
   forM_ srcPaths \srcPath -> do
     isTgtDir <- storage.isDirectory tgtPath
     when (not isTgtDir) do
@@ -54,7 +55,6 @@ move sessionId _ _ (MoveFile src tgt) = do
       throwError (FilehubError InvalidPath "The destination already exists")
 
   void $ async do
-    -- check before take action
     atomically do
       writeTBQueue notifications (MoveProgressed taskId 0)
 

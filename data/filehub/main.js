@@ -248,6 +248,7 @@ function reloadUIComponent(e) {
     }
 }
 function listenSSE(_) {
+    console.log('listenSSE');
     if (!evtSource) {
         evtSource = new EventSource("/listen");
     }

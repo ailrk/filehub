@@ -1,7 +1,43 @@
-.fade-in { animation: fadeIn 0.3s ease-in; }
-@keyframes fadeIn {
-  from { opacity: 0; } to { opacity: 1; }
+/* Elements */
+
+input {
+  font-size: 1em;
+  background-color: var(--background3);
+  color: var(--frontground);
+  border: none;
+  outline: none;
+  border-radius: 5px;
 }
+
+
+input:focus {
+  outline: transparent;
+}
+
+
+.form-control {
+  padding: 0.8rem 0.5rem;
+}
+
+
+input.form-control {
+  width: 100%;
+}
+
+
+textarea.form-control {
+  width: 100%;
+}
+
+
+hr {
+  background: var(--frontground);
+  border: 0;
+  height: 1px;
+}
+
+
+/* Decorators */
 
 
 .fade {
@@ -31,13 +67,20 @@
 
 .selected {
   background: color-mix(in srgb, var(--background3) 98%, white) !important;
-
 }
 
 
 .selected.confirmed {
   background-color: var(--background3) !important;
 }
+
+
+.mr-2 {
+  margin-right: 10px;
+}
+
+
+/* Dropdown */
 
 
 .dropdown {
@@ -58,11 +101,13 @@
   animation-duration: 150ms;
   animation-timing-function: ease;
 
-  &.closing {
-    animation-name: fadeOut;
-    animation-duration: 150ms;
-    animation-timing-function: ease;
-  }
+}
+
+
+.dropdown-content.closing {
+  animation-name: fadeOut;
+  animation-duration: 150ms;
+  animation-timing-function: ease;
 }
 
 
@@ -70,33 +115,40 @@
   cursor: pointer;
   padding: 0.7em;
   white-space: nowrap;
+}
 
-  &:active {
-    transform: translateY(2px);
-  }
 
-  & span {
-    color: var(--frontground);
-    display: inline-block;
-    text-decoration: none;
-    padding: 0 2rem 0 1rem;
-  }
+.dropdown-item:active {
+  transform: translateY(2px);
+}
 
-  &:hover {
-    background: var(--background3);
-  }
 
-  .no-effect {
-    cursor: initial;
-  }
+.dropdown-item:hover {
+  background: var(--background3);
+}
 
-  &.no-effect:hover {
-    background: initial;
-  }
 
-  &.no-effect:active {
-    transform: initial;
-  }
+.dropdown-item span {
+  color: var(--frontground);
+  display: inline-block;
+  text-decoration: none;
+  padding: 0 2rem 0 1rem;
+}
+
+
+
+.dropdown-item.no-effect {
+  cursor: initial;
+}
+
+
+.dropdown-item.no-effect:hover {
+  background: initial;
+}
+
+
+.dropdown-item.no-effect:active {
+  transform: initial;
 }
 
 
@@ -107,18 +159,39 @@ a.dropdown-item {
 }
 
 
-#balloon-container {
-  position: fixed;
-  width: 500px;
-  padding-right: 20px;
-  right: 0px;
-  bottom: 0px;
-  display: flex;
-  flex-direction: column-reverse; /* new items stack on top */
-  align-items: flex-end;
-  overflow: hidden;
+/* File meta */
+
+.file-meta {
+  display: inline-flex;
+  color: #777; /* dimmer color */
 }
 
+
+.file-meta.mobile {
+  font-size: 0.85rem;
+  margin-top: 0.25rem;
+}
+
+
+/* Boxicon */
+
+
+.bxs-folder {
+  color: var(--secondary);
+}
+
+
+.bx-caret-right:hover {
+  color: var(--secondary);
+}
+
+
+.bx-caret-down:hover {
+  color: var(--secondary);
+}
+
+
+/* Ballon */
 
 .balloon {
   padding: 0.75rem 1rem;
@@ -151,6 +224,8 @@ a.dropdown-item {
 }
 
 
+/* Progress bar */
+
 .progress-container {
   width: 300px;         /* total width */
   height: 5px;         /* thickness */
@@ -168,7 +243,47 @@ a.dropdown-item {
 }
 
 
+/* animation */
+
+.fade-in { animation: fadeIn 0.3s ease-in; }
+
+
+@keyframes fadeIn {
+  0% {opacity: 0;}
+  100% {opacity: 1;}
+}
+
+
+@keyframes fadeOut {
+  0% {opacity: 1;}
+  100% {opacity: 0;}
+}
+
+
+@keyframes zoomIn {
+  0% {transform: scale(0.9);}
+  100% {transform: scale(1);}
+}
+
+
+@keyframes zoomOut {
+  0% {transform: scale(1);}
+  100% {transform: scale(0.9);}
+}
+
+
+
 @keyframes fadeInBallon {
   from { opacity: 0; transform: translateY(-10px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+
+/* Others */
+
+
+.debug {
+  position: fixed;
+  top: 5px;
+  left: 5px
 }

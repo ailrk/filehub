@@ -50,7 +50,6 @@ document.addEventListener("DOMContentLoaded", () => {
   document.addEventListener('SSEStarted', listenSSE);
   document.addEventListener('UIComponentReloaded', reloadUIComponent);
 
-
   /* Preserve scroll positions */
   document.body.addEventListener('htmx:responseError', handleError);
   document.addEventListener('htmx:afterOnLoad', restoreViewScrollTop);
@@ -296,6 +295,7 @@ function reloadUIComponent (e: any) {
 
 
 function listenSSE(_: Event) {
+  console.log('listenSSE')
   if (!evtSource) {
     evtSource = new EventSource("/listen")
   }

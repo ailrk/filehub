@@ -7,7 +7,6 @@ module Filehub.Server.Components
   )
   where
 
-import Data.Function ((&))
 import Filehub.Monad
 import Filehub.Orphan ()
 import Filehub.Server.Internal (makeTemplateContext)

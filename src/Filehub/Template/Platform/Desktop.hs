@@ -720,7 +720,7 @@ fileNameElement file target withIcon = do
 sizeElement :: FileInfo -> Html ()
 sizeElement file =
   span_ (toHtml displaySize)
-    `with` [ class_ "field file-meta"
+    `with` [ class_ "field file-meta "
            , title_ (Text.pack displaySize)
            ]
   where
@@ -730,7 +730,7 @@ sizeElement file =
 modifiedDateElement :: FileInfo -> Html ()
 modifiedDateElement file =
   span_ (toHtml displayTime)
-    `with` [ class_ "field file-meta"
+    `with` [ class_ "field file-meta "
            , title_ (Text.pack displayTime)
            ]
   where
@@ -831,7 +831,7 @@ contextMenuMany clientPaths = do
       div_ [ class_ "dropdown-item no-effect" ] do
         i_ [ class_ "bx bx-select-multiple" ] mempty
         span_ [i|#{length clientPaths} #{contextmenu_selected}|]
-      br_ []
+      hr_ []
       case readOnly of
         True -> mempty
         False -> do

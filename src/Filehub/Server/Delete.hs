@@ -66,4 +66,5 @@ delete sessionId _ _ clientPaths deleteSelected = do
 
     atomically do writeTBQueue notifications (TaskCompleted taskId)
   Server.Internal.clear sessionId
-  addHeader count . addHeader SSEStarted <$> index sessionId
+  newCount <- Selected.countSelected sessionId
+  addHeader newCount . addHeader SSEStarted <$> index sessionId

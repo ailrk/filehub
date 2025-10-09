@@ -48,7 +48,6 @@ paste :: SessionId -> ConfirmLogin -> ConfirmReadOnly
                            , Header "HX-Trigger" FilehubEvent
                            ] (Html ()))
 paste sessionId _ _ = do
-  selectedCount <- Selected.countSelected sessionId
   pasteCounter  <- newTVarIO @_ @Integer 0
   taskId        <- newTaskId
   notifications <- Session.getSessionNotifications sessionId
@@ -89,7 +88,8 @@ paste sessionId _ _ = do
       throwError (FilehubError SelectError "Not in a pastable state")
 
   Server.Internal.clear sessionId
-  addHeader selectedCount. addHeader SSEStarted <$> index sessionId
+  selectedCount <- Selected.countSelected sessionId
+  addHeader selectedCount . addHeader SSEStarted <$> index sessionId
 
   where
     createPasteTasks fromDir to selections = fmap (mconcat . mconcat) do

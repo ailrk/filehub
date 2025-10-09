@@ -1,4 +1,4 @@
-/* Simple debug utility to output log as html */
+/ Simple debug utility to output log as html */
 
 export function init() {
   // Reference to an output container, use 'pre' styling for JSON output

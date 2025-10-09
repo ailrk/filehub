@@ -39,24 +39,28 @@
   -webkit-touch-callout: none;
   user-select: none;
 
-  &::selection,
-  & *::selection {
-    background-color: transparent;
-  }
-
-  &:focus {
-    outline: 0;
-  }
-
-  & img, video {
-    display: block;
-    height: auto;
-    max-height: 80% !important;
-    max-width: 80% !important;
-    min-height: 0 !important;
-    min-width: 0 !important;
-  }
 }
+
+.viewer-container::selection,
+.viewer-container *::selection {
+  background-color: transparent;
+}
+
+
+.viewer-container:focus {
+  outline: 0;
+}
+
+
+viewer-container img, video {
+  display: block;
+  height: auto;
+  max-height: 80% !important;
+  max-width: 80% !important;
+  min-height: 0 !important;
+  min-width: 0 !important;
+}
+
 
 .viewer-canvas {
   bottom: 0;
@@ -68,15 +72,17 @@
   align-items: center; /* Center vertically */
   right: 0;
   top: 0;
-
-  & > img {
-    height: auto;
-    margin: 15px auto;
-    max-height: 77% !important;
-    object-fit: contain;
-    width: auto;
-  }
 }
+
+
+.viewer-canvas > img {
+  height: auto;
+  margin: 15px auto;
+  max-height: 77% !important;
+  object-fit: contain;
+  width: auto;
+}
+
 
 .viewer-footer {
   bottom: 0;
@@ -89,46 +95,49 @@
 }
 
 
-.viewer-toolbar {
-  & > ul {
-    display: inline-block;
-    margin: 0 auto 5px;
-    overflow: hidden;
-    padding: 6px 3px;
-
-    & > li {
-      background-color: rgba(0, 0, 0, 0.5);
-      border-radius: 50%;
-      cursor: pointer;
-      float: left;
-      height: 36px;
-      overflow: hidden;
-      transition: background-color 0.15s;
-      width: 36px;
-      align-content: center;
-
-      &:focus,
-      &:hover {
-        background-color: rgba(0, 0, 0, 0.8);
-      }
-
-      &:focus {
-        box-shadow: 0 0 3px #fff;
-        outline: 0;
-        position: relative;
-        z-index: 1;
-      }
-
-      &::before {
-        margin: 10px;
-      }
-
-      & + li {
-        margin-left: 5px;
-      }
-    }
-  }
+.viewer-toolbar ul {
+  display: inline-block;
+  margin: 0 auto 5px;
+  padding: 6px 3px;
+  overflow: hidden;
+  list-style: none;
 }
+
+.viewer-toolbar li {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: 36px;
+  height: 36px;
+  margin-left: 5px;
+  border-radius: 50%;
+  cursor: pointer;
+  background-color: rgba(0, 0, 0, 0.5);
+  transition: background-color 0.15s;
+  vertical-align: middle;
+  text-align: center;
+}
+
+.viewer-toolbar li:first-child {
+  margin-left: 0;
+}
+
+.viewer-toolbar li:hover,
+.viewer-toolbar li:focus {
+  background-color: rgba(0, 0, 0, 0.8);
+}
+
+.viewer-toolbar li:focus {
+  outline: none;
+  box-shadow: 0 0 3px #fff;
+  position: relative;
+  z-index: 1;
+}
+
+.viewer-toolbar li::before {
+  margin: 10px;
+}
+
 
 
 .viewer-tooltip {
