@@ -35,6 +35,7 @@ import Lens.Micro.Platform ()
 import Prelude hiding (read, readFile, writeFile)
 import Storage.File qualified
 import {-# SOURCE #-} Filehub.Session qualified as Session
+import Effectful.Concurrent (Concurrent)
 
 
 cd
@@ -62,6 +63,7 @@ storage
      , IOE                :> es
      , Cache              :> es
      , LockManager        :> es
+     , Concurrent         :> es
      , Error FilehubError :> es
      )
   => SessionId -> (Storage (Eff es))
@@ -98,9 +100,9 @@ storage sessionId =
         currentDir <- Session.getCurrentDir sessionId
         Storage.File.lsCwd currentDir
 
-    , upload = \multipart -> do
+    , upload = \filedata -> do
         currentDir <- Session.getCurrentDir sessionId
-        Storage.File.upload currentDir multipart
+        Storage.File.upload currentDir filedata
 
     , download = \clientPath -> do
         root <- Session.getRoot sessionId

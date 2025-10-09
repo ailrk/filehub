@@ -8,11 +8,11 @@ import Data.Conduit (ConduitT)
 import Data.Generics.Labels ()
 import Lens.Micro.Platform ()
 import Prelude hiding (readFile, writeFile)
-import Servant.Multipart ( MultipartData(..), Mem, MultipartData(..), Mem )
+import Servant.Multipart ( Mem, FileData )
 
 
 data Storage m = Storage
-  { get         :: FilePath -> m FileInfo
+  { get         :: FilePath -> m (Maybe FileInfo)
 
   , read        :: FileInfo -> m ByteString
 
@@ -34,7 +34,7 @@ data Storage m = Storage
 
   , lsCwd       :: m [FileInfo]
 
-  , upload      :: MultipartData Mem -> m ()
+  , upload      :: FileData Mem -> m ()
 
   , download    :: ClientPath
                 -> m (ConduitT () ByteString (ResourceT IO) ())

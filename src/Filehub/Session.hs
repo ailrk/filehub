@@ -100,6 +100,7 @@ import UnliftIO.STM (TBQueue, TVar, atomically, writeTBQueue)
 import Filehub.Notification.Types (Notification)
 import Data.Set (Set)
 import Worker.Task (TaskId)
+import Effectful.Concurrent (Concurrent)
 
 
 -- | Get the current target root. The meaning of the root depends on the target. e.g for
@@ -246,6 +247,7 @@ withTarget :: ( Reader Env         :> es
               , LockManager        :> es
               , IOE                :> es
               , Error FilehubError :> es
+              , Concurrent         :> es
               , Log                :> es)
            => SessionId -> TargetId -> (TargetView -> Storage (Eff es) -> Eff es a) -> Eff es a
 withTarget sessionId targetId action = do
@@ -270,6 +272,7 @@ getStorage
      , IOE                :> es
      , Cache              :> es
      , LockManager        :> es
+     , Concurrent         :> es
      , Error FilehubError :> es
      )
   => SessionId -> Eff es (Storage (Eff es))

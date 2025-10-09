@@ -21,6 +21,8 @@ import Prelude hiding (readFile)
 import System.FilePath (takeFileName)
 import Effectful.Reader.Dynamic (asks)
 import Filehub.Session (TargetView(..))
+import Effectful.Error.Dynamic (throwError)
+import Filehub.Error (FilehubError(..), Error'(InvalidPath))
 
 
 fileDetailModal :: SessionId -> Maybe ClientPath -> Filehub (Html ())
@@ -28,8 +30,10 @@ fileDetailModal sessionId mClientPath = do
   ctx@TemplateContext{ root } <- makeTemplateContext sessionId
   clientPath <- withQueryParam mClientPath
   storage    <- Session.getStorage sessionId
-  file       <- storage.get (ClientPath.fromClientPath root clientPath)
-  pure $ runTemplate ctx (Template.Desktop.fileDetailModal file)
+  mFile      <- storage.get (ClientPath.fromClientPath root clientPath)
+  case mFile of
+    Just file -> pure $ runTemplate ctx (Template.Desktop.fileDetailModal file)
+    Nothing   -> throwError (FilehubError InvalidPath "can't get file details")
 
 
 editorModal :: SessionId -> Maybe ClientPath -> Filehub (Html ())
@@ -38,19 +42,28 @@ editorModal sessionId mClientPath = do
   clientPath <- withQueryParam mClientPath
   storage    <- Session.getStorage sessionId
   let p = ClientPath.fromClientPath root clientPath
-  content <- do
-    f <- storage.get p
-    storage.read f
-  let filename = takeFileName p
-  pure $ runTemplate ctx (Template.Desktop.editorModal filename content)
+  mFile <- storage.get p
+  case mFile of
+    Just file -> do
+      content <- storage.read file
+      let filename = takeFileName p
+      pure $ runTemplate ctx (Template.Desktop.editorModal filename content)
+    Nothing -> do
+      throwError (FilehubError InvalidPath "can't edit file")
 
 
 contextMenu :: SessionId -> [ClientPath] -> Filehub (Html ())
 contextMenu sessionId clientPaths = do
   ctx@TemplateContext { root } <- makeTemplateContext sessionId
-  storage <- Session.getStorage sessionId
-  files   <- traverse storage.get (ClientPath.fromClientPath root <$> clientPaths)
-  pure $ runTemplate ctx (Template.Desktop.contextMenu files)
+  case clientPaths of
+    [clientPath] -> do
+      storage <- Session.getStorage sessionId
+      mFile   <- storage.get (ClientPath.fromClientPath root clientPath)
+      case mFile of
+        Just file -> pure $ runTemplate ctx (Template.Desktop.contextMenu1 file)
+        Nothing   -> throwError (FilehubError InvalidPath "can't get detail of the file")
+    _ -> do
+      pure $ runTemplate ctx (Template.Desktop.contextMenuMany clientPaths)
 
 
 index :: SessionId -> Filehub (Html ())

@@ -45,7 +45,7 @@ storage
   => SessionId -> Storage (Eff es)
 storage sessionId =
   Storage
-    { get = \path -> do
+    { get = \path -> withStorageError do
         s3 <- getS3 sessionId
         Storage.S3.get s3 path
 
@@ -85,11 +85,11 @@ storage sessionId =
         s3 <- getS3 sessionId
         Storage.S3.lsCwd s3
 
-    , upload = \multipart -> do
+    , upload = \filedata -> do
         s3 <- getS3 sessionId
-        Storage.S3.upload s3 multipart
+        Storage.S3.upload s3 filedata
 
-    , download = \clientPath -> do
+    , download = \clientPath -> withStorageError do
         root     <- Session.getRoot sessionId
         s3       <- getS3 sessionId
         let path =  fromClientPath root clientPath

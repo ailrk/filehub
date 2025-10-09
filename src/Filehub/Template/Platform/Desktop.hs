@@ -11,7 +11,8 @@ module Filehub.Template.Platform.Desktop
   , newFolderModal
   , fileDetailModal
   , editorModal
-  , contextMenu
+  , contextMenu1
+  , contextMenuMany
   , table
   , themeBtn
   , localeBtn
@@ -185,6 +186,7 @@ uploadBtn = do
            , name_ "file"
            , id_ fileInputId
            , style_ "display:none"
+           , multiple_ ""
            , term "hx-encoding" "multipart/form-data"
            , term "hx-post" (linkToText apiLinks.upload)
            , term "hx-target" "#index"
@@ -748,8 +750,8 @@ sortControl o =
 ------------------------------------
 
 
-contextMenu :: [FileInfo] -> Template (Html ())
-contextMenu [file] = do
+contextMenu1 :: FileInfo -> Template (Html ())
+contextMenu1 file = do
   root <- asks @TemplateContext (.root)
   readOnly <- asks @TemplateContext (.readOnly)
   Phrase
@@ -810,8 +812,10 @@ contextMenu [file] = do
            ] do
         i_ [ class_ "bx bx-detail" ] mempty
         span_ (toHtml contextmenu_details)
-contextMenu files = do
-  root <- asks @TemplateContext (.root)
+
+
+contextMenuMany :: [ClientPath] -> Template (Html ())
+contextMenuMany clientPaths = do
   readOnly <- asks @TemplateContext (.readOnly)
   Phrase
     { contextmenu_delete_local
@@ -823,11 +827,10 @@ contextMenu files = do
     } <- phrase <$> asks @TemplateContext (.locale)
 
   pure do
-    let clientPaths = fmap (ClientPath.toClientPath root . (.path)) files
     div_ [ class_ "dropdown-content " , id_ contextMenuId ] do
       div_ [ class_ "dropdown-item no-effect" ] do
         i_ [ class_ "bx bx-select-multiple" ] mempty
-        span_ [i|#{length files} #{contextmenu_selected}|]
+        span_ [i|#{length clientPaths} #{contextmenu_selected}|]
       br_ []
       case readOnly of
         True -> mempty

@@ -347,7 +347,7 @@ data Api mode = Api
                           :> AuthProtect "login"
                           :> AuthProtect "readonly"
                           :> MultipartForm Mem (MultipartData Mem)
-                          :> Post '[HTML] (Html ())
+                          :> Post '[HTML] (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
 
 
   , download              :: mode

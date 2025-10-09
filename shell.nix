@@ -13,6 +13,9 @@ hspkgs.shellFor {
     pkgs.bashInteractive
     pkgs.upx
     pkgs.nodePackages.typescript
+
+    # for tests
+    pkgs.tree
   ];
 
   shellHook = ''

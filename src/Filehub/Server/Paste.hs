@@ -3,10 +3,9 @@ module Filehub.Server.Paste (paste) where
 
 import Control.Monad (forM, void)
 import Data.File (FileType(..), File(..), FileContent (..), withContent, FileInfo)
-import Data.Function ((&))
 import Data.Ratio ((%))
 import Data.String.Interpolate (i)
-import Effectful.Concurrent.Async (async, mapConcurrently_)
+import Effectful.Concurrent.Async (async, forConcurrently_)
 import Effectful.Error.Dynamic (throwError)
 import Effectful.Log (logAttention_)
 import Filehub.Error ( FilehubError(..), Error' (..) )
@@ -16,7 +15,7 @@ import Filehub.Notification.Types (Notification(..))
 import Filehub.Orphan ()
 import Filehub.Server.Components (index)
 import Filehub.Server.Internal qualified as Server.Internal
-import Filehub.Session (SessionId(..), TargetView (..), withTarget, notify, currentTarget)
+import Filehub.Session (SessionId(..), TargetView (..), withTarget, currentTarget)
 import Filehub.Session qualified as Session
 import Filehub.Session.Copy qualified as Copy
 import Filehub.Session.Selected qualified as Selected
@@ -32,15 +31,16 @@ import Worker.Task (newTaskId)
 import Control.Monad.Fix (fix)
 import Target.Types (Target)
 import Effectful.Concurrent.STM (newTVarIO, readTVar, atomically, modifyTVar', writeTBQueue)
-import Debug.Trace
 
 
-data PasteTask = PasteTask
-  { from :: Target
-  , to :: Target
-  , file :: FileInfo
-  , dst :: FilePath
-  }
+type TargetFrom  = Target
+type TargetTo    = Target
+type Destination = FilePath
+
+
+data PasteTask
+  = PasteFile TargetFrom TargetTo FileInfo Destination
+  | PasteDir TargetTo Destination [PasteTask]
 
 
 paste :: SessionId -> ConfirmLogin -> ConfirmReadOnly
@@ -49,24 +49,41 @@ paste :: SessionId -> ConfirmLogin -> ConfirmReadOnly
                            ] (Html ()))
 paste sessionId _ _ = do
   selectedCount <- Selected.countSelected sessionId
-  taskId        <- newTaskId
   pasteCounter  <- newTVarIO @_ @Integer 0
-
-  state <- Copy.getCopyState sessionId
+  taskId        <- newTaskId
   notifications <- Session.getSessionNotifications sessionId
+  state         <- Copy.getCopyState sessionId
 
   case state of
     Paste selections -> do
-      -- totalPasteCount <- countTotalFiles selections
-      TargetView to sessionData _ <- currentTarget sessionId
-      tasks <- createPasteTasks sessionData.currentDir to selections
+      tasks <- do
+        TargetView to sessionData _ <- currentTarget sessionId
+        createPasteTasks sessionData.currentDir to selections
       let taskCount = fromIntegral (length tasks)
 
       (void . async) do
-        mapConcurrently_ (runTask taskId notifications pasteCounter taskCount) tasks
+        forConcurrently_ tasks $ fix \rec task -> do
+          case task of
+            PasteFile from to file dst -> do
+              let fromId = Target.getTargetId from
+              let toId   = Target.getTargetId to
+              conduit <- withTarget sessionId fromId \_ storage -> do
+                storage.readStream file
+              withTarget sessionId toId \_ storage -> do
+                storage.write dst (file `withContent` (FileContentConduit conduit))
+              atomically do
+                modifyTVar' pasteCounter (+ 1)
+                n <- readTVar pasteCounter
+                writeTBQueue notifications (PasteProgressed taskId (n % max 1 taskCount) )
+
+            PasteDir to dst subTasks -> do
+              Session.withTarget sessionId (Target.getTargetId to) \_ storage -> do
+                storage.newFolder dst
+              forConcurrently_ subTasks rec
+
         Copy.setCopyState sessionId NoCopyPaste
         Selected.clearSelectedAllTargets sessionId
-        notify sessionId (TaskCompleted taskId)
+        atomically $ writeTBQueue notifications (TaskCompleted taskId)
     _ -> do
       logAttention_ [i|Paste error: #{sessionId}, not in pastable state.|]
       throwError (FilehubError SelectError "Not in a pastable state")
@@ -75,19 +92,6 @@ paste sessionId _ _ = do
   addHeader selectedCount. addHeader SSEStarted <$> index sessionId
 
   where
-    runTask taskId notifications counterTVar totalPasteCount PasteTask { from, to, file, dst } = do
-      traceShowM ("task " <> file.path <> " " <> dst)
-      let fromId = Target.getTargetId from
-      let toId   = Target.getTargetId to
-      conduit <- withTarget sessionId fromId \_ storage -> do
-        storage.readStream file
-      withTarget sessionId toId \_ storage -> do
-        storage.write dst (file `withContent` (FileContentConduit conduit))
-      atomically do
-        modifyTVar' counterTVar (+ 1)
-        n <- readTVar counterTVar
-        writeTBQueue notifications (PasteProgressed taskId (n % max 1 totalPasteCount) )
-
     createPasteTasks fromDir to selections = fmap (mconcat . mconcat) do
       forM selections \(from, files) -> do
         forM files $ flip fix fromDir \rec currentDir file -> do
@@ -95,7 +99,7 @@ paste sessionId _ _ = do
           let fromId = Target.getTargetId from
           case file.content of
             Regular -> do
-              pure [ PasteTask { from, to, file, dst } ]
+              pure [ PasteFile from to file dst ]
             Dir -> do
               withTarget sessionId fromId \(TargetView _ (TargetSessionData { currentDir = savedDir }) _) storage -> do
                 storage.cd file.path
@@ -104,4 +108,4 @@ paste sessionId _ _ = do
                   forM dirFiles \dfile -> do
                     rec dst dfile
                 storage.cd savedDir -- go back
-                pure (mconcat result)
+                pure [ PasteDir to dst (mconcat result) ]

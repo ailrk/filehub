@@ -44,11 +44,13 @@ import Data.ByteString.Lazy qualified as LBS
 import Data.File (File (..), FileInfo, FileType (..), FileWithContent, FileContent (..), defaultFileWithContent)
 import Data.Generics.Labels ()
 import Data.Kind (Type)
+import Data.Maybe (maybeToList)
 import Data.String.Interpolate (i)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.Time (secondsToNominalDiffTime)
 import Effectful ( Eff, Eff, runEff, (:>), IOE)
+import Effectful.Concurrent.Async (mapConcurrently_, Concurrent)
 import Effectful.Error.Dynamic (throwError, Error)
 import Effectful.Extended.Cache (Cache)
 import Effectful.Extended.Cache qualified as Cache
@@ -63,7 +65,7 @@ import GHC.TypeLits (Symbol)
 import Lens.Micro.Platform ()
 import Network.Mime (defaultMimeLookup)
 import Prelude hiding (read, readFile, writeFile)
-import Servant.Multipart (MultipartData(..), Mem, FileData (..))
+import Servant.Multipart (Mem, FileData (..))
 import Storage.Error (StorageError (..))
 import System.FilePath ((</>), takeDirectory, takeFileName)
 import System.IO.Error (isDoesNotExistError)
@@ -93,41 +95,32 @@ get
     , Log        :> es
     , cacheType ~ FileInfo
     , cacheName ~ "file")
-  => FilePath -> Eff es FileInfo
+  => FilePath -> Eff es (Maybe FileInfo)
 get path = do
   mCached <- Cache.lookup @cacheType cacheKey
   case mCached of
     Just cached -> do
-      pure cached
+      pure (Just cached)
     Nothing -> do
       exists <- doesPathExist path
-      file <- do
-        if exists
-           then do
-             size  <- getFileSize path
-             mtime <- getModificationTime path
-             atime <- getAccessTime path
-             isDir <- isDirectory path
-             let mimetype = defaultMimeLookup (Text.pack path)
-             pure File
-               { path     = path
-               , size     = Just size
-               , mtime    = Just mtime
-               , atime    = Just atime
-               , mimetype = mimetype
-               , content  = if isDir then Dir else Regular
-               }
-            else do
-              pure File
-                { path     = path
-                , size     = Just 0
-                , atime    = Nothing
-                , mtime    = Nothing
-                , mimetype = "application/octet-stream"
-                , content  = Regular
-                }
-      Cache.insert cacheKey cacheDeps cacheTTL file
-      pure file
+      if exists
+         then do
+           size  <- getFileSize path
+           mtime <- getModificationTime path
+           atime <- getAccessTime path
+           isDir <- isDirectory path
+           let mimetype = defaultMimeLookup (Text.pack path)
+           let file = File
+                 { path     = path
+                 , size     = Just size
+                 , mtime    = Just mtime
+                 , atime    = Just atime
+                 , mimetype = mimetype
+                 , content  = if isDir then Dir else Regular
+                 }
+           Cache.insert cacheKey cacheDeps cacheTTL file
+           pure (Just file)
+          else pure Nothing
   where
     cacheKey  = createCacheKey @cacheName @cacheType (Builder.string8 path)
     cacheDeps = [ SomeCacheKey (createCacheKey @"dir" @[FileInfo] (Builder.string8 (takeDirectory path))) ]
@@ -266,21 +259,18 @@ mv
      , Log                :> es
      , Cache              :> es
      , LockManager        :> es
+     , Concurrent         :> es
      , Error StorageError :> es)
   => FilePath -> [(FilePath, FilePath)] -> Eff es ()
 mv _ [] = throwError (CopyError "Nothing to copy")
 mv currentDir cpPairs = do
-  forM_ cpPairs \(src, dst) -> do
-    LockManager.withLock (LockManager.mkLockKey dst) do
-      LockManager.withLock (LockManager.mkLockKey src) do
-        isDir <- isDirectory src
-        if isDir then copyDirectoryRecursive src dst
-        else join $ copyFile <$> toFilePath currentDir src <*> toFilePath currentDir dst
-        delete currentDir src
-        -- cache needs to be deleted within the critical section, otherwise a fast click
-        -- can look at the staled page
-        Cache.delete (createCacheKey @"dir" @[FileInfo] (Builder.string8 (takeDirectory src)))
-        Cache.delete (createCacheKey @"dir" @[FileInfo] (Builder.string8 (takeDirectory dst)))
+  flip mapConcurrently_ cpPairs \(src, dst) -> do
+    isDir <- isDirectory src
+    if isDir then copyDirectoryRecursive src dst
+    else join $ copyFile <$> toFilePath currentDir src <*> toFilePath currentDir dst
+    delete currentDir src
+    Cache.delete (createCacheKey @"dir" @[FileInfo] (Builder.string8 (takeDirectory src)))
+    Cache.delete (createCacheKey @"dir" @[FileInfo] (Builder.string8 (takeDirectory dst)))
 
 
 -- | Copy all files and subdirectories from src to dst.
@@ -358,9 +348,11 @@ ls path = do
         unzip <$> do
           listDirectory path
             >>= traverse makeAbsolute
-            >>= traverse \x -> do
-              file <- get x
-              let depKey = SomeCacheKey (createCacheKey @"file" @FileInfo (Builder.string8 x))
+            >>= traverse get
+            >>= traverse (pure . maybeToList)
+            >>= pure . mconcat
+            >>= traverse \file -> do
+              let depKey = SomeCacheKey (createCacheKey @"file" @FileInfo (Builder.string8 file.path))
               pure (file, depKey)
       Cache.insert cacheKey cacheDeps cacheTTL files
       pure files
@@ -390,17 +382,16 @@ upload
      , IOE         :> es
      , Cache       :> es
      , LockManager :> es)
-  => FilePath -> MultipartData Mem -> Eff es ()
-upload currentDir multipart = do
-  forM_ multipart.files \file -> do
-    let mimetype = Text.encodeUtf8 file.fdFileCType
-    let name     = Text.unpack file.fdFileName
-    let bytes    = LBS.toStrict file.fdPayload
-    write currentDir name $ defaultFileWithContent
-      { path     = name
-      , mimetype = mimetype
-      , content  = FileContentRaw bytes
-      }
+  => FilePath -> FileData Mem -> Eff es ()
+upload currentDir file = do
+  let mimetype = Text.encodeUtf8 file.fdFileCType
+  let name     = Text.unpack file.fdFileName
+  let bytes    = LBS.toStrict file.fdPayload
+  write currentDir name $ defaultFileWithContent
+    { path     = name
+    , mimetype = mimetype
+    , content  = FileContentRaw bytes
+    }
 
 
 download
@@ -410,25 +401,29 @@ download
      , Cache      :> es)
   => FilePath -> Eff es (ConduitT () ByteString (ResourceT IO) ())
 download path = do
-  file <- get path
-  case file.content of
-    Regular -> readStream file
-    Dir     -> do
-      (zipPath, _) <- liftIO do
-        tempDir <- Temp.getCanonicalTemporaryDirectory
-        Temp.openTempFile tempDir "DXXXXXX.zip"
+  mFile <- get path
+  case mFile of
+    Just file -> do
+      case file.content of
+        Regular -> readStream file
+        Dir     -> do
+          (zipPath, _) <- liftIO do
+            tempDir <- Temp.getCanonicalTemporaryDirectory
+            Temp.openTempFile tempDir "DXXXXXX.zip"
 
-      Zip.createArchive zipPath do
-        Zip.packDirRecur
-          Zip.Zstd
-          Zip.mkEntrySelector
-          path
+          Zip.createArchive zipPath do
+            Zip.packDirRecur
+              Zip.Zstd
+              Zip.mkEntrySelector
+              path
 
-      pure $
-        Conduit.bracketP
-          (pure ())
-          (\_ -> runEff . runFileSystem $ removeFile zipPath)
-          (\_ -> Conduit.sourceFile zipPath)
+          pure $
+            Conduit.bracketP
+              (pure ())
+              (\_ -> runEff . runFileSystem $ removeFile zipPath)
+              (\_ -> Conduit.sourceFile zipPath)
+    Nothing ->
+      pure undefined
 
 
 --

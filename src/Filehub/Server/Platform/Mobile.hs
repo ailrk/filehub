@@ -19,6 +19,8 @@ import Lens.Micro.Platform ()
 import Lucid
 import Prelude hiding (readFile)
 import System.FilePath (takeFileName)
+import Effectful.Error.Dynamic (throwError)
+import Filehub.Error (FilehubError(..), Error'(InvalidPath))
 
 
 index :: SessionId -> Filehub (Html ())
@@ -50,12 +52,15 @@ editorModal sessionId mClientPath = do
   storage    <- Session.getStorage sessionId
   root       <- Session.getRoot sessionId
   let p      =  ClientPath.fromClientPath root clientPath
-  content <- do
-    f <- storage.get p
-    storage.read f
-  let filename = takeFileName p
-  readOnly <- asks @Env (.readOnly)
-  pure $ Template.Mobile.editorModal readOnly filename content
+  mFile <- storage.get p
+  case mFile of
+    Just file -> do
+      content <- storage.read file
+      let filename = takeFileName p
+      readOnly <- asks @Env (.readOnly)
+      pure $ Template.Mobile.editorModal readOnly filename content
+    Nothing -> do
+      throwError (FilehubError InvalidPath "can't edit file")
 
 
 view :: SessionId -> Filehub (Html ())

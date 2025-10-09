@@ -5,9 +5,7 @@ import Data.ClientPath (ClientPath (..))
 import Data.ClientPath qualified as ClientPath
 import Data.Foldable (forM_)
 import Data.Ratio ((%))
-import Effectful ( raise )
-import Effectful.Concurrent.Async (async)
-import Effectful.State.Static.Local (modify, get, evalState, execState)
+import Effectful.Concurrent.Async (async, mapConcurrently_)
 import Filehub.Handler (ConfirmLogin, ConfirmReadOnly)
 import Filehub.Monad
 import Filehub.Notification.Types (Notification(..))
@@ -25,6 +23,7 @@ import Servant (addHeader)
 import Servant (Headers, Header)
 import Target.Types qualified as Target
 import Worker.Task (newTaskId)
+import Effectful.Concurrent.STM (newTVarIO, modifyTVar', atomically, readTVar, writeTBQueue)
 
 
 delete :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> [ClientPath] -> Bool
@@ -32,34 +31,39 @@ delete :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> [ClientPath] -> Bool
                             , Header "HX-Trigger" FilehubEvent
                             ] (Html ()))
 delete sessionId _ _ clientPaths deleteSelected = do
-  count <- Selected.countSelected sessionId
-  void $ async do
-    taskId <- newTaskId
-    storage <- Session.getStorage sessionId
-    root    <- Session.getRoot sessionId
-    Session.notify sessionId (DeleteProgressed taskId 0)
+  count         <- Selected.countSelected sessionId
+  root          <- Session.getRoot sessionId
+  storage       <- Session.getStorage sessionId
+  taskId        <- newTaskId
+  deleteCounter <- newTVarIO @_ @Integer 0
+  notifications <- Session.getSessionNotifications sessionId
 
-    nDeleted <- execState @Integer 0 do
-      forM_ clientPaths \clientPath -> do
-        n <- modify @Integer (+ 1) >> get @Integer
+  void $ async do
+    atomically do writeTBQueue notifications (DeleteProgressed taskId 0)
+
+    do
+      flip mapConcurrently_ clientPaths \clientPath -> do
         let path = ClientPath.fromClientPath root clientPath
-        raise $ storage.delete path
-        Session.notify sessionId (DeleteProgressed taskId (n % max 1 (fromIntegral count)))
+        storage.delete path
+        atomically do
+          modifyTVar' deleteCounter (+ 1)
+          n <- readTVar deleteCounter
+          writeTBQueue notifications (DeleteProgressed taskId (n % max 1 (fromIntegral count)))
 
     when deleteSelected do
       allSelecteds <- Selected.allSelecteds sessionId
-      evalState @Integer nDeleted do
-        forM_ allSelecteds \(target, selected) -> do
-          Session.withTarget sessionId (Target.getTargetId target) \_ _ -> do
-            case selected of
-              NoSelection -> pure ()
-              Selected x xs -> do
-                forM_ (fmap (ClientPath.fromClientPath root) (x:xs)) \path -> do
-                  n <- modify @Integer (+ 1) >> get @Integer
-                  raise $ storage.delete path
-                  Session.notify sessionId (DeleteProgressed taskId (n % max 1 (fromIntegral count)))
+      forM_ allSelecteds \(target, selected) -> do
+        Session.withTarget sessionId (Target.getTargetId target) \_ _ -> do
+          case selected of
+            NoSelection -> pure ()
+            Selected x xs -> do
+              flip mapConcurrently_ (fmap (ClientPath.fromClientPath root) (x:xs)) \path -> do
+                storage.delete path
+                atomically do
+                  modifyTVar' deleteCounter (+ 1)
+                  n <- readTVar deleteCounter
+                  writeTBQueue notifications (DeleteProgressed taskId (n % max 1 (fromIntegral count)))
 
-    Session.notify sessionId (DeleteProgressed taskId 1)
-    Session.notify sessionId (TaskCompleted taskId)
+    atomically do writeTBQueue notifications (TaskCompleted taskId)
   Server.Internal.clear sessionId
   addHeader count . addHeader SSEStarted <$> index sessionId

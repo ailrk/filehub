@@ -653,13 +653,16 @@ serve sessionId _ mFile = do
   root       <- Session.getRoot sessionId
   clientPath <- withQueryParam mFile
   let path   = ClientPath.fromClientPath root clientPath
-  file       <- storage.get path
-  conduit    <- storage.readStream file
-  pure
-    . addHeader (ByteString.unpack file.mimetype)
-    . addHeader (printf "inline; filename=%s" (takeFileName path))
-    . addHeader "public, max-age=31536000, immutable"
-    $ conduit
+  storage.get path >>= \case
+    Just file -> do
+      conduit <- storage.readStream file
+      pure
+        . addHeader (ByteString.unpack file.mimetype)
+        . addHeader (printf "inline; filename=%s" (takeFileName path))
+        . addHeader "public, max-age=31536000, immutable"
+        $ conduit
+    Nothing -> do
+      throwError (FilehubError InvalidPath "file path is invalid")
 
 
 thumbnail :: SessionId -> ConfirmLogin -> Maybe ClientPath
@@ -673,13 +676,18 @@ thumbnail sessionId _ mFile = do
   root       <- Session.getRoot sessionId
   clientPath <- withQueryParam mFile
   let path   = ClientPath.fromClientPath root clientPath
-  file       <- storage.get path
-  conduit    <- serveOriginal storage file
-  pure
-    . addHeader (ByteString.unpack file.mimetype)
-    . addHeader (printf "inline; filename=%s" (takeFileName path))
-    . addHeader "public, max-age=31536000, immutable"
-    $ conduit
+
+  storage.get path >>= \case
+    Just file -> do
+      conduit <- serveOriginal storage file
+      pure
+        . addHeader (ByteString.unpack file.mimetype)
+        . addHeader (printf "inline; filename=%s" (takeFileName path))
+        . addHeader "public, max-age=31536000, immutable"
+        $ conduit
+    Nothing -> do
+      throwError (FilehubError InvalidPath "thumbnail file path is invalid")
+
   where
     serveOriginal storage file =
       if

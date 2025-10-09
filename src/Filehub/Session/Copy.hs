@@ -13,23 +13,24 @@ import Control.Monad (forM_)
 import Data.ClientPath qualified as ClientPath
 import Data.Function (on)
 import Data.List (nub)
+import Data.Maybe (catMaybes)
 import Data.String.Interpolate (i)
 import Effectful (Eff, (:>), Eff, (:>), IOE)
+import Effectful.Concurrent (Concurrent)
 import Effectful.Error.Dynamic (Error, throwError)
 import Effectful.Extended.Cache (Cache)
 import Effectful.Extended.LockManager (LockManager)
 import Effectful.FileSystem (FileSystem)
 import Effectful.Log (Log, logAttention_)
 import Effectful.Reader.Dynamic (Reader)
+import Effectful.Temporary (Temporary)
 import Filehub.Error (FilehubError (..), Error' (..))
 import Filehub.Session qualified as Session
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Session.Selected qualified as Selected
 import Filehub.Types (Env, CopyState(..), SessionId, Selected (..))
 import Lens.Micro hiding (to)
-import Lens.Micro.Platform ()
 import Target.Types qualified as Target
-import Effectful.Temporary (Temporary)
 
 
 getCopyState :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es CopyState
@@ -52,6 +53,7 @@ select :: ( Reader Env         :> es
           , Log                :> es
           , Cache              :> es
           , LockManager        :> es
+          , Concurrent         :> es
           , Error FilehubError :> es)
        => SessionId -> Eff es ()
 select sessionId = do
@@ -71,10 +73,10 @@ select sessionId = do
               logAttention_ [i|#{err}|]
               throwError err
         Selected x xs -> do
-          root      <- Session.getRoot sessionId
-          let paths =  (x:xs) & fmap (ClientPath.fromClientPath root)
-          files     <- traverse storage.get paths
-          state     <- getCopyState sessionId
+          root <- Session.getRoot sessionId
+          let paths = (x:xs) & fmap (ClientPath.fromClientPath root)
+          files <- traverse storage.get paths <&> catMaybes
+          state <- getCopyState sessionId
           case onSelected (target, files) state of
             Right state' -> setCopyState sessionId state'
             Left err -> do

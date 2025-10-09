@@ -1,7 +1,8 @@
 module Filehub.Server.Upload (upload) where
 
 import Control.Monad (void)
-import Effectful.Concurrent.Async (async)
+import Effectful.Concurrent.Async (async, forConcurrently_)
+import Effectful.Concurrent.STM (atomically, writeTBQueue, newTVarIO, modifyTVar', readTVar)
 import Filehub.Handler (ConfirmLogin, ConfirmReadOnly)
 import Filehub.Monad
 import Filehub.Notification.Types (Notification(..))
@@ -11,17 +12,35 @@ import Filehub.Session (SessionId(..))
 import Filehub.Session qualified as Session
 import Lucid ( Html )
 import Prelude hiding (init, readFile)
-import Servant.Multipart (MultipartData, Mem)
+import Servant.Multipart (MultipartData(..), Mem)
 import Worker.Task (newTaskId)
+import Data.Ratio ((%))
+import Servant (addHeader, Headers, Header)
+import Filehub.Types (FilehubEvent(..))
 
 
-upload :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> MultipartData Mem -> Filehub (Html ())
+upload :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> MultipartData Mem
+       -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent
+                            ] (Html ()))
 upload sessionId _ _ multipart = do
+  notifications <- Session.getSessionNotifications sessionId
+  taskId        <- newTaskId
+  uploadCounter <- newTVarIO @_ @Integer 0
+  let taskCount =  fromIntegral $ length multipart.files
+
   void $ async do
-    taskId <- newTaskId
-    Session.notify sessionId (UploadProgressed taskId 0)
+    atomically do
+      writeTBQueue notifications (UploadProgressed taskId 0)
+
     storage <- Session.getStorage sessionId
-    storage.upload multipart
-    Session.notify sessionId (UploadProgressed taskId 1)
-    Session.notify sessionId (TaskCompleted taskId)
-  index sessionId
+    forConcurrently_ multipart.files \filedata -> do
+      storage.upload filedata
+      atomically do
+        modifyTVar' uploadCounter (+ 1)
+        n <- readTVar uploadCounter
+        writeTBQueue notifications (UploadProgressed taskId (n % max 1 taskCount) )
+
+    atomically do
+      writeTBQueue notifications (UploadProgressed taskId 1)
+      writeTBQueue notifications (TaskCompleted taskId)
+  addHeader SSEStarted <$> index sessionId

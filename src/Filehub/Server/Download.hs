@@ -25,6 +25,9 @@ import System.FilePath (takeFileName, makeRelative)
 import System.IO.Temp qualified as Temp
 import System.Random (randomRIO)
 import Text.Printf (printf)
+import Data.Maybe (catMaybes)
+import Filehub.Error (FilehubError(..), Error'(..))
+import Effectful.Error.Dynamic (throwError)
 
 
 download :: SessionId -> ConfirmLogin -> [ClientPath]
@@ -34,22 +37,32 @@ download sessionId _ clientPaths = do
   root    <- Session.getRoot sessionId
   case clientPaths of
     [clientPath@(ClientPath path)] -> do
-      file    <- storage.get (ClientPath.fromClientPath root clientPath)
+      mFile   <- storage.get (ClientPath.fromClientPath root clientPath)
       conduit <- storage.download clientPath
-      let filename =
-            case file.content of
-              Regular -> printf "attachement; filename=%s" (takeFileName path)
-              Dir     -> printf "attachement; filename=%s.zip" (takeFileName path)
-      pure $ addHeader filename conduit
+      case mFile of
+        Just file -> do
+          let filename =
+                case file.content of
+                  Regular -> printf "attachement; filename=%s" (takeFileName path)
+                  Dir     -> printf "attachement; filename=%s.zip" (takeFileName path)
+          pure $ addHeader filename conduit
+        Nothing -> do
+          throwError (FilehubError InvalidPath "can't download, invalid file path")
     _ -> do
       (zipPath, _) <- liftIO do
         tempDir <- Temp.getCanonicalTemporaryDirectory
         Temp.openTempFile tempDir "DXXXXXX.zip"
-      tasks <- do
-        forM (fmap (ClientPath.fromClientPath root) clientPaths) \path -> do
-          file    <- storage.get path
-          conduit <- storage.readStream file
-          pure (path, conduit)
+
+      files <- do
+        clientPaths
+        & fmap (ClientPath.fromClientPath root)
+        & traverse storage.get
+        & fmap catMaybes
+
+      tasks <- forM files \file -> do
+        conduit <- storage.readStream file
+        pure (file.path, conduit)
+
       Zip.createArchive zipPath do
         forM_ tasks \(path, conduit) -> do
           m <- Zip.mkEntrySelector  (makeRelative root path)

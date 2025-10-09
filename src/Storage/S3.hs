@@ -72,7 +72,7 @@ import Lens.Micro
 import Lens.Micro.Platform ()
 import Network.Mime (defaultMimeLookup)
 import Prelude hiding (read, readFile, writeFile)
-import Servant.Multipart (MultipartData(..), Mem, FileData (..))
+import Servant.Multipart (Mem, FileData (..))
 import Storage.Error (StorageError (..))
 import System.IO.Temp qualified as Temp
 import Target.S3 (Backend(..), S3)
@@ -98,34 +98,39 @@ createCacheKey targetId identifier = Cache.mkCacheKey
 
 get
   :: forall es cacheType cacheName
-  . ( IOE   :> es
-    , Log   :> es
-    , Cache :> es
+  . ( IOE                :> es
+    , Log                :> es
+    , Cache              :> es
+    , Error StorageError :> es
     , cacheType ~ FileInfo
     , cacheName ~ "file")
-    => Backend S3 -> FilePath -> Eff es FileInfo
+    => Backend S3 -> FilePath -> Eff es (Maybe FileInfo)
 get (s3@S3Backend { targetId }) path = do
   mCached      <- Cache.lookup @cacheType cacheKey
   case mCached of
-    Just cached -> pure cached
+    Just cached -> pure (Just cached)
     Nothing -> do
       let bucket  = Amazonka.BucketName s3.bucket
       let key     = Amazonka.ObjectKey (Text.pack path)
       let request = Amazonka.newHeadObject bucket key
       resp <- runResourceT $ send s3.env request
-      let mtime       = resp ^. Amazonka.headObjectResponse_lastModified
-      let size        = resp ^. Amazonka.headObjectResponse_contentLength
-      let contentType = resp ^. Amazonka.headObjectResponse_contentType
-      let file = File
-            { path     = path
-            , atime    = Nothing
-            , mtime    = mtime
-            , size     = size
-            , mimetype = maybe "application/octet-stream" Text.encodeUtf8 contentType
-            , content  = Regular
-            }
-      Cache.insert cacheKey cacheDeps cacheTTL file
-      pure file
+      if resp ^. Amazonka.headObjectResponse_httpStatus == 200
+         then do
+          let mtime       = resp ^. Amazonka.headObjectResponse_lastModified
+          let size        = resp ^. Amazonka.headObjectResponse_contentLength
+          let contentType = resp ^. Amazonka.headObjectResponse_contentType
+          let file = File
+                { path     = path
+                , atime    = Nothing
+                , mtime    = mtime
+                , size     = size
+                , mimetype = maybe "application/octet-stream" Text.encodeUtf8 contentType
+                , content  = Regular
+                }
+          Cache.insert cacheKey cacheDeps cacheTTL file
+          pure (Just file)
+        else do
+          throwError (InvalidPath "invalid path")
   where
     cacheKey  =  createCacheKey @cacheName @cacheType targetId (Builder.string8 path)
     cacheDeps = [ SomeCacheKey (createCacheKey @cacheName @cacheType targetId "") ]
@@ -421,46 +426,47 @@ upload
   :: ( Cache :> es
      , Log   :> es
      , IOE   :> es)
-  => Backend S3 -> MultipartData Mem -> Eff es ()
-upload s3 multipart = do
-  forM_ multipart.files \file -> do
-    let mimetype = Text.encodeUtf8 file.fdFileCType
-    let name     = Text.unpack file.fdFileName
-    let bytes    = LBS.toStrict (file.fdPayload)
-    write s3 name $ defaultFileWithContent
-      { path     = name
-      , mimetype = mimetype
-      , content  = FileContentRaw bytes
-      }
-
-
+  => Backend S3 -> FileData Mem -> Eff es ()
+upload s3 file = do
+  let mimetype = Text.encodeUtf8 file.fdFileCType
+  let name     = Text.unpack file.fdFileName
+  let bytes    = LBS.toStrict (file.fdPayload)
+  write s3 name $ defaultFileWithContent
+    { path     = name
+    , mimetype = mimetype
+    , content  = FileContentRaw bytes
+    }
 
 
 download
-  :: ( IOE   :> es
-     , Log   :> es
-     , Cache :> es)
+  :: ( IOE                :> es
+     , Log                :> es
+     , Cache              :> es
+     , Error StorageError :> es)
   => Backend S3 -> FilePath -> Eff es (ConduitT () ByteString (ResourceT IO) ())
 download s3 path = do
-  file     <- get s3 path
-  case file.content of
-    Regular -> readStream s3 file
-    Dir     -> do
-      (zipPath, _) <- liftIO do
-        tempDir <- Temp.getCanonicalTemporaryDirectory
-        Temp.openTempFile tempDir "DXXXXXX.zip"
+  mFile <- get s3 path
+  case mFile of
+    Just file -> do
+      case file.content of
+        Regular -> readStream s3 file
+        Dir     -> do
+          (zipPath, _) <- liftIO do
+            tempDir <- Temp.getCanonicalTemporaryDirectory
+            Temp.openTempFile tempDir "DXXXXXX.zip"
 
-      Zip.createArchive zipPath do
-        Zip.packDirRecur
-          Zip.Zstd
-          Zip.mkEntrySelector
-          path
+          Zip.createArchive zipPath do
+            Zip.packDirRecur
+              Zip.Zstd
+              Zip.mkEntrySelector
+              path
 
-      pure $
-        Conduit.bracketP
-          (pure ())
-          (\_ -> runEff . runFileSystem $ removeFile zipPath)
-          (\_ -> Conduit.sourceFile zipPath)
+          pure $
+            Conduit.bracketP
+              (pure ())
+              (\_ -> runEff . runFileSystem $ removeFile zipPath)
+              (\_ -> Conduit.sourceFile zipPath)
+    Nothing -> pure undefined
 
 
 --
