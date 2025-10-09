@@ -287,7 +287,6 @@ listen sessionId _ = recommendedEventSourceHeaders <$> do
       PasteProgressed _ _  -> pure do yield notification >> loop
       MoveProgressed _ _   -> pure do yield notification >> loop
       UploadProgressed _ _ -> pure do yield notification >> loop
-      Progressing _        -> pure do yield notification >> loop
       Pong                 -> pure do yield notification >> loop
 
 

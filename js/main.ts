@@ -380,14 +380,4 @@ function listenSSE(_: Event) {
       progress: [data.progress.numerator, data.progress.denominator]
     })
   })
-
-  evtSource.addEventListener('Progressing', e => {
-    let data = JSON.parse(e.data) as {
-      taskId: number
-    };
-    Balloon.pushBalloon({
-      kind: "ProgressingMsg",
-      taskId: data.taskId,
-    })
-  })
 }

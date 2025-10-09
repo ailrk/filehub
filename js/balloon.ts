@@ -1,7 +1,6 @@
 export type MessageKind
   = "ErrorMsg"
   | "ProgressedMsg"
-  | "ProgressingMsg"
 
 
 export type Message
@@ -14,10 +13,6 @@ export type Message
     taskId: number;
     msg: string;
     progress: [number, number];
-  }
-  | {
-    kind: "ProgressingMsg";
-    taskId: number;
   }
 
 
@@ -33,11 +28,6 @@ export function pushBalloon(message: Message) {
       {
         let { msg, taskId, progress } = message;
         pushProgressBarBalloon(msg, taskId, progress)
-        break;
-      }
-    case "ProgressingMsg":
-      {
-        let { taskId } = message;
         break;
       }
   }

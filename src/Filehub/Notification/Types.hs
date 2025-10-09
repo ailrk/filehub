@@ -13,7 +13,6 @@ data Notification
   | PasteProgressed TaskId Rational
   | MoveProgressed TaskId Rational
   | UploadProgressed TaskId Rational
-  | Progressing TaskId
   deriving (Show, Eq)
 
 
@@ -59,12 +58,5 @@ instance ToServerEvent Notification where
     , eventData = Aeson.encode $ Aeson.object
         [ "taskId"   .= toJSON taskId
         , "progress" .= toJSON progress
-        ]
-    }
-  toServerEvent (Progressing taskId) = ServerEvent
-    { eventType = Just "UploadProgressed"
-    , eventId   = Nothing
-    , eventData = Aeson.encode $ Aeson.object
-        [ "taskId"   .= toJSON taskId
         ]
     }
