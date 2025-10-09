@@ -1,19 +1,19 @@
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE NamedFieldPuns #-}
-module Filehub.Server.Platform.Mobile where
+module Filehub.Server.Component.Mobile where
 
 import Data.ClientPath qualified as ClientPath
 import Effectful.Reader.Dynamic (asks)
 import Filehub.Env (Env)
 import Filehub.Env qualified as Env
 import Filehub.Monad ( Filehub )
-import Filehub.Server.Internal (withQueryParam, makeTemplateContext)
+import Filehub.Server.Internal (withQueryParam)
+import Filehub.Template (makeTemplateContext, runTemplate, TemplateContext(..))
 import Filehub.Session (SessionId)
 import Filehub.Session qualified as Session
 import Filehub.Session.Selected qualified as Selected
 import Filehub.Sort (sortFiles)
-import Filehub.Template.Internal (runTemplate, TemplateContext(..))
-import Filehub.Template.Platform.Mobile qualified as Template.Mobile
+import Filehub.Template.Mobile qualified as Template.Mobile
 import Filehub.Types (ClientPath)
 import Lens.Micro.Platform ()
 import Lucid

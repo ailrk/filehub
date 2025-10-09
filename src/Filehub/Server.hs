@@ -54,28 +54,27 @@ import Filehub.Notification.Types (Notification(..))
 import Filehub.Orphan ()
 import Filehub.Routes (Api (..))
 import Filehub.Routes qualified as Routes
-import Filehub.Server.Components (index, view, controlPanel, sideBar, toolBar)
+import Filehub.Server.Component (index, view, controlPanel, sideBar, toolBar)
+import Filehub.Server.Component.Desktop qualified as Server.Desktop
+import Filehub.Server.Component.Mobile qualified as Server.Mobile
 import Filehub.Server.Delete (delete)
 import Filehub.Server.Download (download)
 import Filehub.Server.InitViewer (initViewer)
-import Filehub.Server.Internal (withQueryParam, parseHeader', makeTemplateContext)
+import Filehub.Server.Internal (withQueryParam, parseHeader')
 import Filehub.Server.Internal qualified as Server.Internal
 import Filehub.Server.Move (move)
 import Filehub.Server.Paste (paste)
-import Filehub.Server.Platform.Desktop qualified as Server.Desktop
-import Filehub.Server.Platform.Mobile qualified as Server.Mobile
 import Filehub.Server.Upload (upload)
 import Filehub.Session (SessionId(..), TargetView (..))
 import Filehub.Session qualified as Session
 import Filehub.Session.Copy qualified as Copy
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Session.Selected qualified as Selected
+import Filehub.Template (runTemplate, TemplateContext(..), makeTemplateContext)
 import Filehub.Template qualified as Template
-import Filehub.Template.Internal (runTemplate, TemplateContext(..))
+import Filehub.Template.Desktop qualified as Template.Desktop
 import Filehub.Template.Login qualified as Template.Login
-import Filehub.Template.Platform.Desktop qualified as Template.Desktop
-import Filehub.Template.Platform.Mobile qualified as Template.Mobile
-import Filehub.Template.Shared qualified as Template
+import Filehub.Template.Mobile qualified as Template.Mobile
 import Filehub.Theme qualified as Theme
 import Filehub.Types (Display (..), Layout (..))
 import Filehub.Types (FilehubEvent (..), LoginForm(..), UIComponent (..), SearchWord, OpenTarget, Resolution)

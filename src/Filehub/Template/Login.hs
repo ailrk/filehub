@@ -5,7 +5,7 @@ import Lucid
 import Data.Text (Text)
 import Filehub.Auth.OIDC (OIDCAuthProviders(..))
 import Filehub.Auth.OIDC qualified as Auth.OIDC
-import Filehub.Template.Internal
+import Filehub.Template (Template, TemplateContext(..))
 import Control.Monad (when)
 import Data.Foldable (forM_)
 import Filehub.Locale (Phrase(..), phrase, Locale (..))

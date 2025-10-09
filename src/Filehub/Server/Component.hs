@@ -1,4 +1,4 @@
-module Filehub.Server.Components
+module Filehub.Server.Component
   ( index
   , view
   , controlPanel
@@ -9,15 +9,14 @@ module Filehub.Server.Components
 
 import Filehub.Monad
 import Filehub.Orphan ()
-import Filehub.Server.Internal (makeTemplateContext)
-import Filehub.Server.Platform.Desktop qualified as Server.Desktop
-import Filehub.Server.Platform.Mobile qualified as Server.Mobile
+import Filehub.Server.Component.Desktop qualified as Server.Desktop
+import Filehub.Server.Component.Mobile qualified as Server.Mobile
 import Filehub.Session (SessionId(..))
 import Filehub.Session qualified as Session
 import Filehub.Template qualified as Template
-import Filehub.Template.Internal (runTemplate)
-import Filehub.Template.Platform.Desktop qualified as Template.Desktop
-import Filehub.Template.Platform.Mobile qualified as Template.Mobile
+import Filehub.Template (makeTemplateContext, runTemplate)
+import Filehub.Template.Desktop qualified as Template.Desktop
+import Filehub.Template.Mobile qualified as Template.Mobile
 import Filehub.Types (Display (..))
 import Lucid ( Html )
 import Prelude hiding (init, readFile)

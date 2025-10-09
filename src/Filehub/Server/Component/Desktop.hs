@@ -1,6 +1,6 @@
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE NamedFieldPuns #-}
-module Filehub.Server.Platform.Desktop where
+module Filehub.Server.Component.Desktop where
 
 import Control.Monad (forM)
 import Data.ClientPath qualified as ClientPath
@@ -11,9 +11,9 @@ import Filehub.Monad ( Filehub )
 import Filehub.Session.Types (TargetSessionData(..))
 import Filehub.Session qualified as Session
 import Filehub.Sort (sortFiles)
-import Filehub.Template.Platform.Desktop qualified as Template.Desktop
-import Filehub.Template.Internal (runTemplate, TemplateContext(..))
-import Filehub.Server.Internal (withQueryParam, makeTemplateContext)
+import Filehub.Template.Desktop qualified as Template.Desktop
+import Filehub.Server.Internal (withQueryParam)
+import Filehub.Template (TemplateContext(..), runTemplate, makeTemplateContext)
 import Filehub.Types ( SessionId(..), ClientPath, Selected(..))
 import Target.Class (IsTarget(..))
 import Lucid

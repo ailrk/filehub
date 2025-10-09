@@ -10,24 +10,24 @@ import Data.ClientPath qualified as ClientPath
 import Data.File (FileType(..), File(..))
 import Data.Foldable (forM_)
 import Data.Function ((&))
+import Data.Maybe (catMaybes)
 import Data.Text qualified as Text
 import Effectful ( MonadIO (liftIO) )
+import Effectful.Error.Dynamic (throwError)
+import Filehub.Error (FilehubError(..), Error'(..))
 import Filehub.Handler (ConfirmLogin)
 import Filehub.Monad
 import Filehub.Orphan ()
 import Filehub.Session (SessionId(..))
 import Filehub.Session qualified as Session
 import Prelude hiding (init, readFile)
-import Servant (addHeader)
 import Servant (Headers, Header)
+import Servant (addHeader)
 import System.Directory (removeFile)
 import System.FilePath (takeFileName, makeRelative)
 import System.IO.Temp qualified as Temp
 import System.Random (randomRIO)
 import Text.Printf (printf)
-import Data.Maybe (catMaybes)
-import Filehub.Error (FilehubError(..), Error'(..))
-import Effectful.Error.Dynamic (throwError)
 
 
 download :: SessionId -> ConfirmLogin -> [ClientPath]

@@ -10,7 +10,7 @@ import Filehub.Handler (ConfirmLogin, ConfirmReadOnly)
 import Filehub.Monad
 import Filehub.Notification.Types (Notification(..))
 import Filehub.Orphan ()
-import Filehub.Server.Components (index)
+import Filehub.Server.Component (index)
 import Filehub.Server.Internal qualified as Server.Internal
 import Filehub.Session (SessionId(..))
 import Filehub.Session qualified as Session

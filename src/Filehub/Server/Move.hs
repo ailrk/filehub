@@ -3,26 +3,26 @@ module Filehub.Server.Move where
 import Control.Monad (when, void)
 import Data.ClientPath qualified as ClientPath
 import Data.Foldable (forM_)
+import Data.Maybe (isJust)
 import Effectful.Concurrent.Async (async)
+import Effectful.Concurrent.STM (atomically, writeTBQueue)
 import Effectful.Error.Dynamic (throwError)
 import Filehub.Error ( FilehubError(..), Error' (..) )
 import Filehub.Handler (ConfirmLogin, ConfirmReadOnly)
 import Filehub.Monad
 import Filehub.Notification.Types (Notification(..))
 import Filehub.Orphan ()
-import Filehub.Server.Components (index)
+import Filehub.Server.Component (index)
 import Filehub.Server.Internal qualified as Server.Internal
 import Filehub.Session (SessionId(..))
 import Filehub.Session qualified as Session
 import Filehub.Types (FilehubEvent (..), MoveFile (..))
 import Lucid ( Html )
 import Prelude hiding (init, readFile)
-import Servant (addHeader)
 import Servant (Headers, Header)
+import Servant (addHeader)
 import System.FilePath (takeFileName, (</>), takeDirectory)
 import Worker.Task (newTaskId)
-import Effectful.Concurrent.STM (atomically, writeTBQueue)
-import Data.Maybe (isJust)
 
 
 move :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> MoveFile

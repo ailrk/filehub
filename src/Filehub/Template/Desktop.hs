@@ -1,7 +1,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE CPP #-}
-module Filehub.Template.Platform.Desktop
+module Filehub.Template.Desktop
   ( index
   , sideBar
   , controlPanel
@@ -37,9 +37,9 @@ import Filehub.Locale (Locale(..), Phrase (..), phrase)
 import Filehub.Routes (Api(..))
 import Filehub.Selected qualified as Selected
 import Filehub.Size (toReadableSize)
-import Filehub.Template.Internal
-import Filehub.Template.Shared (bold, toClientPath, viewId, tableId, sideBarId, searchBar)
-import Filehub.Template.Shared qualified as Template
+import Filehub.Template (Template, TemplateContext(..))
+import Filehub.Template (bold, toClientPath, viewId, tableId, sideBarId, searchBar)
+import Filehub.Template qualified as Template
 import Filehub.Theme (Theme (..))
 import Filehub.Types (Layout(..), SortFileBy(..))
 import Lens.Micro.Platform ()

@@ -8,20 +8,19 @@ import Data.Maybe (fromMaybe)
 import Data.String.Interpolate (i)
 import Data.Text.Encoding qualified as Text
 import Filehub.Handler (ConfirmLogin)
-import Filehub.Monad
 import Filehub.Orphan ()
 import Filehub.Server.Internal (withQueryParam)
 import Filehub.Session (SessionId(..))
 import Filehub.Session qualified as Session
 import Filehub.Sort qualified as Sort
-import Filehub.Types (Resource (..))
-import Filehub.Types (FilehubEvent (..))
+import Filehub.Types (Resource (..), FilehubEvent (..))
 import Network.Mime (MimeType)
 import Network.Mime.Extended (isMime)
 import Prelude hiding (init, readFile)
 import Servant (addHeader)
 import Servant (Headers, Header, NoContent (..))
 import System.FilePath (takeDirectory)
+import Filehub.Monad (Filehub)
 
 
 initViewer :: SessionId -> ConfirmLogin -> Maybe ClientPath

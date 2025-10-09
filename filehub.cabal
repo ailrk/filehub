@@ -174,15 +174,15 @@ library
     Filehub.Routes
     Filehub.Selected
     Filehub.Server
-    Filehub.Server.Components
+    Filehub.Server.Component
+    Filehub.Server.Component.Desktop
+    Filehub.Server.Component.Mobile
     Filehub.Server.Delete
     Filehub.Server.Download
     Filehub.Server.InitViewer
     Filehub.Server.Internal
     Filehub.Server.Move
     Filehub.Server.Paste
-    Filehub.Server.Platform.Desktop
-    Filehub.Server.Platform.Mobile
     Filehub.Server.Upload
     Filehub.Session
     Filehub.Session.Copy
@@ -199,11 +199,9 @@ library
     Filehub.Storage.S3
     Filehub.Storage.Types
     Filehub.Template
-    Filehub.Template.Internal
     Filehub.Template.Login
-    Filehub.Template.Platform.Desktop
-    Filehub.Template.Platform.Mobile
-    Filehub.Template.Shared
+    Filehub.Template.Desktop
+    Filehub.Template.Mobile
     Filehub.Theme
     Filehub.Types
     Filehub.UserAgent

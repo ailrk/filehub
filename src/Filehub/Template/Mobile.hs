@@ -1,5 +1,5 @@
 {-# LANGUAGE NamedFieldPuns #-}
-module Filehub.Template.Platform.Mobile where
+module Filehub.Template.Mobile where
 
 import Control.Monad (join)
 import Data.ByteString (ByteString)
@@ -19,9 +19,9 @@ import Filehub.Locale (Phrase(..), phrase, Locale (..))
 import Filehub.Routes (Api(..))
 import Filehub.Selected qualified as Selected
 import Filehub.Size (toReadableSize)
-import Filehub.Template.Internal (Template, TemplateContext(..))
-import Filehub.Template.Shared (viewId, sideBarId, controlPanelId, toolBarId, tableId, searchBar)
-import Filehub.Template.Shared qualified as Template
+import Filehub.Template (Template, TemplateContext(..))
+import Filehub.Template (viewId, sideBarId, controlPanelId, toolBarId, tableId, searchBar)
+import Filehub.Template qualified as Template
 import Filehub.Theme (Theme(..))
 import Filehub.Types ( SortFileBy(..), Selected )
 import Lens.Micro.Platform ()

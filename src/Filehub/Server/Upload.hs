@@ -1,22 +1,22 @@
 module Filehub.Server.Upload (upload) where
 
 import Control.Monad (void)
+import Data.Ratio ((%))
 import Effectful.Concurrent.Async (async, forConcurrently_)
 import Effectful.Concurrent.STM (atomically, writeTBQueue, newTVarIO, modifyTVar', readTVar)
 import Filehub.Handler (ConfirmLogin, ConfirmReadOnly)
 import Filehub.Monad
 import Filehub.Notification.Types (Notification(..))
 import Filehub.Orphan ()
-import Filehub.Server.Components (index)
+import Filehub.Server.Component (index)
 import Filehub.Session (SessionId(..))
 import Filehub.Session qualified as Session
+import Filehub.Types (FilehubEvent(..))
 import Lucid ( Html )
 import Prelude hiding (init, readFile)
+import Servant (addHeader, Headers, Header)
 import Servant.Multipart (MultipartData(..), Mem)
 import Worker.Task (newTaskId)
-import Data.Ratio ((%))
-import Servant (addHeader, Headers, Header)
-import Filehub.Types (FilehubEvent(..))
 
 
 upload :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> MultipartData Mem

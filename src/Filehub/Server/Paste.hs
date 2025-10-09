@@ -2,10 +2,12 @@
 module Filehub.Server.Paste (paste) where
 
 import Control.Monad (forM, void)
+import Control.Monad.Fix (fix)
 import Data.File (FileType(..), File(..), FileContent (..), withContent, FileInfo)
 import Data.Ratio ((%))
 import Data.String.Interpolate (i)
 import Effectful.Concurrent.Async (async, forConcurrently_)
+import Effectful.Concurrent.STM (newTVarIO, readTVar, atomically, modifyTVar', writeTBQueue)
 import Effectful.Error.Dynamic (throwError)
 import Effectful.Log (logAttention_)
 import Filehub.Error ( FilehubError(..), Error' (..) )
@@ -13,7 +15,7 @@ import Filehub.Handler (ConfirmLogin, ConfirmReadOnly)
 import Filehub.Monad
 import Filehub.Notification.Types (Notification(..))
 import Filehub.Orphan ()
-import Filehub.Server.Components (index)
+import Filehub.Server.Component (index)
 import Filehub.Server.Internal qualified as Server.Internal
 import Filehub.Session (SessionId(..), TargetView (..), withTarget, currentTarget)
 import Filehub.Session qualified as Session
@@ -26,11 +28,9 @@ import Prelude hiding (init, readFile)
 import Servant (Headers, Header)
 import Servant (addHeader)
 import System.FilePath (takeFileName, (</>))
+import Target.Types (Target)
 import Target.Types qualified as Target
 import Worker.Task (newTaskId)
-import Control.Monad.Fix (fix)
-import Target.Types (Target)
-import Effectful.Concurrent.STM (newTVarIO, readTVar, atomically, modifyTVar', writeTBQueue)
 
 
 type TargetFrom  = Target
