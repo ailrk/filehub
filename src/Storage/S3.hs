@@ -1,7 +1,6 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE NamedFieldPuns #-}
 -- |
 -- Maintainer  :  jimmy@ailrk.com
@@ -52,7 +51,6 @@ import Data.Conduit
 import Data.File (File (..), FileType (..), FileInfo, FileWithContent, FileContent (..), defaultFileWithContent)
 import Data.Foldable (forM_)
 import Data.Function (fix)
-import Data.Generics.Labels ()
 import Data.Generics.Labels ()
 import Data.Kind (Type)
 import Data.List (uncons)
@@ -106,7 +104,7 @@ get
     , cacheName ~ "file")
     => Backend S3 -> FilePath -> Eff es (Maybe FileInfo)
 get (s3@S3Backend { targetId }) path = do
-  mCached      <- Cache.lookup @cacheType cacheKey
+  mCached <- Cache.lookup @cacheType cacheKey
   case mCached of
     Just cached -> pure (Just cached)
     Nothing -> do
@@ -235,7 +233,7 @@ write s3@S3Backend { targetId } filePath File { content, size = mSize } = do
       Cache.delete (createCacheKey @"dir" @[FileInfo] targetId "")
       where
         threshold = 5 * 1024 * 1024 -- use putObject if it's smaller than single part.
-    FileContentDir -> pure ()
+    FileContentDir _ -> pure ()
     FileContentNull -> pure ()
 
 
@@ -314,7 +312,7 @@ chunking chunkSize = flip fix (1, ChunkBuilder (Builder.byteString ByteString.em
       Nothing ->
         case acc of
           ChunkBuilder _ size
-            | not (size == 0) -> yield (idx, acc) -- done
+            | size /= 0 -> yield (idx, acc) -- done
             | otherwise       -> pure ()
           ChunkBuilded _ -> pure ()
       Just bytes -> do

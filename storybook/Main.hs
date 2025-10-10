@@ -1,5 +1,5 @@
 {-# LANGUAGE NamedFieldPuns #-}
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# LANGUAGE TemplateHaskell #-}
 module Main (main) where
 
 import Data.Functor ((<&>))
@@ -30,6 +30,8 @@ import Control.Monad (join)
 import Target.Dummy qualified
 import Target.Types (Target(..))
 import Filehub.Session.Types ( TargetView(..), TargetSessionData(..) )
+import Data.File (FileInfo, File(..), FileType(..))
+import Data.Time.QQ (utcIso8601, UTCTime (..))
 
 
 data Options = Options
@@ -55,7 +57,14 @@ app req respond = do
     [] -> respond do
       responseLBS
         status200
-        [("Content-Type", "text/html; charset=utf-8")]
+        [ ("Content-Type", "text/html; charset=utf-8")
+        , ("Set-Cookie",
+            case (lookup "display" req.queryString) of
+              Just (Just "desktop") -> "display=Desktop; Path=/"
+              Just (Just "mobile") -> "display=Mobile; Path=/"
+              _ -> "display=NoDisplay; Path=/"
+          )
+        ]
         (html
           (lookup "story" req.queryString)
           (lookup "display" req.queryString))
@@ -97,13 +106,25 @@ app req respond = do
                       Mobile    -> Template.Mobile.editorModal False "filename" "File content"
                       Desktop   -> runTemplate ctx $ Template.Desktop.editorModal "filename" "File content"
                       NoDisplay -> mempty
+
                   Just (Just "control-panel") -> do
                     case ctx.display of
                       Mobile    -> runTemplate ctx Template.Mobile.controlPanel
                       Desktop   -> runTemplate ctx Template.Desktop.controlPanel
                       NoDisplay -> mempty
-                  Just (Just "new-folder") -> runTemplate ctx Template.Desktop.newFolderModal
-                  Just (Just "new-file") -> runTemplate ctx Template.Desktop.newFileModal
+
+                  Just (Just "view") -> do
+                    case ctx.display of
+                      Mobile    -> do
+                        let table = runTemplate ctx $ Template.Mobile.table files
+                        Template.Mobile.view table
+                      Desktop   -> do
+                        let table = runTemplate ctx $ Template.Desktop.table files
+                        Template.Desktop.view table
+                      NoDisplay -> mempty
+
+                  Just (Just "new-folder")    -> runTemplate ctx Template.Desktop.newFolderModal
+                  Just (Just "new-file")      -> runTemplate ctx Template.Desktop.newFileModal
                   Just (Just "locale-button") -> Template.Desktop.localeBtn
                   Nothing -> mempty
                   _ -> "unknown story"
@@ -122,8 +143,8 @@ app req respond = do
                 li_ do a_ [ href_ "/?story=control-panel&display=desktop" ]  "D control-panel"
                 li_ do a_ [ href_ "/?story=control-panel&display=mobile" ]   "M control-panel"
 
-                li_ do a_ [ href_ "/?story=control-panel&display=desktop" ]  "D view"
-                li_ do a_ [ href_ "/?story=control-panel&display=mobile" ]   "M view"
+                li_ do a_ [ href_ "/?story=view&display=desktop" ]  "D view"
+                li_ do a_ [ href_ "/?story=view&display=mobile" ]   "M view"
 
                 li_ do a_ [ href_ "/?story=new-folder&display=desktop" ]     "D new-folder"
                 li_ do a_ [ href_ "/?story=new-file&display=desktop" ]       "D new-file"
@@ -163,6 +184,43 @@ app req respond = do
         , simpleAuthUserDB   = undefined
         , oidcAuthProviders  = undefined
         }
+
+
+files :: [FileInfo]
+files =
+  [ File
+    { path     = "/foo/bar/cat.png"
+    , atime    = Just [utcIso8601| 1998-12-01 |]
+    , mtime    = Just [utcIso8601| 1998-11-01 |]
+    , size     = Just 1000
+    , mimetype = "image/png"
+    , content  = Regular
+    }
+  , File
+    { path     = "/foo/bar/how-to-feed-cat.pdf"
+    , atime    = Just [utcIso8601| 1998-11-01 |]
+    , mtime    = Just [utcIso8601| 1997-10-01 |]
+    , size     = Just 1000
+    , mimetype = "application/pdf"
+    , content  = Regular
+    }
+  , File
+    { path     = "/foo/bar/fish.txt"
+    , atime    = Just [utcIso8601| 2000-11-01 |]
+    , mtime    = Just [utcIso8601| 2007-08-01 |]
+    , size     = Just 1000
+    , mimetype = "tetx/plain"
+    , content  = Regular
+    }
+  , File
+    { path     = "/foo/bar/silly-cat-pictures/"
+    , atime    = Just [utcIso8601| 1998-10-31 |]
+    , mtime    = Just [utcIso8601| 1997-11-01 |]
+    , size     = Just 1000
+    , mimetype = ""
+    , content  = Dir
+    }
+  ]
 
 
 previewCSS :: Text

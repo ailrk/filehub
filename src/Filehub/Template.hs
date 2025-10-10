@@ -47,6 +47,7 @@ import Filehub.Auth.Simple (SimpleAuthUserDB)
 import Filehub.Auth.OIDC (OIDCAuthProviders)
 import Filehub.Monad (Filehub)
 import Filehub.Env qualified as Env
+import Target.Dummy (DummyTarget)
 
 
 -- | A Template context type that capture all useful information to render
@@ -313,6 +314,9 @@ controlPanel
         [ targetHandler @S3 \_ -> do
             newFileBtn
         , targetHandler @FileSys \_ -> do
+            newFolderBtn
+            newFileBtn
+        , targetHandler @DummyTarget \_ -> do
             newFolderBtn
             newFileBtn
         ]

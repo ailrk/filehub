@@ -15,6 +15,7 @@ const ballonWaitTime = 2000;
 let viewer = null;
 let display = Cookie.getCookie('display');
 let evtSource;
+console.log('display', display);
 document.addEventListener("DOMContentLoaded", () => {
     if (display === 'Desktop') {
         document.addEventListener('click', closeDropdowns);

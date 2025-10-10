@@ -1,5 +1,5 @@
 {- HLINT ignore "Avoid restricted function" -}
-module Target.Dummy (newDummyTarget) where
+module Target.Dummy (DummyTarget, newDummyTarget) where
 
 import Target.Types.TargetId (TargetId(..))
 import Target.Class (IsTarget (..))

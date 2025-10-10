@@ -8,6 +8,7 @@ module Data.File
   , defaultFileInfo
   , defaultFileWithContent
   , withContent
+  , extractFileInfo
   )
   where
 
@@ -25,11 +26,11 @@ data FileType
 
 
 data FileContent
-  = FileContentRaw     ByteString
+  = FileContentRaw ByteString
   -- ^ Raw bytestring content
   | FileContentConduit (ConduitT () ByteString (ResourceT IO) ())
   -- ^ Content is ready as conduit
-  | FileContentDir
+  | FileContentDir [FileWithContent]
   -- ^ Directory structure
   | FileContentNull
   -- ^ No content
@@ -76,11 +77,25 @@ defaultFileWithContent =
 
 withContent :: FileInfo -> FileContent -> FileWithContent
 withContent file content =
-  defaultFileWithContent
+  File
     { path      = file.path
     , atime     = file.atime
     , mtime     = file.mtime
     , size      = file.size
     , mimetype  = file.mimetype
     , content   = content
+    }
+
+
+extractFileInfo :: FileWithContent -> FileInfo
+extractFileInfo file =
+  File
+    { path     = file.path
+    , atime    = file.atime
+    , mtime    = file.mtime
+    , size     = file.size
+    , mimetype = file.mimetype
+    , content  = case file.content of
+                   FileContentDir _ -> Dir
+                   _ -> Regular
     }

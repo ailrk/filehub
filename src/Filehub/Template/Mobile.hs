@@ -48,6 +48,7 @@ import Target.S3 (Backend (..), S3)
 import Target.Types (targetHandler, Target, handleTarget)
 import Target.Types qualified as Target
 import Filehub.Session (TargetView(..))
+import Target.Dummy (DummyTarget)
 
 
 index :: Html ()
@@ -96,6 +97,10 @@ sideBar targets (TargetView currentTarget _ _) = do
           , targetHandler @S3 \(S3Backend { bucket }) -> do
               i_ [ class_ "bx bxs-cube" ] mempty
               span_  [iii| /#{bucket} |]
+          , targetHandler @DummyTarget \_ -> do
+              i_ [ class_ "bx bxs-cube" ] mempty
+              span_  [iii| dummy |]
+
           ]
       `with` targetAttr
       where
@@ -255,8 +260,9 @@ fileNameElement target file = do
     name = span_ (toHtml displayName)
     displayName =
       fromMaybe "-" $ handleTarget target
-        [ targetHandler @S3      \_ -> file.path
-        , targetHandler @FileSys \_ -> takeFileName file.path
+        [ targetHandler @S3          \_ -> file.path
+        , targetHandler @FileSys     \_ -> takeFileName file.path
+        , targetHandler @DummyTarget \_ -> takeFileName file.path
         ]
 
 

@@ -225,7 +225,7 @@ write currentDir name File{ content } = do
         liftIO . runResourceT . Conduit.runConduit
           $ conduit
           .| Conduit.sinkFile path
-    FileContentDir -> pure ()
+    FileContentDir _ -> pure ()
     FileContentNull -> pure ()
 
 

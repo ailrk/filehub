@@ -279,8 +279,8 @@ getStorage
 getStorage sessionId = do
   TargetView target _ _ <- currentTarget sessionId
   maybe onError pure $ handleTarget target
-    [ targetHandler @FileSys \_ -> fileStorage
-    , targetHandler @S3      \_ -> s3Storage
+    [ targetHandler @FileSys     \_ -> fileStorage
+    , targetHandler @S3          \_ -> s3Storage
     ]
   where
     s3Storage   = S3.storage sessionId

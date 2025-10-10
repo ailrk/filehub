@@ -23,6 +23,7 @@ let viewer: Viewer | null = null;
 let display: Display = Cookie.getCookie('display')! as Display
 let evtSource: EventSource | null;
 
+console.log('display', display);
 
 document.addEventListener("DOMContentLoaded", () => {
   if (display === 'Desktop') {
