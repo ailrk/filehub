@@ -39,7 +39,9 @@ document.addEventListener("DOMContentLoaded", () => {
     MobileCloseSidebar.register();
     MobileSelected.register();
     const table = document.querySelector('#table'); // change selector to fit your layout
-    table!.addEventListener('contextmenu', e => e.preventDefault());
+    if (table) {
+      table.addEventListener('contextmenu', e => e.preventDefault());
+    }
   }
 
   /* HX-Trigger */

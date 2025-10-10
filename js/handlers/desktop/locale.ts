@@ -2,15 +2,16 @@ const observer = new MutationObserver(register1);
 
 
 export function register() {
+  if (!document.querySelector('#locale')) return;
+
   register1();
   observer.observe(document.body, { childList: true, subtree: true });
 }
 
 
 function register1() {
-  const locale = document.querySelector("#locale") as HTMLElement | null;
-
-  if (locale && !locale.dataset.bound) {
+  const locale = document.querySelector("#locale") as HTMLElement;
+  if (!locale.dataset.bound) {
     locale.addEventListener("mouseenter", onEnter);
     locale.addEventListener("mouseleave", onLeave);
     locale.dataset.bound = "true"; // mark it bound

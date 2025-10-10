@@ -2,6 +2,8 @@ let ticking = false; // prevent throttling.
 let scrollTimeout;
 const observer = new MutationObserver(register1);
 export function register() {
+    if (!document.querySelector("#view"))
+        return;
     register1();
     observer.observe(document.body, { childList: true, subtree: true });
 }

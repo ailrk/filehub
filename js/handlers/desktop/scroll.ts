@@ -5,6 +5,8 @@ let scrollTimeout: number;
 const observer = new MutationObserver(register1);
 
 export function register() {
+  if (!document.querySelector("#view")) return;
+
   register1();
   observer.observe(document.body, { childList: true, subtree: true });
 }

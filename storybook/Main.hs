@@ -116,18 +116,18 @@ app req respond = do
           body_ do
             div_ [ id_ "preview-side-bar" ] do
               ul_ do
-                li_ do a_ [ href_ "/?story=editor&display=desktop" ]         "Desktop editor"
-                li_ do a_ [ href_ "/?story=editor&display=mobile" ]          "Mobile  editor"
+                li_ do a_ [ href_ "/?story=editor&display=desktop" ]         "D editor"
+                li_ do a_ [ href_ "/?story=editor&display=mobile" ]          "M editor"
 
-                li_ do a_ [ href_ "/?story=control-panel&display=desktop" ]  "Desktop control-panel"
-                li_ do a_ [ href_ "/?story=control-panel&display=mobile" ]   "Mobile  control-panel"
+                li_ do a_ [ href_ "/?story=control-panel&display=desktop" ]  "D control-panel"
+                li_ do a_ [ href_ "/?story=control-panel&display=mobile" ]   "M control-panel"
 
-                li_ do a_ [ href_ "/?story=control-panel&display=desktop" ]  "Desktop view"
-                li_ do a_ [ href_ "/?story=control-panel&display=mobile" ]   "Mobile  view"
+                li_ do a_ [ href_ "/?story=control-panel&display=desktop" ]  "D view"
+                li_ do a_ [ href_ "/?story=control-panel&display=mobile" ]   "M view"
 
-                li_ do a_ [ href_ "/?story=new-folder&display=desktop" ]     "Desktop new-folder"
-                li_ do a_ [ href_ "/?story=new-file&display=desktop" ]       "Desktop new-file"
-                li_ do a_ [ href_ "/?story=locale-button&display=desktop" ]  "Desktop locale-button"
+                li_ do a_ [ href_ "/?story=new-folder&display=desktop" ]     "D new-folder"
+                li_ do a_ [ href_ "/?story=new-file&display=desktop" ]       "D new-file"
+                li_ do a_ [ href_ "/?story=locale-button&display=desktop" ]  "D locale-button"
 
             div_ [ id_ "preview-container" ] do
               iframe_ [ id_ "preview-frame"
@@ -186,7 +186,7 @@ previewCSS =
     }
 
     \#preview-side-bar {
-      width: 250px;
+      width: 200px;
       background-color: \#222;
       color: white;
       display: flex;

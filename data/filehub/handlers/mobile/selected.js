@@ -25,6 +25,10 @@ let mousePosition = [];
 /* The number of selected entries, should only be set by `X-File-Selected-Count` */
 let selectedCount = createObservableCell(0, _ => { });
 export function register() {
+    if (!document.querySelector('#table'))
+        return;
+    if (!document.querySelector('#selected-counter'))
+        return;
     document.body.addEventListener('TargetChanged', clearSelectedHandler);
     document.body.addEventListener('htmx:afterSettle', e => {
         let table = document.querySelector('#table');

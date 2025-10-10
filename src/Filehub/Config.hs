@@ -1,5 +1,15 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module Filehub.Config where
+module Filehub.Config
+  ( Config(..)
+  , TargetConfig(..)
+  , Targets(..)
+  , CustomThemeDark(..)
+  , CustomThemeLight(..)
+  , SimpleAuthUserRecords(..)
+  , OidcAuthProviders(..)
+  , merge
+  )
+  where
 
 import Control.Applicative ((<|>))
 import Control.Monad (join)
@@ -49,8 +59,8 @@ merge cfg1 cfg2 = do
   verbosity        <- maybe (Right LogInfo)          Right (cfg2.verbosity <|> cfg1.verbosity)
   readOnly         <- maybe (Right True)             Right (cfg2.readOnly <|> cfg1.readOnly)
   locale           <- maybe (Right EN)               Right (cfg2.locale <|> cfg1.locale)
-  customThemeDark  <- pure                                 (join cfg2.customThemeDark <|> join cfg1.customThemeDark)
-  customThemeLight <- pure                                 (join cfg2.customThemeLight <|> join cfg1.customThemeLight)
+  let customThemeDark      = (join cfg2.customThemeDark <|> join cfg1.customThemeDark)
+  let customThemeLight     = (join cfg2.customThemeLight <|> join cfg1.customThemeLight)
   let targets              = mconcat [cfg1.targets, cfg2.targets]
   let simpleAuthLoginUsers = mconcat [cfg1.simpleAuthUserRecords, cfg2.simpleAuthUserRecords]
   let oidcAuthProviders    = mconcat [cfg1.oidcAuthProviders , cfg2.oidcAuthProviders]

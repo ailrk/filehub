@@ -12,6 +12,10 @@ let fileItems;
 let table;
 let view;
 export function register() {
+    if (!document.querySelector('#table'))
+        return;
+    if (!document.querySelector('#view'))
+        return;
     registerAll();
     document.body.addEventListener('TargetChanged', _ => { selectedIds.clear(); });
     document.body.addEventListener('htmx:afterSettle', e => {

@@ -1,4 +1,6 @@
 export function register() {
+    if (!document.querySelector('#table'))
+        return;
     register1();
     document.body.addEventListener('htmx:afterSettle', _ => {
         register1();

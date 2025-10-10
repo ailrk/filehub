@@ -5,6 +5,8 @@ let currentController: AbortController | null = null;
 
 
 export function register() {
+  if (!document.querySelector('#table')) return;
+
   register1();
   document.body.addEventListener('htmx:afterSwap', _ => {
     register1();
@@ -18,8 +20,6 @@ function register1() {
 
   document.addEventListener('contextmenu', prevent);
   table.addEventListener('contextmenu', onContextMenu); // no capture needed
-
-  // document.querySelectorAll('#table .table-item').forEach(item => item.addEventListener('contextmenu', handle, { capture: true }))
 }
 
 

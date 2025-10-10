@@ -35,6 +35,9 @@ let selectedCount: ObservableCell<number> = createObservableCell(0, _ => {});
 
 
 export function register() {
+  if (!document.querySelector('#table')) return;
+  if (!document.querySelector('#selected-counter')) return;
+
   document.body.addEventListener('TargetChanged', clearSelectedHandler)
 
   document.body.addEventListener('htmx:afterSettle', e => {
