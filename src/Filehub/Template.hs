@@ -1,12 +1,31 @@
 {-# LANGUAGE RecordPuns #-}
-module Filehub.Template where
+module Filehub.Template
+  ( TemplateContext(..)
+  , Template
+  , runTemplate
+  , makeTemplateContext
+  , bootstrap
+  , offline
+  , withDefault
+  , pathBreadcrumb
+  , search
+  , searchBar
+  , controlPanel
+  , icon
+  , open
+  , bold
+  , viewId
+  , sideBarId
+  , controlPanelId
+  , toolBarId
+  , tableId
+  )
+  where
 
 import Lucid
 import Data.Text (Text)
 import Data.String.Interpolate (iii)
 import Control.Monad (when)
-import Data.Aeson qualified as Aeson
-import Data.Aeson.Types (Pair)
 import Data.ClientPath (ClientPath(..))
 import Data.ClientPath qualified as ClientPath
 import Data.File (File(..), FileType(..), FileInfo)
@@ -15,7 +34,6 @@ import Data.Maybe (fromMaybe)
 import Data.Sequence (Seq(..))
 import Data.Sequence qualified as Seq
 import Data.Text qualified as Text
-import Data.Text.Lazy.Encoding qualified as LText
 import Effectful.Reader.Dynamic ( asks, ask, Reader, runReader )
 import Filehub.Links (linkToText, apiLinks)
 import Filehub.Locale ( Phrase(..), phrase, Locale )
@@ -391,14 +409,6 @@ open root file = do
 
 bold :: Html () -> Html ()
 bold t = span_ [ class_ "bold" ] t
-
-
-toClientPath :: FilePath -> FilePath -> Text
-toClientPath root p = Text.pack . (.unClientPath) $ ClientPath.toClientPath root p
-
-
-toHxVals :: [Pair] -> Text
-toHxVals xs = (xs & Aeson.object & Aeson.encode & LText.decodeUtf8) ^. strict
 
 
 ------------------------------------

@@ -142,8 +142,8 @@ app req respond = do
                 li_ do a_ [ href_ "/?story=control-panel&display=desktop" ]  "D control-panel"
                 li_ do a_ [ href_ "/?story=control-panel&display=mobile" ]   "M control-panel"
 
-                li_ do a_ [ href_ "/?story=view&display=desktop" ]  "D view"
-                li_ do a_ [ href_ "/?story=view&display=mobile" ]   "M view"
+                li_ do a_ [ href_ "/?story=view&display=desktop" ]           "D view"
+                li_ do a_ [ href_ "/?story=view&display=mobile" ]            "M view"
 
                 li_ do a_ [ href_ "/?story=new-folder&display=desktop" ]     "D new-folder"
                 li_ do a_ [ href_ "/?story=new-file&display=desktop" ]       "D new-file"
@@ -212,7 +212,7 @@ files =
     , content  = Regular
     }
   , File
-    { path     = "/foo/bar/silly-cat-pictures/"
+    { path     = "/foo/bar/silly-cat-pictures"
     , atime    = Just [utcIso8601| 1998-10-31 |]
     , mtime    = Just [utcIso8601| 1997-11-01 |]
     , size     = Just 1000

@@ -37,8 +37,9 @@ import Filehub.Links ( apiLinks, linkToText )
 import Filehub.Locale (Locale(..), Phrase (..), phrase)
 import Filehub.Routes (Api(..))
 import Filehub.Selected qualified as Selected
+import Filehub.Session (TargetView(..))
 import Filehub.Size (toReadableSize)
-import Filehub.Template (Template, TemplateContext(..), bold, toClientPath, viewId, tableId, sideBarId, searchBar)
+import Filehub.Template (Template, TemplateContext(..), bold, viewId, tableId, sideBarId, searchBar)
 import Filehub.Template qualified as Template
 import Filehub.Theme (Theme (..))
 import Filehub.Types (Layout(..), SortFileBy(..))
@@ -46,11 +47,11 @@ import Lens.Micro.Platform ()
 import Lucid
 import Network.Mime.Extended (isMime)
 import System.FilePath (takeFileName)
+import Target.Dummy (DummyTarget)
 import Target.File (FileSys, Backend (..))
 import Target.S3 (S3, Backend (..))
 import Target.Types (targetHandler, Target, handleTarget)
 import Target.Types qualified as Target
-import Filehub.Session (TargetView(..))
 
 
 ------------------------------------
@@ -714,6 +715,7 @@ fileNameElement file target withIcon = do
       fromMaybe "-" $ handleTarget target
         [ targetHandler @S3      \_ -> file.path
         , targetHandler @FileSys \_ -> takeFileName file.path
+        , targetHandler @DummyTarget \_ -> takeFileName file.path
         ]
 
 
@@ -766,8 +768,8 @@ contextMenu1 file = do
     , confirm_delete1
     } <- phrase <$> asks @TemplateContext (.locale)
   pure do
-    let textClientPath = toClientPath root file.path
-    let clientPath = ClientPath.toClientPath root file.path
+    let clientPath@(ClientPath cp)  = ClientPath.toClientPath root file.path
+    let textClientPath = Text.pack cp
 
     div_ [ class_ "dropdown-content " , id_ contextMenuId ] do
       case file.content of
