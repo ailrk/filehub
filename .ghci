@@ -1,4 +1,5 @@
 :set prompt "\ESC[1;36mλ>\ESC[m "
-:set +m   -- allow multi-line input without extra colons
+-- allow multi-line input without extra colons
+:set +m
 :set -XOverloadedStrings
 :set -XTypeApplications

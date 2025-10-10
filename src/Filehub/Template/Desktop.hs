@@ -1,6 +1,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE CPP #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 module Filehub.Template.Desktop
   ( index
   , sideBar
@@ -37,8 +38,7 @@ import Filehub.Locale (Locale(..), Phrase (..), phrase)
 import Filehub.Routes (Api(..))
 import Filehub.Selected qualified as Selected
 import Filehub.Size (toReadableSize)
-import Filehub.Template (Template, TemplateContext(..))
-import Filehub.Template (bold, toClientPath, viewId, tableId, sideBarId, searchBar)
+import Filehub.Template (Template, TemplateContext(..), bold, toClientPath, viewId, tableId, sideBarId, searchBar)
 import Filehub.Template qualified as Template
 import Filehub.Theme (Theme (..))
 import Filehub.Types (Layout(..), SortFileBy(..))
@@ -377,7 +377,7 @@ newFileModal = do
              ] do
           i_ [ class_ "bx bx-x"] mempty
       br_ mempty
-      form_ [ term "hx-post" (linkToText (apiLinks.newFile))
+      form_ [ term "hx-post" (linkToText apiLinks.newFile)
             , term "hx-target" "#view"
             , term "hx-swap" "outerHTML"
             ] do

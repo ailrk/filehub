@@ -11,3 +11,6 @@ cradle:
 
     - path: "benchmark"
       component: "benchmark:filehub_bench"
+
+    - path: "storybook"
+      component: "exe:filehub_storybook"

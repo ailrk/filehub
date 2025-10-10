@@ -29,7 +29,7 @@ import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (fromMaybe)
 import Data.Set qualified as Set
-import Data.String.Interpolate (i)
+import Data.String.Interpolate (i, iii)
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
@@ -48,7 +48,7 @@ import Filehub.Env (Env(..))
 import Filehub.Error ( FilehubError(..), Error' (..) )
 import Filehub.Handler (ConfirmLogin, ConfirmReadOnly, ConfirmDesktopOnly)
 import Filehub.Handler qualified
-import Filehub.Locale (Locale)
+import Filehub.Locale (Locale (..))
 import Filehub.Monad
 import Filehub.Notification.Types (Notification(..))
 import Filehub.Orphan ()
@@ -76,11 +76,25 @@ import Filehub.Template.Desktop qualified as Template.Desktop
 import Filehub.Template.Login qualified as Template.Login
 import Filehub.Template.Mobile qualified as Template.Mobile
 import Filehub.Theme qualified as Theme
-import Filehub.Types (Display (..), Layout (..))
-import Filehub.Types (FilehubEvent (..), LoginForm(..), UIComponent (..), SearchWord, OpenTarget, Resolution)
-import Filehub.Types (UpdatedFile(..), NewFile(..), NewFolder(..), SortFileBy(..), UpdatedFile(..), Theme(..), Selected (..))
-import Lens.Micro ((.~))
-import Lucid ( Html, class_, Term(term), With(with) )
+import Filehub.Types
+  ( ControlPanelState (..)
+  , Display (..)
+  , Layout (..)
+  , LoginForm(..)
+  , NewFile(..)
+  , NewFolder(..)
+  , OpenTarget
+  , Resolution
+  , SearchWord
+  , Selected (..)
+  , SortFileBy(..)
+  , Theme(..)
+  , UIComponent (..)
+  , UpdatedFile(..)
+  , UpdatedFile(..)
+  , FilehubEvent (..))
+import Lens.Micro ((.~), (?~))
+import Lucid
 import Network.HTTP.Types.Header (hLocation)
 import Network.Mime qualified as Mime
 import Network.Mime.Extended (isMime)
@@ -90,9 +104,23 @@ import Network.Wai.Middleware.Filehub qualified as Wai.Middleware
 import Network.Wai.Middleware.Gzip qualified as Wai.Middleware
 import Network.Wai.Middleware.RequestLogger qualified as Wai.Middleware (logStdout)
 import Prelude hiding (init, readFile)
-import Servant (addHeader, err500, err303)
-import Servant (errBody, Headers, Header, NoContent (..), err404, errHeaders, err301, noHeader, err400)
-import Servant (serveWithContextT, Context (..), Application)
+import Servant
+  ( Application
+  , Context (..)
+  , Header
+  , Headers
+  , NoContent (..)
+  , addHeader
+  , err301
+  , err303
+  , err400
+  , err404
+  , err500
+  , errHeaders
+  , noHeader
+  , serveWithContextT
+  , errBody
+  )
 import Servant.API.EventStream (RecommendedEventSourceHeaders, recommendedEventSourceHeaders)
 import Servant.Server.Generic (AsServerT)
 import System.FilePath (takeFileName)
@@ -107,9 +135,11 @@ import Web.Cookie (SetCookie (..))
 #ifdef DEBUG
 import Effectful ( MonadIO (liftIO) )
 import System.FilePath ((</>))
+import Data.Functor ((<&>))
 import Paths_filehub qualified
 import System.Directory (makeAbsolute)
 import Data.ByteString (readFile)
+import Data.Text.Lazy qualified as LText
 #endif
 
 
@@ -132,7 +162,7 @@ staticFiles = Map.fromList
 
 server :: Api (AsServerT Filehub)
 server = Api
-  { init                  = init
+  { initialize            = initialize
   , home                  = home
   , refresh               = refresh
   , listen                = listen
@@ -179,13 +209,14 @@ server = Api
   , healthz               = pure "ok"
 #ifdef DEBUG
   , debug1                = \_ -> pure $ addHeader (Dummy "Hello") NoContent
+  , preview               = preview
 #endif
   }
 
 
-init :: SessionId -> Resolution -> Filehub (Html ())
-init sessionId res = do
-  Session.Pool.update sessionId \s -> s & #resolution .~ Just res
+initialize :: SessionId -> Resolution -> Filehub (Html ())
+initialize sessionId res = do
+  Session.Pool.update sessionId \s -> s & #resolution ?~ res
   Server.Internal.clear sessionId
   index sessionId
 
@@ -458,7 +489,7 @@ updateFile sessionId _ _ (UpdatedFile clientPath content) = do
 
 
 newFolder :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> NewFolder -> Filehub (Html ())
-newFolder = \sessionId _ _ (NewFolder path) -> do
+newFolder sessionId _ _ (NewFolder path) = do
   storage <- Session.getStorage sessionId
   storage.newFolder (Text.unpack path)
   view sessionId
@@ -606,7 +637,7 @@ themeCss sessionId = do
   customThemeDark  <- (fmap . fmap) Theme.customTheme2Css (asks @Env (.customThemeDark))
   customThemeLight <- (fmap . fmap) Theme.customTheme2Css (asks @Env (.customThemeLight))
 #ifdef DEBUG
-  theme <- Session.getSessionTheme sessionId & withServerError
+  theme <- Session.getSessionTheme sessionId
   dir <- liftIO $ Paths_filehub.getDataDir >>= makeAbsolute <&> (++ "/data/filehub")
   case theme of
     Dark  -> liftIO $ maybe (readFile (dir </> "theme-dark.css")) pure customThemeDark
@@ -751,6 +782,81 @@ static paths = do
         . addHeader "public, max-age=31536000, immutable"
         $ content
     Nothing -> throwError do HTTPError (err404 { errBody = [i|File doesn't exist|]})
+#endif
+
+
+
+#ifdef DEBUG
+-- | Storybook for debug purposes.
+preview :: Maybe Text -> Maybe Text -> Filehub (Html ())
+preview mStory mDisplay = do
+  let ctx = TemplateContext
+        { readOnly           = False
+        , noLogin            = False
+        , display            = fromMaybe Desktop $ fmap (\case "mobile" -> Mobile; _ -> Desktop) mDisplay
+        , layout             = ThumbnailLayout
+        , theme              = Dark
+        , sortedBy           = ByNameDown
+        , selected           = NoSelection
+        , state              = ControlPanelDefault
+        , root               = ""
+        , locale             = EN
+        , currentDir         = ""
+        , currentTarget      = undefined
+        , simpleAuthUserDB   = undefined
+        , oidcAuthProviders  = undefined
+        }
+
+  let content = do
+        doctypehtml_ $ do
+          Template.withDefault ctx.display "#000000" do
+            style_ (Text.decodeUtf8 $ fromMaybe "no-theme" $ Map.lookup "theme-light.css" staticFiles)
+            case mStory of
+              Nothing -> mempty
+              Just "editor" -> do
+                case ctx.display of
+                  Mobile    -> Template.Mobile.editorModal False "filename" "File content"
+                  Desktop   -> runTemplate ctx $ Template.Desktop.editorModal "filename" "File content"
+                  NoDisplay -> mempty
+              Just "new-folder" -> runTemplate ctx Template.Desktop.newFolderModal
+              Just "new-file" -> runTemplate ctx Template.Desktop.newFileModal
+              Just "locale-button" -> Template.Desktop.localeBtn
+              _ -> "unknown story"
+
+  pure do
+    html_ do
+      head_ do
+        style_ previewCSS
+
+      body_ do
+        div_ [ id_ "preview-side-bar" ] do
+          ul_ do
+            li_ do a_ [ href_ "/preview?story=editor&display=desktop" ] "editor"
+            li_ do a_ [ href_ "/preview?story=new-folder&display=desktop" ] "new-folder"
+            li_ do a_ [ href_ "/preview?story=new-file&display=desktop" ] "new-file"
+            li_ do a_ [ href_ "/preview?story=locale-button&display=desktop" ] "locale-button"
+        div_ [ id_ "preview-container"] do
+          iframe_ [ id_ "preview-frame"
+                  , srcdoc_ (LText.toStrict (renderText content))
+                  , sandbox_ "allow-same-origin allow-scripts" ]
+                  mempty
+
+  where
+    previewCSS =
+      [iii|
+        body { margin: 0; height: 100vh; display: flex; flex-direction: row; font-family: sans-serif; }
+        a { text-decoration: none; color: white; }
+        \#preview-side-bar { width: 200px; background-color: \#222;
+          color: white; display: flex; flex-direction: column; padding: 1rem; box-sizing: border-box; }
+        \#preview-side-bar ul { list-style: none; padding: 0; margin: 0; }
+        \#preview-side-bar li { padding: 0.5rem 0; cursor: pointer; }
+        \#preview-side-bar li:hover { background-color: \#444; }
+        \#preview-container { flex: 1; display: flex; justify-content: center;
+          align-items: center; background-color: \#f0f0f0; padding: 1rem; box-sizing: border-box; }
+        \#preview-frame { width: 80%; height: 80%; border: 1px solid \#ccc;
+          border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); background: white; }
+      |]
+
 #endif
 
 

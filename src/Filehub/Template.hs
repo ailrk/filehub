@@ -16,13 +16,20 @@ import Data.Sequence (Seq(..))
 import Data.Sequence qualified as Seq
 import Data.Text qualified as Text
 import Data.Text.Lazy.Encoding qualified as LText
-import Effectful.Reader.Dynamic (asks, ask)
+import Effectful.Reader.Dynamic ( asks, ask, Reader, runReader )
 import Filehub.Links (linkToText, apiLinks)
-import Filehub.Locale (Phrase(..), phrase)
+import Filehub.Locale ( Phrase(..), phrase, Locale )
 import Filehub.Routes (Api (..))
-import Filehub.Sort (sortFiles)
+import Filehub.Sort ( sortFiles, SortFileBy )
 -- import Filehub.Template.Internal
-import Filehub.Types ( Display(..), ControlPanelState (..), OpenTarget (..), SearchWord (..), Env)
+import Filehub.Types
+    ( Display(..),
+      ControlPanelState(..),
+      OpenTarget(..),
+      SearchWord(..),
+      Env,
+      Layout,
+      Selected )
 import Lens.Micro
 import Lens.Micro.Platform ()
 import Network.Mime.Extended (isMime)
@@ -34,13 +41,8 @@ import Text.Fuzzy (simpleFilter)
 import Filehub.Session (TargetView(..), SessionId)
 import Filehub.Session qualified as Session
 import Filehub.Session.Selected qualified as Session
-import Filehub.Types (Layout, Selected)
-import Lens.Micro.Platform ()
 import Filehub.Theme (Theme)
-import Effectful.Reader.Dynamic (Reader, runReader)
 import Effectful (Eff, runPureEff)
-import Filehub.Sort (SortFileBy)
-import Filehub.Locale (Locale)
 import Filehub.Auth.Simple (SimpleAuthUserDB)
 import Filehub.Auth.OIDC (OIDCAuthProviders)
 import Filehub.Monad (Filehub)
@@ -114,15 +116,13 @@ makeTemplateContext sessionId = do
     }
 
 
-
-
 -- | The bootstrap page is used to detect the client's device  information.
 --   Once we get what we need it will redirect to the real index.
 bootstrap :: Html ()
 bootstrap = do
   html_ do
     body_ $
-      script_ [type_ "text/javascript"] $
+      script_ [type_ "text/javascript"]
         ([iii|
             fetch('/init', {
               method: 'POST',
@@ -151,14 +151,11 @@ withDefault display background html = do
   script_ [ src_ "/static/main.js", type_ "module" ] ("" :: Text)
 
   meta_ [ name_ "viewport", content_ "width=device-width, initial-scale=1.0, viewport-fit=cover" ]
-  link_ [ rel_ "stylesheet", href_ "/static/boxicons2.1.4.css" ]
-  link_ [ rel_ "stylesheet", href_ "/static/viewer.css" ]
   link_ [ rel_ "manifest", href_ "/manifest.json" ]
   link_ [ rel_ "icon", type_ "image/png", href_ "/favicon-96x96.png", sizes_ "96x96"]
   link_ [ rel_ "icon", type_ "image/svg+xml", href_ "/favicon.svg"]
   link_ [ rel_ "shortcut icon", href_ "/favicon.ico"]
   link_ [ rel_ "apple-touch-icon", sizes_ "180x180", href_ "/apple-touch-icon.png"]
-  link_ [ rel_ "stylesheet", href_ "/theme.css" ]
 
   meta_ [ name_ "mobile-web-app-capable", content_ "yes" ]
   meta_ [ name_ "apple-mobile-web-app-title", content_ "FileHub"]
@@ -166,10 +163,16 @@ withDefault display background html = do
   meta_ [ name_ "apple-mobile-web-app-title", content_ "Filehub" ]
   meta_ [ name_ "theme-color", content_ background ]
 
+  link_ [ rel_ "stylesheet", href_ "/static/boxicons2.1.4.css" ]
+  link_ [ rel_ "stylesheet", href_ "/static/viewer.css" ]
+  link_ [ rel_ "stylesheet", href_ "/static/reset.css" ]
+
+  link_ [ rel_ "stylesheet", href_ "/theme.css" ]
+
   case display of
-    Desktop   -> link_ [ rel_ "stylesheet", href_ "/static/desktop.css" ]
-    Mobile    -> link_ [ rel_ "stylesheet", href_ "/static/mobile.css" ]
-    NoDisplay -> link_ [ rel_ "stylesheet", href_ "/static/mobile.css" ]
+    Desktop   -> link_ [ rel_ "stylesheet", href_ "/static/style-desktop.css" ]
+    Mobile    -> link_ [ rel_ "stylesheet", href_ "/static/style-mobile.css" ]
+    NoDisplay -> link_ [ rel_ "stylesheet", href_ "/static/style-mobile.css" ]
   html
   div_ [ id_ "balloon-container"] mempty
 
@@ -260,27 +263,27 @@ controlPanel
       case readOnly of
         True ->
           div_ [ id_ controlPanelId ] do
-            maybe mempty id mLayoutBtn
+            fromMaybe mempty mLayoutBtn
             themeBtn
             localeBtn
             when (not noLogin) logoutBtn
-            maybe mempty id mScroll2TopBtn
+            fromMaybe mempty mScroll2TopBtn
             span_ [ class_ "btn-like field " ] do i_ [ class_ "bx bx-lock-alt" ] mempty >> span_ "Read-only"
         False ->
           case state of
             ControlPanelDefault ->
               div_ [ id_ controlPanelId ] do
-                maybe mempty id mLayoutBtn
+                fromMaybe mempty mLayoutBtn
                 themeBtn
                 localeBtn
                 when (not noLogin) logoutBtn
                 sep
                 newBtnGroup target
                 uploadBtn
-                maybe mempty id mScroll2TopBtn
+                fromMaybe mempty mScroll2TopBtn
             ControlPanelSelecting ->
               div_ [ id_ controlPanelId ] do
-                maybe mempty id mLayoutBtn
+                fromMaybe mempty mLayoutBtn
                 themeBtn
                 localeBtn
                 when (not noLogin) logoutBtn
@@ -290,10 +293,10 @@ controlPanel
                 copyBtn
                 deleteBtn
                 cancelBtn
-                maybe mempty id mScroll2TopBtn
+                fromMaybe mempty mScroll2TopBtn
             ControlPanelCopied ->
               div_ [ id_ controlPanelId ] do
-                maybe mempty id mLayoutBtn
+                fromMaybe mempty mLayoutBtn
                 themeBtn
                 localeBtn
                 when (not noLogin) logoutBtn
@@ -302,7 +305,7 @@ controlPanel
                 uploadBtn
                 pasteBtn
                 cancelBtn
-                maybe mempty id mScroll2TopBtn
+                fromMaybe mempty mScroll2TopBtn
   where
     sep = span_ [ style_ "display:inline-block; width: 20px"]  mempty
     newBtnGroup target = fromMaybe mempty do

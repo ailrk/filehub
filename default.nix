@@ -36,7 +36,11 @@ mkDerivation {
     unordered-containers uri-encode uuid vault vector wai
     wai-app-static wai-extra warp zip
   ];
-  executableHaskellDepends = [ base ];
+  executableHaskellDepends = [
+    base bytestring directory effectful filepath http-client http-types
+    lucid mime-types network-uri optparse-applicative
+    string-interpolate text wai warp
+  ];
   testHaskellDepends = [
     base bcrypt bytestring containers cookie directory effectful
     filepath hspec hspec-wai http-api-data http-client http-client-tls
@@ -47,5 +51,4 @@ mkDerivation {
     async base criterion http-types process req temporary time
   ];
   license = "unknown";
-  mainProgram = "filehub";
 }

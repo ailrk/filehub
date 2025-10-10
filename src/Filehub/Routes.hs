@@ -100,7 +100,7 @@ type instance AuthServerData (AuthProtect "login")        = ConfirmLogin
 
 
 data Api mode = Api
-  { init                  :: mode
+  { initialize            :: mode
                           :- "init"
                           :> AuthProtect "session"
                           :> ReqBody '[FormUrlEncoded] Resolution
@@ -473,6 +473,13 @@ data Api mode = Api
                           :- "debug1"
                           :> AuthProtect "session"
                           :> Get '[HTML] (Headers '[ Header "HX-Trigger" FilehubEvent] NoContent)
+
+
+  , preview               :: mode
+                          :- "preview"
+                          :> QueryParam "story" Text
+                          :> QueryParam "display" Text
+                          :> Get '[HTML] (Html ())
 #endif
   }
   deriving Generic

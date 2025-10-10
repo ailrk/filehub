@@ -1,7 +1,8 @@
-{-# LANGUAGE BangPatterns #-}
-module Main where
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Use fewer imports" #-}
+module Main (main) where
 
-import Cache.InMemory qualified as Cache.InMemory
+import Cache.InMemory qualified
 import Control.Monad (forM_, when)
 import Data.ByteString.Char8 qualified as ByteString
 import Data.Char (isPrint)
@@ -20,9 +21,9 @@ import Filehub.Env (Env(..))
 import Filehub.Locale (Locale(..))
 import Filehub.Server qualified as Filehub
 import Filehub.Session.Pool qualified as Session.Pool
-import Filehub.Types ( ClientPath(..), RawClientPath(..), Theme(..))
-import Filehub.Types (LoginForm(..))
-import LockRegistry.Local qualified as LockRegistry.Local
+import Filehub.Types
+    ( ClientPath(..), RawClientPath(..), Theme(..), LoginForm(..) )
+import LockRegistry.Local qualified
 import Log (mkLogger)
 import Network.HTTP.Client.TLS (newTlsManager)
 import Network.HTTP.Types (methodPost)

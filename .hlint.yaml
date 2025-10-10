@@ -1,3 +1,4 @@
+- ignore: {name: "Use zipWithFrom"}
 - ignore: {name: "Use <$>"}
 - ignore: {name: "Use :"}
 - ignore: {name: "Redundant do"}
@@ -19,24 +20,17 @@
 - ignore: {name: "Use tuple-section"}
 - ignore: {name: "Use mapM_"}
 - ignore: {name: "Redundant fmap"}
-
-
-# Gives at least one suggestion we don't like.
+- ignore: {name: "Use if"}
+- ignore: {name: "Redundant <$>"}
+- ignore: {name: "Redundant bracket"}
 - ignore: {name: "Use <=<"}
 - ignore: {name: "Use zipFrom"}
 - ignore: {name: "Use zipWithFrom"}
-
-# We are using the "redundant" return/pure to assign a name. We do not want to
-# delete it. In particular, this is not an improvement:
-# Found:
-#   do options <- somethingComplicated
-#      pure options
-# Perhaps:
-#   do somethingComplicated
 - ignore: {name: "Redundant return"}
 - ignore: {name: "Redundant pure"}
+- ignore: {name: "Use const"}
+- ignore: {name: "Redundant multi-way if"}
 
-- ignore: {lhs: "nub"}
 
 # Off by default hints we like
 - warn: {name: Use module export list}
@@ -231,6 +225,5 @@
     - Development.IDE.GHC.Util
     - Development.IDE.Plugin.CodeAction.Util
 
-# We really do not want novel usages of restricted functions, and mere
-# Warning is not enough to prevent those consistently; you need a build failure.
 - error: {name: Avoid restricted function}
+
