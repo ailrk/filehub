@@ -384,7 +384,7 @@ loginAuthSimple sessionId form@(LoginForm username _) =  do
 
 loginAuthOIDCRedirect :: SessionId -> Text -> Filehub NoContent
 loginAuthOIDCRedirect sessionId providerName = do
-  stage <- Auth.OIDC.init providerName >>= Auth.OIDC.authorize
+  stage <- Auth.OIDC.initialize providerName >>= Auth.OIDC.authorize
   Auth.OIDC.setSessionOIDCFlow sessionId (Just stage)
   case stage of
     Auth.OIDC.AuthRequestPrepared _ _ _ _ (AuthUrl url) ->

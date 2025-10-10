@@ -1,4 +1,4 @@
-module System.FilePath.Extended where
+module System.FilePath.Extended (expandVars) where
 
 import System.Environment (lookupEnv)
 import Data.Char (isAlphaNum)
@@ -8,7 +8,7 @@ import Data.Maybe (fromMaybe)
 -- |  A simple util to expand environment variables embeded in a filepath.
 expandVars :: FilePath -> IO FilePath
 expandVars path
-  | not ('$' `elem` path) = pure path
+  | '$' `notElem` path = pure path
 expandVars ('$':'{':rest) = do
   let (var, rest') = span (/= '}') rest
   case rest' of

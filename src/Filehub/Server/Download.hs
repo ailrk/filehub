@@ -1,4 +1,4 @@
-module Filehub.Server.Download where
+module Filehub.Server.Download (download) where
 
 import Codec.Archive.Zip qualified as Zip
 import Conduit (ConduitT, ResourceT)
@@ -9,7 +9,7 @@ import Data.ClientPath (ClientPath (..))
 import Data.ClientPath qualified as ClientPath
 import Data.File (FileType(..), File(..))
 import Data.Foldable (forM_)
-import Data.Function ((&))
+import Data.Functor ((<&>))
 import Data.Maybe (catMaybes)
 import Data.Text qualified as Text
 import Effectful ( MonadIO (liftIO) )
@@ -21,8 +21,7 @@ import Filehub.Orphan ()
 import Filehub.Session (SessionId(..))
 import Filehub.Session qualified as Session
 import Prelude hiding (init, readFile)
-import Servant (Headers, Header)
-import Servant (addHeader)
+import Servant (Headers, Header, addHeader)
 import System.Directory (removeFile)
 import System.FilePath (takeFileName, makeRelative)
 import System.IO.Temp qualified as Temp
@@ -53,11 +52,7 @@ download sessionId _ clientPaths = do
         tempDir <- Temp.getCanonicalTemporaryDirectory
         Temp.openTempFile tempDir "DXXXXXX.zip"
 
-      files <- do
-        clientPaths
-        & fmap (ClientPath.fromClientPath root)
-        & traverse storage.get
-        & fmap catMaybes
+      files <- traverse (storage.get . ClientPath.fromClientPath root) clientPaths <&> catMaybes
 
       tasks <- forM files \file -> do
         conduit <- storage.readStream file

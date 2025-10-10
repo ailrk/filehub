@@ -1,5 +1,15 @@
 {-# LANGUAGE DeriveGeneric #-}
-module Data.File where
+module Data.File
+  ( FileType(..)
+  , FileContent(..)
+  , File(..)
+  , FileInfo
+  , FileWithContent
+  , defaultFileInfo
+  , defaultFileWithContent
+  , withContent
+  )
+  where
 
 import GHC.Generics (Generic)
 import Data.Time (UTCTime)

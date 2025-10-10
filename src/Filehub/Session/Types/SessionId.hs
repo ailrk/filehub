@@ -1,5 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module Filehub.Session.Types.SessionId where
+module Filehub.Session.Types.SessionId (SessionId(..)) where
 
 import Data.UUID (UUID)
 import Data.Hashable (Hashable)

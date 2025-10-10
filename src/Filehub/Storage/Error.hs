@@ -17,6 +17,7 @@ import Storage.Error qualified as StorageError
 mapError :: StorageError -> FilehubError
 mapError = \case
   StorageError.InvalidDir t  -> FilehubError InvalidDir t
+  StorageError.InvalidPath t  -> FilehubError InvalidPath t
   StorageError.FileExists t  -> FilehubError FileExists t
   StorageError.TargetError t -> FilehubError TargetError t
   StorageError.CopyError t   -> FilehubError CopyError t

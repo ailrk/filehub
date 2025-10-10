@@ -1,5 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module LockRegistry.Key where
+module LockRegistry.Key (LockKey(..), mkLockKey) where
 
 import Data.Hashable (Hashable (..))
 

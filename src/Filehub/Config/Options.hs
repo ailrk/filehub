@@ -5,11 +5,7 @@
 -- This module implements the command line option parser. Config generated from
 -- the option parser will be combined with Config generated from the config file
 -- to create the final `Config`.
-module Filehub.Config.Options
-  ( parseOptions
-  , Options(..)
-  )
-  where
+module Filehub.Config.Options (parseOptions , Options(..)) where
 
 import Filehub.Config
 import Filehub.Auth.Simple qualified as Auth.Simple

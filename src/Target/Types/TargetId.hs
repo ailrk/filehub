@@ -1,5 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module Target.Types.TargetId where
+module Target.Types.TargetId (TargetId(..), targetIdBuilder) where
 
 import Data.UUID (UUID)
 import Data.UUID qualified as UUID

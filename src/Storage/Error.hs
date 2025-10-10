@@ -1,4 +1,4 @@
-module Storage.Error where
+module Storage.Error (StorageError(..)) where
 
 
 data StorageError

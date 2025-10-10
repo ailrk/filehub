@@ -1,4 +1,4 @@
-module Filehub.ActiveUser.Types where
+module Filehub.ActiveUser.Types (ActiveUser(..), Pool(..)) where
 
 import Prelude hiding (readFile)
 import Data.Time (UTCTime)

@@ -1,4 +1,4 @@
-module Filehub.Display where
+module Filehub.Display (Resolution(..), Display(..), classify) where
 
 import Lens.Micro.Platform ()
 import Data.Generics.Labels ()

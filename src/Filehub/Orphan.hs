@@ -4,7 +4,7 @@
 -- Copyright   :  (c) 2025-present Jinyang yao
 --
 -- The dumpster of all orphan instances.
-module Filehub.Orphan where
+module Filehub.Orphan () where
 import Servant (ToHttpApiData, URI)
 import Servant.API (ToHttpApiData(..))
 import Data.Text qualified as Text

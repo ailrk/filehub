@@ -1,4 +1,8 @@
-module Network.Wai.Middleware.Extended where
+module Network.Wai.Middleware.Extended
+  ( exposeHeaders
+  , dedupHeadersKeepLast
+  )
+  where
 
 import Data.ByteString (ByteString)
 import Data.ByteString.Char8 qualified as ByteString

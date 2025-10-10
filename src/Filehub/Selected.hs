@@ -13,7 +13,6 @@ module Filehub.Selected
   , AsSet(..)
   ) where
 
-import Control.Monad (join)
 import Data.List (union)
 import Filehub.Types (ClientPath, Session(..), Selected(..))
 import Lens.Micro hiding (to)
@@ -37,7 +36,7 @@ allSelecteds selecteds targets = targets `zip` selecteds
 
 countSelected :: [Selected] -> [Target] -> Int
 countSelected selecteds targets =
-  length . join . fmap (toList . snd) $ allSelecteds selecteds targets
+  length . ((toList . snd) =<<) $ allSelecteds selecteds targets
 
 
 toList :: Selected -> [ClientPath]

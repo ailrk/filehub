@@ -1,4 +1,4 @@
-module LockRegistry.Dummy where
+module LockRegistry.Dummy (withLock) where
 
 
 import LockRegistry.Key (LockKey)

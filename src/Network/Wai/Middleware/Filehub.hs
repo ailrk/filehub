@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 -- |
 -- Maintainer  :  jimmy@ailrk.com
 -- Copyright   :  (c) 2025-present Jinyang yao
@@ -6,7 +7,12 @@
 -- This module defines several filehub specifci WAI middlewares.
 -- These middlewares sit in front of the Servant handlers, allowing
 -- them to modify requests and responses.
-module Network.Wai.Middleware.Filehub where
+module Network.Wai.Middleware.Filehub
+  ( displayMiddleware
+  , sessionMiddleware
+  , stripCookiesForStatic
+  )
+  where
 
 import Control.Monad (when)
 import Data.String.Interpolate (i)
@@ -97,8 +103,6 @@ sessionMiddleware env app req respond = toIO onErr env do
 --   content.
 stripCookiesForStatic :: Middleware
 stripCookiesForStatic app req respond
-  | not (null path) && head path == "static" =
-    app req \res -> do
-      respond $ mapResponseHeaders (filter (\(h,_) -> h /= hSetCookie)) res
+  | not (null path), "static":_ <- path = app req \res -> do respond $ mapResponseHeaders (filter (\(h,_) -> h /= hSetCookie)) res
   | otherwise = app req respond
   where path = pathInfo req

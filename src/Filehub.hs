@@ -5,18 +5,17 @@
 -- Copyright   :  (c) 2025-present Jinyang yao
 --
 -- The entrance of filehub.
-module Filehub where
+module Filehub (main , mainDev)
+  where
 
-import Cache.InMemory qualified as Cache.InMemory
-import Control.Exception (SomeException)
-import Control.Exception (throwIO)
+import Cache.InMemory
+import Control.Exception (SomeException, throwIO)
 import Data.Functor.Identity (Identity(..))
 import Data.String.Interpolate (i)
 import Data.Time (secondsToNominalDiffTime)
 import Effectful (runEff)
 import Effectful.FileSystem (runFileSystem)
-import Effectful.Log (logInfo_)
-import Effectful.Log (runLog)
+import Effectful.Log (runLog, logInfo_)
 import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
 import Filehub.Auth.OIDC (OIDCAuthProviders(..))
 import Filehub.Auth.Simple qualified as Auth.Simple
@@ -31,7 +30,7 @@ import Filehub.Orphan ()
 import Filehub.Server (application)
 import Filehub.Session.Pool qualified as Session.Pool
 import Lens.Micro.Platform ()
-import LockRegistry.Local qualified as LockRegistry.Local
+import LockRegistry.Local
 import Network.HTTP.Client.TLS (newTlsManager)
 import Network.Wai.Handler.Warp (setPort, defaultSettings, runSettings)
 import Prelude hiding (init, readFile)
@@ -40,8 +39,7 @@ import System.Environment (withArgs)
 import Target.File qualified as FS
 import Target.S3 qualified as S3
 import Target.Types (Target (..))
-import UnliftIO (catch)
-import UnliftIO (hFlush, stdout)
+import UnliftIO (catch, hFlush, stdout)
 
 
 main :: IO ()

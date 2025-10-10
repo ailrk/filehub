@@ -1,7 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module Worker.Task
-  ( TaskId
-  , newTaskId)
+module Worker.Task (TaskId , newTaskId)
   where
 
 import Data.Unique (Unique, hashUnique, newUnique)

@@ -21,12 +21,10 @@ import Filehub.Session (SessionId(..), TargetView (..), withTarget, currentTarge
 import Filehub.Session qualified as Session
 import Filehub.Session.Copy qualified as Copy
 import Filehub.Session.Selected qualified as Selected
-import Filehub.Types (CopyState (..), TargetSessionData (..))
-import Filehub.Types (FilehubEvent (..))
-import Lucid ( Html )
+import Filehub.Types (CopyState(..), TargetSessionData(..), FilehubEvent(..))
+import Lucid (Html)
 import Prelude hiding (init, readFile)
-import Servant (Headers, Header)
-import Servant (addHeader)
+import Servant (Headers, Header, addHeader)
 import System.FilePath (takeFileName, (</>))
 import Target.Types (Target)
 import Target.Types qualified as Target

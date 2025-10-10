@@ -1,5 +1,14 @@
 {-# LANGUAGE NamedFieldPuns #-}
-module Filehub.Template.Mobile where
+module Filehub.Template.Mobile
+  ( index
+  , sideBar
+  , controlPanel
+  , view
+  , table
+  , toolBar
+  , editorModal
+  )
+  where
 
 import Control.Monad (join)
 import Data.ByteString (ByteString)
@@ -19,8 +28,15 @@ import Filehub.Locale (Phrase(..), phrase, Locale (..))
 import Filehub.Routes (Api(..))
 import Filehub.Selected qualified as Selected
 import Filehub.Size (toReadableSize)
-import Filehub.Template (Template, TemplateContext(..))
-import Filehub.Template (viewId, sideBarId, controlPanelId, toolBarId, tableId, searchBar)
+import Filehub.Template
+    ( Template,
+      TemplateContext(..),
+      viewId,
+      sideBarId,
+      controlPanelId,
+      toolBarId,
+      tableId,
+      searchBar )
 import Filehub.Template qualified as Template
 import Filehub.Theme (Theme(..))
 import Filehub.Types ( SortFileBy(..), Selected )

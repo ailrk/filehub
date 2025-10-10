@@ -1,7 +1,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
-module Cache.Key where
+module Cache.Key (SomeCacheKey(..), CacheKey(..), mkCacheKey) where
 
 import Data.ByteString.Builder (Builder)
 import Data.ByteString.Builder qualified as Builder

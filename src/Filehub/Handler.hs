@@ -17,7 +17,7 @@ import Data.Bifunctor (Bifunctor(..))
 import Data.Text.Lazy qualified as Text
 import Data.Text.Lazy.Encoding qualified as Text
 import Servant.Server.Experimental.Auth (AuthHandler, mkAuthHandler)
-import Filehub.Types (SessionId)
+import Filehub.Types (SessionId, Display(..))
 import Filehub.Cookie qualified as Cookie
 import Filehub.Env (Env(..))
 import Filehub.Env qualified as Env
@@ -28,7 +28,6 @@ import Network.Wai
 import Prelude hiding (readFile)
 import Lens.Micro.Platform ()
 import Servant
-import Filehub.Types (Display (..))
 import Filehub.Cookie qualified as Cookies
 import Filehub.Server.Internal (parseHeader')
 import Filehub.Monad (runFilehub, Filehub)

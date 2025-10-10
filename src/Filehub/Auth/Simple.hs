@@ -1,5 +1,15 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module Filehub.Auth.Simple where
+module Filehub.Auth.Simple
+  ( UserRecord(..)
+  , Username(..)
+  , PasswordHash(..)
+  , SimpleAuthUserDB(..)
+  , validate
+  , createSimpleAuthUserDB
+  , authenticateSession
+  , createActiveUser
+  )
+  where
 
 
 import Control.Monad (forM)

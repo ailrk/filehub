@@ -1,4 +1,3 @@
-{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -17,8 +16,6 @@ module Filehub.Storage.File (storage) where
 
 import Control.Monad (unless)
 import Data.ClientPath (fromClientPath)
-import Data.Generics.Labels ()
-import Data.Generics.Labels ()
 import Effectful ( Eff, Eff, (:>), IOE)
 import Effectful.Error.Dynamic (throwError, Error)
 import Effectful.Extended.Cache (Cache)

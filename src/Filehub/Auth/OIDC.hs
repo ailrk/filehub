@@ -3,6 +3,7 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE GADTs #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 -- |
 -- Maintainer  :  jimmy@ailrk.com
 -- Copyright   :  (c) 2025-present Jinyang yao
@@ -16,7 +17,7 @@ module Filehub.Auth.OIDC
   , User(..)
   , Authorization(..)
   , AuthUrl(..)
-  , init
+  , initialize
   , authorize
   , callback
   , exchangeToken
@@ -27,58 +28,54 @@ module Filehub.Auth.OIDC
   )
   where
 
-import Data.Text (Text)
-import Servant (QueryParam, QueryParam', Proxy (..), Get, NoContent, Post, ReqBody, FormUrlEncoded, JSON, Required, linkURI)
-import Servant qualified
-import Servant.HTML.Lucid (HTML)
-import GHC.Generics (Generic)
-import Servant.Client (ClientM, client)
-import Web.FormUrlEncoded (ToForm)
-import Data.Aeson (FromJSON, Value, (.:))
-import Servant.Links (safeLink)
-import Network.URI (URI (..))
 import Control.Monad (replicateM, when)
 import Crypto.Hash.SHA256 qualified as SHA256
+import Crypto.Number.Serialize (os2ip)
+import Crypto.PubKey.RSA qualified as RSA
+import Data.Aeson (FromJSON, Value, (.:))
+import Data.Aeson.Types qualified as Aeson
 import Data.ByteString qualified as ByteString
 import Data.ByteString.Base64.URL qualified as Base64.URL
 import Data.Foldable (find)
+import Data.Function ((&))
+import Data.Functor.Identity (Identity (..))
+import Data.String.Interpolate (i)
+import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
-import Effectful ((:>), Eff, IOE)
-import Effectful (MonadIO (..))
+import Data.Time (UTCTime)
+import Data.Time.Clock.POSIX qualified as Time
+import Effectful ((:>), Eff, IOE, MonadIO(..))
 import Effectful.Error.Dynamic (Error, throwError)
-import Effectful.Reader.Dynamic (Reader)
-import Effectful.Reader.Dynamic (asks)
+import Effectful.Log (Log)
+import Effectful.Reader.Dynamic (Reader, asks)
+import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
+import Filehub.ActiveUser.Types (ActiveUser(..))
+import Filehub.Auth.Types (AuthId, Auth (..), createAuthId)
 import Filehub.Env
 import Filehub.Error (FilehubError (..), Error' (..))
 import Filehub.Orphan ()
+import Filehub.Session qualified as Session
+import Filehub.Session.Pool qualified as Session.Pool
+import Filehub.Session.Types.SessionId (SessionId)
+import GHC.Generics (Generic)
+import GHC.Records (HasField(..))
+import Lens.Micro ((?~))
 import Lens.Micro.Platform ((^.), (.~))
-import Network.URI (URIAuth (..))
-import Network.URI (relativeTo)
+import Network.URI (URI(..), URIAuth(..), relativeTo)
 import Network.URI qualified as URI
 import Prelude hiding (init, readFile)
-import Servant.Client (BaseUrl (..), Scheme (..), runClientM, mkClientEnv)
+import Servant (QueryParam, QueryParam', Proxy (..), Get, NoContent, Post, ReqBody, FormUrlEncoded, JSON, Required, linkURI)
+import Servant qualified
+import Servant.Client (ClientM, client, BaseUrl(..), Scheme(..), runClientM, mkClientEnv)
 import Servant.Conduit ()
+import Servant.HTML.Lucid (HTML)
+import Servant.Links (safeLink)
 import System.Random (randomRIO)
-import Data.Functor.Identity (Identity (..))
+import UnliftIO (tryIO, Exception (..))
+import Web.FormUrlEncoded (ToForm)
 import Web.JWT (JWT, VerifiedJWT, JWTClaimsSet (..), JOSEHeader (..))
 import Web.JWT qualified as JWT
-import Data.Aeson.Types qualified as Aeson
-import Crypto.PubKey.RSA qualified as RSA
-import Crypto.Number.Serialize (os2ip)
-import Data.Function ((&))
-import Data.String.Interpolate (i)
-import GHC.Records (HasField(..))
-import Data.Time (UTCTime)
-import Data.Time.Clock.POSIX qualified as Time
-import Filehub.Auth.Types (AuthId, Auth (..), createAuthId)
-import Filehub.Session.Types.SessionId (SessionId)
-import Filehub.ActiveUser.Types (ActiveUser(..))
-import Effectful.Log (Log)
-import Filehub.Session.Pool qualified as Session.Pool
-import Filehub.Session qualified as Session
-import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
-import UnliftIO (tryIO, Exception (..))
 
 
 newtype OIDCState    = OIDCState Text
@@ -246,8 +243,8 @@ verifyWellKnownConfig WellKnownConfig
 verifyWellKnownConfig _ = Nothing
 
 
-init :: (Reader Env :> es, Error FilehubError :> es) => Text -> Eff es (OIDCFlow Inited)
-init providerName = do
+initialize :: (Reader Env :> es, Error FilehubError :> es) => Text -> Eff es (OIDCFlow Inited)
+initialize providerName = do
   OIDCAuthProviders providers <- asks @Env (.oidcAuthProviders)
   provider <- maybe
     (throwError (FilehubError InternalError "Invalid provider"))
@@ -480,6 +477,6 @@ getSessionOIDCFlow sessionId = (^. #oidcFlow) <$> Session.Pool.get sessionId
 -- | Set the current oidc flow.
 setSessionOIDCFlow :: (Reader Env :> es, IOE :> es) => SessionId -> Maybe (OIDCFlow s) -> Eff es ()
 setSessionOIDCFlow sessionId (Just flow) = do
-  Session.Pool.update sessionId \s -> s & #oidcFlow .~ (Just (SomeOIDCFlow flow))
+  Session.Pool.update sessionId \s -> s & #oidcFlow ?~ (SomeOIDCFlow flow)
 setSessionOIDCFlow sessionId Nothing = do
   Session.Pool.update sessionId \s -> s & #oidcFlow .~ Nothing

@@ -1,5 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module Filehub.Auth.Types.AuthId where
+module Filehub.Auth.Types.AuthId (AuthId(..), createAuthId) where
 
 import Data.UUID (UUID)
 import Data.UUID.V4 qualified as UUID

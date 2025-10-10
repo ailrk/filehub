@@ -1,4 +1,10 @@
-module Filehub.Session where
+module Filehub.Session
+  ( getRoot
+  , getCurrentDir
+  , setCurrentDir
+  , currentTarget
+  )
+  where
 
 import Data.Generics.Labels ()
 import Effectful (Eff, (:>), IOE)

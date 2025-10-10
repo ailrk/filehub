@@ -1,4 +1,4 @@
-module Filehub.Storage.Types where
+module Filehub.Storage.Types (Storage(..)) where
 
 import Conduit (ResourceT)
 import Data.File (FileInfo, FileWithContent)

@@ -1,7 +1,8 @@
-module Cache.Dummy where
+module Cache.Dummy (lookup, insert, delete, flush) where
 
 import Cache.Key (CacheKey, SomeCacheKey)
 import Data.Time (NominalDiffTime)
+import Prelude hiding (lookup)
 
 
 lookup :: CacheKey a -> IO (Maybe a)

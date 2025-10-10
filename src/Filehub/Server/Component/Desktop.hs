@@ -1,6 +1,15 @@
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE NamedFieldPuns #-}
-module Filehub.Server.Component.Desktop where
+module Filehub.Server.Component.Desktop
+  ( fileDetailModal
+  , editorModal
+  , contextMenu
+  , index
+  , sideBar
+  , view
+  , toolBar
+  )
+  where
 
 import Control.Monad (forM)
 import Data.ClientPath qualified as ClientPath

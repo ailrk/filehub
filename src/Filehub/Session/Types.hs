@@ -1,5 +1,4 @@
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Filehub.Session.Types
   ( SessionId(..)
   , Session(..)

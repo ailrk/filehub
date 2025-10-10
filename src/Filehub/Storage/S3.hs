@@ -15,8 +15,6 @@
 module Filehub.Storage.S3 (storage) where
 
 import Data.ClientPath (fromClientPath)
-import Data.Generics.Labels ()
-import Data.Generics.Labels ()
 import Effectful (Eff, Eff, (:>), IOE)
 import Effectful.Error.Dynamic (throwError, Error)
 import Effectful.Extended.Cache (Cache)

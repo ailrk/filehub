@@ -1,6 +1,12 @@
 {-# LANGUAGE PartialTypeSignatures #-}
-{-# LANGUAGE NamedFieldPuns #-}
-module Filehub.Server.Component.Mobile where
+module Filehub.Server.Component.Mobile
+  ( index
+  , sideBar
+  , editorModal
+  , toolBar
+  , view
+  )
+  where
 
 import Data.ClientPath qualified as ClientPath
 import Effectful.Reader.Dynamic (asks)

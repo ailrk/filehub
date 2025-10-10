@@ -1,4 +1,4 @@
-module Filehub.Notification.Types where
+module Filehub.Notification.Types (Notification(..)) where
 
 import Servant.API.EventStream (ToServerEvent(..), ServerEvent (..))
 import Worker.Task (TaskId)

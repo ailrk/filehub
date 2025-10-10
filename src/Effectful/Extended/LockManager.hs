@@ -1,6 +1,5 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE TemplateHaskell #-}
 module Effectful.Extended.LockManager
   ( LockManager
   , runLockManagerLocal

@@ -1,5 +1,5 @@
 {-# LANGUAGE NamedFieldPuns #-}
-module Filehub.Template.Login where
+module Filehub.Template.Login (login, login', loginFailed) where
 
 import Lucid
 import Data.Text (Text)
@@ -74,7 +74,7 @@ login' = do
                ] mempty
           div_ do
             button_ (toHtml login_button)
-        when (length providers > 0) do
+        when (not (null providers)) do
           div_ [ class_ "or-sep "] (toHtml login_or)
           div_ [ class_ "panel oidc " ] do
             forM_ providers \provider -> do

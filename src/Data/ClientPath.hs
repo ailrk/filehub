@@ -71,7 +71,6 @@ fromClientPath root (ClientPath cp) =
 toRawClientPath :: FilePath -> FilePath -> RawClientPath
 toRawClientPath root path = do
   RawClientPath (ensureUnslash (removePrefix (ensureSlash root) path))
-  where
 
 
 fromRawClientPath :: FilePath -> RawClientPath -> FilePath

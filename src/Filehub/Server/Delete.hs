@@ -15,12 +15,10 @@ import Filehub.Server.Internal qualified as Server.Internal
 import Filehub.Session (SessionId(..))
 import Filehub.Session qualified as Session
 import Filehub.Session.Selected qualified as Selected
-import Filehub.Types (FilehubEvent (..))
-import Filehub.Types (Selected (..))
+import Filehub.Types ( FilehubEvent(..), Selected(..) )
 import Lucid ( Html )
 import Prelude hiding (init, readFile)
-import Servant (addHeader)
-import Servant (Headers, Header)
+import Servant ( addHeader, Headers, Header )
 import Target.Types qualified as Target
 import Worker.Task (newTaskId)
 import Effectful.Concurrent.STM (newTVarIO, modifyTVar', atomically, readTVar, writeTBQueue)

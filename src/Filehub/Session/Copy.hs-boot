@@ -1,4 +1,4 @@
-module Filehub.Session.Copy where
+module Filehub.Session.Copy (getCopyState) where
 
 import Lens.Micro.Platform ()
 import Effectful (Eff, (:>), Eff, (:>), IOE)

@@ -3,6 +3,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 -- |
 -- Maintainer  :  jimmy@ailrk.com
 -- Copyright   :  (c) 2025-present Jinyang yao
@@ -36,8 +37,7 @@ import Codec.Archive.Zip qualified as Zip
 import Conduit (ConduitT, ResourceT, (.|), runResourceT)
 import Conduit qualified
 import Control.Monad (unless, when, forM_, join)
-import Data.ByteString (ByteString)
-import Data.ByteString (readFile)
+import Data.ByteString (ByteString, readFile)
 import Data.ByteString.Builder (Builder)
 import Data.ByteString.Builder qualified as Builder
 import Data.ByteString.Lazy qualified as LBS
@@ -349,7 +349,7 @@ ls path = do
           listDirectory path
             >>= traverse makeAbsolute
             >>= traverse get
-            >>= traverse (pure . maybeToList)
+            >>= pure . fmap maybeToList
             >>= pure . mconcat
             >>= traverse \file -> do
               let depKey = SomeCacheKey (createCacheKey @"file" @FileInfo (Builder.string8 file.path))

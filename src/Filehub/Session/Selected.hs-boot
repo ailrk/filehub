@@ -1,4 +1,4 @@
-module Filehub.Session.Selected where
+module Filehub.Session.Selected (anySelected) where
 
 import Lens.Micro.Platform ()
 import Effectful (Eff, (:>), Eff, (:>), IOE)

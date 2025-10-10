@@ -1,10 +1,19 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 -- |
 -- Maintainer  :  jimmy@ailrk.com
 -- Copyright   :  (c) 2025-present Jinyang yao
 --
 -- An in memory LRU cache based on priority search queue.
-module Cache.InMemory where
+module Cache.InMemory
+  ( new
+  , lookup
+  , delete
+  , insert
+  , empty
+  , Cache(..)
+  , InMemoryCache(..)
+  )
+  where
 
 import Cache.Key (CacheKey (..), SomeCacheKey(..))
 import Data.Dynamic (Dynamic, fromDynamic, Typeable, toDyn)

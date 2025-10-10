@@ -1,4 +1,4 @@
-module Filehub.Server.Move where
+module Filehub.Server.Move (move) where
 
 import Control.Monad (when, void)
 import Data.ClientPath qualified as ClientPath
@@ -19,8 +19,7 @@ import Filehub.Session qualified as Session
 import Filehub.Types (FilehubEvent (..), MoveFile (..))
 import Lucid ( Html )
 import Prelude hiding (init, readFile)
-import Servant (Headers, Header)
-import Servant (addHeader)
+import Servant (Headers, Header, addHeader)
 import System.FilePath (takeFileName, (</>), takeDirectory)
 import Worker.Task (newTaskId)
 

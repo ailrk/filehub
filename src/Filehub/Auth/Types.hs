@@ -1,5 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE DeriveGeneric #-}
 module Filehub.Auth.Types
   ( AuthId(..)
   , Auth(..)
