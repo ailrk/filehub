@@ -11,7 +11,6 @@ module Filehub.Auth.Simple
   )
   where
 
-
 import Control.Monad (forM)
 import Crypto.BCrypt qualified as BCrypt
 import Data.ByteString (ByteString)
@@ -25,19 +24,18 @@ import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.Time qualified as Time
 import Effectful (Eff, (:>), MonadIO (..), IOE)
-import Effectful.Error.Dynamic (Error)
-import Effectful.Log (Log)
-import Effectful.Reader.Dynamic (Reader, asks)
+import Effectful.Reader.Dynamic (asks)
 import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
 import Filehub.ActiveUser.Types (ActiveUser (..))
 import Filehub.Auth.Types (createAuthId, AuthId, Auth (..))
 import Filehub.Env (Env(..))
-import Filehub.Error (FilehubError)
+import Filehub.Monad (Filehub)
 import Filehub.Session (SessionId, Session)
 import Filehub.Session qualified as Session
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Types (LoginForm (..))
 import Prelude hiding (readFile)
+
 
 newtype Username         = Username Text deriving (Show, Eq, Ord, Hashable)
 newtype PasswordHash     = PasswordHash ByteString deriving (Show, Eq, Ord)
@@ -78,7 +76,7 @@ createSimpleAuthUserDB loginInfo =
 
 
 -- | Handle the simple authetication login.
-authenticateSession :: (Reader Env :> es, Error FilehubError :> es, Log :> es, IOE :> es) => SessionId -> LoginForm -> Eff es (Maybe Session)
+authenticateSession :: SessionId -> LoginForm -> Filehub (Maybe Session)
 authenticateSession sessionId (LoginForm username password) =  do
   db <- asks @Env (.simpleAuthUserDB)
   let username' =  Username username

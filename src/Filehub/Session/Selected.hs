@@ -10,10 +10,7 @@ module Filehub.Session.Selected
   where
 
 import Effectful (Eff, (:>), Eff, (:>), IOE)
-import Effectful.Error.Dynamic (Error)
-import Effectful.Log (Log)
 import Effectful.Reader.Dynamic (Reader, asks)
-import Filehub.Error (FilehubError)
 import Filehub.Selected qualified as Selected
 import Filehub.Session qualified as Session
 import Filehub.Session.Pool qualified as Session.Pool
@@ -22,22 +19,23 @@ import Lens.Micro hiding (to)
 import Lens.Micro.Platform ()
 import Prelude hiding (elem)
 import Target.Types (Target)
+import Filehub.Monad (Filehub)
 
 
-getSelected :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es Selected
+getSelected :: SessionId -> Filehub Selected
 getSelected sessionId = (^. #sessionData . #selected) <$> Session.currentTarget sessionId
 
 
-setSelected :: (Reader Env :> es, IOE :> es) => SessionId -> Selected -> Eff es ()
+setSelected :: SessionId -> Selected -> Filehub ()
 setSelected sessionId selected = Session.Pool.update sessionId \s -> s & #targets . ix s.index . #selected .~ selected
 
 
-anySelected :: (Reader Env :> es, IOE :> es, Error FilehubError :> es, Log :> es) => SessionId -> Eff es Bool
+anySelected :: SessionId -> Filehub Bool
 anySelected sessionId = Selected.anySelected  <$> Session.Pool.get sessionId
 
 
 -- | Get all selected files grouped by targets
-allSelecteds :: (Reader Env :> es, IOE :> es, Error FilehubError :> es, Log :> es) => SessionId -> Eff es [(Target, Selected)]
+allSelecteds :: SessionId -> Filehub [(Target, Selected)]
 allSelecteds sessionId = do
   session <- Session.Pool.get sessionId
   let selecteds = session ^. #targets & fmap (^. #selected)
@@ -45,7 +43,7 @@ allSelecteds sessionId = do
   pure (Selected.allSelecteds selecteds targets)
 
 
-countSelected :: (Reader Env :> es, IOE :> es, Error FilehubError :> es, Log :> es) => SessionId -> Eff es Int
+countSelected :: SessionId -> Filehub Int
 countSelected sessionId = do
   session <- Session.Pool.get sessionId
   let selecteds = session ^. #targets & fmap (^. #selected)
@@ -53,7 +51,7 @@ countSelected sessionId = do
   pure $ Selected.countSelected selecteds targets
 
 
-clearSelected :: (Reader Env :> es, IOE :> es) => SessionId -> Eff es ()
+clearSelected :: SessionId -> Filehub ()
 clearSelected sessionId = setSelected sessionId NoSelection
 
 

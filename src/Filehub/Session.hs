@@ -66,20 +66,18 @@ import Control.Applicative (asum)
 import Data.Generics.Labels ()
 import Data.List (find)
 import Data.Maybe (fromMaybe)
+import Data.Set (Set)
 import Data.String.Interpolate (i)
 import Data.Typeable (cast)
-import Effectful (Eff, (:>), IOE)
-import Effectful.Error.Dynamic (Error, throwError)
-import Effectful.Extended.Cache (Cache)
-import Effectful.Extended.LockManager (LockManager)
-import Effectful.FileSystem (FileSystem)
-import Effectful.Log (Log, logAttention, logTrace_, logAttention_)
-import Effectful.Reader.Dynamic (Reader, asks)
-import Effectful.Temporary (Temporary)
+import Effectful.Error.Dynamic (throwError)
+import Effectful.Log (logAttention, logTrace_, logAttention_)
+import Effectful.Reader.Dynamic (asks)
 import Filehub.Auth.Types (AuthId)
 import Filehub.Display qualified as Display
 import Filehub.Error (FilehubError (..), Error' (..))
 import Filehub.Locale (Locale)
+import Filehub.Monad (Filehub)
+import Filehub.Notification.Types (Notification)
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Session.Types (TargetView(..))
 import Filehub.Storage.File qualified as File
@@ -94,18 +92,15 @@ import Prelude hiding (readFile)
 import Target.File (Backend(..), FileSys)
 import Target.S3 (S3)
 import Target.Types (TargetId, Target (..), getTargetId, handleTarget, targetHandler)
+import UnliftIO.STM (TBQueue, TVar, atomically, writeTBQueue)
+import Worker.Task (TaskId)
 import {-# SOURCE #-} Filehub.Session.Copy qualified as Copy
 import {-# SOURCE #-} Filehub.Session.Selected qualified as Selected
-import UnliftIO.STM (TBQueue, TVar, atomically, writeTBQueue)
-import Filehub.Notification.Types (Notification)
-import Data.Set (Set)
-import Worker.Task (TaskId)
-import Effectful.Concurrent (Concurrent)
 
 
 -- | Get the current target root. The meaning of the root depends on the target. e.g for
 -- a normal file system root is the file path, meanwhile S3 has no root, it will always be ""
-getRoot :: (Reader Env  :> es,  Error FilehubError :> es,  IOE :> es, Log :> es) => SessionId -> Eff es FilePath
+getRoot :: SessionId -> Filehub FilePath
 getRoot sessionId = do
   TargetView (Target t) _ _ <- currentTarget sessionId
   pure
@@ -116,73 +111,73 @@ getRoot sessionId = do
       ]
 
 -- | Get the current working directory of the session.
-getCurrentDir :: (Reader Env  :> es,  Error FilehubError :> es,  IOE :> es, Log :> es) => SessionId -> Eff es FilePath
+getCurrentDir :: SessionId -> Filehub FilePath
 getCurrentDir sessionId = (^. #sessionData . #currentDir) <$> currentTarget sessionId
 
 
 -- | Set the current working directory of the session.
-setCurrentDir :: (Reader Env  :> es,  IOE :> es) => SessionId -> FilePath -> Eff es ()
+setCurrentDir :: SessionId -> FilePath -> Filehub ()
 setCurrentDir sessionId path = do
   Session.Pool.update sessionId \s -> s & #targets . ix s.index . #currentDir .~ path
 
 
 -- | Get the file sorting order of the current session.
-getSortFileBy :: (Reader Env :> es, Error FilehubError :> es, IOE :> es,  Log :> es) => SessionId -> Eff es SortFileBy
+getSortFileBy :: SessionId -> Filehub SortFileBy
 getSortFileBy sessionId = (^. #sessionData . #sortedFileBy) <$> currentTarget sessionId
 
 
 -- | Set the file sorting order of the current session.
-setSortFileBy :: (Reader Env :> es, IOE :> es) => SessionId -> SortFileBy -> Eff es ()
+setSortFileBy :: SessionId -> SortFileBy -> Filehub ()
 setSortFileBy sessionId order = do
   Session.Pool.update sessionId \s -> s & #targets . ix s.index . #sortedFileBy .~ order
 
 
 -- | Get the session `AuthId`.
-getAuthId :: (Reader Env :> es, Error FilehubError :> es, IOE :> es,  Log :> es) => SessionId -> Eff es (Maybe AuthId)
+getAuthId :: SessionId -> Filehub (Maybe AuthId)
 getAuthId sessionId = (^. #authId) <$> Session.Pool.get sessionId
 
 
 -- | Set the session `AuthId`.
-setAuthId :: (Reader Env :> es, IOE :> es) => SessionId -> Maybe AuthId -> Eff es ()
+setAuthId :: SessionId -> Maybe AuthId -> Filehub ()
 setAuthId sessionId mAuthId = do
   Session.Pool.update sessionId \s -> s & #authId .~ mAuthId
 
 
 -- | Get the current session layout.
-getLayout :: (Reader Env :> es, Error FilehubError :> es, IOE :> es,  Log :> es) => SessionId -> Eff es Layout
+getLayout :: SessionId -> Filehub Layout
 getLayout sessionId = (^. #layout) <$> Session.Pool.get sessionId
 
 
 -- | Set the current session layout.
-setLayout :: (Reader Env :> es, IOE :> es) => SessionId -> Layout -> Eff es ()
+setLayout :: SessionId -> Layout -> Filehub ()
 setLayout sessionId layout = do
   Session.Pool.update sessionId \s -> s & #layout .~ layout
 
 
 -- | Get the current session theme.
-getSessionTheme :: (Reader Env :> es, Error FilehubError :> es, IOE :> es,  Log :> es) => SessionId -> Eff es Theme
+getSessionTheme :: SessionId -> Filehub Theme
 getSessionTheme sessionId = (^. #theme) <$> Session.Pool.get sessionId
 
 
 -- | Set the current session theme.
-setSessionTheme :: (Reader Env :> es, IOE :> es) => SessionId -> Theme -> Eff es ()
+setSessionTheme :: SessionId -> Theme -> Filehub ()
 setSessionTheme sessionId theme = do
   Session.Pool.update sessionId \s -> s & #theme .~ theme
 
 
 -- | Get the current session theme.
-getSessionLocale :: (Reader Env :> es, Error FilehubError :> es, IOE :> es,  Log :> es) => SessionId -> Eff es Locale
+getSessionLocale :: SessionId -> Filehub Locale
 getSessionLocale sessionId = (^. #locale) <$> Session.Pool.get sessionId
 
 
 -- | Set the current session theme.
-setSessionLocale :: (Reader Env :> es, IOE :> es) => SessionId -> Locale -> Eff es ()
+setSessionLocale :: SessionId -> Locale -> Filehub ()
 setSessionLocale sessionId locale = do
   Session.Pool.update sessionId \s -> s & #locale .~ locale
 
 
 -- | Get the current session display. The display is calculated base on the client screen resolution.
-getDisplay :: (Reader Env :> es, Error FilehubError :> es, IOE :> es,  Log :> es) => SessionId -> Eff es Display
+getDisplay :: SessionId -> Filehub Display
 getDisplay sessionId = do
   session <- Session.Pool.get sessionId
   case session ^. #resolution of
@@ -197,7 +192,7 @@ getDisplay sessionId = do
 
 
 
-getControlPanelState :: (Reader Env :> es, IOE :> es, Error FilehubError :> es, Log :> es) => SessionId -> Eff es ControlPanelState
+getControlPanelState :: SessionId -> Filehub ControlPanelState
 getControlPanelState sessionId = do
   isAnySelected <- Selected.anySelected sessionId
   copyState     <- Copy.getCopyState sessionId
@@ -213,7 +208,7 @@ getControlPanelState sessionId = do
 ------------------------------
 
 
-currentTarget :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es TargetView
+currentTarget :: SessionId -> Filehub TargetView
 currentTarget sessionId = do
   mSession <- Session.Pool.get sessionId
   targets <- asks @Env (.targets)
@@ -224,7 +219,7 @@ currentTarget sessionId = do
     pure $ TargetView target targetSessionData index
 
 
-changeCurrentTarget :: (Reader Env :> es, IOE :> es, Error FilehubError :> es, Log :> es) => SessionId -> TargetId -> Eff es ()
+changeCurrentTarget :: SessionId -> TargetId -> Filehub ()
 changeCurrentTarget sessionId targetId = do
   logTrace_ [i|Changing target to #{targetId}|]
   TargetView target _ _ <- currentTarget sessionId
@@ -240,16 +235,7 @@ changeCurrentTarget sessionId targetId = do
            throwError (FilehubError InvalidSession "Invalid session")
 
 
-withTarget :: ( Reader Env         :> es
-              , FileSystem         :> es
-              , Temporary          :> es
-              , Cache              :> es
-              , LockManager        :> es
-              , IOE                :> es
-              , Error FilehubError :> es
-              , Concurrent         :> es
-              , Log                :> es)
-           => SessionId -> TargetId -> (TargetView -> Storage (Eff es) -> Eff es a) -> Eff es a
+withTarget :: SessionId -> TargetId -> (TargetView -> Storage Filehub -> Filehub a) -> Filehub a
 withTarget sessionId targetId action = do
   TargetView saved _ _ <- currentTarget sessionId
   changeCurrentTarget sessionId targetId
@@ -264,18 +250,7 @@ withTarget sessionId targetId action = do
 ------------------------------
 
 
-getStorage
-  :: ( Reader Env         :> es
-     , FileSystem         :> es
-     , Temporary          :> es
-     , Log                :> es
-     , IOE                :> es
-     , Cache              :> es
-     , LockManager        :> es
-     , Concurrent         :> es
-     , Error FilehubError :> es
-     )
-  => SessionId -> Eff es (Storage (Eff es))
+getStorage :: SessionId -> Filehub (Storage Filehub)
 getStorage sessionId = do
   TargetView target _ _ <- currentTarget sessionId
   maybe onError pure $ handleTarget target
@@ -295,30 +270,15 @@ getStorage sessionId = do
 -----------------------------
 
 
-getSessionNotifications
-  :: ( Reader Env         :> es
-     , Log                :> es
-     , IOE                :> es
-     , Error FilehubError :> es)
-  => SessionId -> Eff es (TBQueue Notification)
+getSessionNotifications :: SessionId -> Filehub (TBQueue Notification)
 getSessionNotifications sessionId = (^. #notifications) <$> Session.Pool.get sessionId
 
 
-getPendingTasks
-  :: ( Reader Env :> es
-     , IOE :> es
-     , Log :> es
-     , Error FilehubError :> es)
-  => SessionId -> Eff es (TVar (Set TaskId))
+getPendingTasks :: SessionId -> Filehub (TVar (Set TaskId))
 getPendingTasks sessionId = (^. #pendingTasks) <$> Session.Pool.get sessionId
 
 
-notify
-  :: ( Reader Env         :> es
-     , Log                :> es
-     , IOE                :> es
-     , Error FilehubError :> es)
-  => SessionId -> Notification -> Eff es ()
+notify :: SessionId -> Notification -> Filehub ()
 notify sessionId notification = do
   notifications <- getSessionNotifications sessionId
   atomically $ writeTBQueue notifications notification

@@ -15,47 +15,32 @@ import Data.Function (on)
 import Data.List (nub)
 import Data.Maybe (catMaybes)
 import Data.String.Interpolate (i)
-import Effectful (Eff, (:>), Eff, (:>), IOE)
-import Effectful.Concurrent (Concurrent)
-import Effectful.Error.Dynamic (Error, throwError)
-import Effectful.Extended.Cache (Cache)
-import Effectful.Extended.LockManager (LockManager)
-import Effectful.FileSystem (FileSystem)
-import Effectful.Log (Log, logAttention_)
-import Effectful.Reader.Dynamic (Reader)
-import Effectful.Temporary (Temporary)
+import Effectful.Error.Dynamic (throwError)
+import Effectful.Log (logAttention_)
 import Filehub.Error (FilehubError (..), Error' (..))
 import Filehub.Session qualified as Session
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Session.Selected qualified as Selected
-import Filehub.Types (Env, CopyState(..), SessionId, Selected (..))
+import Filehub.Types (CopyState(..), SessionId, Selected (..))
 import Lens.Micro hiding (to)
 import Target.Types qualified as Target
+import Filehub.Monad (Filehub)
 
 
-getCopyState :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es CopyState
+getCopyState :: SessionId -> Filehub CopyState
 getCopyState sessionId = (^. #copyState) <$> Session.Pool.get sessionId
 
 
-setCopyState :: (Reader Env :> es, IOE :> es) => SessionId -> CopyState -> Eff es ()
+setCopyState :: SessionId -> CopyState -> Filehub ()
 setCopyState sessionId copyState = Session.Pool.update sessionId \s -> s & #copyState .~ copyState
 
 
-clearCopyState :: (Reader Env :> es, IOE :> es) => SessionId -> Eff es ()
+clearCopyState :: SessionId -> Filehub ()
 clearCopyState sessionId = setCopyState sessionId NoCopyPaste
 
 
 -- | Add selected to copy state.
-select :: ( Reader Env         :> es
-          , IOE                :> es
-          , FileSystem         :> es
-          , Temporary          :> es
-          , Log                :> es
-          , Cache              :> es
-          , LockManager        :> es
-          , Concurrent         :> es
-          , Error FilehubError :> es)
-       => SessionId -> Eff es ()
+select :: SessionId -> Filehub ()
 select sessionId = do
   allSelecteds <- Selected.allSelecteds sessionId
   forM_ allSelecteds \(target, selected) -> do
@@ -100,7 +85,7 @@ select sessionId = do
 
 
 -- | Confirm selection
-copy :: (Reader Env :> es, IOE :> es, Error FilehubError :> es, Log :> es) => SessionId -> Eff es ()
+copy :: SessionId -> Filehub ()
 copy sessionId = do
   state <- getCopyState sessionId
   case step state of

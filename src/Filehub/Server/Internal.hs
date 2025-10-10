@@ -12,10 +12,9 @@ module Filehub.Server.Internal
   where
 
 import Data.ByteString (ByteString)
-import Effectful ( Eff, (:>), IOE )
-import Effectful.Error.Dynamic (throwError, Error)
-import Effectful.Reader.Dynamic (Reader)
+import Effectful.Error.Dynamic (throwError)
 import Filehub.Error (FilehubError (..))
+import Filehub.Monad (Filehub)
 import Filehub.Session.Copy qualified as Copy
 import Filehub.Session.Selected qualified as Selected
 import Filehub.Types
@@ -27,7 +26,7 @@ import Servant.Server (err400)
 
 
 -- | Ensure a query parameter presents, otherwise it's a client error
-withQueryParam :: (Error FilehubError :> es) => Maybe a -> Eff es a
+withQueryParam :: Maybe a -> Filehub a
 withQueryParam m =
   case m of
     Just a  -> pure a
@@ -35,7 +34,7 @@ withQueryParam m =
 
 
 -- | Completely reset all state machines. This should be the only place to reset state.
-clear :: (Reader Env :> es, IOE :> es) => SessionId -> Eff es ()
+clear :: SessionId -> Filehub ()
 clear sessionId = do
   Selected.clearSelectedAllTargets sessionId
   Copy.clearCopyState sessionId

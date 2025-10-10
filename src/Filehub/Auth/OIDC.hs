@@ -47,7 +47,6 @@ import Data.Time (UTCTime)
 import Data.Time.Clock.POSIX qualified as Time
 import Effectful ((:>), Eff, IOE, MonadIO(..))
 import Effectful.Error.Dynamic (Error, throwError)
-import Effectful.Log (Log)
 import Effectful.Reader.Dynamic (Reader, asks)
 import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
 import Filehub.ActiveUser.Types (ActiveUser(..))
@@ -76,6 +75,7 @@ import UnliftIO (tryIO, Exception (..))
 import Web.FormUrlEncoded (ToForm)
 import Web.JWT (JWT, VerifiedJWT, JWTClaimsSet (..), JOSEHeader (..))
 import Web.JWT qualified as JWT
+import Filehub.Monad (Filehub)
 
 
 newtype OIDCState    = OIDCState Text
@@ -243,7 +243,7 @@ verifyWellKnownConfig WellKnownConfig
 verifyWellKnownConfig _ = Nothing
 
 
-initialize :: (Reader Env :> es, Error FilehubError :> es) => Text -> Eff es (OIDCFlow Inited)
+initialize :: Text -> Filehub (OIDCFlow Inited)
 initialize providerName = do
   OIDCAuthProviders providers <- asks @Env (.oidcAuthProviders)
   provider <- maybe
@@ -267,7 +267,7 @@ type AuthorizationApi
 
 -- | Create oidc authorization uri. The server needs to redirect to the uri to start the OIDC
 -- authentication flow
-authorize :: (Reader Env :> es, IOE :> es, Error FilehubError :> es) => OIDCFlow Inited -> Eff es (OIDCFlow AuthRequestPrepared)
+authorize :: OIDCFlow Inited -> Filehub (OIDCFlow AuthRequestPrepared)
 authorize (Inited provider) = do
   state        <- Text.pack <$> replicateM 32 (randomRIO ('a', 'z'))
   codeVerifier <- Text.pack <$> replicateM 43 (randomRIO ('a', 'z'))
@@ -418,7 +418,7 @@ verifyToken
       }
 
 
-authenticateSession :: (Reader Env :> es, IOE :> es) => SessionId -> OIDCFlow TokenVerified -> Eff es (OIDCFlow SessionAuthenticated)
+authenticateSession :: SessionId -> OIDCFlow TokenVerified -> Filehub (OIDCFlow SessionAuthenticated)
 authenticateSession sessionId (TokenVerified token) = do
   let user = User token
   authId <- createAuthId
@@ -429,7 +429,7 @@ authenticateSession sessionId (TokenVerified token) = do
 
 
 -- | Query the standard /.well-known/openid-configuration endpoint from IdP.
-getWellknownOpenIdConfigration :: (Reader Env :> es, IOE :> es, Error FilehubError :> es) => Provider -> Eff es (WellKnownConfig Identity)
+getWellknownOpenIdConfigration :: Provider -> Filehub (WellKnownConfig Identity)
 getWellknownOpenIdConfigration (Provider { issuer }) = do
   manager          <- asks @Env (.httpManager)
   baseUri          <- uriToBaseUrl issuer & either (\err -> throwError (FilehubError InternalError (Text.unpack err))) pure
@@ -458,7 +458,7 @@ uriToBaseUrl uri = do
     pure $ BaseUrl scheme (uriRegName auth) port path
 
 
-createActiveUser :: (IOE :> es) => AuthId -> SessionId -> User -> Eff es ActiveUser
+createActiveUser :: AuthId -> SessionId -> User -> Filehub ActiveUser
 createActiveUser authId sessionId user = do
   now <- liftIO Time.getCurrentTime
   pure ActiveUser
@@ -470,12 +470,12 @@ createActiveUser authId sessionId user = do
 
 
 -- | Get the current oidc flow.
-getSessionOIDCFlow :: (Reader Env :> es, Error FilehubError :> es, IOE :> es,  Log :> es) => SessionId -> Eff es (Maybe SomeOIDCFlow)
+getSessionOIDCFlow :: SessionId -> Filehub (Maybe SomeOIDCFlow)
 getSessionOIDCFlow sessionId = (^. #oidcFlow) <$> Session.Pool.get sessionId
 
 
 -- | Set the current oidc flow.
-setSessionOIDCFlow :: (Reader Env :> es, IOE :> es) => SessionId -> Maybe (OIDCFlow s) -> Eff es ()
+setSessionOIDCFlow :: SessionId -> Maybe (OIDCFlow s) -> Filehub ()
 setSessionOIDCFlow sessionId (Just flow) = do
   Session.Pool.update sessionId \s -> s & #oidcFlow ?~ (SomeOIDCFlow flow)
 setSessionOIDCFlow sessionId Nothing = do

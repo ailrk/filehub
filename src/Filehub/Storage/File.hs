@@ -16,33 +16,23 @@ module Filehub.Storage.File (storage) where
 
 import Control.Monad (unless)
 import Data.ClientPath (fromClientPath)
-import Effectful ( Eff, Eff, (:>), IOE)
-import Effectful.Error.Dynamic (throwError, Error)
-import Effectful.Extended.Cache (Cache)
-import Effectful.Extended.LockManager (LockManager)
+import Effectful ( raise)
+import Effectful.Error.Dynamic (throwError)
 import Effectful.FileSystem
 import Effectful.Log
-import Effectful.Reader.Dynamic (Reader)
-import Effectful.Temporary (Temporary)
 import Filehub.Error (FilehubError(..), Error' (..))
+import Filehub.Monad (Filehub)
 import Filehub.Storage.Error (withStorageError)
 import Filehub.Storage.Types (Storage (..))
-import Filehub.Types ( SessionId, Env )
+import Filehub.Types ( SessionId )
 import Lens.Micro.Platform ()
 import Prelude hiding (read, readFile, writeFile)
 import Storage.File qualified
 import {-# SOURCE #-} Filehub.Session qualified as Session
-import Effectful.Concurrent (Concurrent)
+import Data.Function ((&))
 
 
-cd
-  ::
-     ( Reader Env         :> es
-     , FileSystem         :> es
-     , Log                :> es
-     , IOE                :> es
-     , Error FilehubError :> es)
-  => SessionId -> FilePath -> Eff es ()
+cd :: SessionId -> FilePath -> Filehub ()
 cd sessionId path = do
   exists <- doesDirectoryExist path
   unless exists do
@@ -52,18 +42,7 @@ cd sessionId path = do
 
 
 
-storage
-  :: ( Reader Env         :> es
-     , FileSystem         :> es
-     , Temporary          :> es
-     , Log                :> es
-     , IOE                :> es
-     , Cache              :> es
-     , LockManager        :> es
-     , Concurrent         :> es
-     , Error FilehubError :> es
-     )
-  => SessionId -> (Storage (Eff es))
+storage :: SessionId -> (Storage Filehub)
 storage sessionId =
   Storage
     { get         = Storage.File.get
@@ -78,7 +57,7 @@ storage sessionId =
         Storage.File.write currentDir name fileWithContent
 
     , mv = \mvPairs -> withStorageError do
-        currentDir <- Session.getCurrentDir sessionId
+        currentDir <- Session.getCurrentDir sessionId & raise
         Storage.File.mv currentDir mvPairs
 
     , delete = \name -> do
@@ -86,15 +65,15 @@ storage sessionId =
         Storage.File.delete currentDir name
 
     , new = \name -> withStorageError do
-        currentDir <- Session.getCurrentDir sessionId
+        currentDir <- Session.getCurrentDir sessionId & raise
         Storage.File.new currentDir name
 
     , newFolder = \name -> withStorageError do
-        currentDir <- Session.getCurrentDir sessionId
+        currentDir <- Session.getCurrentDir sessionId & raise
         Storage.File.newFolder currentDir name
 
     , lsCwd = withStorageError do
-        currentDir <- Session.getCurrentDir sessionId
+        currentDir <- Session.getCurrentDir sessionId & raise
         Storage.File.lsCwd currentDir
 
     , upload = \filedata -> do

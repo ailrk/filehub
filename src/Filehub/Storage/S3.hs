@@ -15,36 +15,28 @@
 module Filehub.Storage.S3 (storage) where
 
 import Data.ClientPath (fromClientPath)
-import Effectful (Eff, Eff, (:>), IOE)
-import Effectful.Error.Dynamic (throwError, Error)
-import Effectful.Extended.Cache (Cache)
-import Effectful.Log (Log)
-import Effectful.Reader.Dynamic
+import Effectful (raise)
+import Effectful.Error.Dynamic (throwError)
 import Filehub.Error
 import Filehub.Session.Types (TargetView(..))
 import Filehub.Storage.Error (withStorageError)
 import Filehub.Storage.Types (Storage(..))
-import Filehub.Types (SessionId, Env)
+import Filehub.Types (SessionId)
 import Lens.Micro.Platform ()
 import Prelude hiding (read, readFile, writeFile)
 import Storage.S3 qualified
 import Target.S3 (Backend, S3)
 import Target.Types (handleTarget, targetHandler)
 import {-# SOURCE #-} Filehub.Session qualified as Session
+import Filehub.Monad (Filehub)
+import Data.Function ((&))
 
 
-storage
-  :: ( Reader Env         :> es
-     , Log                :> es
-     , IOE                :> es
-     , Cache              :> es
-     , Error FilehubError :> es
-     )
-  => SessionId -> Storage (Eff es)
+storage :: SessionId -> Storage Filehub
 storage sessionId =
   Storage
     { get = \path -> withStorageError do
-        s3 <- getS3 sessionId
+        s3 <- getS3 sessionId & raise
         Storage.S3.get s3 path
 
     , read = \file -> do
@@ -60,7 +52,7 @@ storage sessionId =
         Storage.S3.write s3 filePath fileWithContent
 
     , mv = \mvPairs -> withStorageError do
-        s3 <- getS3 sessionId
+        s3 <- getS3 sessionId & raise
         Storage.S3.mv s3 mvPairs
 
     , delete = \filePath -> do
@@ -88,10 +80,10 @@ storage sessionId =
         Storage.S3.upload s3 filedata
 
     , download = \clientPath -> withStorageError do
-        root     <- Session.getRoot sessionId
-        s3       <- getS3 sessionId
-        let path =  fromClientPath root clientPath
-        Storage.S3.download s3 path
+          root     <- Session.getRoot sessionId & raise
+          s3       <- getS3 sessionId & raise
+          let path =  fromClientPath root clientPath
+          Storage.S3.download s3 path
 
     , isDirectory = \filePath -> do
         s3 <- getS3 sessionId
@@ -99,12 +91,7 @@ storage sessionId =
     }
 
 
-getS3
-  :: ( Reader Env         :> es
-     , Log                :> es
-     , IOE                :> es
-     , Error FilehubError :> es)
-  => SessionId -> Eff es (Backend S3)
+getS3 :: SessionId -> Filehub (Backend S3)
 getS3 sessionId = do
   TargetView target _ _ <- Session.currentTarget sessionId
   maybe (throwError (FilehubError TargetError "Target is not valid S3 bucket")) pure $ handleTarget target
