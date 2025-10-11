@@ -71,7 +71,7 @@ import Filehub.Session.Copy qualified as Copy
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Session.Selected qualified as Selected
 import Filehub.Template (runTemplate, TemplateContext(..), makeTemplateContext)
-import Filehub.Template qualified as Template
+import Filehub.Template.Shared qualified as Template
 import Filehub.Template.Desktop qualified as Template.Desktop
 import Filehub.Template.Login qualified as Template.Login
 import Filehub.Template.Mobile qualified as Template.Mobile

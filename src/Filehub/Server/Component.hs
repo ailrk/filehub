@@ -13,7 +13,7 @@ import Filehub.Server.Component.Desktop qualified as Server.Desktop
 import Filehub.Server.Component.Mobile qualified as Server.Mobile
 import Filehub.Session (SessionId(..))
 import Filehub.Session qualified as Session
-import Filehub.Template qualified as Template
+import Filehub.Template.Shared qualified as Template
 import Filehub.Template (makeTemplateContext, runTemplate)
 import Filehub.Template.Desktop qualified as Template.Desktop
 import Filehub.Template.Mobile qualified as Template.Mobile

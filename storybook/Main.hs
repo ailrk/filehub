@@ -10,7 +10,7 @@ import Filehub.Display (Display(..))
 import Filehub.Locale (Locale(..))
 import Filehub.Sort (SortFileBy(..))
 import Filehub.Template
-import Filehub.Template qualified as Template
+import Filehub.Template.Shared qualified as Template
 import Filehub.Template.Desktop qualified as Template.Desktop
 import Filehub.Template.Mobile qualified as Template.Mobile
 import Filehub.Theme (Theme(..))
@@ -110,7 +110,7 @@ app req respond = do
                 case mStory of
                   Just (Just "editor") -> do
                     case ctx.display of
-                      Mobile    -> Template.Mobile.editorModal False "filename" "File content"
+                      Mobile    -> runTemplate ctx $ Template.Mobile.editorModal "filename" "File content"
                       Desktop   -> runTemplate ctx $ Template.Desktop.editorModal "filename" "File content"
                       NoDisplay -> mempty
 

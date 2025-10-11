@@ -28,16 +28,9 @@ import Filehub.Locale (Phrase(..), phrase, Locale (..))
 import Filehub.Routes (Api(..))
 import Filehub.Selected qualified as Selected
 import Filehub.Size (toReadableSize)
-import Filehub.Template
-    ( Template,
-      TemplateContext(..),
-      viewId,
-      sideBarId,
-      controlPanelId,
-      toolBarId,
-      tableId,
-      searchBar )
-import Filehub.Template qualified as Template
+import Filehub.Template (Template, TemplateContext(..))
+import Filehub.Template.Shared qualified as Template
+import Filehub.Template.Shared (sideBarId, controlPanelId, viewId, searchBar, toolBarId, tableId)
 import Filehub.Theme (Theme(..))
 import Filehub.Types ( SortFileBy(..), Selected )
 import Lens.Micro.Platform ()
@@ -511,52 +504,58 @@ selectedCounter n = do
     i_ [ class_ "bx bx-x" ] mempty
 
 
-editorModal :: Bool -> FilePath -> ByteString -> Html ()
-editorModal readOnly filename content = do
-  div_ [ id_ editorModalId, closeEditorScript ] do
+editorModal :: FilePath -> ByteString -> Template (Html ())
+editorModal filename content = do
+  readOnly <- asks @TemplateContext (.readOnly)
+  Phrase
+    { modal_edit
+    , confirm_save_edit
+    } <- phrase <$> asks @TemplateContext (.locale)
 
-    form_ [ term "hx-post" (linkToText (apiLinks.updateFile))
-          , term "hx-confirm" ("Save the edit of " <> Text.pack filename <> "?")
-          , term "hx-on::after-request" [i|document.querySelector('\##{editorModalId}').dispatchEvent(new Event('Close'))|]
-          ] do
 
-      div_ do
-        button_ [ class_ "btn btn-modal-close "
-                , type_ "button"
-                , term "_" [i|on click send Close to \##{editorModalId}|]
-                ] do
-          span_ [ class_ "field "] do
-            i_ [ class_ "bx bx-chevron-left" ] mempty
-            "Folders"
+  pure do
+    div_ [ id_ editorModalId, closeEditorScript ] do
 
-        case readOnly of
-          True ->
-            mempty
+      form_ [ term "hx-post" (linkToText (apiLinks.updateFile))
+            , term "hx-confirm" (Text.replace "{}" (Text.pack filename) confirm_save_edit)
+            , term "hx-on::after-request" [i|document.querySelector('\##{editorModalId}').dispatchEvent(new Event('Close'))|]
+            ] do
 
-          False -> do
-            button_ [ class_ "btn btn-modal-confirm mr-2 field "
-                    ] "DONE"
+        div_ do
+          button_ [ class_ "btn btn-modal-close "
+                  , type_ "button"
+                  , term "_" [i|on click send Close to \##{editorModalId}|]
+                  ] do
+            span_ [ class_ "field "] do
+              i_ [ class_ "bx bx-chevron-left" ] mempty
 
-      input_ [ class_ "form-control "
-             , type_ "text"
-             , name_ "path"
-             , value_ (Text.pack filename)
-             , style_ "display: none;"
-             , placeholder_ "Filename"
-             ]
+          case readOnly of
+            True ->
+              mempty
 
-      textarea_
-        (mconcat
-          [
-            [ class_ "form-control "
-            , type_ "text"
-            , name_ "content"
-            , placeholder_ "Empty File"
+            False -> do
+              button_ [ class_ "btn btn-modal-confirm mr-2 field " ] (toHtml modal_edit)
+
+        input_ [ class_ "form-control "
+               , type_ "text"
+               , name_ "path"
+               , value_ (Text.pack filename)
+               , style_ "display: none;"
+               , placeholder_ "Filename"
+               ]
+
+        textarea_
+          (mconcat
+            [
+              [ class_ "form-control "
+              , type_ "text"
+              , name_ "content"
+              , placeholder_ "Empty File"
+              ]
+            , if readOnly then [ readonly_ "readonly" ] else mempty
             ]
-          , if readOnly then [ readonly_ "readonly" ] else mempty
-          ]
-        )
-        (toHtml (Text.decodeUtf8 content))
+          )
+          (toHtml (Text.decodeUtf8 content))
 
   where
     closeEditorScript = term "_" [i| on Close remove me end |]

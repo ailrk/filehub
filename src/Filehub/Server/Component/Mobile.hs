@@ -54,6 +54,7 @@ toolBar sessionId = do
 
 editorModal :: SessionId -> Maybe ClientPath -> Filehub (Html ())
 editorModal sessionId mClientPath = do
+  ctx        <- makeTemplateContext sessionId
   clientPath <- withQueryParam mClientPath
   storage    <- Session.getStorage sessionId
   root       <- Session.getRoot sessionId
@@ -63,8 +64,7 @@ editorModal sessionId mClientPath = do
     Just file -> do
       content <- storage.read file
       let filename = takeFileName p
-      readOnly <- asks @Env (.readOnly)
-      pure $ Template.Mobile.editorModal readOnly filename content
+      pure $ runTemplate ctx (Template.Mobile.editorModal filename content)
     Nothing -> do
       throwError (FilehubError InvalidPath "can't edit file")
 

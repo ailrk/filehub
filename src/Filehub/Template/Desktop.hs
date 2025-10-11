@@ -39,8 +39,9 @@ import Filehub.Routes (Api(..))
 import Filehub.Selected qualified as Selected
 import Filehub.Session (TargetView(..))
 import Filehub.Size (toReadableSize)
-import Filehub.Template (Template, TemplateContext(..), bold, viewId, tableId, sideBarId, searchBar)
-import Filehub.Template qualified as Template
+import Filehub.Template (Template, TemplateContext(..))
+import Filehub.Template.Shared (bold, sideBarId, viewId, searchBar, tableId)
+import Filehub.Template.Shared qualified as Template
 import Filehub.Theme (Theme (..))
 import Filehub.Types (Layout(..), SortFileBy(..))
 import Lens.Micro.Platform ()

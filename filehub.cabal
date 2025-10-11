@@ -199,9 +199,10 @@ library
     Filehub.Storage.S3
     Filehub.Storage.Types
     Filehub.Template
-    Filehub.Template.Login
     Filehub.Template.Desktop
+    Filehub.Template.Login
     Filehub.Template.Mobile
+    Filehub.Template.Shared
     Filehub.Theme
     Filehub.Types
     Filehub.UserAgent
