@@ -68,7 +68,6 @@ index sideBar' toolBar' view' selectedCount = do
       view'
       controlPanel'
       languagePanel
-      controlPanelBtn
 
 
 safeAreaShim :: Html ()
@@ -119,6 +118,7 @@ view :: Html () -> Html ()
 view table' = do
   div_ [ id_ viewId ] do
     table'
+  controlPanelBtn
 
 
 sidebarBtn :: Html ()

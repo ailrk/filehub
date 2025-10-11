@@ -25,11 +25,11 @@ data SharedLinkPool = SharedLinkPool
 
 
 createSharedLink :: FileInfo -> Eff es SharedLink
-createSharedLink file = undefined
+createSharedLink _ = undefined
 
 
 revokeSharedLink :: SharedLinkHash -> Eff es ()
-revokeSharedLink hash = undefined
+revokeSharedLink _ = undefined
 
 
 newShareLinkPool :: Eff es SharedLinkPool

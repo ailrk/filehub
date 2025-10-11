@@ -1,5 +1,5 @@
 {-# LANGUAGE NamedFieldPuns #-}
-module Main (main) where
+module Main (main, mainDev) where
 
 import Data.Functor ((<&>))
 import Data.String.Interpolate (iii)
@@ -21,7 +21,6 @@ import Network.Mime qualified as Mime
 import Network.Wai
 import Network.Wai.Handler.Warp (run)
 import Options.Applicative
-import Paths_filehub qualified
 import System.Directory (makeAbsolute)
 import System.FilePath ((</>))
 import Data.ByteString.Lazy qualified as LBS
@@ -31,6 +30,8 @@ import Target.Types (Target(..))
 import Filehub.Session.Types ( TargetView(..), TargetSessionData(..) )
 import Data.File (FileInfo, File(..), FileType(..))
 import Data.Time.QQ (utcIso8601, UTCTime (..))
+import Data.ClientPath qualified as ClientPath
+import System.Process (readProcess)
 
 
 data Options = Options
@@ -45,12 +46,19 @@ optionsParser = Options <$> option auto (short 'p' <> help "port" <> value 9843)
 main :: IO ()
 main = do
   options <- execParser (info (optionsParser <**> helper) mempty)
-  run options.port app
+  mainDev options.port
+
+
+mainDev :: Int -> IO ()
+mainDev port = do
+  putStrLn ("STARTING STORYBOOK on port " <> show port <> "....")
+  run port app
 
 
 app :: Application
 app req respond = do
-  dir <- Paths_filehub.getDataDir >>= makeAbsolute <&> (++ "/data/filehub")
+  let trim =  reverse . dropWhile (`elem` ['\n', '\r']). reverse
+  dir <- trim <$> readProcess "git" ["rev-parse", "--show-toplevel"] "" >>= makeAbsolute <&> (++ "/data/filehub")
 
   case req.pathInfo of
     [] -> respond do
@@ -125,6 +133,8 @@ app req respond = do
                   Just (Just "new-folder")    -> runTemplate ctx Template.Desktop.newFolderModal
                   Just (Just "new-file")      -> runTemplate ctx Template.Desktop.newFileModal
                   Just (Just "locale-button") -> Template.Desktop.localeBtn
+                  Just (Just "contextmenu1")  -> runTemplate ctx $ Template.Desktop.contextMenu1 (head files)
+                  Just (Just "contextmenuN")  -> runTemplate ctx $ Template.Desktop.contextMenuMany (fmap (ClientPath.toClientPath "/" . (.path)) files)
                   Nothing -> mempty
                   _ -> "unknown story"
 
@@ -136,18 +146,20 @@ app req respond = do
           body_ do
             div_ [ id_ "preview-side-bar" ] do
               ul_ do
-                li_ do a_ [ href_ "/?story=editor&display=desktop" ]         "D editor"
-                li_ do a_ [ href_ "/?story=editor&display=mobile" ]          "M editor"
+                li_ do a_ [ href_ "/?story=editor&display=desktop" ]          "D editor"
+                li_ do a_ [ href_ "/?story=editor&display=mobile" ]           "M editor"
 
-                li_ do a_ [ href_ "/?story=control-panel&display=desktop" ]  "D control-panel"
-                li_ do a_ [ href_ "/?story=control-panel&display=mobile" ]   "M control-panel"
+                li_ do a_ [ href_ "/?story=control-panel&display=desktop" ]   "D control-panel"
+                li_ do a_ [ href_ "/?story=control-panel&display=mobile" ]    "M control-panel"
 
-                li_ do a_ [ href_ "/?story=view&display=desktop" ]           "D view"
-                li_ do a_ [ href_ "/?story=view&display=mobile" ]            "M view"
+                li_ do a_ [ href_ "/?story=view&display=desktop" ]            "D view"
+                li_ do a_ [ href_ "/?story=view&display=mobile" ]             "M view"
 
-                li_ do a_ [ href_ "/?story=new-folder&display=desktop" ]     "D new-folder"
-                li_ do a_ [ href_ "/?story=new-file&display=desktop" ]       "D new-file"
-                li_ do a_ [ href_ "/?story=locale-button&display=desktop" ]  "D locale-button"
+                li_ do a_ [ href_ "/?story=new-folder&display=desktop" ]      "D new-folder"
+                li_ do a_ [ href_ "/?story=new-file&display=desktop" ]        "D new-file"
+                li_ do a_ [ href_ "/?story=locale-button&display=desktop" ]   "D locale-button"
+                li_ do a_ [ href_ "/?story=contextmenu1&display=desktop" ]    "D contextmenu1"
+                li_ do a_ [ href_ "/?story=contextmenuN&display=desktop" ]    "D contextmenuN"
 
             div_ [ id_ "preview-container" ] do
               iframe_ [ id_ "preview-frame"

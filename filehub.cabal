@@ -319,3 +319,4 @@ executable filehub_storybook
     , filepath
     , mime-types
     , time-qq
+    , process

@@ -9,6 +9,7 @@ hspkgs.shellFor {
     hspkgs.cabal2nix
     hspkgs.ghcprofview
     hspkgs.eventlog2html
+    pkgs.ghcid
     pkgs.ghciwatch
     pkgs.bashInteractive
     pkgs.upx

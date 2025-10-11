@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordPuns #-}
+{-# LANGUAGE NamedFieldPuns #-}
 module Filehub.Template
   ( TemplateContext(..)
   , Template

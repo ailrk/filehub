@@ -39,3 +39,11 @@ clean:
     rm -f filehub.pdf
     rm -f filehub.prof
     rm -f filehub.aux
+
+
+storybook:
+  ghcid -c "cabal repl filehub_storybook filehub"  -T "Main.mainDev 3333" -W
+
+
+test:
+  ghcid -c "cabal repl filehub_test filehub"  -T "Main.main" -W
