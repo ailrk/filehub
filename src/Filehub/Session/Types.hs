@@ -10,6 +10,7 @@ module Filehub.Session.Types
 
 import Control.Concurrent.Timer qualified as Timer
 import Data.HashTable.IO (BasicHashTable)
+import Data.Map.Strict (Map)
 import Data.Set (Set)
 import Data.Time (UTCTime)
 import Filehub.Auth.Types (AuthId)
@@ -17,16 +18,17 @@ import Filehub.Display (Resolution)
 import Filehub.Locale (Locale)
 import Filehub.Notification.Types (Notification(..))
 import Filehub.Session.Types.SessionId (SessionId(..))
+import Filehub.SharedLink (SharedLinkPermitSet)
 import Filehub.Sort (SortFileBy)
 import Filehub.Theme (Theme)
 import Filehub.UserAgent (DeviceType)
 import GHC.Generics (Generic)
 import Target.Types (Target)
+import Target.Types.TargetId (TargetId)
 import UnliftIO (TBQueue, TVar)
 import Worker.Task (TaskId)
 import {-# SOURCE #-} Filehub.Auth.OIDC (SomeOIDCFlow)
 import {-# SOURCE #-} Filehub.Types (Layout(..), CopyState(..), Selected)
-import Filehub.SharedLink (SharedLinkPermitSet)
 
 
 data Session = Session
@@ -36,9 +38,9 @@ data Session = Session
   , resolution        :: Maybe Resolution
   , deviceType        :: DeviceType
   , expireDate        :: UTCTime
-  , targets           :: [TargetSessionData]
+  , targets           :: Map TargetId TargetSessionData
   , copyState         :: CopyState
-  , index             :: Int
+  , currentTargetId   :: TargetId
   , layout            :: Layout
   , theme             :: Theme
   , locale            :: Locale
@@ -56,7 +58,6 @@ instance Eq Session where
 data TargetView = TargetView
   { target      :: Target
   , sessionData :: TargetSessionData
-  , index       :: Int
   }
   deriving (Generic)
 

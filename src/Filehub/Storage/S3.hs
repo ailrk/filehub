@@ -93,7 +93,7 @@ storage sessionId =
 
 getS3 :: SessionId -> Filehub (Backend S3)
 getS3 sessionId = do
-  TargetView target _ _ <- Session.currentTarget sessionId
+  TargetView target _ <- Session.currentTarget sessionId
   maybe (throwError (FilehubError TargetError "Target is not valid S3 bucket")) pure $ handleTarget target
     [ targetHandler @S3 id
     ]

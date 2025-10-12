@@ -91,7 +91,7 @@ toolBar = do
 
 
 sideBar :: [(Target, Int)] -> TargetView -> Template (Html ())
-sideBar targets (TargetView currentTarget _ _) = do
+sideBar targets (TargetView currentTarget _) = do
   p <- phrase <$> asks @TemplateContext (.locale)
   pure do
     div_ [ id_ sideBarId ] do
@@ -582,7 +582,7 @@ listLayout files = do
   root <- asks @TemplateContext (.root)
   selected <- asks @TemplateContext (.selected)
   order <- asks @TemplateContext (.sortedBy)
-  TargetView target _ _ <- asks @TemplateContext (.currentTarget)
+  TargetView target _ <- asks @TemplateContext (.currentTarget)
   Phrase
     { detail_filename
     , detail_modified
@@ -666,7 +666,7 @@ thumbnailLayout :: [FileInfo] -> Template (Html ())
 thumbnailLayout files = do
   root <- asks @TemplateContext (.root)
   selected <- asks @TemplateContext (.selected)
-  TargetView target _ _ <- asks @TemplateContext (.currentTarget)
+  TargetView target _ <- asks @TemplateContext (.currentTarget)
   let thumbnail :: (Int, FileInfo) -> Html ()
       thumbnail (idx, file) = card `with` Template.open root file
         where

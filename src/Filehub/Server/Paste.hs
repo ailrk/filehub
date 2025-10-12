@@ -54,7 +54,7 @@ paste sessionId _ _ = do
   case state of
     Paste selections -> do
       tasks <- do
-        TargetView to sessionData _ <- currentTarget sessionId
+        TargetView to sessionData <- currentTarget sessionId
         createPasteTasks sessionData.currentDir to selections
       let taskCount = fromIntegral (length tasks)
 
@@ -99,7 +99,7 @@ paste sessionId _ _ = do
             Regular -> do
               pure [ PasteFile from to file dst ]
             Dir -> do
-              withTarget sessionId fromId \(TargetView _ (TargetSessionData { currentDir = savedDir }) _) storage -> do
+              withTarget sessionId fromId \(TargetView _ (TargetSessionData { currentDir = savedDir })) storage -> do
                 storage.cd file.path
                 result <- do
                   dirFiles <- storage.lsCwd

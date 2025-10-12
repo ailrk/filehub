@@ -72,7 +72,7 @@ overlay = div_ [ id_ overlayId ] mempty
 
 
 sideBar :: [Target] -> TargetView -> Html ()
-sideBar targets (TargetView currentTarget _ _) = do
+sideBar targets (TargetView currentTarget _) = do
   div_ [ id_ sideBarId ] do traverse_ targetIcon targets
   where
     targetIcon :: Target -> Html ()

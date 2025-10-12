@@ -27,6 +27,7 @@ import Prelude hiding (readFile)
 import System.FilePath (takeFileName)
 import Effectful.Error.Dynamic (throwError)
 import Filehub.Error (FilehubError(..), Error'(InvalidPath))
+import Effectful.Concurrent.STM (readTVarIO)
 
 
 index :: SessionId -> Filehub (Html ())
@@ -41,9 +42,8 @@ index sessionId = do
 
 sideBar :: SessionId -> Filehub (Html ())
 sideBar sessionId = do
-  Template.Mobile.sideBar
-  <$> asks @Env (.targets)
-  <*> Session.currentTarget sessionId
+  targets <- asks @Env (.targets) >>= readTVarIO
+  Template.Mobile.sideBar (fmap snd targets) <$> Session.currentTarget sessionId
 
 
 toolBar :: SessionId -> Filehub (Html ())

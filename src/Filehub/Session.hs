@@ -66,7 +66,6 @@ module Filehub.Session
 
 import Control.Applicative (asum)
 import Data.Generics.Labels ()
-import Data.List (find)
 import Data.Maybe (fromMaybe)
 import Data.Set (Set)
 import Data.String.Interpolate (i)
@@ -99,13 +98,15 @@ import Worker.Task (TaskId)
 import {-# SOURCE #-} Filehub.Session.Copy qualified as Copy
 import {-# SOURCE #-} Filehub.Session.Selected qualified as Selected
 import Filehub.SharedLink (SharedLinkPermitSet)
+import Data.Map.Strict qualified as Map
+import Effectful.Concurrent.STM (readTVarIO)
 
 
 -- | Get the current target root. The meaning of the root depends on the target. e.g for
 -- a normal file system root is the file path, meanwhile S3 has no root, it will always be ""
 getRoot :: SessionId -> Filehub FilePath
 getRoot sessionId = do
-  TargetView (Target t) _ _ <- currentTarget sessionId
+  TargetView (Target t) _ <- currentTarget sessionId
   pure
     . fromMaybe ""
     . asum
@@ -121,7 +122,7 @@ getCurrentDir sessionId = (^. #sessionData . #currentDir) <$> currentTarget sess
 -- | Set the current working directory of the session.
 setCurrentDir :: SessionId -> FilePath -> Filehub ()
 setCurrentDir sessionId path = do
-  Session.Pool.update sessionId \s -> s & #targets . ix s.index . #currentDir .~ path
+  Session.Pool.update sessionId \s -> s & #targets . ix s.currentTargetId . #currentDir .~ path
 
 
 -- | Get the file sorting order of the current session.
@@ -132,7 +133,7 @@ getSortFileBy sessionId = (^. #sessionData . #sortedFileBy) <$> currentTarget se
 -- | Set the file sorting order of the current session.
 setSortFileBy :: SessionId -> SortFileBy -> Filehub ()
 setSortFileBy sessionId order = do
-  Session.Pool.update sessionId \s -> s & #targets . ix s.index . #sortedFileBy .~ order
+  Session.Pool.update sessionId \s -> s & #targets . ix s.currentTargetId . #sortedFileBy .~ order
 
 
 -- | Get the session `AuthId`.
@@ -223,25 +224,25 @@ setSessionSharedLinkPermit sessionId sharedLinkPermit = do
 currentTarget :: SessionId -> Filehub TargetView
 currentTarget sessionId = do
   mSession <- Session.Pool.get sessionId
-  targets <- asks @Env (.targets)
+  targets <- asks @Env (.targets) >>= readTVarIO
   maybe (throwError (FilehubError InvalidSession "Invalid session")) pure do
-    index             <- mSession ^? #index
-    targetSessionData <- mSession ^? #targets . ix index
-    target            <- targets  ^? ix index
-    pure $ TargetView target targetSessionData index
+    targetId          <- mSession ^? #currentTargetId
+    targetSessionData <- mSession ^? #targets >>= Map.lookup targetId
+    target            <- lookup targetId targets
+    pure $ TargetView target targetSessionData
 
 
 changeCurrentTarget :: SessionId -> TargetId -> Filehub ()
 changeCurrentTarget sessionId targetId = do
   logTrace_ [i|Changing target to #{targetId}|]
-  TargetView target _ _ <- currentTarget sessionId
-  targets               <- asks @Env (.targets)
+  TargetView target _ <- currentTarget sessionId
+  targets             <- asks @Env (.targets) >>= readTVarIO
   if getTargetId target == targetId
      then pure ()
      else do
-       case find (\(_, x) -> getTargetId x == targetId) ([0..] `zip` targets) of
-         Just (idx, _) -> do
-           Session.Pool.update sessionId \s -> s & #index .~ idx
+       case lookup targetId targets of
+         Just _ -> do
+           Session.Pool.update sessionId \s -> s & #currentTargetId .~ targetId
          Nothing -> do
            logAttention "Can't find target" (show targetId)
            throwError (FilehubError InvalidSession "Invalid session")
@@ -249,7 +250,7 @@ changeCurrentTarget sessionId targetId = do
 
 withTarget :: SessionId -> TargetId -> (TargetView -> Storage Filehub -> Filehub a) -> Filehub a
 withTarget sessionId targetId action = do
-  TargetView saved _ _ <- currentTarget sessionId
+  TargetView saved _ <- currentTarget sessionId
   changeCurrentTarget sessionId targetId
   storage <- getStorage sessionId
   result <- currentTarget sessionId >>= flip action storage
@@ -264,7 +265,7 @@ withTarget sessionId targetId action = do
 
 getStorage :: SessionId -> Filehub (Storage Filehub)
 getStorage sessionId = do
-  TargetView target _ _ <- currentTarget sessionId
+  TargetView target _ <- currentTarget sessionId
   maybe onError pure $ handleTarget target
     [ targetHandler @FileSys     \_ -> fileStorage
     , targetHandler @S3          \_ -> s3Storage

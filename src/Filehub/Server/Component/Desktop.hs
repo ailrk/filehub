@@ -32,6 +32,7 @@ import Effectful.Reader.Dynamic (asks)
 import Filehub.Session (TargetView(..))
 import Effectful.Error.Dynamic (throwError)
 import Filehub.Error (FilehubError(..), Error'(InvalidPath))
+import Effectful.Concurrent.STM (readTVarIO)
 
 
 fileDetailModal :: SessionId -> Maybe ClientPath -> Filehub (Html ())
@@ -87,10 +88,10 @@ index sessionId = do
 sideBar :: SessionId -> Filehub (Html ())
 sideBar sessionId = do
   ctx      <- makeTemplateContext sessionId
-  targets  <- asks @Env (.targets)
-  targets' <- forM targets \(Target backend) -> do
+  targets  <- asks @Env (.targets) >>= readTVarIO
+  targets' <- forM (fmap snd targets) \(Target backend) -> do
     let targetId = getTargetIdFromBackend backend
-    Session.withTarget sessionId targetId \(TargetView target targetData _) _ -> do
+    Session.withTarget sessionId targetId \(TargetView target targetData) _ -> do
       case targetData.selected of
         Selected _ sels -> pure (target, length sels + 1)
         NoSelection     -> pure (target, 0)

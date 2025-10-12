@@ -13,7 +13,7 @@ import Control.Exception (SomeException, throwIO)
 import Data.Functor.Identity (Identity(..))
 import Data.String.Interpolate (i)
 import Data.Time (secondsToNominalDiffTime)
-import Effectful (runEff)
+import Effectful (runEff, MonadIO (..))
 import Effectful.Concurrent (runConcurrent)
 import Effectful.FileSystem (runFileSystem)
 import Effectful.Log (runLog, logInfo_)
@@ -40,8 +40,9 @@ import Servant.Conduit ()
 import System.Environment (withArgs)
 import Target.File qualified as FS
 import Target.S3 qualified as S3
-import Target.Types (Target (..))
+import Target.Types (Target (..), getTargetId)
 import UnliftIO (catch, hFlush, stdout)
+import Effectful.Concurrent.STM (newTVarIO)
 
 
 main :: IO ()
@@ -78,36 +79,36 @@ main = Log.withColoredStdoutLogger \logger -> do
     logInfo_ [i|debug:     true|]
 #endif
 
-  sessionPool      <- runEff Session.Pool.new
-  activeUserPool   <- runEff ActiveUser.Pool.new
-  targets          <- runEff . runLog "targets" logger verbosity . runFileSystem $ fromTargetConfig targetConfigs.unTargets
-  simpleAuthUserDB <- runEff . runFileSystem $ Auth.Simple.createSimpleAuthUserDB simpleAuthLoginUsers.unSimpleAuthUserRecords
-  sharedLinkPool   <- runEff . runConcurrent $ SharedLink.newShareLinkPool
-  lockRegistry     <- LockRegistry.Local.new
-  cache            <- Cache.InMemory.new 5000
-  httpManager      <- newTlsManager
 
-  let env =
-        Env
-          { port              = port
-          , theme             = theme
-          , sessionPool       = sessionPool
-          , sessionDuration   = secondsToNominalDiffTime (60 * 60)
-          , targets           = targets
-          , readOnly          = readOnly
-          , locale            = locale
-          , logger            = logger
-          , logLevel          = verbosity
-          , customThemeDark   = (.unCustomThemeDark) <$> customThemeDark
-          , customThemeLight  = (.unCustomThemeLight) <$> customThemeLight
-          , simpleAuthUserDB  = simpleAuthUserDB
-          , oidcAuthProviders = OIDCAuthProviders (oidcAuthProviders.unOidcAuthProviders)
-          , sharedLinkPool    = sharedLinkPool
-          , activeUsers       = activeUserPool
-          , httpManager       = httpManager
-          , cache             = cache
-          , lockRegistry      = lockRegistry
-          }
+  env <- runEff . runConcurrent . runFileSystem  $ do
+    sessionPool      <- Session.Pool.new
+    activeUserPool   <- ActiveUser.Pool.new
+    targets          <- runLog "targets" logger verbosity $ fromTargetConfig targetConfigs.unTargets >>= newTVarIO
+    simpleAuthUserDB <- Auth.Simple.createSimpleAuthUserDB simpleAuthLoginUsers.unSimpleAuthUserRecords
+    sharedLinkPool   <- SharedLink.newShareLinkPool
+    lockRegistry     <- liftIO LockRegistry.Local.new
+    cache            <- liftIO $ Cache.InMemory.new 5000
+    httpManager      <- newTlsManager
+    pure Env
+      { port              = port
+      , theme             = theme
+      , sessionPool       = sessionPool
+      , sessionDuration   = secondsToNominalDiffTime (60 * 60)
+      , targets           = targets
+      , readOnly          = readOnly
+      , locale            = locale
+      , logger            = logger
+      , logLevel          = verbosity
+      , customThemeDark   = (.unCustomThemeDark) <$> customThemeDark
+      , customThemeLight  = (.unCustomThemeLight) <$> customThemeLight
+      , simpleAuthUserDB  = simpleAuthUserDB
+      , oidcAuthProviders = OIDCAuthProviders (oidcAuthProviders.unOidcAuthProviders)
+      , sharedLinkPool    = sharedLinkPool
+      , activeUsers       = activeUserPool
+      , httpManager       = httpManager
+      , cache             = cache
+      , lockRegistry      = lockRegistry
+      }
 
   go env `catch` handler
   where
@@ -119,8 +120,8 @@ main = Log.withColoredStdoutLogger \logger -> do
 
     fromTargetConfig opts = traverse transform opts
       where
-        transform (FSTargetConfig c) = Target <$> FS.initialize c
-        transform (S3TargetConfig c) = Target <$> S3.initialize c
+        transform (FSTargetConfig c) = FS.initialize c >>= \backend -> pure (getTargetId (Target backend), Target backend)
+        transform (S3TargetConfig c) = S3.initialize c >>= \backend -> pure (getTargetId (Target backend), Target backend)
 
 
 -- | For developement with ghciwatch

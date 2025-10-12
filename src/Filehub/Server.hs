@@ -654,7 +654,7 @@ changeTarget :: SessionId -> ConfirmLogin -> Maybe TargetId
              -> Filehub (Headers '[Header "HX-Trigger-After-Swap" FilehubEvent] (Html ()))
 changeTarget sessionId _ mTargetId = do
   savedTargetId <- do
-    TargetView saved _ _ <- Session.currentTarget sessionId
+    TargetView saved _ <- Session.currentTarget sessionId
     pure $ Target.getTargetId saved
 
   let restore = Session.changeCurrentTarget sessionId savedTargetId

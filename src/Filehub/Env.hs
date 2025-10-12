@@ -24,9 +24,10 @@ import Lens.Micro.Platform ()
 import LockRegistry.Local qualified
 import Log (Logger, LogLevel)
 import Network.HTTP.Client qualified as HTTP
-import Target.Types (Target)
+import Target.Types (Target, TargetId)
 import {-# SOURCE #-} Filehub.Auth.OIDC (OIDCAuthProviders(..))
 import {-# SOURCE #-} Filehub.Auth.Simple (SimpleAuthUserDB(..))
+import Effectful.Concurrent.STM (TVar)
 
 
 data Env = Env
@@ -39,7 +40,7 @@ data Env = Env
     -- Session duration setting. An idle session will expire after the duration.
   , sessionDuration   :: NominalDiffTime
     -- List of targets. `Target` is existential, it hides different target backends.
-  , targets           :: [Target]
+  , targets           :: TVar [(TargetId, Target)]
     -- Top level readonly setting.
   , readOnly          :: Bool
     -- Top level logging facility.

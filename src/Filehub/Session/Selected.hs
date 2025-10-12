@@ -20,6 +20,8 @@ import Lens.Micro.Platform ()
 import Prelude hiding (elem)
 import Target.Types (Target)
 import Filehub.Monad (Filehub)
+import Effectful.Concurrent.STM (readTVarIO)
+import Data.Map.Strict qualified as Map
 
 
 getSelected :: SessionId -> Filehub Selected
@@ -27,7 +29,7 @@ getSelected sessionId = (^. #sessionData . #selected) <$> Session.currentTarget 
 
 
 setSelected :: SessionId -> Selected -> Filehub ()
-setSelected sessionId selected = Session.Pool.update sessionId \s -> s & #targets . ix s.index . #selected .~ selected
+setSelected sessionId selected = Session.Pool.update sessionId \s -> s & #targets . ix s.currentTargetId . #selected .~ selected
 
 
 anySelected :: SessionId -> Filehub Bool
@@ -38,17 +40,17 @@ anySelected sessionId = Selected.anySelected  <$> Session.Pool.get sessionId
 allSelecteds :: SessionId -> Filehub [(Target, Selected)]
 allSelecteds sessionId = do
   session <- Session.Pool.get sessionId
-  let selecteds = session ^. #targets & fmap (^. #selected)
-  targets <- asks @Env (.targets)
-  pure (Selected.allSelecteds selecteds targets)
+  let selecteds = session ^. #targets & Map.elems . fmap (^. #selected)
+  targets <- asks @Env (.targets) >>= readTVarIO
+  pure (Selected.allSelecteds selecteds (fmap snd targets))
 
 
 countSelected :: SessionId -> Filehub Int
 countSelected sessionId = do
   session <- Session.Pool.get sessionId
-  let selecteds = session ^. #targets & fmap (^. #selected)
-  targets <- asks @Env (.targets)
-  pure $ Selected.countSelected selecteds targets
+  let selecteds = session ^. #targets & Map.elems . fmap (^. #selected)
+  targets <- asks @Env (.targets) >>= readTVarIO
+  pure $ Selected.countSelected selecteds (fmap snd targets)
 
 
 clearSelected :: SessionId -> Filehub ()

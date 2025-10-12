@@ -20,6 +20,9 @@ import Target.File (FileSys, Backend(..))
 import Target.S3 (S3)
 import Target.Types (Target (..))
 import UnliftIO.STM (newTBQueueIO, newTVarIO)
+import Effectful.Concurrent (Concurrent)
+import Effectful.Concurrent.STM (readTVarIO)
+import Data.Map.Strict qualified as Map
 
 
 createSessionId :: (IOE :> es) => Eff es SessionId
@@ -33,9 +36,9 @@ createExpireDate = do
   pure $ duration `addUTCTime` current
 
 
-createSession :: (Reader Env :> es, IOE :> es) => Eff es Session
+createSession :: (Reader Env :> es, Concurrent :> es, IOE :> es) => Eff es Session
 createSession = do
-  targets       <- asks @Env (.targets)
+  targets       <- asks @Env (.targets) >>= readTVarIO
   theme         <- asks @Env (.theme)
   locale        <- asks @Env (.locale)
   sessionId     <- createSessionId
@@ -49,9 +52,9 @@ createSession = do
     , resolution        = Nothing
     , deviceType        = UserAgent.Unknown
     , expireDate        = expireDate
-    , targets           = targetToSessionData <$> targets
+    , targets           = targetToSessionData <$> Map.fromList targets
     , copyState         = NoCopyPaste
-    , index             = 0
+    , currentTargetId   = fst (head targets)
     , layout            = ThumbnailLayout
     , theme             = theme
     , locale            = locale

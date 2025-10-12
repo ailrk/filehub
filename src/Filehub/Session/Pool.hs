@@ -25,6 +25,7 @@ import Filehub.Session.Internal qualified as Session
 import Filehub.Error (FilehubError (..), Error' (..))
 import Filehub.Session.Types (Session(..), SessionId)
 import Filehub.Session.Types qualified as Session
+import Effectful.Concurrent (Concurrent)
 
 
 new :: (IOE :> es) => Eff es Session.Pool
@@ -39,7 +40,7 @@ new = do
   pure $ Session.Pool table gc
 
 
-newSession :: (Reader Env :> es, IOE :> es) => Eff es Session
+newSession :: (Reader Env :> es, Concurrent :> es, IOE :> es) => Eff es Session
 newSession = do
   Session.Pool pool _ <- asks @Env (.sessionPool)
   session             <- Session.createSession
