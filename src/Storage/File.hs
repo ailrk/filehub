@@ -72,6 +72,9 @@ import System.IO.Error (isDoesNotExistError)
 import System.IO.Temp qualified as Temp
 import UnliftIO (MonadIO (..), tryIO, IOException, Handler (..), catch, throwIO, Handle)
 import UnliftIO.Retry (recovering, limitRetries, exponentialBackoff)
+import Target.File (TargetBackend(..), FileSys)
+import Data.ClientPath qualified as ClientPath
+import Data.ClientPath (ClientPath)
 
 
 class CacheKeyComponent (s :: Symbol) a              where toCacheKeyComponent :: Builder
@@ -158,7 +161,7 @@ read
     , cacheName ~ "file-content")
     => FileInfo -> Eff es ByteString
 read file = do
-  logTrace_ [i|file read|]
+  logTrace_ [i|[8sc2z] file read|]
   mCached <- Cache.lookup @cacheType cacheKey
   case mCached of
     Just cached -> pure cached
@@ -311,7 +314,7 @@ delete currentDir name = do
   Cache.delete (createCacheKey @"file" @FileInfo (Builder.string8 name))
   where
     withRetry action = recovering policy handlers \_ -> do
-      logInfo_ [i|Retrying delete #{name}|]
+      logInfo_ [i|[vhdkl2] Retrying delete #{name}|]
       result <- tryIO action
       case result of
         Left e | isDoesNotExistError e -> pure () -- it's already gone
@@ -399,8 +402,10 @@ download
      , IOE        :> es
      , Log        :> es
      , Cache      :> es)
-  => FilePath -> Eff es (ConduitT () ByteString (ResourceT IO) ())
-download path = do
+  => TargetBackend FileSys -> ClientPath -> Eff es (ConduitT () ByteString (ResourceT IO) ())
+download fileSys clientPath = do
+
+  let path =  ClientPath.fromClientPath fileSys.root clientPath
   mFile <- get path
   case mFile of
     Just file -> do

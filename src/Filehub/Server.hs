@@ -133,6 +133,7 @@ import Web.Cookie (SetCookie (..), defaultSetCookie)
 import Filehub.Auth.Types (AuthId(..))
 import Data.UUID qualified as UUID
 import Filehub.SharedLink (SharedLinkHash, SharedLinkPermitSet (..), SharedLinkPermit)
+import Debug.Trace (traceShowM)
 
 
 #ifdef DEBUG
@@ -388,7 +389,7 @@ loginAuthSimple sessionId form@(LoginForm username _) =  do
                 , setCookiePath     = Just "/"
                 , setCookieSecure   = True
                 }
-          logInfo_ [i|User #{username} logged in|]
+          logInfo_ [i|[2445sz] User #{username} logged in|]
           addHeader setCookie . addHeader "/" <$> pure mempty
         Nothing -> noHeader . noHeader <$> (pure failed)
 
@@ -428,7 +429,7 @@ loginAuthOIDCCallback sessionId (Just code) (Just state) _ _ _ _ = do
           >>= Auth.OIDC.authenticateSession sessionId
           >>= Auth.OIDC.setSessionOIDCFlow sessionId . Just
     _ -> do
-      logAttention_ "OIDC Error: invalid stage"
+      logAttention_ "[s9vf9d] OIDC Error: invalid stage"
       pure ()
   session <- Session.Pool.get sessionId
   case session.authId of

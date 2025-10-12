@@ -50,6 +50,9 @@ module Filehub.Session
   , setSessionTheme
   , getSessionLocale
   , setSessionLocale
+  , getSessionTargets
+  , setSessionTargets
+  , getSessionTargetViews
   , getDisplay
   , getControlPanelState
   , setSessionSharedLinkPermit
@@ -68,12 +71,11 @@ module Filehub.Session
 
 import Control.Applicative (asum)
 import Data.Generics.Labels ()
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, mapMaybe)
 import Data.Set (Set)
-import Data.String.Interpolate (i)
 import Data.Typeable (cast)
 import Effectful.Error.Dynamic (throwError)
-import Effectful.Log (logAttention, logTrace_, logAttention_)
+import Effectful.Log (logAttention, logAttention_, logTrace)
 import Effectful.Reader.Dynamic (asks)
 import Filehub.Auth.Types (AuthId)
 import Filehub.Display qualified as Display
@@ -103,6 +105,7 @@ import {-# SOURCE #-} Filehub.Session.Selected qualified as Selected
 import Filehub.SharedLink (SharedLinkPermitSet)
 import Data.Map.Strict qualified as Map
 import Effectful.Concurrent.STM (readTVarIO)
+import Data.Map.Strict (Map)
 
 
 -- | Get the current target root. The meaning of the root depends on the target. e.g for
@@ -183,6 +186,27 @@ setSessionLocale sessionId locale = do
   Session.Pool.update sessionId \s -> s & #locale .~ locale
 
 
+getSessionTargets :: SessionId -> Filehub (Map TargetId TargetSessionData)
+getSessionTargets sessionId = (^. #targets) <$> Session.Pool.get sessionId
+
+
+setSessionTargets :: SessionId -> Map TargetId TargetSessionData -> Filehub ()
+setSessionTargets sessionId targets = do
+  Session.Pool.update sessionId \s -> s & #targets .~ targets
+
+
+getSessionTargetViews :: SessionId -> Filehub [TargetView]
+getSessionTargetViews sessionId = do
+  sessionTargetdata <- getSessionTargets sessionId
+  let targetIds     =  Map.keys sessionTargetdata
+  targets           <- filter ((`elem` targetIds) . fst) <$> (asks @Env (.targets) >>= readTVarIO)
+  let targetViews = flip mapMaybe targets \(targetId, target) ->
+        case Map.lookup targetId sessionTargetdata of
+          Just targetData -> pure (TargetView target targetData)
+          Nothing         -> Nothing
+  pure targetViews
+
+
 -- | Get the current session display. The display is calculated base on the client screen resolution.
 getDisplay :: SessionId -> Filehub Display
 getDisplay sessionId = do
@@ -237,7 +261,6 @@ currentTarget sessionId = do
 
 changeCurrentTarget :: SessionId -> TargetId -> Filehub ()
 changeCurrentTarget sessionId targetId = do
-  logTrace_ [i|Changing target to #{targetId}|]
   TargetView target _ <- currentTarget sessionId
   targets             <- asks @Env (.targets) >>= readTVarIO
   if getTargetId target == targetId
@@ -245,9 +268,10 @@ changeCurrentTarget sessionId targetId = do
      else do
        case lookup targetId targets of
          Just _ -> do
+           logTrace "[vccxxa] Changing target" (show targetId)
            Session.Pool.update sessionId \s -> s & #currentTargetId .~ targetId
          Nothing -> do
-           logAttention "Can't find target" (show targetId)
+           logAttention "[vccxxa] Can't change to target" (show targetId)
            throwError (FilehubError InvalidSession "Invalid session")
 
 
@@ -295,7 +319,7 @@ getStorage sessionId = do
     s3Storage   = S3.storage sessionId
     fileStorage = File.storage sessionId
     onError     = do
-      logAttention_ "[getStorage] target error"
+      logAttention_ "[ssshuu] Target error"
       throwError (FilehubError TargetError "Invalid target")
 
 

@@ -73,7 +73,7 @@ get sessionId = do
   case mResult of
     Just session -> pure session
     Nothing -> do
-      logTrace_ [i|No such session #{sessionId}|]
+      logTrace_ [i|[zsv09d] No such session #{sessionId}|]
       throwError (FilehubError InvalidSession "Invalid session")
 
 

@@ -92,7 +92,7 @@ sessionMiddleware env app req respond = toIO onErr env do
         Right _ -> do
           liftIO $ app req respond
     Nothing -> do
-      logTrace_ [i|No session found.|]
+      logTrace_ [i|[0vz333] No session found.|]
       respondWithNewSession
   where
     respondWithNewSession = do
@@ -109,7 +109,7 @@ sessionMiddleware env app req respond = toIO onErr env do
       let setCookieHeader           = ("Set-Cookie", Cookies.renderSetCookie sessionIdSetCookie)
       let injectedCookieHeader      = ("Cookie", "sessionId=" <> UUID.toASCIIBytes sid)
       let req'                      = req { requestHeaders = injectedCookieHeader : requestHeaders req }
-      logTrace_ [i|New session: #{sessionId}|]
+      logTrace_ [i|[vzs0e1] New session: #{sessionId}|]
       liftIO $ app req' \res ->
         let res' = mapResponseHeaders (setCookieHeader :) res
          in respond res'

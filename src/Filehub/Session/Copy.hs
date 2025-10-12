@@ -44,9 +44,6 @@ select :: SessionId -> Filehub ()
 select sessionId = do
   allSelecteds <- Selected.allSelecteds sessionId
   forM_ allSelecteds \(target, selected) -> do
-    do
-      let tid = Target.getTargetId target
-      logAttention_ [i|#{tid}, #{selected}|]
     Session.withTarget sessionId (Target.getTargetId target) \_ storage -> do
       case selected of
         NoSelection -> do
@@ -55,7 +52,7 @@ select sessionId = do
             Right (Just state') -> setCopyState sessionId state'
             Right Nothing       -> pure ()
             Left err -> do
-              logAttention_ [i|#{err}|]
+              logAttention_ [i|[asckkk] #{err}|]
               throwError err
         Selected x xs -> do
           root <- Session.getRoot sessionId
@@ -65,7 +62,7 @@ select sessionId = do
           case onSelected (target, files) state of
             Right state' -> setCopyState sessionId state'
             Left err -> do
-              logAttention_ [i|#{err}|]
+              logAttention_ [i|[ascks1] #{err}|]
               throwError err
   where
     merge sel [] = [sel]
@@ -91,7 +88,7 @@ copy sessionId = do
   case step state of
     Right state' -> setCopyState sessionId state'
     Left err -> do
-      logAttention_ [i|#{err}|]
+      logAttention_ [i|[tyy33d] #{err}|]
       throwError err
   where
     step = \case

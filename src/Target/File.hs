@@ -35,5 +35,5 @@ initialize :: (IOE :> es, Log :> es, FileSystem :> es) => Config -> Eff es (Targ
 initialize opt = do
   targetId <- liftIO $ TargetId <$> UUID.nextRandom
   root     <- makeAbsolute opt.root
-  logInfo_ [i|Initialized: #{targetId} - FS #{root}|]
+  logInfo_ [i|[99s5fd] Initialized: #{targetId} - FS #{root}|]
   pure $ FileBackend targetId Nothing root

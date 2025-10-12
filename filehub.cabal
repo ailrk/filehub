@@ -109,6 +109,7 @@ library
     , network-uri
     , optparse-applicative
     , psqueues
+    , pretty-simple
     , random
     , retry
     , servant
@@ -225,6 +226,7 @@ library
     Target.Virtual
     Target.Dummy
     Target.Types
+    Text.Debug
     Worker.Pool
     Worker.Task
     Paths_filehub

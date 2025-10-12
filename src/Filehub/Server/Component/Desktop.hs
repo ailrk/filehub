@@ -11,11 +11,7 @@ module Filehub.Server.Component.Desktop
   )
   where
 
-import Control.Monad (forM)
 import Data.ClientPath qualified as ClientPath
-import Filehub.Env qualified as Env
-import Filehub.Env (Env)
-import Target.Types (getTargetId)
 import Filehub.Monad ( Filehub )
 import Filehub.Session.Types (TargetSessionData(..))
 import Filehub.Session qualified as Session
@@ -27,11 +23,9 @@ import Filehub.Types ( SessionId(..), ClientPath, Selected(..))
 import Lucid
 import Prelude hiding (readFile)
 import System.FilePath (takeFileName)
-import Effectful.Reader.Dynamic (asks)
 import Filehub.Session (TargetView(..))
 import Effectful.Error.Dynamic (throwError)
 import Filehub.Error (FilehubError(..), Error'(InvalidPath))
-import Effectful.Concurrent.STM (readTVarIO)
 
 
 fileDetailModal :: SessionId -> Maybe ClientPath -> Filehub (Html ())
@@ -87,13 +81,12 @@ index sessionId = do
 sideBar :: SessionId -> Filehub (Html ())
 sideBar sessionId = do
   ctx      <- makeTemplateContext sessionId
-  targets  <- asks @Env (.targets) >>= readTVarIO
-  targets' <- forM (fmap snd targets) \target -> do
-    let targetId = getTargetId target
-    Session.withTarget sessionId targetId \(TargetView _ targetData) _ -> do
-      case targetData.selected of
-        Selected _ sels -> pure (target, length sels + 1)
-        NoSelection     -> pure (target, 0)
+  targetViews <- Session.getSessionTargetViews sessionId
+  let targets' = flip fmap targetViews \(TargetView target targetData) -> do
+        case targetData.selected of
+          Selected _ sels -> (target, length sels + 1)
+          NoSelection     -> (target, 0)
+
   currentTargetView <- Session.currentTarget sessionId
   pure $ runTemplate ctx (Template.Desktop.sideBar targets' currentTargetView)
 

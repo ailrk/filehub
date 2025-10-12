@@ -66,7 +66,7 @@ lookup :: forall a es . (Cache :> es, Log :> es, Typeable a) => CacheKey a -> Ef
 lookup key = do
   result <- send (Lookup key)
   case result of
-    Just _ -> logTrace_ [i|CACHE HIT #{key}|]
+    Just _ -> logTrace_ [i|[9vd2zj] CACHE HIT #{key}|]
     Nothing -> pure ()
   pure result
 
@@ -78,7 +78,7 @@ insert key deps mTTL value = send (Insert key deps mTTL value)
 
 delete :: (Cache :> es, Log :> es) => CacheKey a -> Eff es ()
 delete key = do
-  logTrace_ [i|CACHE DELETE #{key}|]
+  logTrace_ [i|[0cvba1] CACHE DELETE #{key}|]
   send (Delete (SomeCacheKey key))
 
 

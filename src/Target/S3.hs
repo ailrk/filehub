@@ -54,7 +54,7 @@ initialize opt = do
   let bucket =  Text.pack opt.bucket
   service    <- liftIO makeS3Service
   env        <- liftIO do Amazonka.configureService service <$> Amazonka.newEnv Amazonka.discover
-  logInfo_ [i|Initialized: #{targetId} - S3 #{bucket}|]
+  logInfo_ [i|[ive9d4] Initialized: #{targetId} - S3 #{bucket}|]
 #ifdef DEBUG
   logger <- Amazonka.newLogger Amazonka.Debug stdout
   pure $ S3Backend targetId bucket $ env { logger = logger }

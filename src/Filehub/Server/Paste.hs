@@ -9,7 +9,7 @@ import Data.String.Interpolate (i)
 import Effectful.Concurrent.Async (async, forConcurrently_)
 import Effectful.Concurrent.STM (newTVarIO, readTVar, atomically, modifyTVar', writeTBQueue)
 import Effectful.Error.Dynamic (throwError)
-import Effectful.Log (logAttention_)
+import Effectful.Log (logAttention_, logTrace)
 import Filehub.Error ( FilehubError(..), Error' (..) )
 import Filehub.Handler (ConfirmLogin, ConfirmReadOnly)
 import Filehub.Monad
@@ -50,7 +50,6 @@ paste sessionId _ _ = do
   taskId        <- newTaskId
   notifications <- Session.getSessionNotifications sessionId
   state         <- Copy.getCopyState sessionId
-
   case state of
     Paste selections -> do
       tasks <- do
@@ -82,7 +81,7 @@ paste sessionId _ _ = do
         Selected.clearSelectedAllTargets sessionId
         atomically $ writeTBQueue notifications (TaskCompleted taskId)
     _ -> do
-      logAttention_ [i|Paste error: #{sessionId}, not in pastable state.|]
+      logAttention_ [i|[v8dsaz] #{sessionId}, not in pastable state.|]
       throwError (FilehubError SelectError "Not in a pastable state")
 
   Server.Internal.clear sessionId

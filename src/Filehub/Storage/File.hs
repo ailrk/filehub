@@ -15,7 +15,6 @@
 module Filehub.Storage.File (storage) where
 
 import Control.Monad (unless)
-import Data.ClientPath (fromClientPath)
 import Effectful ( raise)
 import Effectful.Error.Dynamic (throwError)
 import Effectful.FileSystem
@@ -30,13 +29,16 @@ import Prelude hiding (read, readFile, writeFile)
 import Storage.File qualified
 import {-# SOURCE #-} Filehub.Session qualified as Session
 import Data.Function ((&))
+import Target.File (TargetBackend, FileSys)
+import Filehub.Session.Types (TargetView(..))
+import Target.Types (handleTarget, targetHandler)
 
 
 cd :: SessionId -> FilePath -> Filehub ()
 cd sessionId path = do
   exists <- doesDirectoryExist path
   unless exists do
-    logAttention "[cd] dir doesn't exists:" path
+    logAttention "[nmb224] dir doesn't exists:" path
     throwError (FilehubError InvalidDir "Can enter, not a directory")
   Session.setCurrentDir sessionId path
 
@@ -81,7 +83,15 @@ storage sessionId =
         Storage.File.upload currentDir filedata
 
     , download = \clientPath -> do
-        root <- Session.getRoot sessionId
-        let path =  fromClientPath root clientPath
-        Storage.File.download path
+        fileSys <- getFileSys sessionId
+        Storage.File.download fileSys clientPath
     }
+
+
+
+getFileSys :: SessionId -> Filehub (TargetBackend FileSys)
+getFileSys sessionId = do
+  TargetView target _ <- Session.currentTarget sessionId
+  maybe (throwError (FilehubError TargetError "Target is not valid file system direcotry")) pure $ handleTarget target
+    [ targetHandler @FileSys id
+    ]

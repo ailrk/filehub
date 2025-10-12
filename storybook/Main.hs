@@ -190,7 +190,6 @@ app req respond = do
                                               , sortedFileBy = ByNameUp
                                               , selected = NoSelection
                                               }
-                              , index = 0
                               }
         , simpleAuthUserDB   = undefined
         , oidcAuthProviders  = undefined
