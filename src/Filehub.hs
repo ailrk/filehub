@@ -14,6 +14,7 @@ import Data.Functor.Identity (Identity(..))
 import Data.String.Interpolate (i)
 import Data.Time (secondsToNominalDiffTime)
 import Effectful (runEff)
+import Effectful.Concurrent (runConcurrent)
 import Effectful.FileSystem (runFileSystem)
 import Effectful.Log (runLog, logInfo_)
 import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
@@ -29,6 +30,7 @@ import Filehub.Log qualified as Log
 import Filehub.Orphan ()
 import Filehub.Server (application)
 import Filehub.Session.Pool qualified as Session.Pool
+import Filehub.SharedLink qualified as SharedLink
 import Lens.Micro.Platform ()
 import LockRegistry.Local
 import Network.HTTP.Client.TLS (newTlsManager)
@@ -80,6 +82,7 @@ main = Log.withColoredStdoutLogger \logger -> do
   activeUserPool   <- runEff ActiveUser.Pool.new
   targets          <- runEff . runLog "targets" logger verbosity . runFileSystem $ fromTargetConfig targetConfigs.unTargets
   simpleAuthUserDB <- runEff . runFileSystem $ Auth.Simple.createSimpleAuthUserDB simpleAuthLoginUsers.unSimpleAuthUserRecords
+  sharedLinkPool   <- runEff . runConcurrent $ SharedLink.newShareLinkPool
   lockRegistry     <- LockRegistry.Local.new
   cache            <- Cache.InMemory.new 5000
   httpManager      <- newTlsManager
@@ -99,6 +102,7 @@ main = Log.withColoredStdoutLogger \logger -> do
           , customThemeLight  = (.unCustomThemeLight) <$> customThemeLight
           , simpleAuthUserDB  = simpleAuthUserDB
           , oidcAuthProviders = OIDCAuthProviders (oidcAuthProviders.unOidcAuthProviders)
+          , sharedLinkPool    = sharedLinkPool
           , activeUsers       = activeUserPool
           , httpManager       = httpManager
           , cache             = cache

@@ -52,6 +52,8 @@ module Filehub.Session
   , setSessionLocale
   , getDisplay
   , getControlPanelState
+  , setSessionSharedLinkPermit
+  , getSessionSharedLinkPermit
   , getStorage
   , changeCurrentTarget
   , currentTarget
@@ -96,6 +98,7 @@ import UnliftIO.STM (TBQueue, TVar, atomically, writeTBQueue)
 import Worker.Task (TaskId)
 import {-# SOURCE #-} Filehub.Session.Copy qualified as Copy
 import {-# SOURCE #-} Filehub.Session.Selected qualified as Selected
+import Filehub.SharedLink (SharedLinkPermitSet)
 
 
 -- | Get the current target root. The meaning of the root depends on the target. e.g for
@@ -191,7 +194,6 @@ getDisplay sessionId = do
     Nothing -> pure NoDisplay
 
 
-
 getControlPanelState :: SessionId -> Filehub ControlPanelState
 getControlPanelState sessionId = do
   isAnySelected <- Selected.anySelected sessionId
@@ -201,6 +203,16 @@ getControlPanelState sessionId = do
     (True, CopySelected {}) -> pure ControlPanelSelecting
     (True, NoCopyPaste)     -> pure ControlPanelSelecting
     _                       -> pure ControlPanelDefault
+
+
+-- | Set the current session theme.
+getSessionSharedLinkPermit:: SessionId -> Filehub (Maybe SharedLinkPermitSet)
+getSessionSharedLinkPermit sessionId = (^. #sharedLinkPermit) <$> Session.Pool.get sessionId
+
+
+setSessionSharedLinkPermit :: SessionId -> Maybe SharedLinkPermitSet -> Filehub ()
+setSessionSharedLinkPermit sessionId sharedLinkPermit = do
+  Session.Pool.update sessionId \s -> s & #sharedLinkPermit .~ sharedLinkPermit
 
 
 ------------------------------

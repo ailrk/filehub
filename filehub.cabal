@@ -69,7 +69,6 @@ library
   hs-source-dirs: src
   build-depends:
       base >=4.16.1.0
-    , base64-bytestring
     , JuicyPixels
     , JuicyPixels-stbir
     , aeson
@@ -77,27 +76,28 @@ library
     , amazonka
     , amazonka-s3
     , async
+    , base64-bytestring
+    , bcrypt
     , binary
     , bytestring
-    , bcrypt
     , case-insensitive
     , conduit
     , containers
     , cookie
     , cryptohash-sha256
     , cryptonite
-    , directory
     , data-default
+    , directory
     , effectful
-    , filepath
     , file-embed
+    , filepath
     , fuzzy
     , generic-lens
     , hashable
     , hashtables
+    , http-api-data
     , http-client
     , http-client-tls
-    , http-api-data
     , http-types
     , jwt
     , log-base
@@ -114,11 +114,12 @@ library
     , servant
     , servant-client
     , servant-conduit
-    , servant-lucid
     , servant-event-stream
+    , servant-lucid
     , servant-multipart
     , servant-server
     , split
+    , sqlite-simple
     , stm
     , string-interpolate
     , suspend
@@ -139,6 +140,7 @@ library
     , wai-extra
     , warp
     , zip
+
 
   exposed-modules:
     Cache.Dummy
@@ -215,11 +217,13 @@ library
     Storage.Error
     Storage.File
     Storage.S3
+    Storage.Virtual
     System.FilePath.Extended
     Target.Class
     Target.File
     Target.Internal
     Target.S3
+    Target.Virtual
     Target.Dummy
     Target.Types
     Target.Types.TargetId

@@ -85,6 +85,7 @@ import Web.Cookie (SetCookie)
 import Filehub.Locale (Locale)
 import Target.Types (TargetId)
 import Filehub.Notification.Types (Notification)
+import Filehub.SharedLink (SharedLinkHash, SharedLinkPermit)
 
 
 type instance AuthServerData (AuthProtect "session")      = SessionId
@@ -92,6 +93,7 @@ type instance AuthServerData (AuthProtect "readonly")     = ConfirmReadOnly
 type instance AuthServerData (AuthProtect "desktop-only") = ConfirmDesktopOnly
 type instance AuthServerData (AuthProtect "mobile-only")  = ConfirmMobilOnly
 type instance AuthServerData (AuthProtect "login")        = ConfirmLogin
+type instance AuthServerData (AuthProtect "sharedlink")   = Maybe SharedLinkPermit
 
 
 -- | Filehub custom headers are in format `X-Filehub-*`. They are usually used to report the server state
@@ -398,6 +400,21 @@ data Api mode = Api
                           :> AuthProtect "login"
                           :> QueryParam "target" TargetId
                           :> Get '[HTML] (Headers '[ Header "HX-Trigger-After-Swap" FilehubEvent ] (Html ()))
+
+
+  , shared                :: mode
+                          :- "s"
+                          :> AuthProtect "session"
+                          :> AuthProtect "sharedlink"
+                          :> Capture "hash" SharedLinkHash
+                          :> QueryParam "file" ClientPath
+                          :> Get '[HTML] (Html ())
+
+
+  , sharedAuth            :: mode
+                          :- "s" :> "auth"
+                          :> AuthProtect "session"
+                          :> Get '[HTML] (Html ())
 
 
   -- Servant api for      ces you to provide a content type at compile time, but we want to dynamically determine the content type instead.

@@ -42,7 +42,7 @@ cd sessionId path = do
 
 
 
-storage :: SessionId -> (Storage Filehub)
+storage :: SessionId -> Storage Filehub
 storage sessionId =
   Storage
     { get         = Storage.File.get

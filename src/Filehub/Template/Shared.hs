@@ -355,4 +355,3 @@ sideBarId = "side-bar"
 
 toolBarId :: Text
 toolBarId = "tool-bar"
-

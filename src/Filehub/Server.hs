@@ -129,7 +129,10 @@ import Target.Types qualified as Target
 import Text.Printf (printf)
 import UnliftIO.Exception (SomeException, catch)
 import UnliftIO.STM (readTBQueue, atomically, modifyTVar', readTVar, isEmptyTBQueue)
-import Web.Cookie (SetCookie (..))
+import Web.Cookie (SetCookie (..), defaultSetCookie)
+import Filehub.Auth.Types (AuthId(..))
+import Data.UUID qualified as UUID
+import Filehub.SharedLink (SharedLinkHash, SharedLinkPermitSet (..), SharedLinkPermit)
 
 
 #ifdef DEBUG
@@ -197,6 +200,8 @@ server = Api
   , initViewer            = initViewer
   , open                  = open
   , changeTarget          = changeTarget
+  , shared                = shared
+  , sharedAuth            = sharedAuth
   , themeCss              = themeCss
   , toggleTheme           = toggleTheme
   , changeLocale          = changeLocale
@@ -327,7 +332,7 @@ loginPage sessionId cookie Nothing = do
   if noLogin
      then go
      else do
-       case fmap Text.encodeUtf8 cookie >>= parseHeader' >>= Cookies.getAuthId of
+       case fmap Text.encodeUtf8 cookie >>= parseHeader' >>= Cookies.fromCookies of
          Just authId' -> do
            authId <- Session.getAuthId sessionId
            if authId == Just authId'
@@ -372,12 +377,21 @@ loginAuthSimple sessionId form@(LoginForm username _) =  do
   mSession <- Auth.Simple.authenticateSession sessionId form
   case mSession of
     Just session -> do
-      case Cookie.setAuthId session of
-        Just setCookie -> do
+      case session.authId of
+        Just (AuthId authId) -> do
+          let bytes = UUID.toASCIIBytes authId
+          let setCookie = defaultSetCookie
+                { setCookieName     = "authId"
+                , setCookieValue    = bytes
+                , setCookieExpires  = Just session.expireDate
+                , setCookieHttpOnly = True
+                , setCookiePath     = Just "/"
+                , setCookieSecure   = True
+                }
           logInfo_ [i|User #{username} logged in|]
           addHeader setCookie . addHeader "/" <$> pure mempty
-        Nothing -> do
-          noHeader . noHeader <$> (pure failed)
+        Nothing -> noHeader . noHeader <$> (pure failed)
+
     Nothing -> do
       noHeader . noHeader <$> (pure failed)
 
@@ -417,17 +431,28 @@ loginAuthOIDCCallback sessionId (Just code) (Just state) _ _ _ _ = do
       logAttention_ "OIDC Error: invalid stage"
       pure ()
   session <- Session.Pool.get sessionId
-  case Cookie.setAuthId session of
-    Just setCookie -> do
+  case session.authId of
+    Just (AuthId authId) -> do
+      let bytes = UUID.toASCIIBytes authId
+      let setCookie = defaultSetCookie
+            { setCookieName     = "authId"
+            , setCookieValue    = bytes
+            , setCookieExpires  = Just session.expireDate
+            , setCookieHttpOnly = True
+            , setCookiePath     = Just "/"
+            , setCookieSecure   = True
+            }
       throwError do
         HTTPError err303
           { errHeaders = [( "Location" , "/"), ("Set-Cookie", Cookies.renderSetCookie setCookie)]
           }
-    Nothing ->
+    Nothing -> do
       throwError do
         HTTPError err303
           { errHeaders = [( "Location" , "/login")]
           }
+
+
 loginAuthOIDCCallback _ _ _ mErr mErrDescription _ _ = do
   let message = fromMaybe "" mErr <> ", " <> fromMaybe "" mErrDescription
   throwError do
@@ -441,7 +466,20 @@ logout :: SessionId -> ConfirmLogin -> Filehub (Headers '[ Header "Set-Cookie" S
                                                          ] NoContent)
 logout sessionId _ = do
   session <- Session.Pool.get sessionId
-  case (,) <$> Cookie.setAuthId session <*> session.authId of
+  let mSetCookie =
+        fmap (\(AuthId authId) -> do
+          let bytes = UUID.toASCIIBytes authId
+          defaultSetCookie
+            { setCookieName     = "authId"
+            , setCookieValue    = bytes
+            , setCookieExpires  = Just session.expireDate
+            , setCookieHttpOnly = True
+            , setCookiePath     = Just "/"
+            , setCookieSecure   = True
+            })
+       session.authId
+
+  case (,) <$> mSetCookie  <*> session.authId of
     Just (setCookie, authId) -> do
       Session.setAuthId sessionId Nothing
       Auth.OIDC.setSessionOIDCFlow sessionId Nothing
@@ -630,6 +668,57 @@ changeTarget sessionId _ mTargetId = do
         throwError (HTTPError (err500 { errBody = [i|Invalid target|]}))
 
   pure $ addHeader TargetChanged html
+
+
+-- TODO
+-- client has no permit -> auth
+-- client as permit
+--      session has no permit -> auth
+--      session has permit ->
+--        sessiono permt != clinet permit -> auth
+--        sessiono permt == clinet permit ->
+--          link hash is not in permit set -> auth
+--          link hash is in permit set ->
+--             has client path ->
+--                client path is folder index -> render folder
+--                client path is file         -> serve file
+--             no client path  -> render shared index
+--
+-- Shared link also have a session?
+-- So can we reuse the session?
+-- Normally session rely on a target
+--
+-- but shared link doesn't map to a target
+-- so should we create a synthesized target that forwards the link?
+shared :: SessionId -> Maybe SharedLinkPermit -> SharedLinkHash -> Maybe ClientPath -> Filehub (Html ())
+shared sessionId mClientPermit hash mClientPath = do
+  case mClientPermit of
+    Just clientPermit -> do
+      mSharedLinkPermit <- Session.getSessionSharedLinkPermit sessionId
+      case mSharedLinkPermit of
+        Just (SharedLinkPermitSet permit hashes)
+          | clientPermit /= permit         -> goAuth
+          | hash `Set.member` hashes       -> goAuth
+          | Just clientPath <- mClientPath -> do
+              undefined
+              -- TODO
+              -- convert shared client path to normal storage path from SharedLink
+              -- check if file exist
+              -- check if file is a directory
+              -- render index/serve file accordingly
+          | otherwise -> sharedIndex
+        Nothing -> goAuth
+    Nothing -> goAuth
+  where
+    goAuth = throwError do
+      HTTPError err303 { errHeaders = [( "Location" , "/s/auth")] }
+
+    sharedIndex = do
+      pure mempty
+
+
+sharedAuth :: SessionId -> Filehub (Html ())
+sharedAuth sessionId = undefined
 
 
 themeCss :: SessionId -> Filehub ByteString
@@ -882,4 +971,5 @@ application env
         :. Filehub.Handler.desktopOnlyHandler env
         :. Filehub.Handler.mobileOnlyHandler env
         :. Filehub.Handler.loginHandler env
+        :. Filehub.Handler.sharedLinkPermitHandler env
         :. EmptyContext

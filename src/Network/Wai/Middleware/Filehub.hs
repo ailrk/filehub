@@ -35,12 +35,14 @@ import Network.HTTP.Types (hUserAgent, status500)
 import Network.HTTP.Types.Header (hSetCookie)
 import Network.Wai
 import Prelude hiding (readFile)
+import Web.Cookie (defaultSetCookie, SetCookie (..))
+import Data.ByteString.Char8 qualified as Char8
 
 
 displayMiddleware :: Env -> Middleware
 displayMiddleware  env app req respond = toIO onErr env do
   let mCookie        = lookup "Cookie" (requestHeaders req)
-  let Just sessionId = mCookie >>= parseHeader' >>= Cookies.getSessionId
+  let Just sessionId = mCookie >>= parseHeader' >>= Cookies.fromCookies
   session <- Session.Pool.get sessionId
 
   -- set device type
@@ -57,7 +59,15 @@ displayMiddleware  env app req respond = toIO onErr env do
   -- Note only the server set the cookie.
   setCookieHeader <- do
     currentDisplay <- Session.getDisplay sessionId
-    let header     =  ("Set-Cookie", Cookies.renderSetCookie (Cookies.setDisplay currentDisplay))
+    let displaySetCookie = defaultSetCookie
+          { setCookieName     = "display"
+          , setCookieValue    = Char8.pack (show currentDisplay)
+          , setCookieExpires  = Nothing
+          , setCookieHttpOnly = False
+          , setCookiePath     = Just "/"
+          , setCookieSecure   = False
+          }
+    let header = ("Set-Cookie", Cookies.renderSetCookie displaySetCookie)
     pure (header :)
 
   liftIO $ app req \res ->
@@ -72,7 +82,7 @@ displayMiddleware  env app req respond = toIO onErr env do
 sessionMiddleware :: Env -> Middleware
 sessionMiddleware env app req respond = toIO onErr env do
   let mCookie    = lookup "Cookie" (requestHeaders req)
-  let mSessionId = mCookie >>= parseHeader' >>= Cookies.getSessionId
+  let mSessionId = mCookie >>= parseHeader' >>= Cookies.fromCookies
   case mSessionId of
     Just sessionId -> do
       eSession <- runErrorNoCallStack @FilehubError $ Session.Pool.get sessionId
@@ -87,8 +97,16 @@ sessionMiddleware env app req respond = toIO onErr env do
   where
     respondWithNewSession = do
       session <- Session.Pool.newSession
+      let sessionIdSetCookie = defaultSetCookie
+            { setCookieName     = "sessionId"
+            , setCookieValue    = let SessionId sid = session.sessionId in UUID.toASCIIBytes sid
+            , setCookieExpires  = Just session.expireDate
+            , setCookieHttpOnly = True
+            , setCookiePath     = Just "/"
+            , setCookieSecure   = False -- Since there is no authentication, Secure is set to False
+            }
       let sessionId@(SessionId sid) = session.sessionId
-      let setCookieHeader           = ("Set-Cookie", Cookies.renderSetCookie $ Cookies.setSessionId session)
+      let setCookieHeader           = ("Set-Cookie", Cookies.renderSetCookie sessionIdSetCookie)
       let injectedCookieHeader      = ("Cookie", "sessionId=" <> UUID.toASCIIBytes sid)
       let req'                      = req { requestHeaders = injectedCookieHeader : requestHeaders req }
       logTrace_ [i|New session: #{sessionId}|]

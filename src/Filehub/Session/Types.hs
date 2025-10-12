@@ -26,23 +26,25 @@ import UnliftIO (TBQueue, TVar)
 import Worker.Task (TaskId)
 import {-# SOURCE #-} Filehub.Auth.OIDC (SomeOIDCFlow)
 import {-# SOURCE #-} Filehub.Types (Layout(..), CopyState(..), Selected)
+import Filehub.SharedLink (SharedLinkPermitSet)
 
 
 data Session = Session
-  { sessionId     :: SessionId
-  , authId        :: Maybe AuthId
-  , resolution    :: Maybe Resolution
-  , deviceType    :: DeviceType
-  , expireDate    :: UTCTime
-  , targets       :: [TargetSessionData]
-  , copyState     :: CopyState
-  , index         :: Int
-  , layout        :: Layout
-  , theme         :: Theme
-  , locale        :: Locale
-  , oidcFlow      :: Maybe SomeOIDCFlow
-  , notifications :: TBQueue Notification
-  , pendingTasks  :: TVar (Set TaskId)
+  { sessionId         :: SessionId
+  , authId            :: Maybe AuthId
+  , sharedLinkPermit  :: Maybe SharedLinkPermitSet
+  , resolution        :: Maybe Resolution
+  , deviceType        :: DeviceType
+  , expireDate        :: UTCTime
+  , targets           :: [TargetSessionData]
+  , copyState         :: CopyState
+  , index             :: Int
+  , layout            :: Layout
+  , theme             :: Theme
+  , locale            :: Locale
+  , oidcFlow          :: Maybe SomeOIDCFlow
+  , notifications     :: TBQueue Notification
+  , pendingTasks      :: TVar (Set TaskId)
   }
   deriving (Generic)
 

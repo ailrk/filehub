@@ -12,20 +12,21 @@ module Filehub.Env
   )
   where
 
+import Cache.InMemory qualified
 import Data.Map.Strict qualified as Map
 import Data.Time (NominalDiffTime)
 import Filehub.ActiveUser.Types qualified as ActiveUser
 import Filehub.Locale (Locale)
-import LockRegistry.Local qualified
 import Filehub.Session.Types qualified as Session
-import Target.Types (Target)
+import Filehub.SharedLink (SharedLinkPool)
 import Filehub.Theme (Theme, CustomTheme)
 import Lens.Micro.Platform ()
+import LockRegistry.Local qualified
 import Log (Logger, LogLevel)
 import Network.HTTP.Client qualified as HTTP
+import Target.Types (Target)
 import {-# SOURCE #-} Filehub.Auth.OIDC (OIDCAuthProviders(..))
 import {-# SOURCE #-} Filehub.Auth.Simple (SimpleAuthUserDB(..))
-import Cache.InMemory qualified
 
 
 data Env = Env
@@ -51,6 +52,8 @@ data Env = Env
   , simpleAuthUserDB  :: SimpleAuthUserDB
     -- OIDC configurations for OIDC loging mechanism
   , oidcAuthProviders :: OIDCAuthProviders
+    -- Pool of all shared links
+  , sharedLinkPool    :: SharedLinkPool
     -- Map from `AuthId` to `ActiveUser`. The definition of an active user depends on
     -- its login method. An active user can have multiple sessions.
   , activeUsers       :: ActiveUser.Pool

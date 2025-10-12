@@ -6,6 +6,7 @@ module Filehub.Handler
   , mobileOnlyHandler
   , displayOnlyHandler
   , loginHandler
+  , sharedLinkPermitHandler
   , ConfirmDesktopOnly(..)
   , ConfirmMobilOnly(..)
   , ConfirmReadOnly(..)
@@ -38,6 +39,8 @@ import Network.HTTP.Types.Header (hLocation)
 import Control.Monad.Trans.Maybe (MaybeT(..))
 import Control.Monad (guard)
 import Filehub.Session.Pool qualified as Session.Pool
+import Filehub.Cookie (FromCookies(..))
+import Filehub.SharedLink (SharedLinkPermit)
 
 
 toServantHandler :: Env -> Filehub a -> Handler a
@@ -73,8 +76,8 @@ sessionHandler env = mkAuthHandler handler
     handler req = do
       sessionId <- either throw401 pure do
         header <- toEither "cookie not found" $ lookup "Cookie" (requestHeaders req)
-        cookie <- bimap (Text.encodeUtf8 . Text.fromStrict) id $ parseHeader header
-        toEither "can't get sessionId" (Cookie.getSessionId cookie)
+        cookie <- first (Text.encodeUtf8 . Text.fromStrict) $ parseHeader header
+        toEither "can't get sessionId" (Cookie.fromCookies cookie)
       _ <- toServantHandler env (Session.Pool.get sessionId)
       pure sessionId
 
@@ -109,7 +112,7 @@ displayOnlyHandler witness predicate msg env =
   mkAuthHandler \req -> do
     sessionId <- maybe (throwError err401 { errBody = "invalid session" }) pure do
       cookie <-  lookup "Cookie" (requestHeaders req)
-      parseHeader' cookie >>= Cookies.getSessionId
+      parseHeader' cookie >>= Cookies.fromCookies
     display <- liftIO $ runFilehub env (Session.getDisplay sessionId)
     case display of
       Right d | predicate d -> pure witness
@@ -127,8 +130,8 @@ loginHandler env
   | otherwise = mkAuthHandler \req -> do
       result <- runMaybeT do
         cookie    <- MaybeT . pure $ lookup "Cookie" (requestHeaders req)
-        sessionId <- MaybeT . pure $ parseHeader' cookie >>= Cookies.getSessionId
-        authId    <- MaybeT . pure $ parseHeader' cookie >>= Cookies.getAuthId
+        sessionId <- MaybeT . pure $ parseHeader' cookie >>= fromCookies
+        authId    <- MaybeT . pure $ parseHeader' cookie >>= fromCookies
         eSession  <- liftIO $ runFilehub env (Session.Pool.get sessionId)
         session   <- MaybeT . pure $ either (const Nothing) Just eSession
         guard (session.authId == Just authId)
@@ -136,3 +139,21 @@ loginHandler env
       maybe redirect pure result
   where
     redirect = throwError (err307 { errHeaders = [(hLocation, "/login")] })
+
+
+-- TODO
+-- sharedLinkPermit is stored in session
+-- Each sharedLinkPermit is associated with n sharedLinkHash.
+sharedLinkPermitHandler :: Env -> AuthHandler Request (Maybe SharedLinkPermit)
+sharedLinkPermitHandler env = mkAuthHandler \req -> do
+  result <- runMaybeT do
+    cookie           <- MaybeT . pure $ lookup "Cookie" (requestHeaders req)
+    sessionId        <- MaybeT . pure $ parseHeader' cookie >>= fromCookies
+    sharedLinkPermit <- MaybeT . pure $ parseHeader' cookie >>= fromCookies @SharedLinkPermit
+    eSession         <- liftIO $ runFilehub env (Session.Pool.get sessionId)
+    session          <- MaybeT . pure $ either (const Nothing) Just eSession
+    permitSet        <- MaybeT . pure $ session.sharedLinkPermit
+    case req.pathInfo of
+      "s":hash:_ -> undefined
+      _ -> undefined
+  undefined

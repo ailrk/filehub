@@ -43,20 +43,21 @@ createSession = do
   notifications <- liftIO (newTBQueueIO 16)
   pendingTasks  <- newTVarIO Set.empty
   pure Session
-    { sessionId     = sessionId
-    , authId        = Nothing
-    , resolution    = Nothing
-    , deviceType    = UserAgent.Unknown
-    , expireDate    = expireDate
-    , targets       = targetToSessionData <$> targets
-    , copyState     = NoCopyPaste
-    , index         = 0
-    , layout        = ThumbnailLayout
-    , theme         = theme
-    , locale        = locale
-    , oidcFlow      = Nothing
-    , notifications = notifications
-    , pendingTasks  = pendingTasks
+    { sessionId         = sessionId
+    , authId            = Nothing
+    , sharedLinkPermit  = Nothing
+    , resolution        = Nothing
+    , deviceType        = UserAgent.Unknown
+    , expireDate        = expireDate
+    , targets           = targetToSessionData <$> targets
+    , copyState         = NoCopyPaste
+    , index             = 0
+    , layout            = ThumbnailLayout
+    , theme             = theme
+    , locale            = locale
+    , oidcFlow          = Nothing
+    , notifications     = notifications
+    , pendingTasks      = pendingTasks
     }
 
 

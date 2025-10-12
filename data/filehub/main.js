@@ -29,7 +29,7 @@ document.addEventListener("DOMContentLoaded", () => {
         document.addEventListener('click', closePanel);
         MobileCloseSidebar.register();
         MobileSelected.register();
-        const table = document.querySelector('#table'); // change selector to fit your layout
+        const table = document.querySelector('#table');
         if (table) {
             table.addEventListener('contextmenu', e => e.preventDefault());
         }
