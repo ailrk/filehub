@@ -73,9 +73,9 @@ import Prelude hiding (read, readFile, writeFile)
 import Servant.Multipart (Mem, FileData (..))
 import Storage.Error (StorageError (..))
 import System.IO.Temp qualified as Temp
-import Target.S3 (Backend(..), S3)
+import Target.S3 (TargetBackend(..), S3)
 import Target.Types (TargetId)
-import Target.Types.TargetId qualified as TargetId
+import Target.Types qualified as Target
 
 
 class CacheKeyComponent (s :: Symbol) a              where toCacheKeyComponent :: Builder
@@ -91,7 +91,7 @@ cacheKeyPrefix = "st:s3:"
 
 createCacheKey :: forall (s :: Symbol) (a :: Type) . CacheKeyComponent s a => TargetId -> Builder -> CacheKey a
 createCacheKey targetId identifier = Cache.mkCacheKey
-  [cacheKeyPrefix, TargetId.targetIdBuilder targetId, toCacheKeyComponent @s @a, identifier]
+  [cacheKeyPrefix, Target.targetIdBuilder targetId, toCacheKeyComponent @s @a, identifier]
 
 
 get
@@ -102,7 +102,7 @@ get
     , Error StorageError :> es
     , cacheType ~ FileInfo
     , cacheName ~ "file")
-    => Backend S3 -> FilePath -> Eff es (Maybe FileInfo)
+    => TargetBackend S3 -> FilePath -> Eff es (Maybe FileInfo)
 get (s3@S3Backend { targetId }) path = do
   mCached <- Cache.lookup @cacheType cacheKey
   case mCached of
@@ -142,7 +142,7 @@ isDirectory
   . ( Cache :> es
     , Log   :> es
     , IOE   :> es )
-  => Backend S3 -> FilePath -> Eff es Bool
+  => TargetBackend S3 -> FilePath -> Eff es Bool
 isDirectory s3@S3Backend { targetId } filePath = do
   mCached <- Cache.lookup @FileInfo cacheKey
   case mCached of
@@ -167,7 +167,7 @@ read
     , Cache :> es
     , cacheType ~ ByteString
     , cacheName ~ "file-content")
-  => Backend S3 -> FileInfo -> Eff es ByteString
+  => TargetBackend S3 -> FileInfo -> Eff es ByteString
 read s3@S3Backend { targetId }  file = do
   mCached <- Cache.lookup @cacheType cacheKey
   case mCached of
@@ -184,7 +184,7 @@ read s3@S3Backend { targetId }  file = do
     cacheTTL  = Just (secondsToNominalDiffTime 10)
 
 
-readStream :: Backend S3 -> FileInfo -> Eff es (ConduitT () ByteString (ResourceT IO) ())
+readStream :: TargetBackend S3 -> FileInfo -> Eff es (ConduitT () ByteString (ResourceT IO) ())
 readStream s3 file = do
   let bucket  = Amazonka.BucketName s3.bucket
       key     = Amazonka.ObjectKey (Text.pack file.path)
@@ -199,7 +199,7 @@ new
   :: ( Cache :> es
      , Log   :> es
      , IOE   :> es)
-  => Backend S3 -> FilePath -> Eff es ()
+  => TargetBackend S3 -> FilePath -> Eff es ()
 new s3@S3Backend { targetId } filePath = do
   write s3 filePath $ defaultFileWithContent
     { path     = filePath
@@ -213,7 +213,7 @@ write
   :: ( Cache :> es
      , Log   :> es
      , IOE   :> es)
-  => Backend S3 -> FilePath -> FileWithContent -> Eff es ()
+  => TargetBackend S3 -> FilePath -> FileWithContent -> Eff es ()
 write s3@S3Backend { targetId } filePath File { content, size = mSize } = do
   case content of
     FileContentRaw bytes -> do
@@ -240,7 +240,7 @@ write s3@S3Backend { targetId } filePath File { content, size = mSize } = do
 -- | Write with S3:PutObject api. Suitable for writing small files.
 -- We need to load the whole file into memory to compute the checksum. AWS S3 has chunked protocol allows you to sign chunk
 -- by chunk, but it's not supported by most other S3 providers.
-writePutObject :: ( IOE :> es) => Backend S3 -> FilePath -> ConduitT () ByteString (ResourceT IO) () ->  Eff es ()
+writePutObject :: ( IOE :> es) => TargetBackend S3 -> FilePath -> ConduitT () ByteString (ResourceT IO) () ->  Eff es ()
 writePutObject s3 filePath conduit = do
   lazyBytes <- liftIO . runResourceT . runConduit $ conduit .| sinkLazy
   let bucket  = Amazonka.BucketName s3.bucket
@@ -249,7 +249,7 @@ writePutObject s3 filePath conduit = do
   void . runResourceT $ send s3.env request
 
 
-writeMultipart :: (IOE :> es) => Backend S3 -> FilePath -> ConduitT () ByteString (ResourceT IO) () -> Eff es ()
+writeMultipart :: (IOE :> es) => TargetBackend S3 -> FilePath -> ConduitT () ByteString (ResourceT IO) () -> Eff es ()
 writeMultipart s3 filePath conduit = do
   let bucket   = Amazonka.BucketName s3.bucket
   let key      = Amazonka.ObjectKey (Text.pack filePath)
@@ -333,7 +333,7 @@ mv
      , Log                :> es
      , Cache              :> es
      , Error StorageError :> es)
-   => Backend S3 -> [(FilePath, FilePath)] -> Eff es ()
+   => TargetBackend S3 -> [(FilePath, FilePath)] -> Eff es ()
 mv _ [] = throwError (CopyError "Nothing to copy")
 mv s3@S3Backend { targetId } cpPairs = do
   forM_ cpPairs \(src, dst) -> do
@@ -349,7 +349,7 @@ delete
   :: ( IOE   :> es
      , Log   :> es
      , Cache :> es)
-  => Backend S3 -> FilePath -> Eff es ()
+  => TargetBackend S3 -> FilePath -> Eff es ()
 delete s3@S3Backend { targetId } filePath = do
   let bucket = Amazonka.BucketName s3.bucket
   let key    = Amazonka.ObjectKey (Text.pack filePath)
@@ -365,7 +365,7 @@ ls
     , IOE   :> es
     , cacheType ~ [FileInfo]
     , cacheName ~ "dir")
-  => Backend S3 -> FilePath -> Eff es [FileInfo]
+  => TargetBackend S3 -> FilePath -> Eff es [FileInfo]
 ls s3@S3Backend { targetId } _ = do
     mCached <- Cache.lookup @cacheType cacheKey
     case mCached of
@@ -416,7 +416,7 @@ lsCwd
   :: ( Cache :> es
      , Log   :> es
      , IOE   :> es)
-  => Backend S3 -> Eff es [FileInfo]
+  => TargetBackend S3 -> Eff es [FileInfo]
 lsCwd s3 = ls s3 ""
 
 
@@ -424,7 +424,7 @@ upload
   :: ( Cache :> es
      , Log   :> es
      , IOE   :> es)
-  => Backend S3 -> FileData Mem -> Eff es ()
+  => TargetBackend S3 -> FileData Mem -> Eff es ()
 upload s3 file = do
   let mimetype = Text.encodeUtf8 file.fdFileCType
   let name     = Text.unpack file.fdFileName
@@ -441,7 +441,7 @@ download
      , Log                :> es
      , Cache              :> es
      , Error StorageError :> es)
-  => Backend S3 -> FilePath -> Eff es (ConduitT () ByteString (ResourceT IO) ())
+  => TargetBackend S3 -> FilePath -> Eff es (ConduitT () ByteString (ResourceT IO) ())
 download s3 path = do
   mFile <- get s3 path
   case mFile of

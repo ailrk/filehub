@@ -36,8 +36,8 @@ import Filehub.Types ( SortFileBy(..), Selected )
 import Lens.Micro.Platform ()
 import Lucid
 import System.FilePath (takeFileName)
-import Target.File (Backend (..), FileSys)
-import Target.S3 (Backend (..), S3)
+import Target.File (TargetBackend (..), FileSys)
+import Target.S3 (TargetBackend (..), S3)
 import Target.Types (targetHandler, Target, handleTarget)
 import Target.Types qualified as Target
 import Filehub.Session (TargetView(..))

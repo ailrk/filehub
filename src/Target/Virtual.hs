@@ -1,13 +1,8 @@
 module Target.Virtual where
 
-import Target.Types.TargetId (TargetId(..))
-import Target.Class (IsTarget (..))
+import Target.Types (TargetId(..), TargetBackend)
 import Data.Text (Text)
-import Effectful (IOE, (:>), Eff, MonadIO (..))
-import Effectful.Log (Log, logInfo_)
-import Effectful.FileSystem (FileSystem, makeAbsolute)
-import Data.String.Interpolate (i)
-import Data.UUID.V4 qualified as UUID
+import Effectful (IOE, (:>), Eff)
 
 
 -- TODO
@@ -23,13 +18,11 @@ import Data.UUID.V4 qualified as UUID
 data Virtual
 
 
-instance IsTarget Virtual where
-  data Backend Virtual =
-    VirtualBackend
-      { targetId   :: TargetId
-      , targetName :: Maybe Text
-      }
-  getTargetIdFromBackend f = f.targetId
+data instance TargetBackend Virtual =
+  VirtualBackend
+    { targetId   :: TargetId
+    , targetName :: Maybe Text
+    }
 
 
 data Config = Config
@@ -37,5 +30,5 @@ data Config = Config
   }
 
 
-initialize :: (IOE :> es) => Config -> Eff es (Backend Virtual)
+initialize :: (IOE :> es) => Config -> Eff es (TargetBackend Virtual)
 initialize opt = error "not implemented"

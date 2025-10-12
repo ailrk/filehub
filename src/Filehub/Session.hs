@@ -58,6 +58,8 @@ module Filehub.Session
   , changeCurrentTarget
   , currentTarget
   , withTarget
+  , attachTarget
+  , detachTarget
   , getSessionNotifications
   , getPendingTasks
   , notify
@@ -90,11 +92,12 @@ import Lens.Micro
 import Lens.Micro.Platform ()
 import Prelude hiding (elem)
 import Prelude hiding (readFile)
-import Target.File (Backend(..), FileSys)
+import Target.File (TargetBackend(..), FileSys)
 import Target.S3 (S3)
 import Target.Types (TargetId, Target (..), getTargetId, handleTarget, targetHandler)
 import UnliftIO.STM (TBQueue, TVar, atomically, writeTBQueue)
 import Worker.Task (TaskId)
+import Filehub.Session.Internal (targetToSessionData)
 import {-# SOURCE #-} Filehub.Session.Copy qualified as Copy
 import {-# SOURCE #-} Filehub.Session.Selected qualified as Selected
 import Filehub.SharedLink (SharedLinkPermitSet)
@@ -110,8 +113,8 @@ getRoot sessionId = do
   pure
     . fromMaybe ""
     . asum
-    $ [ cast t <&> \(x :: Backend FileSys) -> x.root
-      , cast t <&> \(_ :: Backend S3) -> ""
+    $ [ cast t <&> \(x :: TargetBackend FileSys) -> x.root
+      , cast t <&> \(_ :: TargetBackend S3) -> ""
       ]
 
 -- | Get the current working directory of the session.
@@ -256,6 +259,24 @@ withTarget sessionId targetId action = do
   result <- currentTarget sessionId >>= flip action storage
   changeCurrentTarget sessionId (getTargetId saved)
   pure result
+
+
+attachTarget :: SessionId -> Target -> Filehub ()
+attachTarget sessionId target = do
+  TargetView current _ <- currentTarget sessionId
+  if current == target
+     then pure ()
+     else do
+       Session.Pool.update sessionId \session -> do
+         session { targets = Map.insert (getTargetId target) (targetToSessionData target) session.targets
+                 }
+
+
+detachTarget :: SessionId -> TargetId -> Filehub ()
+detachTarget sessionId targetId = do
+  Session.Pool.update sessionId \session -> do
+    session { targets = Map.delete targetId session.targets
+            }
 
 
 ------------------------------

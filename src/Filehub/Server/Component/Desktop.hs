@@ -15,7 +15,7 @@ import Control.Monad (forM)
 import Data.ClientPath qualified as ClientPath
 import Filehub.Env qualified as Env
 import Filehub.Env (Env)
-import Target.Types (Target(..))
+import Target.Types (getTargetId)
 import Filehub.Monad ( Filehub )
 import Filehub.Session.Types (TargetSessionData(..))
 import Filehub.Session qualified as Session
@@ -24,7 +24,6 @@ import Filehub.Template.Desktop qualified as Template.Desktop
 import Filehub.Server.Internal (withQueryParam)
 import Filehub.Template (TemplateContext(..), runTemplate, makeTemplateContext)
 import Filehub.Types ( SessionId(..), ClientPath, Selected(..))
-import Target.Class (IsTarget(..))
 import Lucid
 import Prelude hiding (readFile)
 import System.FilePath (takeFileName)
@@ -89,9 +88,9 @@ sideBar :: SessionId -> Filehub (Html ())
 sideBar sessionId = do
   ctx      <- makeTemplateContext sessionId
   targets  <- asks @Env (.targets) >>= readTVarIO
-  targets' <- forM (fmap snd targets) \(Target backend) -> do
-    let targetId = getTargetIdFromBackend backend
-    Session.withTarget sessionId targetId \(TargetView target targetData) _ -> do
+  targets' <- forM (fmap snd targets) \target -> do
+    let targetId = getTargetId target
+    Session.withTarget sessionId targetId \(TargetView _ targetData) _ -> do
       case targetData.selected of
         Selected _ sels -> pure (target, length sels + 1)
         NoSelection     -> pure (target, 0)

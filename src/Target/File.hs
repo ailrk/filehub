@@ -1,7 +1,7 @@
+{-# LANGUAGE NamedFieldPuns #-}
 module Target.File where
 
-import Target.Types.TargetId (TargetId(..))
-import Target.Class (IsTarget (..))
+import Target.Types (TargetId(..), TargetBackend, IsTarget(..))
 import Data.Text (Text)
 import Effectful (IOE, (:>), Eff, MonadIO (..))
 import Effectful.Log (Log, logInfo_)
@@ -13,14 +13,16 @@ import Data.UUID.V4 qualified as UUID
 data FileSys
 
 
+data instance TargetBackend FileSys =
+  FileBackend
+    { targetId   :: TargetId
+    , targetName :: Maybe Text
+    , root       :: FilePath
+    }
+
+
 instance IsTarget FileSys where
-  data Backend FileSys =
-    FileBackend
-      { targetId   :: TargetId
-      , targetName :: Maybe Text
-      , root       :: FilePath
-      }
-  getTargetIdFromBackend f = f.targetId
+  getTargetIdFromBackend FileBackend { targetId } = targetId
 
 
 data Config = Config
@@ -29,7 +31,7 @@ data Config = Config
   deriving (Show, Eq)
 
 
-initialize :: (IOE :> es, Log :> es, FileSystem :> es) => Config -> Eff es (Backend FileSys)
+initialize :: (IOE :> es, Log :> es, FileSystem :> es) => Config -> Eff es (TargetBackend FileSys)
 initialize opt = do
   targetId <- liftIO $ TargetId <$> UUID.nextRandom
   root     <- makeAbsolute opt.root

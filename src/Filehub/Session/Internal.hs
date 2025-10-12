@@ -1,6 +1,7 @@
 module Filehub.Session.Internal
   ( createSession
   , extendSession
+  , targetToSessionData
   )
   where
 
@@ -16,7 +17,7 @@ import Effectful.Reader.Dynamic (Reader, asks)
 import Filehub.Types (Session(..), SessionId(..), Env(..), TargetSessionData (..), CopyState (..), Selected (..), SortFileBy(..), Layout(..))
 import Filehub.UserAgent qualified as UserAgent
 import Options.Applicative (asum)
-import Target.File (FileSys, Backend(..))
+import Target.File (FileSys, TargetBackend(..))
 import Target.S3 (S3)
 import Target.Types (Target (..))
 import UnliftIO.STM (newTBQueueIO, newTVarIO)
@@ -67,8 +68,8 @@ createSession = do
 targetToSessionData :: Target -> TargetSessionData
 targetToSessionData (Target target) =
   fromMaybe defaultTargetSessionData . asum $
-    [ cast target <&> \(x :: Backend FileSys) -> defaultTargetSessionData { currentDir = x.root }
-    , cast target <&> \(_ :: Backend S3)      -> defaultTargetSessionData
+    [ cast target <&> \(x :: TargetBackend FileSys) -> defaultTargetSessionData { currentDir = x.root }
+    , cast target <&> \(_ :: TargetBackend S3)      -> defaultTargetSessionData
     ]
   where
     defaultTargetSessionData =

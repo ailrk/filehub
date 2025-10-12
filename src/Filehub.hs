@@ -120,8 +120,10 @@ main = Log.withColoredStdoutLogger \logger -> do
 
     fromTargetConfig opts = traverse transform opts
       where
-        transform (FSTargetConfig c) = FS.initialize c >>= \backend -> pure (getTargetId (Target backend), Target backend)
-        transform (S3TargetConfig c) = S3.initialize c >>= \backend -> pure (getTargetId (Target backend), Target backend)
+        transform (FSTargetConfig c) = toAssocItem <$> FS.initialize c
+        transform (S3TargetConfig c) = toAssocItem <$> S3.initialize c
+
+        toAssocItem backend = (getTargetId (Target backend), Target backend)
 
 
 -- | For developement with ghciwatch

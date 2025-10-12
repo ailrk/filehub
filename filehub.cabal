@@ -200,6 +200,7 @@ library
     Filehub.Storage.Dummy
     Filehub.Storage.S3
     Filehub.Storage.Types
+    Filehub.Target
     Filehub.Template
     Filehub.Template.Desktop
     Filehub.Template.Login
@@ -219,14 +220,11 @@ library
     Storage.S3
     Storage.Virtual
     System.FilePath.Extended
-    Target.Class
     Target.File
-    Target.Internal
     Target.S3
     Target.Virtual
     Target.Dummy
     Target.Types
-    Target.Types.TargetId
     Worker.Pool
     Worker.Task
     Paths_filehub
