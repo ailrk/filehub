@@ -22,15 +22,17 @@ instance Hashable SomeCacheKey where hashWithSalt salt = hashWithSalt salt . toR
 
 
 newtype SomeCacheKeyRep = SomeCacheKeyRep ByteString
-  deriving (Show, Eq, Ord, Hashable)
-
+  deriving (Show, Eq, Ord)
+  deriving newtype (Hashable)
 
 -- Conversion function
 toRep :: SomeCacheKey -> SomeCacheKeyRep
 toRep (SomeCacheKey (CacheKey bs)) = SomeCacheKeyRep bs
 
 
-newtype CacheKey a = CacheKey ByteString deriving (Show, Eq, Ord, Generic, Hashable)
+newtype CacheKey a = CacheKey ByteString
+  deriving (Show, Eq, Ord, Generic)
+  deriving newtype (Hashable)
 
 
 mkCacheKey :: [Builder] -> CacheKey a

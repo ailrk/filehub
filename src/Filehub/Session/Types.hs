@@ -28,6 +28,7 @@ import UnliftIO (TBQueue, TVar)
 import Worker.Task (TaskId)
 import {-# SOURCE #-} Filehub.Auth.OIDC (SomeOIDCFlow)
 import {-# SOURCE #-} Filehub.Types (Layout(..), CopyState(..), Selected)
+import Text.Debug (Debug(..))
 
 
 data Session = Session
@@ -58,7 +59,7 @@ data TargetView = TargetView
   { target      :: Target
   , sessionData :: TargetSessionData
   }
-  deriving (Generic)
+  deriving (Generic, Debug)
 
 
 data TargetSessionData = TargetSessionData
@@ -66,7 +67,7 @@ data TargetSessionData = TargetSessionData
   , sortedFileBy :: SortFileBy
   , selected     :: Selected
   }
-  deriving (Generic)
+  deriving (Generic, Debug)
 
 
 data Pool = Pool

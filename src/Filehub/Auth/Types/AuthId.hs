@@ -8,7 +8,9 @@ import Effectful (Eff, (:>), MonadIO (..), IOE)
 import Prelude hiding (readFile)
 
 
-newtype AuthId = AuthId UUID deriving (Show, Eq, Ord, Hashable)
+newtype AuthId = AuthId UUID
+  deriving (Show, Eq, Ord)
+  deriving newtype (Hashable)
 
 
 createAuthId :: (IOE :> es) => Eff es AuthId

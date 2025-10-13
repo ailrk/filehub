@@ -3,6 +3,7 @@ module Target.Virtual where
 import Target.Types (TargetId(..), TargetBackend)
 import Data.Text (Text)
 import Effectful (IOE, (:>), Eff)
+import Text.Debug (Debug(..))
 
 
 -- TODO
@@ -25,9 +26,21 @@ data instance TargetBackend Virtual =
     }
 
 
+instance Debug (TargetBackend Virtual) where
+  debug VirtualBackend {} =
+    mconcat
+      [ "<VirtualBackend: "
+      , ">"
+      ]
+
+
 data Config = Config
   { root :: FilePath
   }
+  deriving (Show, Eq)
+
+
+instance Debug Config where debug = show
 
 
 initialize :: (IOE :> es) => Config -> Eff es (TargetBackend Virtual)

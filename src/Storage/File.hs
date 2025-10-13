@@ -189,7 +189,7 @@ newFolder currentDir name = do
   filePath <- toFilePath currentDir name
   exists   <- doesFileExist filePath
   when exists do
-    logAttention "[newFolder] path doesn't exists:" filePath
+    logAttention "[vd9fdz] path doesn't exists:" filePath
     throwError (FileExists "Folder already exists")
   createDirectoryIfMissing True filePath
   Cache.delete (createCacheKey @"dir" @[FileInfo] (Builder.string8 currentDir))
@@ -205,7 +205,7 @@ new currentDir name = do
   filePath <- toFilePath currentDir name
   exists   <- doesFileExist filePath
   when exists do
-    logAttention "[new] path doesn't exists:" filePath
+    logAttention "[9sc453] path doesn't exists:" filePath
     throwError (FileExists "File already exists")
   withFile filePath ReadWriteMode (\_ -> pure ())
   Cache.delete (createCacheKey @"dir" @[FileInfo] (Builder.string8 currentDir))
@@ -345,7 +345,7 @@ ls path = do
     Nothing -> do
       exists <- doesDirectoryExist path
       unless exists do
-        logAttention "[lsDir] dir doesn't exists:" path
+        logAttention "[idvdxa] dir doesn't exists:" path
         throwError (InvalidDir "Can't list, not a directory")
       (files, cacheDeps) <- withCurrentDirectory path do
         unzip <$> do
@@ -373,7 +373,7 @@ lsCwd
 lsCwd currentDir = do
   exists <- doesDirectoryExist currentDir
   unless exists do
-    logAttention "[lsCwd] dir doesn't exists:" currentDir
+    logAttention "[icv8d3] dir doesn't exists:" currentDir
     throwError (InvalidDir "Not a directory")
   ls currentDir
 

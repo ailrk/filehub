@@ -23,21 +23,30 @@ module Data.ClientPath
   )
   where
 
-import System.FilePath ((</>), normalise)
-import Network.URI.Encode qualified as URI.Encode
-import Data.List (stripPrefix)
-import Servant (FromHttpApiData (..), ToHttpApiData (..))
 import Data.Aeson (ToJSON(..))
+import Data.List (stripPrefix)
+import Network.URI.Encode qualified as URI.Encode
+import Servant (FromHttpApiData (..), ToHttpApiData (..))
+import System.FilePath ((</>), normalise)
+import Text.Debug (Debug(..))
 
 
 -- | Filepath without the root part. The path is percent encoded safe to show in the frontend.
 newtype ClientPath = ClientPath { unClientPath :: FilePath }
-  deriving (Show, Eq, Semigroup, Monoid)
+  deriving (Show, Eq)
+  deriving newtype (Semigroup, Monoid)
 
 
 -- | ClientPath but not percent encoded
 newtype RawClientPath = RawClientPath { unRawClientPath :: FilePath }
-  deriving (Show, Eq, Semigroup, Monoid)
+  deriving (Show, Eq)
+  deriving newtype (Semigroup, Monoid)
+
+
+instance Debug ClientPath where debug = show
+
+
+instance Debug RawClientPath where debug = show
 
 
 instance ToHttpApiData ClientPath where

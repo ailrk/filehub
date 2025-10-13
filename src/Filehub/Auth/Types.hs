@@ -9,8 +9,11 @@ import Prelude hiding (readFile)
 import {-# SOURCE #-} Filehub.Auth.Simple qualified as Auth.Simple
 import {-# SOURCE #-} Filehub.Auth.OIDC qualified as Auth.OIDC
 import Filehub.Auth.Types.AuthId (AuthId(..), createAuthId)
+import GHC.Generics (Generic)
+import Text.Debug (Debug)
 
 
 data Auth
   = Simple Auth.Simple.Username
   | OIDC Auth.OIDC.User
+  deriving (Generic, Debug)

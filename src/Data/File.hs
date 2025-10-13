@@ -17,12 +17,16 @@ import Data.Time (UTCTime)
 import Network.Mime (MimeType)
 import Data.ByteString (ByteString)
 import Conduit (ConduitT, ResourceT)
+import Text.Debug (Debug (..))
 
 
 data FileType
   = Regular
   | Dir
   deriving (Show, Eq, Generic)
+
+
+instance Debug FileType
 
 
 data FileContent
@@ -36,6 +40,13 @@ data FileContent
   -- ^ No content
 
 
+instance Debug FileContent where
+  debug (FileContentRaw _)     = "FileContentRaw"
+  debug (FileContentConduit _) = "FileContentConduit"
+  debug (FileContentDir _)     = "FileContentDir"
+  debug FileContentNull        = "FileContentNull"
+
+
 data File a = File
   { path     :: FilePath -- absolute path
   , atime    :: Maybe UTCTime
@@ -44,11 +55,12 @@ data File a = File
   , mimetype :: MimeType
   , content  :: a
   }
-  deriving (Eq)
+  deriving (Eq, Show, Generic, Debug)
 
 
 type FileInfo        = File FileType
 type FileWithContent = File FileContent
+
 
 
 defaultFileInfo :: FileInfo

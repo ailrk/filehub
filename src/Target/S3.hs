@@ -19,6 +19,7 @@ import System.Environment qualified as Environment
 import Data.Functor ((<&>))
 import Amazonka.S3 qualified as Amazonka
 import Data.Text qualified as Text
+import Text.Debug (Debug(..))
 
 #ifdef DEBUG
 import Effectful.FileSystem.IO (stdout)
@@ -36,6 +37,16 @@ data instance TargetBackend S3 = S3Backend
   }
 
 
+instance Debug (TargetBackend S3) where
+  debug S3Backend { targetId, bucket } =
+    mconcat
+      [ "<S3Backend: "
+      , debug targetId, ", "
+      , show bucket
+      , ">"
+      ]
+
+
 instance IsTarget S3 where
   getTargetIdFromBackend S3Backend { targetId } = targetId
 
@@ -44,6 +55,9 @@ data Config = Config
   { bucket :: String
   }
   deriving (Show, Eq)
+
+
+instance Debug Config where debug = show
 
 
 -- | The default `discover` method only discover `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`,

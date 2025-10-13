@@ -6,4 +6,5 @@ import Data.Hashable (Hashable)
 
 
 newtype SessionId = SessionId UUID
-  deriving (Show, Eq, Ord, Hashable)
+  deriving (Show, Eq, Ord)
+  deriving newtype (Hashable)

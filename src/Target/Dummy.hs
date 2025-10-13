@@ -4,12 +4,18 @@ module Target.Dummy (DummyTarget, newDummyTarget) where
 import Target.Types (TargetId(..), TargetBackend, IsTarget(..))
 import Data.UUID.V4 qualified as UUID
 import System.IO.Unsafe (unsafePerformIO)
+import Text.Debug (Debug(..))
 
 
 data DummyTarget
 
 
 data instance TargetBackend DummyTarget = DummyTargetBackend TargetId
+
+
+instance Debug (TargetBackend DummyTarget) where
+  debug (DummyTargetBackend targetId) =
+    mconcat [ "<DummyTarget: ", show targetId, ">" ]
 
 
 instance IsTarget DummyTarget where

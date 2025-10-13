@@ -2,6 +2,7 @@ module Filehub.Types where
 
 import Target.Types (Target)
 import Data.File (FileInfo)
+import Text.Debug (Debug)
 
 
 data Layout
@@ -16,3 +17,5 @@ data CopyState
 
 
 data Selected
+
+instance Debug Selected

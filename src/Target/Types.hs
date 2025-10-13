@@ -26,9 +26,15 @@ import Lens.Micro.Platform ()
 import Network.URI.Encode qualified as URI.Encode
 import Prelude hiding (readFile, writeFile)
 import Servant (ToHttpApiData (..), FromHttpApiData (..))
+import Text.Debug (Debug(..))
 
 
-newtype TargetId = TargetId UUID deriving (Show, Eq, Ord, Hashable)
+newtype TargetId = TargetId UUID
+  deriving (Show, Eq, Ord)
+  deriving newtype (Hashable)
+
+
+instance Debug TargetId where debug = show
 
 
 instance ToHttpApiData TargetId where
@@ -52,7 +58,11 @@ class IsTarget b where
 
 -- | Existential wrapper of `Backend a`.
 data Target where
-  Target :: (Typeable a, IsTarget a) => TargetBackend a -> Target
+  Target :: (Typeable a, IsTarget a, Debug (TargetBackend a)) => TargetBackend a -> Target
+
+
+instance Debug Target where
+  debug (Target backend)= debug backend
 
 
 instance Eq Target where

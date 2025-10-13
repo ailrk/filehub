@@ -19,6 +19,7 @@ import Data.ByteString (ByteString)
 import Data.ByteString.Char8 qualified as ByteString
 import Data.Text (Text)
 import Data.String.Interpolate (iii)
+import Text.Debug (Debug (..))
 
 
 -- An example theme file
@@ -38,6 +39,25 @@ import Data.String.Interpolate (iii)
 data Theme = Dark | Light deriving (Eq)
 
 
+instance Debug Theme where debug = show
+
+
+instance Show Theme where
+  show = \case
+    Dark  -> "dark"
+    Light -> "light"
+
+
+instance Read Theme where
+  readsPrec _ s = do
+    let theme =
+          case s of
+          "dark"  -> Dark
+          "light" -> Light
+          _       -> Dark
+    pure (theme, "")
+
+
 data CustomTheme = CustomTheme
   { frontground :: Text
   , background1 :: Text
@@ -50,6 +70,9 @@ data CustomTheme = CustomTheme
   , light       :: Text
   }
   deriving (Eq, Show)
+
+
+instance Debug CustomTheme where debug = show
 
 
 customTheme2Css :: CustomTheme -> ByteString
@@ -68,22 +91,6 @@ customTheme2Css CustomTheme
         --light:       #{light};
     }
   |]
-
-
-instance Show Theme where
-  show = \case
-    Dark  -> "dark"
-    Light -> "light"
-
-
-instance Read Theme where
-  readsPrec _ s = do
-    let theme =
-          case s of
-          "dark"  -> Dark
-          "light" -> Light
-          _       -> Dark
-    pure (theme, "")
 
 
 defaultTheme :: Theme

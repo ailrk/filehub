@@ -8,6 +8,7 @@ import Effectful.Log (Log, logInfo_)
 import Effectful.FileSystem (FileSystem, makeAbsolute)
 import Data.String.Interpolate (i)
 import Data.UUID.V4 qualified as UUID
+import Text.Debug (Debug(..))
 
 
 data FileSys
@@ -21,6 +22,17 @@ data instance TargetBackend FileSys =
     }
 
 
+instance Debug (TargetBackend FileSys) where
+  debug FileBackend { targetId, targetName, root} =
+    mconcat
+      [ "<FileBackend: "
+      , debug targetId, ", "
+      , show targetName, ", "
+      , show root
+      , ">"
+      ]
+
+
 instance IsTarget FileSys where
   getTargetIdFromBackend FileBackend { targetId } = targetId
 
@@ -29,6 +41,9 @@ data Config = Config
   { root :: FilePath
   }
   deriving (Show, Eq)
+
+
+instance Debug Config where debug = show
 
 
 initialize :: (IOE :> es, Log :> es, FileSystem :> es) => Config -> Eff es (TargetBackend FileSys)

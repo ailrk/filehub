@@ -10,6 +10,7 @@ import Data.File (File(..), FileType(..), FileInfo)
 import Data.List ( sortOn )
 import System.FilePath ( takeFileName )
 import Servant (ToHttpApiData(..), FromHttpApiData(..))
+import Text.Debug (Debug (..))
 
 
 data SortFileBy
@@ -20,6 +21,9 @@ data SortFileBy
   | BySizeUp
   | BySizeDown
   deriving (Show, Eq)
+
+
+instance Debug SortFileBy where debug = show
 
 
 instance ToHttpApiData SortFileBy where

@@ -55,6 +55,7 @@ import Servant ( ToHttpApiData(..), FromHttpApiData(..), Accept (..), MimeRender
 import Servant.API (MimeRender(..))
 import Target.Types (Target (..))
 import Web.FormUrlEncoded (FromForm (..), parseUnique, ToForm (..), parseAll)
+import Text.Debug (Debug(..))
 
 
 -- | Simple Auth login form
@@ -112,12 +113,14 @@ data CopyState
   | Paste [(Target, [FileInfo])]
   -- | No copy paste action being performed at the moment.
   | NoCopyPaste
+  deriving (Generic, Debug)
+
 
 
 data Selected
   = Selected ClientPath [ClientPath] -- non empty list
   | NoSelection
-  deriving (Show, Eq)
+  deriving (Show, Eq, Generic, Debug)
 
 
 instance FromForm Selected where

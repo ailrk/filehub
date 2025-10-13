@@ -76,6 +76,7 @@ import Web.FormUrlEncoded (ToForm)
 import Web.JWT (JWT, VerifiedJWT, JWTClaimsSet (..), JOSEHeader (..))
 import Web.JWT qualified as JWT
 import Filehub.Monad (Filehub)
+import Text.Debug (Debug)
 
 
 newtype OIDCState    = OIDCState Text
@@ -125,13 +126,18 @@ data Token = Token
   , expiresIn    :: Int
   , tokenType    :: Text
   }
-  deriving (Show, Generic)
+  deriving (Show, Generic, Debug)
 
 
 -- | User is a newtype wrapper over the token, which provies all necessary user information through
 -- the JWT claim set. User has a set of virtual record fields that simplifies the access of the JWT claims
 -- of `.idToken` of `Token`.
-newtype User = User Token deriving (Show, Generic)
+newtype User = User Token
+  deriving (Show, Generic)
+
+
+instance Debug User
+
 
 instance HasField "iss" User (Maybe Text) where
   getField (User (Token { idToken })) = JWT.stringOrURIToText <$> (JWT.claims idToken).iss
