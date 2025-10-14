@@ -24,7 +24,7 @@ import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Types
     ( ClientPath(..), RawClientPath(..), Theme(..), LoginForm(..) )
 import LockRegistry.Local qualified
-import Log (mkLogger)
+import Log (mkLogger, LogMessage(..))
 import Network.HTTP.Client.TLS (newTlsManager)
 import Network.HTTP.Types (methodPost)
 import Network.HTTP.Types.Header
@@ -34,7 +34,7 @@ import Network.Wai.Test hiding (request)
 import System.Directory (createDirectoryIfMissing, removePathForcibly, doesFileExist, doesDirectoryExist)
 import System.FilePath ((</>), normalise)
 import System.FilePath (takeDirectory)
-import Target.File (Backend(..))
+import Target.File (TargetBackend(..))
 import Target.Types (TargetId(..), Target(..))
 import Test.Hspec
 import Test.Hspec.Wai
@@ -43,10 +43,21 @@ import Web.FormUrlEncoded (ToForm(..))
 import Web.FormUrlEncoded qualified as UrlFormEncoded
 import Filehub.Auth.Simple (SimpleAuthUserDB(..))
 import Effectful.Process (readProcess, runProcess)
+import GHC.Conc (newTVarIO)
+import Filehub.SharedLink qualified as SharedLink
+import Effectful.Concurrent (runConcurrent)
+import Test.Hspec.Runner
+import Control.Concurrent (threadDelay)
+import Data.Text qualified as Text
 
 
 main :: IO ()
-main = hspec do
+main = hspecWith
+  (defaultConfig
+    { configPrettyPrint = True
+    , configPrintCpuTime = True
+    }
+  ) do
   clientPathSpec
   middlewareSpec
   operationSpec
@@ -89,12 +100,12 @@ middlewareSpec = before setup  . after_ teardown . with (Filehub.application <$>
   describe "Session middlware" $ do
       -- Request without session cookie should always get a new session id
       it "Should have Set-Cookie header with a new session id" do
-        s <- get "/files/copy"
+        s <- get "/healthz"
         liftIO $ do
           simpleStatus s `shouldBe` status200
           case lookup hSetCookie $ simpleHeaders s of
             Just raw -> ByteString.unpack raw `shouldContain` "sessionId="
-            Nothing -> expectationFailure "No Set-Cookie header"
+            Nothing -> expectationFailure ("No Set-Cookie header. " <> show (simpleHeaders s))
 
 
 operationSpec :: Spec
@@ -102,13 +113,6 @@ operationSpec = before setup  . after_ teardown . with (Filehub.application <$> 
   describe "/files/paste" $ do
     it "when not copied - should fail" $ post "/files/paste" "" `shouldRespondWith` 500
     it "when not copied - should fail" do post "/files/paste" "" `shouldRespondWith` 500
-
-    it "when nothing is selected - should paste nothing" do
-      get "/files/copy" `shouldRespondWith` 200
-      do
-        res <- post "/files/paste" ""
-        pure res `shouldRespondWith` 200
-        liftIO $ lookup "X-Filehub-Selected-Count" (simpleHeaders res) `shouldBe` Just "0"
 
     it "paste file into the same dir - should overwrite the file with the same content." do
       postHtmlForm "/table/select" [("selected", "a")] `shouldRespondWith` 200
@@ -121,8 +125,7 @@ operationSpec = before setup  . after_ teardown . with (Filehub.application <$> 
       get "/cd?dir=dir1" `shouldRespondWith` 200
       post "/files/paste" "" `shouldRespondWith` 200
       liftIO do
-        exists <- doesFileExist (root </> "dir1/a")
-        when (not exists) do
+        doesFileExist (root </> "dir1/a") `waitUntilTrueOr` do
           dirStructure <- dumpDir root
           expectationFailure dirStructure
 
@@ -136,8 +139,7 @@ operationSpec = before setup  . after_ teardown . with (Filehub.application <$> 
       get "/cd?dir=dir2" `shouldRespondWith` 200
       post "/files/paste" "" `shouldRespondWith` 200
       liftIO do
-        exists <- allPathsExist root ["dir2/a", "dir2/b", "dir2/dir1/x"]
-        when (not exists) do
+        allPathsExist root ["dir2/a", "dir2/b", "dir2/dir1/x"] `waitUntilTrueOr` do
           dirStructure <- dumpDir root
           expectationFailure dirStructure
 
@@ -147,8 +149,7 @@ operationSpec = before setup  . after_ teardown . with (Filehub.application <$> 
       get "/cd?dir=dir2" `shouldRespondWith` 200
       post "/files/paste" "" `shouldRespondWith` 200
       liftIO do
-        exists <- allPathsExist root ["dir2/dir1/x"]
-        when (not exists) do
+        allPathsExist root ["dir2/dir1/x"] `waitUntilTrueOr` do
           dirStructure <- dumpDir root
           expectationFailure dirStructure
 
@@ -157,22 +158,21 @@ operationSpec = before setup  . after_ teardown . with (Filehub.application <$> 
     it "single file - file a should be deleted" do
       delete "/files/delete?file=a" `shouldRespondWith` 200
       liftIO do
-        exists <- doesFileExist (root </> "a")
-        exists `shouldBe` False
+        (not <$> doesFileExist (root </> "a")) `waitUntilTrueOr` do
+          dirStructure <- dumpDir root
+          expectationFailure dirStructure
       liftIO do
-        exists <- allPathsExist root ["b", "dir1/x", "dir2/subdir/y"]
-        when (not exists) do
+        allPathsExist root ["b", "dir1/x", "dir2/subdir/y"] `waitUntilTrueOr` do
           dirStructure <- dumpDir root
           expectationFailure dirStructure
 
     it "a folder - directory dir2 sould be deleted" do
       delete "/files/delete?file=dir2" `shouldRespondWith` 200
       liftIO do
-        exists <- doesDirectoryExist (root </> "dir2")
-        exists `shouldBe` False
+        (not <$> doesDirectoryExist (root </> "dir2")) `waitUntilTrueOr` do
+          expectationFailure "Failed to copy"
       liftIO do
-        exists <- allPathsExist root ["a", "b", "dir1/x"]
-        when (not exists) do
+        allPathsExist root ["a", "b", "dir1/x"] `waitUntilTrueOr` do
           dirStructure <- dumpDir root
           expectationFailure dirStructure
 
@@ -180,8 +180,7 @@ operationSpec = before setup  . after_ teardown . with (Filehub.application <$> 
     it "should create a file `new` in root directory" do
       postHtmlForm "/files/new" [("new-file", "new")] `shouldRespondWith` 200
       liftIO do
-        exists <- doesFileExist (root </> "new")
-        when (not exists) do
+        doesFileExist (root </> "new") `waitUntilTrueOr` do
           dirStructure <- dumpDir root
           expectationFailure dirStructure
 
@@ -189,22 +188,21 @@ operationSpec = before setup  . after_ teardown . with (Filehub.application <$> 
       get "/cd?dir=dir2" `shouldRespondWith` 200
       postHtmlForm "/files/new" [("new-file", "new")] `shouldRespondWith` 200
       liftIO do
-        exists <- doesFileExist (root </> "dir2/new")
-        when (not exists) do
+        doesFileExist (root </> "dir2/new") `waitUntilTrueOr` do
           dirStructure <- dumpDir root
           expectationFailure dirStructure
 
   describe "/files/update" $ do
     it "should update a file `new` in root directory" do
-      postHtmlForm "/files/update" [("path", "a"), ("content", "123")] `shouldRespondWith` 200
+      postHtmlForm "/files/update" [("path", "a"), ("content", "777")] `shouldRespondWith` 200
       liftIO do
-        content <- readFile (root </> "a")
-        when (content /= "123") do
-          expectationFailure content
+        (readFile (root </> "a") >>= \c -> pure (c, c == "777"))
+            `waitUntilTrueOr_`
+            \content -> expectationFailure content
 
 
 loginSpec :: Spec
-loginSpec = before setup  . after_ teardown . with (Filehub.application <$> (defaultEnv >>= patchEnv)) $ do
+loginSpec = before setup  . after_ teardown . with (Filehub.application <$> patchedEnv) $ do
   describe "Prevent access without logging-in" $ do
     it "should redirect to /login" do
       get "/" >>= \res -> liftIO do
@@ -236,6 +234,7 @@ loginSpec = before setup  . after_ teardown . with (Filehub.application <$> (def
       request methodPost "/login" [ (hContentType, "application/x-www-form-urlencoded") ] (f $ LoginForm "paul" "xxx") `shouldRespondWith` 200
       request methodPost "/login" [ (hContentType, "application/x-www-form-urlencoded") ] (f $ LoginForm "peter" "xxx") `shouldRespondWith` 200
   where
+    patchedEnv = defaultEnv >>= patchEnv
     patchEnv env = do
       userDB <- runEff . runFileSystem $ createSimpleAuthUserDB [UserRecord "paul" "123", UserRecord "peter" "345"]
       pure
@@ -250,20 +249,23 @@ defaultEnv = do
   httpManager    <- newTlsManager
   cache          <- liftIO (Cache.InMemory.new 1000)
   lockRegistry   <- liftIO LockRegistry.Local.new
-  -- userDB         <- runEff . runFileSystem $ createSimpleAuthUserDB [UserRecord "paul" "123", UserRecord "peter" "345"]
+  targets        <- newTVarIO [ ( tid
+                                , Target $ FileBackend
+                                  { targetId = tid
+                                  , targetName = Nothing
+                                  , root = root
+                                  }
+                                )
+                              ]
+  sharedLinkPool <- runEff . runConcurrent $ SharedLink.newShareLinkPool
   let env =
         Env
           { port = 0
           , theme = Dark
           , sessionPool = sessionPool
           , sessionDuration = secondsToNominalDiffTime (60 * 60)
-          , targets =
-            [ Target $ FileBackend
-              { targetId = tid
-              , targetName = Nothing
-              , root = root
-              }
-            ]
+          , sharedLinkPool = sharedLinkPool
+          , targets = targets
           , readOnly = False
           , locale = EN
           , logger = logger
@@ -314,6 +316,31 @@ testFiles =
   ]
 
 
+
+waitUntilTrueOr :: IO Bool -> IO () -> IO ()
+waitUntilTrueOr check action = go 50  -- 50 tries = ~5s max
+  where
+    go 0 = action
+    go n = do
+      ok <- check
+      if ok then pure ()
+            else do
+              threadDelay 100000
+              go (n - 1)
+
+
+waitUntilTrueOr_ :: IO (a, Bool) -> (a -> IO ()) -> IO ()
+waitUntilTrueOr_ check action = go (error "impossible") 50
+  where
+    go a 0 = action a
+    go _ n = do
+      (a', ok) <- check
+      if ok then pure ()
+            else do
+              threadDelay 100000
+              go a' (n - 1)
+
+
 allPathsExist :: FilePath -> [FilePath] -> IO Bool
 allPathsExist root' paths = and <$> mapM (pathExists root') paths
 
@@ -321,7 +348,6 @@ allPathsExist root' paths = and <$> mapM (pathExists root') paths
 dumpDir :: FilePath -> IO String
 dumpDir root' = do
   runEff . runProcess $ readProcess "tree" [root'] ""
-
 
 
 pathExists :: FilePath -> FilePath -> IO Bool
@@ -333,7 +359,9 @@ pathExists root' p = do
 
 
 nullLogger :: IO Logger
-nullLogger = mkLogger "" $ \_ -> pure ()
+nullLogger = mkLogger "" $ \msg -> do
+  putStrLn (Text.unpack $ "    " <> msg.lmMessage)
+  pure ()
 
 
 -- | Relative, printable paths

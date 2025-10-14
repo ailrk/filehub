@@ -212,7 +212,7 @@ server = Api
   , favicon               = pure $(FileEmbed.embedFile "data/filehub/favicon.ico")
   , static                = static
   , offline               = pure Template.offline
-  , healthz               = pure "ok"
+  , healthz               = \_ -> pure "ok"
 #ifdef DEBUG
   , debug1                = \_ -> pure $ addHeader (Dummy "Hello") NoContent
   , preview               = preview

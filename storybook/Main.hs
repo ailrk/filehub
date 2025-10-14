@@ -29,7 +29,7 @@ import Target.Dummy qualified
 import Target.Types (Target(..))
 import Filehub.Session.Types ( TargetView(..), TargetSessionData(..) )
 import Data.File (FileInfo, File(..), FileType(..))
-import Data.Time.QQ (utcIso8601, UTCTime (..))
+import Data.Time (UTCTime (..), defaultTimeLocale, parseTimeM)
 import Data.ClientPath qualified as ClientPath
 import System.Process (readProcess)
 
@@ -200,37 +200,41 @@ files :: [FileInfo]
 files =
   [ File
     { path     = "/foo/bar/cat.png"
-    , atime    = Just [utcIso8601| 1998-12-01 |]
-    , mtime    = Just [utcIso8601| 1998-11-01 |]
+    , atime    = utcIso8601 "1998-12-01"
+    , mtime    = utcIso8601 "1998-11-01"
     , size     = Just 1000
     , mimetype = "image/png"
     , content  = Regular
     }
   , File
     { path     = "/foo/bar/how-to-feed-cat.pdf"
-    , atime    = Just [utcIso8601| 1998-11-01 |]
-    , mtime    = Just [utcIso8601| 1997-10-01 |]
+    , atime    = utcIso8601 "1998-11-01"
+    , mtime    = utcIso8601 "1997-10-01"
     , size     = Just 1000
     , mimetype = "application/pdf"
     , content  = Regular
     }
   , File
     { path     = "/foo/bar/fish.txt"
-    , atime    = Just [utcIso8601| 2000-11-01 |]
-    , mtime    = Just [utcIso8601| 2007-08-01 |]
+    , atime    = utcIso8601 "2000-11-01"
+    , mtime    = utcIso8601 "2007-08-01"
     , size     = Just 1000
     , mimetype = "tetx/plain"
     , content  = Regular
     }
   , File
     { path     = "/foo/bar/silly-cat-pictures"
-    , atime    = Just [utcIso8601| 1998-10-31 |]
-    , mtime    = Just [utcIso8601| 1997-11-01 |]
+    , atime    = utcIso8601 "1998-10-31"
+    , mtime    = utcIso8601 "1997-11-01"
     , size     = Just 1000
     , mimetype = ""
     , content  = Dir
     }
   ]
+
+utcIso8601 :: String -> Maybe UTCTime
+utcIso8601 = parseTimeM True defaultTimeLocale "%FT%TZ"
+
 
 
 previewCSS :: Text

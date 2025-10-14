@@ -7,5 +7,3 @@ import Target.Types (Target)
 
 createTarget :: (IOE :> es, Log :> es) => Eff es Target
 createTarget = undefined
-
-

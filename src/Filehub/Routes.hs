@@ -482,7 +482,7 @@ data Api mode = Api
   , offline               :: mode :- "offline" :> Get '[HTML] (Html ())
 
 
-  , healthz               :: mode :- "healthz" :> Get '[PlainText] Text
+  , healthz               :: mode :- "healthz" :> AuthProtect "session" :> Get '[PlainText] Text
 
 
 #ifdef DEBUG

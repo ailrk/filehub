@@ -12,29 +12,28 @@ module EvtLog
 import Data.ByteString (ByteString)
 import Data.String.Interpolate (iii, i)
 import Database.SQLite.Simple (Connection, Query, Only (..), type (:.) (..))
-import UnliftIO (MonadIO, liftIO)
+import UnliftIO (MonadIO, liftIO, throwIO)
 import Database.SQLite.Simple qualified as Sqlite
 import Database.SQLite.Simple.ToRow
 import Database.SQLite.Simple.FromRow
 import Data.Time (UTCTime)
+import Data.ByteString.Lazy qualified as LBS
 
 
 data LogEvt = LogEvt
-  { eventId   :: Integer
-  , eventTime :: UTCTime
+  { eventTime :: UTCTime
   , eventType :: ByteString
-  , eventData :: ByteString
+  , eventData :: LBS.ByteString
   }
   deriving (Show)
 
 
-
 instance FromRow LogEvt where
-  fromRow = LogEvt <$> Sqlite.field <*> Sqlite.field <*> Sqlite.field <*> Sqlite.field
+  fromRow = LogEvt <$> Sqlite.field <*> Sqlite.field <*> Sqlite.field
 
 
 instance ToRow LogEvt where
-  toRow LogEvt { eventId, eventTime, eventType, eventData } = toRow (eventId, eventTime, eventType, eventData)
+  toRow LogEvt { eventTime, eventType, eventData } = toRow (eventTime, eventType, eventData)
 
 
 class ToLogEvt a where
@@ -42,7 +41,7 @@ class ToLogEvt a where
 
 
 class FromLogEvt a where
-  fromLogEvt :: LogEvt -> a
+  fromLogEvt :: LogEvt -> Maybe a
 
 
 schema :: Query
@@ -65,7 +64,6 @@ emit conn evt = liftIO do
         description = excluded.description,
         completed   = excluded.completed;
     |] logEvt
-
   where
     logEvt = toLogEvt evt
 
@@ -85,17 +83,19 @@ fold conn mRange f proj = liftIO go
                    WHERE time >= ? AND time <= ?
                |]
                (Only from :. Only to) proj
-               \p evt -> do
-                 let e = fromLogEvt evt
-                 pure (f p e)
+               step
 
            Nothing -> do
              Sqlite.fold_ conn
                [i| SELECT (id, time, type, data) from evtlog |]
                proj
-               \p evt -> do
-                 let e = fromLogEvt evt
-                 pure (f p e)
+               step
+
+    step p evt = do
+      case fromLogEvt evt of
+        Just e -> pure (f p e)
+        Nothing -> do
+          throwIO (userError ("failed to decode log event: " <> show evt))
 
 
 connect :: MonadIO m => String -> m Connection

@@ -6,13 +6,13 @@
 , hspec, hspec-wai, http-api-data, http-client, http-client-tls
 , http-types, JuicyPixels, JuicyPixels-stbir, jwt, lib, log-base
 , log-effectful, lucid, microlens, microlens-platform, mime-types
-, network-uri, optparse-applicative, process, psqueues, QuickCheck
-, random, req, retry, servant, servant-client, servant-conduit
-, servant-event-stream, servant-lucid, servant-multipart
-, servant-server, split, stm, string-interpolate, suspend
-, temporary, text, time, timers, tomland, transformers, unliftio
-, unordered-containers, uri-encode, uuid, vault, vector, wai
-, wai-app-static, wai-extra, warp, zip
+, network-uri, optparse-applicative, pretty-simple, process
+, psqueues, QuickCheck, random, req, retry, servant, servant-client
+, servant-conduit, servant-event-stream, servant-lucid
+, servant-multipart, servant-server, split, sqlite-simple, stm
+, string-interpolate, suspend, temporary, text, time, timers
+, tomland, transformers, unliftio, unordered-containers, uri-encode
+, uuid, vault, vector, wai, wai-app-static, wai-extra, warp, zip
 }:
 mkDerivation {
   pname = "filehub";
@@ -29,17 +29,17 @@ mkDerivation {
     hashtables http-api-data http-client http-client-tls http-types
     JuicyPixels JuicyPixels-stbir jwt log-base log-effectful lucid
     microlens microlens-platform mime-types network-uri
-    optparse-applicative psqueues random retry servant servant-client
-    servant-conduit servant-event-stream servant-lucid
-    servant-multipart servant-server split stm string-interpolate
-    suspend temporary text time timers tomland transformers unliftio
-    unordered-containers uri-encode uuid vault vector wai
-    wai-app-static wai-extra warp zip
+    optparse-applicative pretty-simple psqueues random retry servant
+    servant-client servant-conduit servant-event-stream servant-lucid
+    servant-multipart servant-server split sqlite-simple stm
+    string-interpolate suspend temporary text time timers tomland
+    transformers unliftio unordered-containers uri-encode uuid vault
+    vector wai wai-app-static wai-extra warp zip
   ];
   executableHaskellDepends = [
     base bytestring directory effectful filepath http-client http-types
-    lucid mime-types network-uri optparse-applicative
-    string-interpolate text wai warp
+    lucid mime-types network-uri optparse-applicative process
+    string-interpolate text time wai warp
   ];
   testHaskellDepends = [
     base bcrypt bytestring containers cookie directory effectful

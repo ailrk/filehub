@@ -26,11 +26,12 @@ import Network.URI.Encode qualified as URI.Encode
 import Prelude hiding (readFile, writeFile)
 import Servant (ToHttpApiData (..), FromHttpApiData (..))
 import Text.Debug (Debug(..))
+import Data.Aeson (FromJSON, ToJSON)
 
 
 newtype TargetId = TargetId UUID
   deriving (Show, Eq, Ord)
-  deriving newtype (Hashable)
+  deriving newtype (Hashable, FromJSON, ToJSON)
 
 
 instance Debug TargetId where debug = show

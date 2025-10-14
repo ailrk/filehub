@@ -25,8 +25,6 @@ import Filehub.Types (CopyState(..), SessionId, Selected (..))
 import Lens.Micro hiding (to)
 import Target.Types qualified as Target
 import Filehub.Monad (Filehub)
-import Text.Debug (Debug(..))
-import Debug.Pretty.Simple (pTraceShowM)
 
 
 getCopyState :: SessionId -> Filehub CopyState
@@ -45,7 +43,6 @@ clearCopyState sessionId = setCopyState sessionId NoCopyPaste
 select :: SessionId -> Filehub ()
 select sessionId = do
   allSelecteds <- Selected.allSelecteds sessionId
-  pTraceShowM (pDebug allSelecteds)
   forM_ allSelecteds \(target, selected) -> do
     Session.withTarget sessionId (Target.getTargetId target) \_ storage -> do
       case selected of
@@ -89,7 +86,8 @@ copy :: SessionId -> Filehub ()
 copy sessionId = do
   state <- getCopyState sessionId
   case step state of
-    Right state' -> setCopyState sessionId state'
+    Right state' -> do
+      setCopyState sessionId state'
     Left err -> do
       logAttention_ [i|[tyy33d] #{err}|]
       throwError err

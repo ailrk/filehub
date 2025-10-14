@@ -170,6 +170,7 @@ library
     Filehub.Display
     Filehub.Env
     Filehub.Error
+    Filehub.EvtLog
     Filehub.Handler
     Filehub.Links
     Filehub.Locale
@@ -268,6 +269,7 @@ test-suite filehub_test
     , filepath
     , hspec
     , hspec-wai
+    , text
     , http-api-data
     , http-types
     , http-client
@@ -327,5 +329,5 @@ executable filehub_storybook
     , directory
     , filepath
     , mime-types
-    , time-qq
+    , time
     , process
