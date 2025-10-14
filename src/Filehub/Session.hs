@@ -71,9 +71,12 @@ module Filehub.Session
 
 import Control.Applicative (asum)
 import Data.Generics.Labels ()
+import Data.Map.Strict (Map)
+import Data.Map.Strict qualified as Map
 import Data.Maybe (fromMaybe, mapMaybe)
 import Data.Set (Set)
 import Data.Typeable (cast)
+import Effectful.Concurrent.STM (readTVarIO)
 import Effectful.Error.Dynamic (throwError)
 import Effectful.Log (logAttention, logAttention_, logTrace)
 import Effectful.Reader.Dynamic (asks)
@@ -83,11 +86,12 @@ import Filehub.Error (FilehubError (..), Error' (..))
 import Filehub.Locale (Locale)
 import Filehub.Monad (Filehub)
 import Filehub.Notification.Types (Notification)
+import Filehub.Session.Internal (targetToSessionData)
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Session.Types (TargetView(..))
+import Filehub.SharedLink (SharedLinkPermitSet)
 import Filehub.Storage.File qualified as File
 import Filehub.Storage.S3 qualified as S3
-import Filehub.Storage.Types (Storage(..))
 import Filehub.Types
 import Filehub.UserAgent qualified as UserAgent
 import Lens.Micro
@@ -96,16 +100,12 @@ import Prelude hiding (elem)
 import Prelude hiding (readFile)
 import Target.File (TargetBackend(..), FileSys)
 import Target.S3 (S3)
+import Target.Storage (Storage(..))
 import Target.Types (TargetId, Target (..), getTargetId, handleTarget, targetHandler)
 import UnliftIO.STM (TBQueue, TVar, atomically, writeTBQueue)
 import Worker.Task (TaskId)
-import Filehub.Session.Internal (targetToSessionData)
 import {-# SOURCE #-} Filehub.Session.Copy qualified as Copy
 import {-# SOURCE #-} Filehub.Session.Selected qualified as Selected
-import Filehub.SharedLink (SharedLinkPermitSet)
-import Data.Map.Strict qualified as Map
-import Effectful.Concurrent.STM (readTVarIO)
-import Data.Map.Strict (Map)
 
 
 -- | Get the current target root. The meaning of the root depends on the target. e.g for

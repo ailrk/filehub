@@ -116,7 +116,6 @@ data CopyState
   deriving (Generic, Debug)
 
 
-
 data Selected
   = Selected ClientPath [ClientPath] -- non empty list
   | NoSelection

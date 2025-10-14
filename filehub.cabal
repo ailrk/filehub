@@ -146,7 +146,6 @@ library
     , warp
     , zip
 
-
   exposed-modules:
     Cache.Dummy
     Cache.InMemory
@@ -156,6 +155,7 @@ library
     Data.Queue
     Effectful.Extended.Cache
     Effectful.Extended.LockManager
+    EvtLog
     Filehub
     Filehub.ActiveUser.Pool
     Filehub.ActiveUser.Types
@@ -200,11 +200,10 @@ library
     Filehub.SharedLink
     Filehub.Size
     Filehub.Sort
+    Filehub.Storage.Dummy
     Filehub.Storage.Error
     Filehub.Storage.File
-    Filehub.Storage.Dummy
     Filehub.Storage.S3
-    Filehub.Storage.Types
     Filehub.Target
     Filehub.Template
     Filehub.Template.Desktop
@@ -220,20 +219,21 @@ library
     Network.Mime.Extended
     Network.Wai.Middleware.Extended
     Network.Wai.Middleware.Filehub
+    Paths_filehub
     Storage.Error
     Storage.File
     Storage.S3
     Storage.Virtual
     System.FilePath.Extended
+    Target.Dummy
     Target.File
     Target.S3
-    Target.Virtual
-    Target.Dummy
+    Target.Storage
     Target.Types
+    Target.Virtual
     Text.Debug
     Worker.Pool
     Worker.Task
-    Paths_filehub
   default-language: Haskell2010
 
 

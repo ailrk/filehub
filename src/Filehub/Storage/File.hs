@@ -15,23 +15,23 @@
 module Filehub.Storage.File (storage) where
 
 import Control.Monad (unless)
+import Data.Function ((&))
 import Effectful ( raise)
 import Effectful.Error.Dynamic (throwError)
 import Effectful.FileSystem
 import Effectful.Log
 import Filehub.Error (FilehubError(..), Error' (..))
 import Filehub.Monad (Filehub)
+import Filehub.Session.Types (TargetView(..))
 import Filehub.Storage.Error (withStorageError)
-import Filehub.Storage.Types (Storage (..))
 import Filehub.Types ( SessionId )
 import Lens.Micro.Platform ()
 import Prelude hiding (read, readFile, writeFile)
 import Storage.File qualified
-import {-# SOURCE #-} Filehub.Session qualified as Session
-import Data.Function ((&))
 import Target.File (TargetBackend, FileSys)
-import Filehub.Session.Types (TargetView(..))
+import Target.Storage (Storage(..))
 import Target.Types (handleTarget, targetHandler)
+import {-# SOURCE #-} Filehub.Session qualified as Session
 
 
 cd :: SessionId -> FilePath -> Filehub ()

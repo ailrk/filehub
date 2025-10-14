@@ -15,21 +15,21 @@
 module Filehub.Storage.S3 (storage) where
 
 import Data.ClientPath (fromClientPath)
+import Data.Function ((&))
 import Effectful (raise)
 import Effectful.Error.Dynamic (throwError)
 import Filehub.Error
+import Filehub.Monad (Filehub)
 import Filehub.Session.Types (TargetView(..))
 import Filehub.Storage.Error (withStorageError)
-import Filehub.Storage.Types (Storage(..))
 import Filehub.Types (SessionId)
 import Lens.Micro.Platform ()
 import Prelude hiding (read, readFile, writeFile)
 import Storage.S3 qualified
 import Target.S3 (TargetBackend, S3)
+import Target.Storage (Storage(..))
 import Target.Types (handleTarget, targetHandler)
 import {-# SOURCE #-} Filehub.Session qualified as Session
-import Filehub.Monad (Filehub)
-import Data.Function ((&))
 
 
 storage :: SessionId -> Storage Filehub

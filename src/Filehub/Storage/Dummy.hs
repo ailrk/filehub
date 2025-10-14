@@ -1,11 +1,11 @@
 module Filehub.Storage.Dummy (storage) where
 
-import Effectful ( Eff, Eff)
-import Filehub.Storage.Types (Storage (..))
+import Conduit (yield)
+import Data.File (File(..), FileWithContent, extractFileInfo, FileContent (..))
+import Effectful (Eff, Eff)
 import Lens.Micro.Platform ()
 import Prelude hiding (read, readFile, writeFile)
-import Data.File (File(..), FileWithContent, extractFileInfo, FileContent (..))
-import Conduit (yield)
+import Target.Storage (Storage(..))
 
 
 storage :: [(FilePath, FileWithContent)] -> Storage (Eff es)
