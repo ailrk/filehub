@@ -1,8 +1,8 @@
+{-# LANGUAGE NamedFieldPuns #-}
 module Filehub.Session.Selected
   ( getSelected
   , setSelected
   , anySelected
-  , countSelected
   , clearSelected
   , clearSelectedAllTargets
   , allSelecteds
@@ -11,10 +11,9 @@ module Filehub.Session.Selected
 
 import Effectful (Eff, (:>), Eff, (:>), IOE)
 import Effectful.Reader.Dynamic (Reader, asks)
-import Filehub.Selected qualified as Selected
 import Filehub.Session qualified as Session
 import Filehub.Session.Pool qualified as Session.Pool
-import Filehub.Types (Env(..), SessionId, Session(..), Selected(..))
+import Filehub.Types (Env(..), SessionId, Session(..), Selected(..), TargetSessionData (..))
 import Lens.Micro hiding (to)
 import Lens.Micro.Platform ()
 import Prelude hiding (elem)
@@ -22,6 +21,7 @@ import Target.Types (Target)
 import Filehub.Monad (Filehub)
 import Effectful.Concurrent.STM (readTVarIO)
 import Data.Map.Strict qualified as Map
+import Data.Maybe (catMaybes)
 
 
 getSelected :: SessionId -> Filehub Selected
@@ -33,24 +33,31 @@ setSelected sessionId selected = Session.Pool.update sessionId \s -> s & #target
 
 
 anySelected :: SessionId -> Filehub Bool
-anySelected sessionId = Selected.anySelected  <$> Session.Pool.get sessionId
+anySelected sessionId = go <$> Session.Pool.get sessionId
+  where
+    go :: Session -> Bool
+    go session = session ^. #targets & fmap (^. #selected) & any (\case { Selected _ _ -> True; NoSelection -> False })
 
 
 -- | Get all selected files grouped by targets
 allSelecteds :: SessionId -> Filehub [(Target, Selected)]
 allSelecteds sessionId = do
   session <- Session.Pool.get sessionId
-  let selecteds = session ^. #targets & Map.elems . fmap (^. #selected)
   targets <- asks @Env (.targets) >>= readTVarIO
-  pure (Selected.allSelecteds selecteds (fmap snd targets))
+  session ^. #targets
+    & Map.toList
+    & filter hasSelection
+    & mapM (go targets)
+    <&> catMaybes
+  where
+    hasSelection (_, TargetSessionData { selected })
+      | NoSelection <- selected = False
+      | otherwise               = True
 
-
-countSelected :: SessionId -> Filehub Int
-countSelected sessionId = do
-  session <- Session.Pool.get sessionId
-  let selecteds = session ^. #targets & Map.elems . fmap (^. #selected)
-  targets <- asks @Env (.targets) >>= readTVarIO
-  pure $ Selected.countSelected selecteds (fmap snd targets)
+    go targets (targetId, TargetSessionData { selected }) = do
+      case lookup targetId targets of
+        Just target -> pure $ Just (target, selected)
+        Nothing -> pure Nothing
 
 
 clearSelected :: SessionId -> Filehub ()

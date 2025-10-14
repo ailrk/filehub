@@ -9,7 +9,7 @@ import Data.String.Interpolate (i)
 import Effectful.Concurrent.Async (async, forConcurrently_)
 import Effectful.Concurrent.STM (newTVarIO, readTVar, atomically, modifyTVar', writeTBQueue)
 import Effectful.Error.Dynamic (throwError)
-import Effectful.Log (logAttention_, logTrace)
+import Effectful.Log (logAttention_)
 import Filehub.Error ( FilehubError(..), Error' (..) )
 import Filehub.Handler (ConfirmLogin, ConfirmReadOnly)
 import Filehub.Monad
@@ -85,7 +85,7 @@ paste sessionId _ _ = do
       throwError (FilehubError SelectError "Not in a pastable state")
 
   Server.Internal.clear sessionId
-  selectedCount <- Selected.countSelected sessionId
+  selectedCount <- length <$> Selected.allSelecteds sessionId
   addHeader selectedCount . addHeader SSEStarted <$> index sessionId
 
   where

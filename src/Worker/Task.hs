@@ -1,4 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Worker.Task (TaskId , newTaskId)
   where
 

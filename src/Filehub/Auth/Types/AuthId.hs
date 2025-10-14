@@ -1,4 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Filehub.Auth.Types.AuthId (AuthId(..), createAuthId) where
 
 import Data.UUID (UUID)

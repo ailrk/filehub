@@ -1,4 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Filehub.Auth.Simple
   ( UserRecord(..)
   , Username(..)

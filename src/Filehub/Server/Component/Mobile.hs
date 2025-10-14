@@ -35,7 +35,7 @@ index sessionId = do
   ctx           <- makeTemplateContext sessionId
   sideBar'      <- sideBar sessionId
   view'         <- view sessionId
-  selectedCount <- Selected.countSelected sessionId
+  selectedCount <- length <$> Selected.allSelecteds sessionId
   toolBar'      <- toolBar sessionId
   pure $ runTemplate ctx (Template.Mobile.index sideBar' toolBar' view' selectedCount)
 

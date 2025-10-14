@@ -25,11 +25,11 @@ data instance TargetBackend FileSys =
 instance Debug (TargetBackend FileSys) where
   debug FileBackend { targetId, targetName, root} =
     mconcat
-      [ "<FileBackend: "
+      [ "[<FileBackend>, "
       , debug targetId, ", "
       , show targetName, ", "
-      , show root
-      , ">"
+      , root
+      , "]"
       ]
 
 

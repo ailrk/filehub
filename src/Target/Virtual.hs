@@ -29,8 +29,8 @@ data instance TargetBackend Virtual =
 instance Debug (TargetBackend Virtual) where
   debug VirtualBackend {} =
     mconcat
-      [ "<VirtualBackend: "
-      , ">"
+      [ "[<VirtualBackend> "
+      , "]"
       ]
 
 

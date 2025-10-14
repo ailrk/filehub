@@ -40,10 +40,10 @@ data instance TargetBackend S3 = S3Backend
 instance Debug (TargetBackend S3) where
   debug S3Backend { targetId, bucket } =
     mconcat
-      [ "<S3Backend: "
+      [ "[<S3Backend>, "
       , debug targetId, ", "
-      , show bucket
-      , ">"
+      , Text.unpack bucket
+      , "]"
       ]
 
 

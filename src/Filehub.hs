@@ -79,7 +79,6 @@ main = Log.withColoredStdoutLogger \logger -> do
     logInfo_ [i|debug:     true|]
 #endif
 
-
   env <- runEff . runConcurrent . runFileSystem  $ do
     sessionPool      <- Session.Pool.new
     activeUserPool   <- ActiveUser.Pool.new

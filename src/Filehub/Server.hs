@@ -624,7 +624,7 @@ selectRows sessionId _ selected = do
         controlPanel'
     _ -> do
       Selected.setSelected sessionId selected
-      count         <- Selected.countSelected sessionId
+      count         <- length <$> Selected.allSelecteds sessionId
       sideBar'      <- sideBar sessionId
       controlPanel' <- controlPanel sessionId
       pure $ addHeader count do
@@ -639,7 +639,7 @@ contextMenu sessionId _ _ paths = Server.Desktop.contextMenu sessionId paths
 cancel :: SessionId -> ConfirmLogin -> Filehub (Headers '[Header "X-Filehub-Selected-Count" Int] (Html ()))
 cancel sessionId _ = do
   Server.Internal.clear sessionId
-  count <- Selected.countSelected sessionId
+  count <- length <$> Selected.allSelecteds sessionId
   addHeader count <$> index sessionId
 
 
@@ -905,7 +905,7 @@ preview mStory mDisplay = do
               Nothing -> mempty
               Just "editor" -> do
                 case ctx.display of
-                  Mobile    -> Template.Mobile.editorModal False "filename" "File content"
+                  Mobile    -> runTemplate ctx $ Template.Mobile.editorModal "filename" "File content"
                   Desktop   -> runTemplate ctx $ Template.Desktop.editorModal "filename" "File content"
                   NoDisplay -> mempty
               Just "new-folder" -> runTemplate ctx Template.Desktop.newFolderModal

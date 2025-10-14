@@ -14,17 +14,17 @@ import Data.ByteString.Lazy qualified as LBS
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Lazy qualified as LT
-import Text.Pretty.Simple (pShow)
 import Data.UUID (UUID)
 import Data.Time (UTCTime)
 import Web.JWT (JWT)
+import Data.List (intersperse)
 
 
 class Debug a where
   debug :: a -> String
 
-  debugP :: a -> LT.Text
-  debugP = pShow . debug
+  pDebug :: a -> PrettyDebug a
+  pDebug = PrettyDebug
 
   default debug :: (Generic a, GDebug (Rep a)) => a -> String
   debug = gdebug . from
@@ -44,7 +44,11 @@ instance (GDebug a, GDebug b) => GDebug (a :*: b) where
 
 
 instance (GDebug a, Constructor c) => GDebug (C1 c a) where
-  gdebug m@(M1 x) = conName m ++ "(" ++ gdebug x ++ ")"
+  gdebug m@(M1 x) =
+    let content = gdebug x
+     in if null content
+           then conName m
+           else conName m ++ ("(" ++ content ++ ")")
 
 
 instance (GDebug a) => GDebug (S1 s a) where
@@ -79,11 +83,26 @@ instance Debug UTCTime where        debug = show
 instance Debug (JWT a) where        debug = show
 
 
-instance {-# OVERLAPPING #-} Debug String where  debug = show
+instance {-# OVERLAPPING #-} Debug String where  debug = id
 
-instance (Debug a) => Debug [a] where debug = show . fmap debug
+instance (Debug a) => Debug [a] where
+  debug xs = "[" ++ (mconcat . intersperse "," . fmap debug $ xs) ++ "]"
+
 instance (Debug a) => Debug (Maybe a) where debug = show . fmap debug
-instance (Debug a, Debug b) => Debug (Either b a) where debug (Left x) = debug x; debug (Right x) = debug x
-instance (Debug a, Debug b) => Debug (a, b) where debug (a, b) = show (debug a, debug b)
-instance (Debug a, Debug b, Debug c) => Debug (a, b, c) where debug (a, b, c) = show (debug a, debug b, debug c)
 
+instance (Debug a, Debug b) => Debug (Either b a) where
+  debug (Left x) = "Left " ++ debug x
+  debug (Right x) = "Right " ++ debug x
+
+instance (Debug a, Debug b) => Debug (a, b)
+  where debug (a, b) = "(" ++ debug a ++ "," ++ debug b ++ ")"
+
+instance (Debug a, Debug b, Debug c) => Debug (a, b, c) where
+  debug (a, b, c) = "(" ++ debug a ++ "," ++ debug b ++ "," ++ debug c ++ ")"
+
+
+newtype PrettyDebug a = PrettyDebug a
+
+
+instance Debug a => Show (PrettyDebug a) where
+  show (PrettyDebug x) = debug x

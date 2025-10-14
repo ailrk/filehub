@@ -29,7 +29,7 @@ delete :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> [ClientPath] -> Bool
                             , Header "HX-Trigger" FilehubEvent
                             ] (Html ()))
 delete sessionId _ _ clientPaths deleteSelected = do
-  count         <- Selected.countSelected sessionId
+  count         <- length <$> Selected.allSelecteds sessionId
   root          <- Session.getRoot sessionId
   storage       <- Session.getStorage sessionId
   taskId        <- newTaskId
@@ -64,5 +64,5 @@ delete sessionId _ _ clientPaths deleteSelected = do
 
     atomically do writeTBQueue notifications (TaskCompleted taskId)
   Server.Internal.clear sessionId
-  newCount <- Selected.countSelected sessionId
+  newCount <- length <$> Selected.allSelecteds sessionId
   addHeader newCount . addHeader SSEStarted <$> index sessionId

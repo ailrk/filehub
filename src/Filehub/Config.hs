@@ -1,4 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Filehub.Config
   ( Config(..)
   , TargetConfig(..)
@@ -38,9 +37,9 @@ data Config f = Config
 
 
 -- | New type wrappers for each config.
-newtype Targets               = Targets               { unTargets               :: [TargetConfig] }           deriving (Semigroup, Monoid)
-newtype SimpleAuthUserRecords = SimpleAuthUserRecords { unSimpleAuthUserRecords :: [Auth.Simple.UserRecord] } deriving (Semigroup, Monoid)
-newtype OidcAuthProviders     = OidcAuthProviders     { unOidcAuthProviders     :: [Auth.OIDC.Provider] }     deriving (Semigroup, Monoid)
+newtype Targets               = Targets               { unTargets               :: [TargetConfig] }           deriving newtype (Semigroup, Monoid)
+newtype SimpleAuthUserRecords = SimpleAuthUserRecords { unSimpleAuthUserRecords :: [Auth.Simple.UserRecord] } deriving newtype (Semigroup, Monoid)
+newtype OidcAuthProviders     = OidcAuthProviders     { unOidcAuthProviders     :: [Auth.OIDC.Provider] }     deriving newtype (Semigroup, Monoid)
 newtype CustomThemeDark       = CustomThemeDark       { unCustomThemeDark       :: CustomTheme }              deriving (Show)
 newtype CustomThemeLight      = CustomThemeLight      { unCustomThemeLight      :: CustomTheme }              deriving (Show)
 
