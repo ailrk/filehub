@@ -55,7 +55,7 @@ main = hspecWith
     }
   ) do
   middlewareSpec
-  operationSpec
+  apiSpec
   loginSpec
 
 
@@ -72,10 +72,11 @@ middlewareSpec = before setup  . after_ teardown . with (Filehub.application <$>
             Nothing -> expectationFailure ("No Set-Cookie header. " <> show (simpleHeaders s))
 
 
-operationSpec :: Spec
-operationSpec = before setup  . after_ teardown . with (Filehub.application <$> defaultEnv) $ do
-  describe "/files/paste" $ do
-    it "when not copied - should fail" $ post "/files/paste" "" `shouldRespondWith` 500
+apiSpec :: Spec
+apiSpec = before setup  . after_ teardown . with (Filehub.application <$> defaultEnv) $ do
+  describe "/files/paste" do
+    it "when not copied - should fail" do post "/files/paste" "" `shouldRespondWith` 500
+
     it "when not copied - should fail" do post "/files/paste" "" `shouldRespondWith` 500
 
     it "paste file into the same dir - should overwrite the file with the same content." do
@@ -88,6 +89,7 @@ operationSpec = before setup  . after_ teardown . with (Filehub.application <$> 
       get "/files/copy" `shouldRespondWith` 200
       get "/cd?dir=dir1" `shouldRespondWith` 200
       post "/files/paste" "" `shouldRespondWith` 200
+
       liftIO do
         doesFileExist (root </> "dir1/a") `waitUntilTrueOr` do
           dirStructure <- dumpDir root
@@ -117,15 +119,14 @@ operationSpec = before setup  . after_ teardown . with (Filehub.application <$> 
           dirStructure <- dumpDir root
           expectationFailure dirStructure
 
-
-  describe "/files/delete" $ do
+  describe "/files/delete" do
     it "single file - file a should be deleted" do
       delete "/files/delete?file=a" `shouldRespondWith` 200
       liftIO do
         (not <$> doesFileExist (root </> "a")) `waitUntilTrueOr` do
           dirStructure <- dumpDir root
           expectationFailure dirStructure
-      liftIO do
+
         allPathsExist root ["b", "dir1/x", "dir2/subdir/y"] `waitUntilTrueOr` do
           dirStructure <- dumpDir root
           expectationFailure dirStructure
@@ -135,12 +136,12 @@ operationSpec = before setup  . after_ teardown . with (Filehub.application <$> 
       liftIO do
         (not <$> doesDirectoryExist (root </> "dir2")) `waitUntilTrueOr` do
           expectationFailure "Failed to copy"
-      liftIO do
+
         allPathsExist root ["a", "b", "dir1/x"] `waitUntilTrueOr` do
           dirStructure <- dumpDir root
           expectationFailure dirStructure
 
-  describe "/files/new" $ do
+  describe "/files/new" do
     it "should create a file `new` in root directory" do
       postHtmlForm "/files/new" [("new-file", "new")] `shouldRespondWith` 200
       liftIO do
@@ -156,7 +157,7 @@ operationSpec = before setup  . after_ teardown . with (Filehub.application <$> 
           dirStructure <- dumpDir root
           expectationFailure dirStructure
 
-  describe "/files/update" $ do
+  describe "/files/update" do
     it "should update a file `new` in root directory" do
       postHtmlForm "/files/update" [("path", "a"), ("content", "777")] `shouldRespondWith` 200
       liftIO do
@@ -167,7 +168,7 @@ operationSpec = before setup  . after_ teardown . with (Filehub.application <$> 
 
 loginSpec :: Spec
 loginSpec = before setup  . after_ teardown . with (Filehub.application <$> patchedEnv) $ do
-  describe "Prevent access without logging-in" $ do
+  describe "Prevent access without logging-in" do
     it "should redirect to /login" do
       get "/" >>= \res -> liftIO do
         simpleStatus res `shouldBe` status307
@@ -181,7 +182,7 @@ loginSpec = before setup  . after_ teardown . with (Filehub.application <$> patc
         simpleStatus res `shouldBe` status307
         lookup hLocation (simpleHeaders res) `shouldBe` Just "/login"
 
-  describe "Login" $ do
+  describe "Login" do
     let f =  UrlFormEncoded.urlEncodeAsForm . toForm
     it "Login succeed, should redirect to /" do
       request methodPost "/login" [ (hContentType, "application/x-www-form-urlencoded") ] (f $ LoginForm "peter" "345") >>= \res -> liftIO do
@@ -258,6 +259,11 @@ setup = do
 teardown :: IO ()
 teardown = do
   removePathForcibly root
+
+
+----------------------------------------
+-- utils
+----------------------------------------
 
 
 root :: FilePath

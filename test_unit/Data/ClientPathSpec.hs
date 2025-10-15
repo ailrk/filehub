@@ -12,7 +12,6 @@ import Test.QuickCheck
 spec :: Spec
 spec =
   describe "ClientPath (property-based)" do
-
     it "fromClientPath . toClientPath = id" do
       property $ \(RelPath p) -> do
         let absPath = mkAbsPath p

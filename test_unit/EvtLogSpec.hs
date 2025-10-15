@@ -38,9 +38,9 @@ withMemoryDB = bracket (EvtLog.initialize ":memory:" maxSize) EvtLog.close
 
 
 spec :: Spec
-spec = describe "EvtLog Integration Tests" $ do
+spec = describe "EvtLog" do
 
-  it "emits and reads back events" $ withMemoryDB $ \h -> do
+  it "emits and reads back events" $ withMemoryDB \h -> do
     let evt = MyEvent "hello world"
     EvtLog.emit h evt
 
@@ -48,7 +48,7 @@ spec = describe "EvtLog Integration Tests" $ do
     result <- EvtLog.fold h Nothing (\acc e -> e : acc) []
     result `shouldBe` [evt]
 
-  it "can emit multiple events and read them in order" $ withMemoryDB $ \h -> do
+  it "can emit multiple events and read them in order" $ withMemoryDB \h -> do
     let evt1 = MyEvent "first"
         evt2 = MyEvent "second"
     emit h evt1
@@ -58,7 +58,7 @@ spec = describe "EvtLog Integration Tests" $ do
     result <- EvtLog.fold h Nothing (\acc e -> acc ++ [e]) []
     result `shouldBe` [evt1, evt2]
 
-  it "fold with time range returns only matching events" $ withMemoryDB $ \h -> do
+  it "fold with time range returns only matching events" $ withMemoryDB \h -> do
     now <- getCurrentTime
     let evt1 = MyEvent "early"
         evt2 = MyEvent "late"
@@ -70,7 +70,7 @@ spec = describe "EvtLog Integration Tests" $ do
     pure ()
 
 
-  it "deletes 20% of oldest events when maxSize is exceeded" $ withMemoryDB $ \h -> do
+  it "deletes 20% of oldest events when maxSize is exceeded" $ withMemoryDB \h -> do
     -- maxSize + 1 events
     let events = [ MyEvent ("evt" ++ show i) | i <- [0..maxSize] ]
     mapM_ (EvtLog.emit h) events
