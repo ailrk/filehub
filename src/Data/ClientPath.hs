@@ -78,11 +78,11 @@ fromClientPath root (ClientPath cp) =
 --   The path returned is guaranteed not start with '/'
 toRawClientPath :: FilePath -> FilePath -> RawClientPath
 toRawClientPath root path = do
-  RawClientPath (ensureUnslash (removePrefix (ensureSlash root) path))
+  RawClientPath (normalise (ensureUnslash (removePrefix (ensureSlash root) path)))
 
 
 fromRawClientPath :: FilePath -> RawClientPath -> FilePath
-fromRawClientPath root (RawClientPath cp) = root </> ensureUnslash cp
+fromRawClientPath root (RawClientPath cp) = normalise (root </> ensureUnslash cp)
 
 
 removePrefix :: FilePath -> FilePath -> FilePath

@@ -1,9 +1,9 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Use fewer imports" #-}
-module Main (main) where
+module Main where
 
 import Cache.InMemory qualified
-import Control.Monad (forM_, when)
+import Control.Monad (forM_)
 import Data.ByteString.Char8 qualified as ByteString
 import Data.Char (isPrint)
 import Data.ClientPath qualified as ClientPath
