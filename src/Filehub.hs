@@ -98,6 +98,7 @@ main = Log.withColoredStdoutLogger \logger -> do
       , locale            = locale
       , logger            = logger
       , logLevel          = verbosity
+      , enableWAILog      = True
       , customThemeDark   = (.unCustomThemeDark) <$> customThemeDark
       , customThemeLight  = (.unCustomThemeLight) <$> customThemeLight
       , simpleAuthUserDB  = simpleAuthUserDB

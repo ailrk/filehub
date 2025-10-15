@@ -6,8 +6,11 @@ cradle:
     - path: "app"
       component: "exe:filehub"
 
-    - path: "test"
-      component: "test-suite:filehub_test"
+    - path: "test_unit"
+      component: "test-suite:filehub_test_unit"
+
+    - path: "test_integration"
+      component: "test-suite:filehub_test_integration"
 
     - path: "benchmark"
       component: "benchmark:filehub_bench"

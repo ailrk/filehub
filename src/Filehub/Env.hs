@@ -45,8 +45,10 @@ data Env = Env
   , readOnly          :: Bool
     -- Top level logging facility.
   , logger            :: Logger
-    -- Log level configuaration
+    -- Log level configuaration.
   , logLevel          :: LogLevel
+    -- Turn on/off the HTTP logging.
+  , enableWAILog      :: Bool
     -- Locale. e.g EN/ZH_CN
   , locale            :: Locale
     -- User credentials for simple auth login mechanism.

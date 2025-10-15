@@ -45,5 +45,9 @@ storybook:
   ghcid -c "cabal repl filehub_storybook filehub"  -T "Main.mainDev 3333" -W
 
 
-test:
-  ghcid -c "cabal repl filehub_test filehub"  -T "Main.main" -W
+test_integration:
+  ghcid -c "cabal repl filehub_test_integration filehub"  -T "Main.main" -W
+
+
+test_unit:
+  ghcid -c "cabal repl filehub_test_unit filehub"  -T "Main.main" -W

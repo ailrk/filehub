@@ -958,7 +958,7 @@ preview mStory mDisplay = do
 application :: Env -> Application
 application env
   = Wai.Middleware.gzip Wai.Middleware.defaultGzipSettings
-  . Wai.Middleware.logStdout
+  . (if env.enableWAILog then Wai.Middleware.logStdout else id)
   . Wai.Middleware.stripCookiesForStatic
   . Wai.Middleware.exposeHeaders
   . Wai.Middleware.sessionMiddleware env

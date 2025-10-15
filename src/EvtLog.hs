@@ -1,11 +1,13 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module EvtLog
-  ( LogEvt(..)
+  ( Handle
+  , LogEvt(..)
   , ToLogEvt(..)
   , FromLogEvt(..)
   , emit
   , fold
-  , connect
+  , initialize
+  , close
   )
   where
 
@@ -18,6 +20,13 @@ import Database.SQLite.Simple.ToRow
 import Database.SQLite.Simple.FromRow
 import Data.Time (UTCTime)
 import Data.ByteString.Lazy qualified as LBS
+import Control.Monad (when)
+
+
+data Handle = Handle
+  { conn    :: Connection
+  , maxSize :: Int
+  }
 
 
 data LogEvt = LogEvt
@@ -47,7 +56,7 @@ class FromLogEvt a where
 schema :: Query
 schema = [iii|
     CREATE TABLE IF NOT EXISTS evtlog
-    ( id    INTEGER KEY NOT NULL
+    ( id    INTEGER PRIMARY KEY AUTOINCREMENT
     , time  INTEGER NOT NULL
     , type  TEXT NOT NULL
     , data  TEXT NOT NULL
@@ -56,30 +65,37 @@ schema = [iii|
   |]
 
 
-emit :: (ToLogEvt evt, MonadIO m) => Connection -> evt -> m ()
-emit conn evt = liftIO do
-  Sqlite.execute conn [iii|
-       INSERT INTO entry (id, time, type, data) VALUES (?,?,?,?)
-        ON CONFLICT(id, todo_date) DO UPDATE SET
-        description = excluded.description,
-        completed   = excluded.completed;
-    |] logEvt
+emit :: (ToLogEvt evt, MonadIO m) => Handle -> evt -> m ()
+emit Handle { conn, maxSize } evt = liftIO do
+  Sqlite.withTransaction conn do
+    countResult <- Sqlite.query_ @(Only Int) conn [iii|SELECT COUNT(*) FROM evtlog |]
+    case countResult of
+      [Only n] -> do
+        when (n >= maxSize) do
+          Sqlite.execute conn [iii|
+            DELETE FROM evtlog
+            WHERE id IN
+              (SELECT id FROM evtlog ORDER BY time ASC LIMIT ?)
+          |] (Only toDelete)
+      _ -> error "impossible"
+    Sqlite.execute conn [i| INSERT INTO evtlog (time, type, data) VALUES (?,?,?) |] logEvt
   where
+    toDelete = floor @Double @Int (0.2 * fromIntegral maxSize)
     logEvt = toLogEvt evt
 
 
 fold :: (FromLogEvt evt, MonadIO m)
-     => Connection
+     => Handle
      -> Maybe (UTCTime, UTCTime)
      -> (proj -> evt -> proj) -> proj
      -> m proj
-fold conn mRange f proj = liftIO go
+fold Handle { conn } mRange f proj = liftIO go
   where
     go = case mRange of
            Just (from, to) -> do
              Sqlite.fold conn
                [iii|
-                 SELECT (id, time, type, data) FROM evtlog
+                 SELECT time, type, data FROM evtlog
                    WHERE time >= ? AND time <= ?
                |]
                (Only from :. Only to) proj
@@ -87,7 +103,7 @@ fold conn mRange f proj = liftIO go
 
            Nothing -> do
              Sqlite.fold_ conn
-               [i| SELECT (id, time, type, data) from evtlog |]
+               [i| SELECT time, type, data from evtlog |]
                proj
                step
 
@@ -98,9 +114,17 @@ fold conn mRange f proj = liftIO go
           throwIO (userError ("failed to decode log event: " <> show evt))
 
 
-connect :: MonadIO m => String -> m Connection
-connect connectionStr = liftIO do
+initialize :: MonadIO m => String -> Int -> m Handle
+initialize connectionStr maxSize = liftIO do
   conn <- Sqlite.open connectionStr
   Sqlite.execute_ conn [i| PRAGMA foreign_keys = ON; |]
   Sqlite.execute_ conn schema
-  pure conn
+  pure Handle
+    { conn    = conn
+    , maxSize = maxSize
+    }
+
+
+close :: MonadIO m => Handle -> m ()
+close Handle { conn } = liftIO do
+  Sqlite.close conn

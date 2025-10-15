@@ -5,8 +5,6 @@ module Main where
 import Cache.InMemory qualified
 import Control.Monad (forM_)
 import Data.ByteString.Char8 qualified as ByteString
-import Data.Char (isPrint)
-import Data.ClientPath qualified as ClientPath
 import Data.Maybe (fromJust)
 import Data.Time (secondsToNominalDiffTime)
 import Data.UUID qualified as UUID
@@ -22,23 +20,21 @@ import Filehub.Locale (Locale(..))
 import Filehub.Server qualified as Filehub
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Types
-    ( ClientPath(..), RawClientPath(..), Theme(..), LoginForm(..) )
+    ( Theme(..), LoginForm(..) )
 import LockRegistry.Local qualified
 import Log (mkLogger, LogMessage(..))
 import Network.HTTP.Client.TLS (newTlsManager)
 import Network.HTTP.Types (methodPost)
 import Network.HTTP.Types.Header
 import Network.HTTP.Types.Status
-import Network.URI.Encode qualified as URI
 import Network.Wai.Test hiding (request)
 import System.Directory (createDirectoryIfMissing, removePathForcibly, doesFileExist, doesDirectoryExist)
-import System.FilePath ((</>), normalise)
+import System.FilePath ((</>))
 import System.FilePath (takeDirectory)
 import Target.File (TargetBackend(..))
 import Target.Types (TargetId(..), Target(..))
 import Test.Hspec
 import Test.Hspec.Wai
-import Test.QuickCheck
 import Web.FormUrlEncoded (ToForm(..))
 import Web.FormUrlEncoded qualified as UrlFormEncoded
 import Filehub.Auth.Simple (SimpleAuthUserDB(..))
@@ -58,41 +54,9 @@ main = hspecWith
     , configPrintCpuTime = True
     }
   ) do
-  clientPathSpec
   middlewareSpec
   operationSpec
   loginSpec
-
-
-clientPathSpec :: Spec
-clientPathSpec =
-  describe "ClientPath (property-based)" $ do
-    it "fromClientPath . toClientPath = id" $
-      property $ \(RelPath p) ->
-        let absPath = mkAbsPath p
-         in ClientPath.fromClientPath rootPath (ClientPath.toClientPath rootPath absPath) === absPath
-
-    it "fromRawClientPath . toRawClientPath = id" $
-      property $ \(RelPath p) ->
-        let absPath = mkAbsPath p
-         in ClientPath.fromRawClientPath rootPath (ClientPath.toRawClientPath rootPath absPath) === absPath
-
-    it "ClientPath must be percent encoded" $ do
-      property $ \(RelPath p) ->
-        let absPath = mkAbsPath p
-            ClientPath s = ClientPath.toClientPath rootPath absPath
-         in URI.encode (URI.decode s) == s
-
-    it "RawClientPath should not start with /" $ do
-      property $ \(RelPath p) ->
-        let absPath = mkAbsPath p
-            RawClientPath s = ClientPath.toRawClientPath rootPath absPath
-         in case s of
-              '/':_ -> False
-              _ -> True
-  where
-    mkAbsPath p = normalise $ rootPath </> dropWhile (== '/') p
-    rootPath = "/root"
 
 
 middlewareSpec :: Spec
@@ -270,6 +234,7 @@ defaultEnv = do
           , locale = EN
           , logger = logger
           , logLevel = LogTrace
+          , enableWAILog = False
           , customThemeDark = Nothing
           , customThemeLight = Nothing
           , simpleAuthUserDB = SimpleAuthUserDB mempty
@@ -362,20 +327,3 @@ nullLogger :: IO Logger
 nullLogger = mkLogger "" $ \msg -> do
   putStrLn (Text.unpack $ "    " <> msg.lmMessage)
   pure ()
-
-
--- | Relative, printable paths
-newtype RelPath = RelPath FilePath
-  deriving (Show, Eq)
-
-instance Arbitrary RelPath where
-  arbitrary = RelPath <$> genSafePath
-
-
--- Generate relative, printable paths with slashes
-genSafePath :: Gen FilePath
-genSafePath = do
-  segments <- listOf1 genSegment
-  return $ foldr1 (\a b -> a ++ "/" ++ b) segments
-  where
-    genSegment = listOf1 (suchThat arbitrary (\c -> isPrint c && c /= '/'))
