@@ -17,6 +17,7 @@ import Effectful (runEff, MonadIO (..))
 import Effectful.Concurrent (runConcurrent)
 import Effectful.FileSystem (runFileSystem)
 import Effectful.Log (runLog, logInfo_)
+import EvtLog qualified
 import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
 import Filehub.Auth.OIDC (OIDCAuthProviders(..))
 import Filehub.Auth.Simple qualified as Auth.Simple
@@ -88,6 +89,7 @@ main = Log.withColoredStdoutLogger \logger -> do
     lockRegistry     <- liftIO LockRegistry.Local.new
     cache            <- liftIO $ Cache.InMemory.new 5000
     httpManager      <- newTlsManager
+    evtLogHandle     <- EvtLog.initialize "" 100
     pure Env
       { port              = port
       , theme             = theme
@@ -108,6 +110,7 @@ main = Log.withColoredStdoutLogger \logger -> do
       , httpManager       = httpManager
       , cache             = cache
       , lockRegistry      = lockRegistry
+      , evtLogHandle      = evtLogHandle
       }
 
   go env `catch` handler

@@ -45,6 +45,7 @@ import Effectful.Concurrent (runConcurrent)
 import Test.Hspec.Runner
 import Control.Concurrent (threadDelay)
 import Data.Text qualified as Text
+import EvtLog qualified
 
 
 main :: IO ()
@@ -223,6 +224,7 @@ defaultEnv = do
                                 )
                               ]
   sharedLinkPool <- runEff . runConcurrent $ SharedLink.newShareLinkPool
+  evtLogHandle   <- runEff $ EvtLog.initialize ":memory:" 100
   let env =
         Env
           { port = 0
@@ -244,6 +246,7 @@ defaultEnv = do
           , cache = cache
           , lockRegistry = lockRegistry
           , activeUsers = activeUserPool
+          , evtLogHandle = evtLogHandle
           }
   pure env
 

@@ -28,6 +28,7 @@ import Target.Types (Target, TargetId)
 import {-# SOURCE #-} Filehub.Auth.OIDC (OIDCAuthProviders(..))
 import {-# SOURCE #-} Filehub.Auth.Simple (SimpleAuthUserDB(..))
 import Effectful.Concurrent.STM (TVar)
+import EvtLog qualified
 
 
 data Env = Env
@@ -57,6 +58,8 @@ data Env = Env
   , oidcAuthProviders :: OIDCAuthProviders
     -- Pool of all shared links
   , sharedLinkPool    :: SharedLinkPool
+    -- Handle for the event log
+  , evtLogHandle      :: EvtLog.Handle
     -- Map from `AuthId` to `ActiveUser`. The definition of an active user depends on
     -- its login method. An active user can have multiple sessions.
   , activeUsers       :: ActiveUser.Pool
