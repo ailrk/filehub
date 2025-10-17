@@ -97,7 +97,6 @@ withDefault display background html = do
   meta_ [ name_ "mobile-web-app-capable", content_ "yes" ]
   meta_ [ name_ "apple-mobile-web-app-title", content_ "FileHub"]
   meta_ [ name_ "apple-mobile-web-app-status-bar-style", content_ "black-translucent" ]
-  meta_ [ name_ "apple-mobile-web-app-title", content_ "Filehub" ]
   meta_ [ name_ "theme-color", content_ background ]
 
   link_ [ rel_ "stylesheet", href_ "/static/boxicons2.1.4.css" ]
