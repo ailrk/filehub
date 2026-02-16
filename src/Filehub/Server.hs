@@ -15,10 +15,14 @@ module Filehub.Server (application) where
 import Conduit (ConduitT, ResourceT, yield)
 import Control.Applicative (Alternative((<|>)))
 import Control.Monad (when, join)
+import Crypto.Hash.SHA256 qualified as SHA256
 import Data.Aeson (object, KeyValue (..), (.:), withObject, Value)
 import Data.Aeson.Types (parseMaybe)
 import Data.ByteString (ByteString)
 import Data.ByteString.Char8 qualified as ByteString
+import Data.ByteString.Lazy qualified as LBS
+import Data.ByteString.Base64 qualified as Base64
+import Data.Char qualified as Char
 import Data.ClientPath (ClientPath (..))
 import Data.ClientPath qualified as ClientPath
 import Data.File (File(..), defaultFileWithContent, FileContent (..))
@@ -34,6 +38,7 @@ import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.Time (UTCTime (..), fromGregorian)
+import Data.UUID qualified as UUID
 import Effectful ( withRunInIO )
 import Effectful.Error.Dynamic (throwError)
 import Effectful.Log (logInfo_, logAttention_)
@@ -131,9 +136,7 @@ import UnliftIO.Exception (SomeException, catch)
 import UnliftIO.STM (readTBQueue, atomically, modifyTVar', readTVar, isEmptyTBQueue)
 import Web.Cookie (SetCookie (..), defaultSetCookie)
 import Filehub.Auth.Types (AuthId(..))
-import Data.UUID qualified as UUID
 import Filehub.SharedLink (SharedLinkHash, SharedLinkPermitSet (..), SharedLinkPermit)
-import Data.Char qualified as Char
 import Filehub.QQ qualified
 
 
@@ -866,28 +869,30 @@ manifest = do
 -- middleware will strip the default servant header.
 --
 -- == Cache-Control header is required to make sure static files are properly cached.
-static :: [FilePath] -> Filehub (Headers '[ Header "Content-Type" String, Header "Cache-Control" String ] ByteString)
+static :: [FilePath] -> Filehub (Headers '[ Header "Content-Type" String
+                                          , Header "Cache-Control" String
+                                          , Header "ETag" String ] ByteString)
 static paths = do
 #ifdef DEBUG
   dir          <- liftIO $ Paths_filehub.getDataDir >>= makeAbsolute <&> (++ "/data/filehub")
   let path     =  dir </> List.intercalate "/" paths
   let mimetype =  Mime.defaultMimeLookup (Text.pack path)
   content      <- liftIO . readFile $ path
-  pure
-    . addHeader (ByteString.unpack mimetype)
-    . addHeader "public, max-age=31536000, immutable"
-    $ content
+
 #else
   let path = List.intercalate "/" paths
-  case Map.lookup path staticFiles of
-    Just content -> do
-      let mimetype = Mime.defaultMimeLookup (Text.pack path)
-      pure
-        . addHeader (ByteString.unpack mimetype)
-        . addHeader "public, max-age=31536000, immutable"
-        $ content
+  content <- case Map.lookup path staticFiles of
+    Just c -> pure c
     Nothing -> throwError do HTTPError (err404 { errBody = [i|File doesn't exist|]})
 #endif
+
+  let mimetype = Mime.defaultMimeLookup (Text.pack path)
+  let etag    = "\"" <> ByteString.unpack (Base64.encode (SHA256.hash content)) <> "\""
+  pure
+    . addHeader (ByteString.unpack mimetype)
+    . addHeader "public, no-cache"
+    . addHeader etag
+    $ content
 
 
 
