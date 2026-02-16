@@ -10,9 +10,10 @@
 , psqueues, QuickCheck, random, req, retry, servant, servant-client
 , servant-conduit, servant-event-stream, servant-lucid
 , servant-multipart, servant-server, split, sqlite-simple, stm
-, string-interpolate, suspend, temporary, text, time, timers
-, tomland, transformers, unliftio, unordered-containers, uri-encode
-, uuid, vault, vector, wai, wai-app-static, wai-extra, warp, zip
+, string-interpolate, suspend, template-haskell, temporary, text
+, time, timers, tomland, transformers, unliftio
+, unordered-containers, uri-encode, uuid, vault, vector, wai
+, wai-app-static, wai-extra, warp, zip
 }:
 mkDerivation {
   pname = "filehub";
@@ -32,9 +33,9 @@ mkDerivation {
     optparse-applicative pretty-simple psqueues random retry servant
     servant-client servant-conduit servant-event-stream servant-lucid
     servant-multipart servant-server split sqlite-simple stm
-    string-interpolate suspend temporary text time timers tomland
-    transformers unliftio unordered-containers uri-encode uuid vault
-    vector wai wai-app-static wai-extra warp zip
+    string-interpolate suspend template-haskell temporary text time
+    timers tomland transformers unliftio unordered-containers
+    uri-encode uuid vault vector wai wai-app-static wai-extra warp zip
   ];
   executableHaskellDepends = [
     base bytestring directory effectful filepath http-client http-types
@@ -44,8 +45,8 @@ mkDerivation {
   testHaskellDepends = [
     base bcrypt bytestring containers cookie directory effectful
     filepath hspec hspec-wai http-api-data http-client http-client-tls
-    http-types log-base log-effectful QuickCheck servant-server time
-    uri-encode uuid wai wai-extra
+    http-types log-base log-effectful QuickCheck servant-server
+    sqlite-simple text time uri-encode uuid wai wai-extra
   ];
   benchmarkHaskellDepends = [
     async base criterion http-types process req temporary time

@@ -15,6 +15,8 @@
               filehub = (hfinal.callPackage ./default.nix {}).overrideAttrs (old: {
                 nativeBuildInputs = (old.nativeBuildInputs or []) ++ [ final.upx ];
 
+                GIT_REV = if (self ? rev) then self.rev else (self.dirtyRev or "dirty-local");
+
                 # Run upx after install
                 postInstall = ''
                   echo "Running UPX on: $out/bin/filehub"

@@ -134,6 +134,8 @@ import Filehub.Auth.Types (AuthId(..))
 import Data.UUID qualified as UUID
 import Filehub.SharedLink (SharedLinkHash, SharedLinkPermitSet (..), SharedLinkPermit)
 import Debug.Trace (traceShowM)
+import Data.Char qualified as Char
+import Filehub.QQ qualified
 
 
 #ifdef DEBUG
@@ -212,12 +214,19 @@ server = Api
   , favicon               = pure $(FileEmbed.embedFile "data/filehub/favicon.ico")
   , static                = static
   , offline               = pure Template.offline
-  , healthz               = \_ -> pure "ok"
+  , healthz               = healthz
 #ifdef DEBUG
   , debug1                = \_ -> pure $ addHeader (Dummy "Hello") NoContent
   , preview               = preview
 #endif
   }
+
+
+healthz :: SessionId -> Filehub Text
+healthz _ = do
+  let gitRev = Text.dropAround Char.isSpace
+             $ Text.decodeUtf8 $(Filehub.QQ.getGitRev)
+  pure $ Text.concat [ gitRev, ", ok." ]
 
 
 initialize :: SessionId -> Resolution -> Filehub (Html ())
