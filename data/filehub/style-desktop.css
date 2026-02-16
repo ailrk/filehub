@@ -179,8 +179,7 @@ textarea:focus {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px;
+  padding: 10px;
 }
 
 
@@ -190,17 +189,17 @@ textarea:focus {
 
 
 .thumbnail-preview {
-  width: 140px;
-  height: 140px;
+  width: 100px;
+  height: 100px;
   margin: auto;
   display: flex;
-  justify-content: space-around;
+  justify-content: center;
   pointer-events: none;
 }
 
 
 .image-wrapper i {
-  font-size: 8em;
+  font-size: 5em;
 }
 
 
@@ -219,7 +218,7 @@ textarea:focus {
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   text-overflow: ellipsis;
-  word-break: normal;
+  word-break: break-all;
   hyphens: manual;
   overflow: hidden;
   text-align: center;
@@ -406,9 +405,9 @@ textarea:focus {
 
 #table.thumbnail-view {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 16px;
-  padding: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 18px;
+  padding: 18px;
   box-sizing: border-box;
 }
 

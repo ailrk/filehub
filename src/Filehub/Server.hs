@@ -133,7 +133,6 @@ import Web.Cookie (SetCookie (..), defaultSetCookie)
 import Filehub.Auth.Types (AuthId(..))
 import Data.UUID qualified as UUID
 import Filehub.SharedLink (SharedLinkHash, SharedLinkPermitSet (..), SharedLinkPermit)
-import Debug.Trace (traceShowM)
 import Data.Char qualified as Char
 import Filehub.QQ qualified
 

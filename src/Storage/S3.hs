@@ -29,14 +29,15 @@ module Storage.S3
   )
   where
 
-import Amazonka (send, runResourceT, toBody, ResponseBody (..))
+import Amazonka (send, runResourceT, toBody, ResponseBody (..), RequestBody)
 import Amazonka.Data qualified as Amazonka
-import Amazonka.S3 (Object(..), CommonPrefix, CompletedMultipartUpload (CompletedMultipartUpload'))
+import Amazonka.S3 (Object(..), CommonPrefix, CompletedMultipartUpload (CompletedMultipartUpload'), BucketName (..), ObjectKey (..))
 import Amazonka.S3 qualified as Amazonka
 import Amazonka.S3.CompleteMultipartUpload (CompleteMultipartUpload(..))
-import Amazonka.S3.CreateMultipartUpload (CreateMultipartUploadResponse(..))
+import Amazonka.S3.CreateMultipartUpload (CreateMultipartUpload(..), CreateMultipartUploadResponse(..))
 import Amazonka.S3.Lens qualified as Amazonka
 import Amazonka.S3.UploadPart (UploadPartResponse(..))
+import Amazonka.S3.PutObject (PutObject(..))
 import Cache.Key (CacheKey, SomeCacheKey (..))
 import Codec.Archive.Zip qualified as Zip
 import Conduit (ResourceT, MonadTrans (..), sinkLazy)
@@ -68,7 +69,7 @@ import Effectful.Log (Log)
 import GHC.TypeLits (Symbol)
 import Lens.Micro
 import Lens.Micro.Platform ()
-import Network.Mime (defaultMimeLookup)
+import Network.Mime (defaultMimeLookup, MimeType)
 import Prelude hiding (read, readFile, writeFile)
 import Servant.Multipart (Mem, FileData (..))
 import Storage.Error (StorageError (..))
@@ -108,8 +109,8 @@ get (s3@S3Backend { targetId }) path = do
   case mCached of
     Just cached -> pure (Just cached)
     Nothing -> do
-      let bucket  = Amazonka.BucketName s3.bucket
-      let key     = Amazonka.ObjectKey (Text.pack path)
+      let bucket  = BucketName s3.bucket
+      let key     = ObjectKey (Text.pack path)
       let request = Amazonka.newHeadObject bucket key
       resp <- runResourceT $ send s3.env request
       if resp ^. Amazonka.headObjectResponse_httpStatus == 200
@@ -149,7 +150,7 @@ isDirectory s3@S3Backend { targetId } filePath = do
     Just (File { content = Regular }) -> pure False
     Just (File { content = Dir })     -> pure True
     Nothing -> do
-      let bucket = Amazonka.BucketName s3.bucket
+      let bucket = BucketName s3.bucket
       let request = Amazonka.newListObjectsV2 bucket
                   & Amazonka.listObjectsV2_prefix ?~ Text.pack (normalizeDirPath filePath)
                   & Amazonka.listObjectsV2_maxKeys ?~ 1
@@ -186,8 +187,8 @@ read s3@S3Backend { targetId }  file = do
 
 readStream :: TargetBackend S3 -> FileInfo -> Eff es (ConduitT () ByteString (ResourceT IO) ())
 readStream s3 file = do
-  let bucket  = Amazonka.BucketName s3.bucket
-      key     = Amazonka.ObjectKey (Text.pack file.path)
+  let bucket  = BucketName s3.bucket
+      key     = ObjectKey (Text.pack file.path)
       request = Amazonka.newGetObject bucket key
   pure $ do
     resp <- lift $ send s3.env request
@@ -214,21 +215,20 @@ write
      , Log   :> es
      , IOE   :> es)
   => TargetBackend S3 -> FilePath -> FileWithContent -> Eff es ()
-write s3@S3Backend { targetId } filePath File { content, size = mSize } = do
+write s3@S3Backend { targetId } filePath File { content, mimetype, size = mSize } = do
   case content of
     FileContentRaw bytes -> do
-      let bucket  = Amazonka.BucketName s3.bucket
-      let key     = Amazonka.ObjectKey (Text.pack filePath)
-      let request = Amazonka.newPutObject bucket key (toBody bytes)
-      void . runResourceT $ send s3.env request
+      writePutObject s3 filePath mimetype (toBody bytes)
       Cache.delete (createCacheKey @"file" @FileInfo targetId (Builder.string8 filePath))
       Cache.delete (createCacheKey @"dir" @[FileInfo] targetId "")
     FileContentConduit conduit -> do
       case mSize of
-        Nothing -> writeMultipart s3 filePath conduit
+        Nothing -> writeMultipart s3 filePath mimetype conduit
         Just size
-          | size < threshold  -> writePutObject s3 filePath conduit
-          | otherwise -> writeMultipart s3 filePath conduit
+          | size < threshold  ->  do
+              lazyBytes <- liftIO . runResourceT . runConduit $ conduit .| sinkLazy
+              writePutObject s3 filePath mimetype (toBody lazyBytes)
+          | otherwise -> writeMultipart s3 filePath mimetype conduit
       Cache.delete (createCacheKey @"file" @FileInfo targetId (Builder.string8 filePath))
       Cache.delete (createCacheKey @"dir" @[FileInfo] targetId "")
       where
@@ -237,24 +237,26 @@ write s3@S3Backend { targetId } filePath File { content, size = mSize } = do
     FileContentNull -> pure ()
 
 
--- | Write with S3:PutObject api. Suitable for writing small files.
--- We need to load the whole file into memory to compute the checksum. AWS S3 has chunked protocol allows you to sign chunk
--- by chunk, but it's not supported by most other S3 providers.
-writePutObject :: ( IOE :> es) => TargetBackend S3 -> FilePath -> ConduitT () ByteString (ResourceT IO) () ->  Eff es ()
-writePutObject s3 filePath conduit = do
-  lazyBytes <- liftIO . runResourceT . runConduit $ conduit .| sinkLazy
-  let bucket  = Amazonka.BucketName s3.bucket
-  let key     = Amazonka.ObjectKey (Text.pack filePath)
-  let request = Amazonka.newPutObject bucket key (toBody lazyBytes)
+writePutObject :: (IOE :> es) => TargetBackend S3 -> FilePath -> MimeType -> RequestBody ->  Eff es ()
+writePutObject s3 filePath mimetype body = do
   void . runResourceT $ send s3.env request
+  where
+    bucket  = BucketName s3.bucket
+    key     = ObjectKey (Text.pack filePath)
+    request :: PutObject
+    request = (Amazonka.newPutObject bucket key body) { contentType = Just (Text.decodeUtf8 mimetype) }
 
 
-writeMultipart :: (IOE :> es) => TargetBackend S3 -> FilePath -> ConduitT () ByteString (ResourceT IO) () -> Eff es ()
-writeMultipart s3 filePath conduit = do
-  let bucket   = Amazonka.BucketName s3.bucket
-  let key      = Amazonka.ObjectKey (Text.pack filePath)
+writeMultipart :: (IOE :> es) => TargetBackend S3 -> FilePath -> MimeType -> ConduitT () ByteString (ResourceT IO) () -> Eff es ()
+writeMultipart s3 filePath mimetype conduit = do
+  let bucket   = BucketName s3.bucket
+  let key      = ObjectKey (Text.pack filePath)
   let partSize = 5 * 1024 * 1024
-  createMultipartUploadResp <- runResourceT $ send s3.env (Amazonka.newCreateMultipartUpload bucket key)
+
+  let request :: CreateMultipartUpload
+      request  = (Amazonka.newCreateMultipartUpload bucket key) { contentType = Just (Text.decodeUtf8 mimetype) }
+
+  createMultipartUploadResp <- runResourceT $ send s3.env request
   let uploadId = createMultipartUploadResp.uploadId
   completedParts <- liftIO . runResourceT . runConduit
     $ conduit
@@ -337,8 +339,8 @@ mv
 mv _ [] = throwError (CopyError "Nothing to copy")
 mv s3@S3Backend { targetId } cpPairs = do
   forM_ cpPairs \(src, dst) -> do
-    let bucket  = Amazonka.BucketName s3.bucket
-    let destKey = Amazonka.ObjectKey (Text.pack dst)
+    let bucket  = BucketName s3.bucket
+    let destKey = ObjectKey (Text.pack dst)
     let request = Amazonka.newCopyObject bucket (Text.pack src) destKey
     void . runResourceT $ send s3.env request
     delete s3 src
@@ -351,8 +353,8 @@ delete
      , Cache :> es)
   => TargetBackend S3 -> FilePath -> Eff es ()
 delete s3@S3Backend { targetId } filePath = do
-  let bucket = Amazonka.BucketName s3.bucket
-  let key    = Amazonka.ObjectKey (Text.pack filePath)
+  let bucket = BucketName s3.bucket
+  let key    = ObjectKey (Text.pack filePath)
   void . runResourceT $ send s3.env (Amazonka.newDeleteObject bucket key)
   Cache.delete (createCacheKey @"file" @FileInfo targetId (Builder.string8 filePath))
   Cache.delete (createCacheKey @"dir" @[FileInfo] targetId "")
@@ -372,7 +374,7 @@ ls s3@S3Backend { targetId } _ = do
       Just cached -> do
         pure cached
       Nothing -> do
-        let bucket  = Amazonka.BucketName s3.bucket
+        let bucket  = BucketName s3.bucket
         let request = Amazonka.newListObjectsV2 bucket
                     & Amazonka.listObjectsV2_prefix ?~ Text.pack "" -- root
         resp <- runResourceT $ send s3.env request
