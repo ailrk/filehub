@@ -66,12 +66,17 @@ index :: Html ()
       -> Template (Html ())
 index sideBar' view' toolBar' = do
   controlPanel' <- controlPanel
+  sidebarCollapsed <- asks @TemplateContext (.sidebarCollapsed)
   pure do
     div_ [ id_ "index" ] do
       sideBar'
       controlPanel'
       toolBar'
       view'
+      `with`
+      if sidebarCollapsed
+         then [ class_ "sidebar-collapsed " ]
+         else []
 
 
 view :: Html () -> Html ()
@@ -145,6 +150,7 @@ controlPanel = join do
     <*> cancelBtn
     <*> themeBtn
     <*> logoutBtn
+    <*> (Just <$> toggleSidebarBtn)
     <*> (Just <$> layoutBtn)
     <*> pure Nothing
 
@@ -267,6 +273,20 @@ cancelBtn = do
             ] do
       span_ [ class_ "field " ] do
         i_ [ class_ "bx bxs-message-alt-x" ] mempty
+
+
+toggleSidebarBtn :: Template (Html ())
+toggleSidebarBtn = do
+  Phrase { toggle_sidebar } <- phrase <$> asks @TemplateContext (.locale)
+  pure do
+    button_ [ class_ "btn btn-control"
+            , type_ "submit"
+            , term "hx-get" (linkToText apiLinks.toggleSidebar)
+            , term "hx-target" "#index"
+            , term "hx-swap" "outerHTML"
+            , term "data-btn-title" toggle_sidebar
+            ] do
+      i_ [ class_ "bx bx-sidebar" ] mempty
 
 
 logoutBtn :: Template (Html ())

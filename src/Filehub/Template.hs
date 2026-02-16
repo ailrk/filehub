@@ -39,6 +39,7 @@ data TemplateContext = TemplateContext
   { readOnly          :: ~Bool
   , noLogin           :: ~Bool
   , display           :: ~Display
+  , sidebarCollapsed  :: ~Bool
   , layout            :: ~Layout
   , theme             :: ~Theme
   , selected          :: ~Selected
@@ -63,6 +64,7 @@ type Template =  Eff '[Reader TemplateContext]
 makeTemplateContext :: SessionId -> Filehub TemplateContext
 makeTemplateContext sessionId = do
   theme             <- Session.getSessionTheme sessionId
+  sidebarCollapsed  <- Session.getSidebarCollapsed sessionId
   layout            <- Session.getLayout sessionId
   readOnly          <- asks @Env (.readOnly)
   noLogin           <- Env.hasNoLogin <$> ask @Env
@@ -80,6 +82,7 @@ makeTemplateContext sessionId = do
     { readOnly           = readOnly
     , noLogin            = noLogin
     , display            = display
+    , sidebarCollapsed   = sidebarCollapsed
     , layout             = layout
     , theme              = theme
     , sortedBy           = sortedBy

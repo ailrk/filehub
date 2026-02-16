@@ -432,6 +432,12 @@ data Api mode = Api
                                                                        , Header "Cache-Control" String
                                                                        ] (ConduitT () ByteString (ResourceT IO) ()))
 
+  , toggleSidebar         :: mode
+                          :- "sidebar"
+                          :> "toggle"
+                          :> AuthProtect "session"
+                          :> AuthProtect "login"
+                          :> Get '[HTML] (Html ())
 
   -- Similar to serv      e but only serve image and pdf. Creates thumbnail version for requested image. This is useful for lazy loading image
   -- preview.

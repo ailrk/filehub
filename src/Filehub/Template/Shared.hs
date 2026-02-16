@@ -176,7 +176,10 @@ searchBar = do
 
 
 controlPanel
-  :: Html () -> Html () -> Html () -> Html () -> Html () -> Html () -> Html () -> Html () -> Html () -> Html () -> Maybe (Html()) -> Maybe (Html ())
+  :: Html () -> Html () -> Html () -> Html () ->
+     Html () -> Html () -> Html () -> Html () ->
+     Html () -> Html () ->
+     Maybe (Html()) -> Maybe (Html ()) -> Maybe (Html ())
   -> Template (Html ())
 controlPanel
   localeBtn
@@ -189,6 +192,7 @@ controlPanel
   cancelBtn
   themeBtn
   logoutBtn
+  mToggleSidebarBtn
   mLayoutBtn
   mScroll2TopBtn = do
     readOnly <- asks @TemplateContext (.readOnly)
@@ -199,6 +203,7 @@ controlPanel
       case readOnly of
         True ->
           div_ [ id_ controlPanelId ] do
+            fromMaybe mempty mToggleSidebarBtn
             fromMaybe mempty mLayoutBtn
             themeBtn
             localeBtn
@@ -209,6 +214,7 @@ controlPanel
           case state of
             ControlPanelDefault ->
               div_ [ id_ controlPanelId ] do
+                fromMaybe mempty mToggleSidebarBtn
                 fromMaybe mempty mLayoutBtn
                 themeBtn
                 localeBtn
@@ -219,6 +225,7 @@ controlPanel
                 fromMaybe mempty mScroll2TopBtn
             ControlPanelSelecting ->
               div_ [ id_ controlPanelId ] do
+                fromMaybe mempty mToggleSidebarBtn
                 fromMaybe mempty mLayoutBtn
                 themeBtn
                 localeBtn
@@ -232,6 +239,7 @@ controlPanel
                 fromMaybe mempty mScroll2TopBtn
             ControlPanelCopied ->
               div_ [ id_ controlPanelId ] do
+                fromMaybe mempty mToggleSidebarBtn
                 fromMaybe mempty mLayoutBtn
                 themeBtn
                 localeBtn

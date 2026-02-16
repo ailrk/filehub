@@ -208,6 +208,7 @@ server = Api
   , toggleTheme           = toggleTheme
   , changeLocale          = changeLocale
   , serve                 = serve
+  , toggleSidebar         = toggleSidebar
   , thumbnail             = thumbnail
   , manifest              = manifest
   , favicon               = pure $(FileEmbed.embedFile "data/filehub/favicon.ico")
@@ -767,6 +768,12 @@ changeLocale _ Nothing = throwError (FilehubError LocaleError "Invalid locale")
 changeLocale sessionId (Just locale) = do
   Session.setSessionLocale sessionId locale
   addHeader LocaleChanged <$> index sessionId
+
+
+toggleSidebar :: SessionId -> ConfirmLogin -> Filehub (Html ())
+toggleSidebar sessionId _ = do
+  Session.toggleSidebarCollapsed sessionId
+  index sessionId
 
 
 serve :: SessionId -> ConfirmLogin -> Maybe ClientPath

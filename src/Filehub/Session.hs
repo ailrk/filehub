@@ -44,6 +44,8 @@ module Filehub.Session
   , setSortFileBy
   , getAuthId
   , setAuthId
+  , getSidebarCollapsed
+  , toggleSidebarCollapsed
   , getLayout
   , setLayout
   , getSessionTheme
@@ -151,6 +153,16 @@ getAuthId sessionId = (^. #authId) <$> Session.Pool.get sessionId
 setAuthId :: SessionId -> Maybe AuthId -> Filehub ()
 setAuthId sessionId mAuthId = do
   Session.Pool.update sessionId \s -> s & #authId .~ mAuthId
+
+
+getSidebarCollapsed :: SessionId -> Filehub Bool
+getSidebarCollapsed sessionId = (^. #sidebarCollapsed) <$> Session.Pool.get sessionId
+
+
+toggleSidebarCollapsed :: SessionId -> Filehub ()
+toggleSidebarCollapsed sessionId = do
+  Session.Pool.update sessionId \s ->
+    s & #sidebarCollapsed .~ (not (s ^. #sidebarCollapsed))
 
 
 -- | Get the current session layout.

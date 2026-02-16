@@ -66,6 +66,7 @@ instance Read Locale where
 data Phrase = Phrase
   { target_filesystem        :: Text
   , target_s3                :: Text
+  , toggle_sidebar           :: Text
   , contextmenu_open         :: Text
   , contextmenu_play         :: Text
   , contextmenu_view         :: Text
@@ -194,6 +195,7 @@ phraseCodec =
   Phrase
   <$> Toml.text "TARGET_FILESYSTEM"        .= (.target_filesystem)
   <*> Toml.text "TARGET_S3"                .= (.target_s3)
+  <*> Toml.text "TOGGLE_SIDEBAR"           .= (.toggle_sidebar)
   <*> Toml.text "CONTEXTMENU_OPEN"         .= (.contextmenu_open)
   <*> Toml.text "CONTEXTMENU_PLAY"         .= (.contextmenu_play)
   <*> Toml.text "CONTEXTMENU_VIEW"         .= (.contextmenu_view)

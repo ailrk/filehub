@@ -43,13 +43,21 @@ textarea:focus {
 
 #index {
   display: grid;
+  --sidebar-width: 210px;
+
   grid-template-areas:
   "side-bar control-panel"
   "side-bar tool-bar"
   "side-bar view";
-  grid-template-columns: 210px 1fr;
+  grid-template-columns: var(--sidebar-width) 1fr;
   grid-template-rows: auto auto 95vh;
   overflow: hidden;
+  transition: grid-template-columns 0.3s ease;
+}
+
+
+#index.sidebar-collapsed {
+  --sidebar-width: 0px;
 }
 
 
@@ -62,6 +70,8 @@ textarea:focus {
 #side-bar {
   grid-area: side-bar;
   background-color: var(--background2);
+  overflow: hidden;
+  min-width: 0;
 }
 
 

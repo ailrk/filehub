@@ -212,12 +212,13 @@ function closePanel(e) {
         }
     });
 }
-/* Remove all class on #index */
+/* Remove all class on #index (with some exceptions) */
 function removeClassOnIndex() {
+    const toKeep = new Set(["sidebar-collapsed"]);
     const el = document.querySelector("#index");
     if (el) {
         el.addEventListener("animationend", () => {
-            el.classList.remove(...el.classList);
+            el.classList.remove(...[...el.classList].filter(cls => !toKeep.has(cls)));
         });
     }
 }

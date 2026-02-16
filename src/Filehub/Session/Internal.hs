@@ -56,6 +56,7 @@ createSession = do
     , targets           = targetToSessionData <$> Map.fromList targets
     , copyState         = NoCopyPaste
     , currentTargetId   = fst (head targets)
+    , sidebarCollapsed  = False
     , layout            = ThumbnailLayout
     , theme             = theme
     , locale            = locale

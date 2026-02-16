@@ -1,6 +1,7 @@
 [en]
 TARGET_FILESYSTEM              = "FileSystem"
 TARGET_S3                      = "S3"
+TOGGLE_SIDEBAR                 = "Toggle Sidebar"
 CONTEXTMENU_OPEN               = "Open"
 CONTEXTMENU_PLAY               = "Play"
 CONTEXTMENU_VIEW               = "View"
@@ -59,6 +60,7 @@ CONFIRM_DELETE_ALL             = "Are you sure about deleting selected files?\n\
 [zh_cn]
 TARGET_FILESYSTEM              = "文件系统"
 TARGET_S3                      = "S3"
+TOGGLE_SIDEBAR                 = "切换侧边栏"
 CONTEXTMENU_OPEN               = "打开"
 CONTEXTMENU_PLAY               = "播放"
 CONTEXTMENU_VIEW               = "查看"
@@ -117,6 +119,7 @@ CONFIRM_DELETE_ALL             = "确定要删除选中的文件吗？\n\n（将
 [zh_tw]
 TARGET_FILESYSTEM              = "檔案系統"
 TARGET_S3                      = "S3"
+TOGGLE_SIDEBAR                 = "切換側邊欄"
 CONTEXTMENU_OPEN               = "開啟"
 CONTEXTMENU_PLAY               = "播放"
 CONTEXTMENU_VIEW               = "檢視"
@@ -175,6 +178,7 @@ CONFIRM_DELETE_ALL             = "確定要刪除選取的檔案嗎？\n\n（將
 [zh_hk]
 TARGET_FILESYSTEM              = "檔案系統"
 TARGET_S3                      = "S3"
+TOGGLE_SIDEBAR                 = "切換側邊欄"
 CONTEXTMENU_OPEN               = "打開"
 CONTEXTMENU_PLAY               = "播放"
 CONTEXTMENU_VIEW               = "查看"
@@ -233,6 +237,7 @@ CONFIRM_DELETE_ALL             = "確定要刪除選中的檔案嗎？\n\n（將
 [ja]
 TARGET_FILESYSTEM              = "ファイルシステム"
 TARGET_S3                      = "S3"
+TOGGLE_SIDEBAR                 = "サイドバーを切り替え"
 CONTEXTMENU_OPEN               = "開く"
 CONTEXTMENU_PLAY               = "再生"
 CONTEXTMENU_VIEW               = "表示"
@@ -291,6 +296,7 @@ CONFIRM_DELETE_ALL             = "選択されたファイルを削除しても�
 [fr]
 TARGET_FILESYSTEM              = "Système de fichiers"
 TARGET_S3                      = "S3"
+TOGGLE_SIDEBAR                 = "Afficher/Masquer la barre latérale"
 CONTEXTMENU_OPEN               = "Ouvrir"
 CONTEXTMENU_PLAY               = "Lire"
 CONTEXTMENU_VIEW               = "Voir"
@@ -349,6 +355,7 @@ CONFIRM_DELETE_ALL             = "Êtes-vous sûr de vouloir supprimer les fichi
 [es]
 TARGET_FILESYSTEM              = "Sistema de archivos"
 TARGET_S3                      = "S3"
+TOGGLE_SIDEBAR                 = "Alternar barra lateral"
 CONTEXTMENU_OPEN               = "Abrir"
 CONTEXTMENU_PLAY               = "Reproducir"
 CONTEXTMENU_VIEW               = "Ver"
@@ -407,6 +414,7 @@ CONFIRM_DELETE_ALL             = "¿Está seguro de eliminar los archivos selecc
 [de]
 TARGET_FILESYSTEM              = "Dateisystem"
 TARGET_S3                      = "S3"
+TOGGLE_SIDEBAR                 = "Seitenleiste umschalten"
 CONTEXTMENU_OPEN               = "Öffnen"
 CONTEXTMENU_PLAY               = "Abspielen"
 CONTEXTMENU_VIEW               = "Anzeigen"
@@ -465,6 +473,7 @@ CONFIRM_DELETE_ALL             = "Sind Sie sicher, dass Sie die ausgewählten Da
 [ko]
 TARGET_FILESYSTEM              = "파일 시스템"
 TARGET_S3                      = "S3"
+TOGGLE_SIDEBAR                 = "사이드바 토글"
 CONTEXTMENU_OPEN               = "열기"
 CONTEXTMENU_PLAY               = "재생"
 CONTEXTMENU_VIEW               = "보기"
@@ -523,6 +532,7 @@ CONFIRM_DELETE_ALL             = "선택된 파일을 삭제하시겠습니까?\
 [ru]
 TARGET_FILESYSTEM              = "Файловая система"
 TARGET_S3                      = "S3"
+TOGGLE_SIDEBAR                 = "Переключить боковую панель"
 CONTEXTMENU_OPEN               = "Открыть"
 CONTEXTMENU_PLAY               = "Воспроизвести"
 CONTEXTMENU_VIEW               = "Просмотр"
@@ -581,6 +591,7 @@ CONFIRM_DELETE_ALL             = "Вы уверены, что хотите уд�
 [pt]
 TARGET_FILESYSTEM              = "Sistema de arquivos"
 TARGET_S3                      = "S3"
+TOGGLE_SIDEBAR                 = "Alternar barra lateral"
 CONTEXTMENU_OPEN               = "Abrir"
 CONTEXTMENU_PLAY               = "Reproduzir"
 CONTEXTMENU_VIEW               = "Visualizar"
@@ -639,6 +650,7 @@ CONFIRM_DELETE_ALL             = "Tem certeza de que deseja excluir os arquivos 
 [it]
 TARGET_FILESYSTEM              = "File system"
 TARGET_S3                      = "S3"
+TOGGLE_SIDEBAR                 = "Attiva/disattiva barra laterale"
 CONTEXTMENU_OPEN               = "Apri"
 CONTEXTMENU_PLAY               = "Riproduci"
 CONTEXTMENU_VIEW               = "Visualizza"

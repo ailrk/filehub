@@ -41,6 +41,7 @@ data Session = Session
   , targets           :: Map TargetId TargetSessionData
   , copyState         :: CopyState
   , currentTargetId   :: TargetId
+  , sidebarCollapsed  :: Bool
   , layout            :: Layout
   , theme             :: Theme
   , locale            :: Locale
