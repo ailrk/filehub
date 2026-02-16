@@ -41,6 +41,10 @@ clean:
     rm -f filehub.aux
 
 
+watch:
+  ghcid -c "cabal repl filehub" -T "Filehub.mainDev \"--config-file _cache/config.toml\"" -W
+
+
 storybook:
   ghcid -c "cabal repl filehub_storybook filehub"  -T "Main.mainDev 3333" -W
 

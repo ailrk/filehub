@@ -488,7 +488,6 @@ editorModal filename content = do
     { modal_edit
     , modal_readonly
     , placeholder_empty_file
-    , placeholder_filename
     , confirm_save_edit
     } <- phrase <$> asks @TemplateContext (.locale)
 
@@ -499,7 +498,8 @@ editorModal filename content = do
         True -> bold (toHtml modal_readonly)
         False ->  do
           span_ [ class_ "modal-title-bar " ] do
-            bold  (toHtml modal_edit)
+            bold (toHtml modal_edit)
+            bold (toHtml filename)
             div_ [ class_ "title-bar-btn btn-modal-close "
                  , term "_" "on click trigger Close"
                  ] do
@@ -510,15 +510,6 @@ editorModal filename content = do
       form_ [ term "hx-post" (linkToText (apiLinks.updateFile))
             , term "hx-confirm" (Text.replace "{}" (Text.pack filename) confirm_save_edit)
             ] do
-        input_ [ class_ "form-control "
-               , type_ "text"
-               , name_ "path"
-               , value_ (Text.pack filename)
-               , placeholder_ placeholder_filename
-               ]
-
-        br_ mempty
-        br_ mempty
 
         textarea_
           (mconcat
