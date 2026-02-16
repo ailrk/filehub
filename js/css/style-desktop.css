@@ -546,6 +546,7 @@ textarea:focus {
 
 #file-detail-modal table {
   border-spacing: 1rem;
+  border-collapse: separate;
 }
 
 
