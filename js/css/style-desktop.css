@@ -514,19 +514,23 @@ textarea:focus {
 
 
 #new-file-modal {
-  width: 100%;
-  max-width: 400px;
+  width: 50%;
 }
 
 
 #new-folder-modal {
-  width: 100%;
-  max-width: 400px;
+  width: 50%;
 }
 
 
 #editor-modal {
   width: 80%;
+}
+
+
+#rename-modal {
+  width: 100%;
+  max-width: 40%;
 }
 
 

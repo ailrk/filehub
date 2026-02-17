@@ -74,6 +74,7 @@ import Filehub.Types
     , LoginForm
     , OpenTarget
     , MoveFile
+    , RenameFile
     , UIComponent
     )
 import GHC.Generics (Generic)
@@ -217,6 +218,15 @@ data Api mode = Api
                           :> Post '[HTML] (Html ())
 
 
+  , rename                :: mode
+                          :- "files" :> "rename"
+                          :> AuthProtect "session"
+                          :> AuthProtect "login"
+                          :> AuthProtect "readonly"
+                          :> ReqBody '[FormUrlEncoded] RenameFile
+                          :> Post '[HTML] (Headers ' [ Header "HX-Trigger" FilehubEvent ] (Html ()))
+
+
   , delete                :: mode
                           :- "files" :> "delete"
                           :> AuthProtect "session"
@@ -265,6 +275,16 @@ data Api mode = Api
                           :> Post '[HTML] (Headers '[ Header "HX-Trigger" FilehubEvent
                                                     , Header "HX-Trigger" FilehubEvent
                                                     ] (Html ()))
+
+
+  , renameModal           :: mode
+                          :- "modal" :> "rename"
+                          :> AuthProtect "session"
+                          :> AuthProtect "login"
+                          :> AuthProtect "desktop-only"
+                          :> AuthProtect "readonly"
+                          :> QueryParam "old" ClientPath
+                          :> Get '[HTML] (Html ())
 
 
   , newFolder             :: mode

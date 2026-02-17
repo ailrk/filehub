@@ -71,6 +71,7 @@ data Phrase = Phrase
   , contextmenu_play         :: Text
   , contextmenu_view         :: Text
   , contextmenu_edit         :: Text
+  , contextmenu_rename       :: Text
   , contextmenu_download     :: Text
   , contextmenu_delete       :: Text
   , contextmenu_delete_local :: Text
@@ -112,6 +113,7 @@ data Phrase = Phrase
   , modal_create             :: Text
   , modal_edit               :: Text
   , modal_readonly           :: Text
+  , modal_confirm            :: Text
   , placeholder_newfile      :: Text
   , placeholder_newfoler     :: Text
   , placeholder_empty_file   :: Text
@@ -200,6 +202,7 @@ phraseCodec =
   <*> Toml.text "CONTEXTMENU_PLAY"         .= (.contextmenu_play)
   <*> Toml.text "CONTEXTMENU_VIEW"         .= (.contextmenu_view)
   <*> Toml.text "CONTEXTMENU_EDIT"         .= (.contextmenu_edit)
+  <*> Toml.text "CONTEXTMENU_RENAME"       .= (.contextmenu_rename)
   <*> Toml.text "CONTEXTMENU_DOWNLOAD"     .= (.contextmenu_download)
   <*> Toml.text "CONTEXTMENU_DELETE"       .= (.contextmenu_delete)
   <*> Toml.text "CONTEXTMENU_DELETE_LOCAL" .= (.contextmenu_delete_local)
@@ -241,6 +244,7 @@ phraseCodec =
   <*> Toml.text "MODAL_CREATE"             .= (.modal_create)
   <*> Toml.text "MODAL_EDIT"               .= (.modal_edit)
   <*> Toml.text "MODAL_READONLY"           .= (.modal_readonly)
+  <*> Toml.text "MODAL_CONFIRM"            .= (.modal_confirm)
   <*> Toml.text "PLACEHOLDER_NEWFILE"      .= (.placeholder_newfile)
   <*> Toml.text "PLACEHOLDER_NEWFOLER"     .= (.placeholder_newfoler)
   <*> Toml.text "PLACEHOLDER_EMPTY_FILE"   .= (.placeholder_empty_file)

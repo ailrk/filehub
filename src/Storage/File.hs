@@ -24,6 +24,7 @@ module Storage.File
   , new
   , write
   , mv
+  , rename
   , delete
   , ls
   , lsCwd
@@ -274,6 +275,35 @@ mv currentDir cpPairs = do
     delete currentDir src
     Cache.delete (createCacheKey @"dir" @[FileInfo] (Builder.string8 (takeDirectory src)))
     Cache.delete (createCacheKey @"dir" @[FileInfo] (Builder.string8 (takeDirectory dst)))
+
+
+rename
+  :: ( FileSystem         :> es
+     , Cache              :> es
+     , Log                :> es
+     , LockManager        :> es
+     , Error StorageError :> es)
+  => FilePath -> FilePath -> Eff es ()
+rename oldName newName = do
+  LockManager.withLock (LockManager.mkLockKey oldName) do
+    LockManager.withLock (LockManager.mkLockKey newName) do
+      when (oldName == newName) do
+        throwError (FileExists "Can't rename to itself")
+
+      oldExists <- doesFileExist oldName
+
+      when (not oldExists) do
+        throwError (TargetError ("Can't find file " <> oldName))
+
+      newExists <- doesFileExist newName
+
+      when (newExists) do
+        throwError (TargetError ("File " <> newName <> " already exists"))
+
+      Cache.delete (createCacheKey @"file" @FileInfo (Builder.string8 newName))
+      Cache.delete (createCacheKey @"file" @FileInfo (Builder.string8 oldName))
+
+      renameFile oldName newName
 
 
 -- | Copy all files and subdirectories from src to dst.

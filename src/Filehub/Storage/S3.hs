@@ -55,6 +55,10 @@ storage sessionId =
         s3 <- getS3 sessionId & raise
         Storage.S3.mv s3 mvPairs
 
+    , rename = \old new -> withStorageError do
+        s3 <- getS3 sessionId & raise
+        Storage.S3.rename s3 old new
+
     , delete = \filePath -> do
         s3 <- getS3 sessionId
         Storage.S3.delete s3 filePath

@@ -22,6 +22,8 @@ data Storage m = Storage
 
   , mv          :: [(FilePath, FilePath)] -> m ()
 
+  , rename      :: FilePath -> FilePath -> m ()
+
   , delete      :: FilePath -> m ()
 
   , new         :: FilePath -> m ()

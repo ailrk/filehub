@@ -21,6 +21,7 @@ module Storage.S3
   , new
   , write
   , mv
+  , rename
   , delete
   , ls
   , lsCwd
@@ -38,6 +39,7 @@ import Amazonka.S3.CreateMultipartUpload (CreateMultipartUpload(..), CreateMulti
 import Amazonka.S3.Lens qualified as Amazonka
 import Amazonka.S3.UploadPart (UploadPartResponse(..))
 import Amazonka.S3.PutObject (PutObject(..))
+import Amazonka.S3.CopyObject (CopyObjectResponse(..))
 import Cache.Key (CacheKey, SomeCacheKey (..))
 import Codec.Archive.Zip qualified as Zip
 import Conduit (ResourceT, MonadTrans (..), sinkLazy)
@@ -65,7 +67,7 @@ import Effectful.Error.Dynamic (Error, throwError)
 import Effectful.Extended.Cache (Cache)
 import Effectful.Extended.Cache qualified as Cache
 import Effectful.FileSystem (runFileSystem, removeFile)
-import Effectful.Log (Log)
+import Effectful.Log (Log, logAttention_)
 import GHC.TypeLits (Symbol)
 import Lens.Micro
 import Lens.Micro.Platform ()
@@ -77,6 +79,7 @@ import System.IO.Temp qualified as Temp
 import Target.S3 (TargetBackend(..), S3)
 import Target.Types (TargetId)
 import Target.Types qualified as Target
+import System.FilePath (takeDirectory)
 
 
 class CacheKeyComponent (s :: Symbol) a              where toCacheKeyComponent :: Builder
@@ -342,9 +345,23 @@ mv s3@S3Backend { targetId } cpPairs = do
     let bucket  = BucketName s3.bucket
     let destKey = ObjectKey (Text.pack dst)
     let request = Amazonka.newCopyObject bucket (Text.pack src) destKey
-    void . runResourceT $ send s3.env request
-    delete s3 src
-    Cache.delete (createCacheKey @"dir" @[FileInfo] targetId "")
+    resp <- runResourceT $ send s3.env request
+    case resp.copyObjectResult of
+      Just _ -> do
+        Cache.delete (createCacheKey @"dir" @[FileInfo] targetId (Builder.string8 (takeDirectory src)))
+        Cache.delete (createCacheKey @"dir" @[FileInfo] targetId (Builder.string8 (takeDirectory dst)))
+        delete s3 src
+      Nothing ->
+        logAttention_ (Text.pack $ "S3 Copy Failed for " <> src)
+
+
+rename
+  :: ( IOE                :> es
+     , Log                :> es
+     , Cache              :> es
+     , Error StorageError :> es)
+   => TargetBackend S3 -> FilePath -> FilePath -> Eff es ()
+rename s3 oldName newName = mv s3 [(oldName, newName)]
 
 
 delete

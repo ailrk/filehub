@@ -8,6 +8,7 @@ module Filehub.Template.Desktop
   , controlPanel
   , view
   , toolBar
+  , renameModal
   , newFileModal
   , newFolderModal
   , fileDetailModal
@@ -447,6 +448,34 @@ newFolderModal = do
                   ] (toHtml modal_create)
 
 
+
+-- @RENAME-MODAL
+renameModal :: FilePath -> Template (Html ())
+renameModal oldPath = do
+  root <- asks @TemplateContext (.root)
+  Phrase
+    { modal_confirm
+    } <- phrase <$> asks @TemplateContext (.locale)
+  let clientPathOld = ClientPath.toClientPath root oldPath
+  pure do
+    modal [ id_ renameModalId ] do
+      form_ [ term "hx-post" (linkToText apiLinks.rename)
+            , term "hx-target" "#view"
+            , term "hx-swap" "outerHTML"
+            ] do
+        input_ [ type_ "hidden", name_ "old", value_ (Text.pack clientPathOld.unClientPath) ]
+        div_ [ style_ "display: flex" ] do
+          input_ [ class_ "form-control "
+                 , type_ "text"
+                 , name_ "new"
+                 , value_ (Text.pack clientPathOld.unClientPath)
+                 ]
+          button_ [ class_ "btn btn-modal-confirm "
+                  , type_ "submit"
+                  , term "_" "on click trigger Close"
+                  ] (toHtml modal_confirm)
+
+
 fileDetailModal :: FileInfo -> Template (Html ())
 fileDetailModal file = do
   Phrase
@@ -776,6 +805,7 @@ contextMenu1 file = do
     , contextmenu_play
     , contextmenu_copy
     , contextmenu_edit
+    , contextmenu_rename
     , contextmenu_download
     , confirm_delete1
     } <- phrase <$> asks @TemplateContext (.locale)
@@ -810,6 +840,15 @@ contextMenu1 file = do
       case readOnly of
         True -> mempty
         False -> do
+          -- @RENAME-TEMPLATE
+          div_ [ class_ "dropdown-item"
+               , term "hx-get" (linkToText (apiLinks.renameModal (Just clientPath)))
+               , term "hx-target" "#index"
+               , term "hx-swap" "beforeend"
+               ] do
+            i_ [ class_ "bx bxs-rename" ] mempty
+            span_ (toHtml contextmenu_rename)
+
           div_ [ class_ "dropdown-item"
                , term "hx-delete" (linkToText (apiLinks.delete [clientPath] False))
                , term "hx-target" "#index"
@@ -893,6 +932,9 @@ newFolderModalId = "new-folder-modal"
 
 fileDetailModalId :: Text
 fileDetailModalId = "file-detail-modal"
+
+renameModalId :: Text
+renameModalId = "rename-modal"
 
 editorModalId :: Text
 editorModalId = "editor-modal"

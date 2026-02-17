@@ -97,7 +97,7 @@ import Filehub.Types
   , UIComponent (..)
   , UpdatedFile(..)
   , UpdatedFile(..)
-  , FilehubEvent (..))
+  , FilehubEvent (..), RenameFile (..))
 import Lens.Micro ((.~), (?~))
 import Lucid
 import Network.HTTP.Types.Header (hLocation)
@@ -184,8 +184,10 @@ server = Api
   , cd                    = cd
   , newFile               = newFile
   , updateFile            = updateFile
+  , rename                = rename
   , delete                = delete
   , newFolder             = newFolder
+  , renameModal           = renameModal
   , newFileModal          = newFileModal
   , newFolderModal        = newFolderModal
   , fileDetailModal       = fileDetailModal
@@ -521,6 +523,20 @@ cd sessionId _ mClientPath = do
   pure $ addHeader DirChanged html
 
 
+rename
+  :: SessionId -> ConfirmLogin -> ConfirmReadOnly
+  -> RenameFile
+  -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
+rename sessionId _ _ (RenameFile old new) = do
+  root    <- Session.getRoot sessionId
+  storage <- Session.getStorage sessionId
+  storage.rename
+    (ClientPath.fromClientPath root old)
+    (ClientPath.fromClientPath root new)
+  html <- view sessionId
+  pure $ addHeader FileRenamed html
+
+
 newFile :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> NewFile -> Filehub (Html ())
 newFile sessionId _ _ (NewFile path) = do
   storage <- Session.getStorage sessionId
@@ -561,6 +577,15 @@ copy1 sessionId _ _ mClientPath = do
   Copy.select sessionId
   Copy.copy sessionId
   index sessionId
+
+
+renameModal :: SessionId -> ConfirmLogin -> ConfirmDesktopOnly -> ConfirmReadOnly
+            -> Maybe ClientPath -> Filehub (Html ())
+renameModal sessionId _ _ _ mClientPath = do
+  clientPath <- withQueryParam mClientPath
+  root <- Session.getRoot sessionId
+  ctx <- makeTemplateContext sessionId
+  pure $ runTemplate ctx (Template.Desktop.renameModal (ClientPath.fromClientPath root clientPath))
 
 
 newFileModal :: SessionId -> ConfirmLogin -> ConfirmDesktopOnly -> ConfirmReadOnly -> Filehub (Html ())

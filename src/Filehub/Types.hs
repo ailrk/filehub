@@ -27,6 +27,7 @@ module Filehub.Types
   , NewFolder(..)
   , UpdatedFile(..)
   , MoveFile(..)
+  , RenameFile(..)
   , Theme(..)
   , FilehubEvent(..)
   , OpenTarget (..)
@@ -146,6 +147,10 @@ data MoveFile = MoveFile [ClientPath] ClientPath deriving (Show, Eq)
 instance FromForm MoveFile where fromForm f = MoveFile <$> parseAll "src" f <*> parseUnique "tgt" f
 
 
+data RenameFile = RenameFile ClientPath ClientPath deriving (Show, Eq)
+instance FromForm RenameFile where fromForm f = RenameFile <$> parseUnique "old" f <*> parseUnique "new" f
+
+
 data UpdatedFile = UpdatedFile
   { clientPath :: ClientPath
   , content    :: Text
@@ -206,6 +211,7 @@ data FilehubEvent
   | ThemeChanged
   | LocaleChanged
   | FileMoved
+  | FileRenamed
   | Canceled -- Action canceled
   | Opened OpenTarget ClientPath -- load a resource into tab/window/iframe. Hook  for window.open
   | UIComponentReloaded UIComponent
@@ -229,6 +235,7 @@ instance ToJSON FilehubEvent where
   toJSON ThemeChanged   = Aeson.object [ "ThemeChanged"  .= Aeson.object [] ]
   toJSON LocaleChanged  = Aeson.object [ "LocaleChanged" .= Aeson.object [] ]
   toJSON FileMoved      = Aeson.object [ "FileMoved"     .= Aeson.object [] ]
+  toJSON FileRenamed    = Aeson.object [ "FileRenamed"   .= Aeson.object [] ]
   toJSON Canceled       = Aeson.object [ "Canceled"      .= Aeson.object [] ]
   toJSON (Opened target path) =
     Aeson.object

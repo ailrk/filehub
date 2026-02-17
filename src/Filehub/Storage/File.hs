@@ -62,6 +62,9 @@ storage sessionId =
         currentDir <- Session.getCurrentDir sessionId & raise
         Storage.File.mv currentDir mvPairs
 
+    , rename = \old new -> withStorageError do
+        Storage.File.rename old new
+
     , delete = \name -> do
         currentDir <- Session.getCurrentDir sessionId
         Storage.File.delete currentDir name

@@ -39,6 +39,7 @@ storage mockFS =
 
     , write     = error "not implemented"
     , mv        = error "not implemented"
+    , rename    = error "not implemented"
     , delete    = error "not implemented"
     , new       = error "not implemented"
     , newFolder = error "not implemented"
