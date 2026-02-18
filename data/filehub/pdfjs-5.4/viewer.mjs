@@ -16305,6 +16305,9 @@ class Toolbar {
       element: options.print,
       eventName: "print"
     }, {
+      element: options.saveToFILEHUB,
+      eventName: "savetofilehub"
+    }, {
       element: options.download,
       eventName: "download"
     }, {
@@ -16966,41 +16969,6 @@ class ViewsManager extends Sidebar {
 
 ;// ./web/app.js
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 const FORCE_PAGES_LOADED_TIMEOUT = 10000;
 const ViewOnLoad = {
   UNKNOWN: -1,
@@ -17055,6 +17023,7 @@ const PDFViewerApplication = {
   _contentDispositionFilename: null,
   _contentLength: null,
   _saveInProgress: false,
+  _saveInProgressFILEHUB: false,
   _wheelUnusedTicks: 0,
   _wheelUnusedFactor: 1,
   _touchManager: null,
@@ -17668,6 +17637,7 @@ const PDFViewerApplication = {
     this._contentDispositionFilename = null;
     this._contentLength = null;
     this._saveInProgress = false;
+    this._saveInProgressFILEHUB = false,
     this._hasAnnotationEditors = false;
     promises.push(this.pdfScriptingManager.destroyPromise, this.passwordPrompt.close());
     this.setTitle();
@@ -17759,6 +17729,34 @@ const PDFViewerApplication = {
       });
     }
   },
+  async saveToFILEHUB() {
+    if (this._saveInProgressFILEHUB) {
+      return;
+    }
+    this._saveInProgressFILEHUB = true;
+    try {
+      const data = await this.pdfDocument.saveDocument();
+      const blob = new Blob([data], { type: "application/pdf"});
+      const fileName = this.contentDispositionFilename || this._title || "document.pdf";
+      const formData = new FormData();
+      formData.append("file", blob, fileName);
+      console.log(`Uploading ${fileName} to FileHub...`);
+      const response = await fetch(`/upload`, {
+        method: "POST",
+        body: formData,
+      });
+      if (response.ok) {
+        alert("Saved to Filehub!");
+      } else {
+        throw new Error("Server rejected upload.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Save failed: " + err.message);
+    } finally {
+      this._saveInProgressFILEHUB = false;
+    }
+  } ,
   async downloadOrSave() {
     const {
       classList
@@ -18288,6 +18286,7 @@ const PDFViewerApplication = {
     eventBus._on("presentationmode", this.requestPresentationMode.bind(this), opts);
     eventBus._on("switchannotationeditormode", evt => pdfViewer.annotationEditorMode = evt, opts);
     eventBus._on("print", this.triggerPrinting.bind(this), opts);
+    eventBus._on("savetofilehub", this.saveToFILEHUB.bind(this), opts);
     eventBus._on("download", this.downloadOrSave.bind(this), opts);
     eventBus._on("firstpage", () => this.page = 1, opts);
     eventBus._on("lastpage", () => this.page = this.pagesCount, opts);
@@ -19154,7 +19153,8 @@ function getViewerConfiguration() {
       editorStampParamsToolbar: document.getElementById("editorStampParamsToolbar"),
       editorSignatureButton: document.getElementById("editorSignatureButton"),
       editorSignatureParamsToolbar: document.getElementById("editorSignatureParamsToolbar"),
-      download: document.getElementById("downloadButton")
+      download: document.getElementById("downloadButton"),
+      saveToFILEHUB: document.getElementById("saveButton-FILEHUB")
     },
     secondaryToolbar: {
       toolbar: document.getElementById("secondaryToolbar"),
