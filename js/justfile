@@ -9,8 +9,7 @@ build:
 
 
 build_with_external:
-    just build
-    cp -r ./external/* ./dist
+    just build && cp -r ./external/* ./dist
 
 
 dot:
