@@ -9,15 +9,8 @@ build:
 
 buildjs:
     #!/usr/bin/env bash
-    pushd js/ && just build && popd
     rm -rf data/filehub
-    mv -fT js/dist/ data/filehub
-
-
-buildjs_with_external:
-    #!/usr/bin/env bash
     pushd js/ && just build_with_external && popd
-    rm -rf data/filehub
     mv -fT js/dist/ data/filehub
 
 
@@ -51,7 +44,7 @@ clean:
 
 
 watch:
-  ghcid -c "cabal repl filehub" -T "Filehub.mainDev \"--config-file _cache/config.toml\"" -W
+  ghcid -c "cabal --flags=DEBUG repl filehub" -T "Filehub.mainDev \"--config-file _cache/config.toml\"" -W
 
 
 storybook:
