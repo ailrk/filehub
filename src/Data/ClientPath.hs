@@ -3,14 +3,14 @@
 -- Copyright   :  (c) 2025-present Jinyang yao
 --
 -- Conceal the full absolute path by splitting a absolute path into
--- root part and the client part, the client part can be rendered safely in the frontend.
+-- prefix part and the client part, the client part can be rendered safely in the frontend.
 -- ClientPath is percent encoded, the frontend code can safely display it in the UI.
 -- When the server receives a ClientPath, it will restore it to normal path by first decode
--- the percent encoding, then append the root prefix.
+-- the percent encoding, then append the prefix prefix.
 --
 -- ClientPath is unique within a directory.
 --
--- Note: S3 path is already absolute and fully qualified. Because root of S3 bucket is always "",
+-- Note: S3 path is already absolute and fully qualified. Because prefix of S3 bucket is always "",
 -- client path acts like a noop.
 module Data.ClientPath
   ( ClientPath(..)
@@ -50,7 +50,7 @@ newAbsPath path
   | otherwise       = Nothing
 
 
--- | Filepath without the root part. The path is percent encoded safe to show in the frontend.
+-- | Filepath without the prefix part. The path is percent encoded safe to show in the frontend.
 newtype ClientPath = ClientPath { unClientPath :: FilePath }
   deriving (Show, Eq)
   deriving newtype (Semigroup, Monoid, Debug)
@@ -76,27 +76,27 @@ instance ToJSON ClientPath where
 
 -- | Convert a file path into a ClientPath.
 toClientPath :: AbsPath -> AbsPath -> ClientPath
-toClientPath (AbsPath root) (AbsPath path)=
-  let RawClientPath rcp = toRawClientPath root path
+toClientPath (AbsPath prefix) (AbsPath path)=
+  let RawClientPath rcp = toRawClientPath prefix path
    in ClientPath (URI.Encode.encode rcp)
 
 
 fromClientPath :: AbsPath -> ClientPath -> AbsPath
-fromClientPath root (ClientPath cp) =
+fromClientPath prefix (ClientPath cp) =
   let decoded = URI.Encode.decode cp
-   in AbsPath (fromRawClientPath (coerce root) (RawClientPath decoded))
+   in AbsPath (fromRawClientPath (coerce prefix) (RawClientPath decoded))
 
 
--- | Remove the root part from the path, don't encode any characters.
---   root should starts with '/'. If not toRawClientPath will append one before stripping.
+-- | Remove the prefix part from the path, don't encode any characters.
+--   prefix should starts with '/'. If not toRawClientPath will append one before stripping.
 --   The path returned is guaranteed not start with '/'
 toRawClientPath :: FilePath -> FilePath -> RawClientPath
-toRawClientPath root path = do
-  RawClientPath (normalise (ensureUnslash (removePrefix (ensureSlash root) path)))
+toRawClientPath prefix path = do
+  RawClientPath (normalise (ensureUnslash (removePrefix (ensureSlash prefix) path)))
 
 
 fromRawClientPath :: FilePath -> RawClientPath -> FilePath
-fromRawClientPath root (RawClientPath cp) = normalise (root </> ensureUnslash cp)
+fromRawClientPath prefix (RawClientPath cp) = normalise (prefix </> ensureUnslash cp)
 
 
 removePrefix :: FilePath -> FilePath -> FilePath

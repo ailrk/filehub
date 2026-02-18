@@ -37,12 +37,12 @@ import Data.Coerce (coerce)
 
 
 cd :: SessionId -> AbsPath -> Filehub ()
-cd sessionId path = do
-  exists <- coerce doesDirectoryExist path
+cd sessionId dir = do
+  exists <- doesDirectoryExist (coerce dir)
   unless exists do
-    logAttention "[nmb224] dir doesn't exists:" path
-    throwError (FilehubError InvalidDir "Can enter, not a directory")
-  Session.setCurrentDir sessionId path
+    logAttention "[nmb224] dir doesn't exists:" dir
+    throwError (FilehubError InvalidDir "Can't enter, not a directory")
+  Session.setCurrentDir sessionId dir
 
 
 storage :: SessionId -> Storage Filehub

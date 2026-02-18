@@ -65,7 +65,7 @@ editorModal sessionId mClientPath = do
     Just file -> do
       content <- storage.read file
       let filename = coerce takeFileName p
-      pure $ runTemplate ctx (Template.Mobile.editorModal filename content)
+      pure $ runTemplate ctx (Template.Mobile.editorModal (clientPath, filename) content)
     Nothing -> do
       throwError (FilehubError InvalidPath "can't edit file")
 

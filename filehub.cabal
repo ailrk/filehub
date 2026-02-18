@@ -295,6 +295,10 @@ test-suite filehub_test_unit
   main-is:           Spec.hs
   exposed-modules:
     Data.ClientPathSpec
+    Effectful.CacheSpec
+    Effectful.LockManagerSpec
+    EvtLogSpec
+    Spec
   build-depends:
       base >=4.16.1.0
     , QuickCheck

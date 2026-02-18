@@ -45,13 +45,13 @@ editorModal sessionId mClientPath = do
   ctx@TemplateContext{ root } <- makeTemplateContext sessionId
   clientPath <- withQueryParam mClientPath
   storage    <- Session.getStorage sessionId
-  let p = ClientPath.fromClientPath root clientPath
-  mFile <- storage.get p
+  let p       = ClientPath.fromClientPath root clientPath
+  mFile      <- storage.get p
   case mFile of
     Just file -> do
       content <- storage.read file
       let filename = coerce takeFileName p
-      pure $ runTemplate ctx (Template.Desktop.editorModal filename content)
+      pure $ runTemplate ctx (Template.Desktop.editorModal (clientPath, filename) content)
     Nothing -> do
       throwError (FilehubError InvalidPath "can't edit file")
 

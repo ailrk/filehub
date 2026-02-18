@@ -506,8 +506,8 @@ selectedCounter n = do
     i_ [ class_ "bx bx-x" ] mempty
 
 
-editorModal :: FilePath -> ByteString -> Template (Html ())
-editorModal filename content = do
+editorModal :: (ClientPath, String) -> ByteString -> Template (Html ())
+editorModal (ClientPath path, filename) content = do
   readOnly <- asks @TemplateContext (.readOnly)
   Phrase
     { modal_edit
@@ -541,7 +541,7 @@ editorModal filename content = do
         input_ [ class_ "form-control "
                , type_ "text"
                , name_ "path"
-               , value_ (Text.pack filename)
+               , value_ (Text.pack path)
                , style_ "display: none;"
                , placeholder_ "Filename"
                ]

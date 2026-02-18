@@ -189,12 +189,13 @@ newFolder
      , Error StorageError :> es)
   => AbsPath -> Eff es ()
 newFolder path = do
-  exists   <- coerce doesFileExist path
+  let dir = coerce takeDirectory path
+  exists <- coerce doesFileExist path
   when exists do
     logAttention "[vd9fdz] path doesn't exists:" path
     throwError (FileExists "Folder already exists")
   createDirectoryIfMissing True (coerce path)
-  Cache.delete (createCacheKey @"dir" @[FileInfo] (coerce Builder.string8 path))
+  Cache.delete (createCacheKey @"dir" @[FileInfo] (Builder.string8 dir))
 
 
 new
@@ -204,12 +205,13 @@ new
      , Error StorageError :> es)
   => AbsPath -> Eff es ()
 new path = do
+  let dir = coerce takeDirectory path
   exists   <- coerce doesFileExist path
   when exists do
     logAttention "[9sc453] path doesn't exists:" path
     throwError (FileExists "File already exists")
   withFile (coerce path) ReadWriteMode (\_ -> pure ())
-  Cache.delete (createCacheKey @"dir" @[FileInfo] (coerce Builder.string8 path))
+  Cache.delete (createCacheKey @"dir" @[FileInfo] (Builder.string8 dir))
 
 
 write
@@ -244,7 +246,7 @@ write File{ content, path = path } = do
               when (not (isDoesNotExistError e)) do -- it's ok if file is not there.
                 throwIO e
           renameFile tempFile (coerce path)
-        Cache.delete (createCacheKey @"file" @FileInfo (Builder.string8 name))
+        Cache.delete (createCacheKey @"file" @FileInfo (coerce Builder.string8 path))
         when (not isCreatingNew) do
           Cache.delete (createCacheKey @"dir" @[FileInfo] (coerce Builder.string8 dir))
 

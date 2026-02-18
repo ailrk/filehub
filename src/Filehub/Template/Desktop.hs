@@ -511,8 +511,8 @@ fileDetailModal file = do
             td_ (toHtml file.mimetype)
 
 
-editorModal :: FilePath -> ByteString -> Template (Html ())
-editorModal filename content = do
+editorModal :: (ClientPath, String) -> ByteString -> Template (Html ())
+editorModal (ClientPath path, filename) content = do
   readOnly <- asks @TemplateContext (.readOnly)
   Phrase
     { modal_edit
@@ -540,6 +540,7 @@ editorModal filename content = do
       form_ [ term "hx-post" (linkToText (apiLinks.updateFile))
             , term "hx-confirm" (Text.replace "{}" (Text.pack filename) confirm_save_edit)
             ] do
+        input_ [ class_ "form-control ", type_ "hidden", name_ "path", value_ (Text.pack path) ]
 
         textarea_
           (mconcat
@@ -841,7 +842,6 @@ contextMenu1 file = do
       case readOnly of
         True -> mempty
         False -> do
-          -- @RENAME-TEMPLATE
           div_ [ class_ "dropdown-item"
                , term "hx-get" (linkToText (apiLinks.renameModal (Just clientPath)))
                , term "hx-target" "#index"

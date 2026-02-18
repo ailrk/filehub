@@ -513,8 +513,8 @@ cd :: SessionId -> ConfirmLogin -> Maybe ClientPath
    ->  Filehub (Headers '[ Header "HX-Trigger-After-Swap" FilehubEvent ] (Html ()))
 cd sessionId _ mClientPath = do
   clientPath <- withQueryParam mClientPath
-  root    <- Session.getRoot sessionId
-  storage <- Session.getStorage sessionId
+  root       <- Session.getRoot sessionId
+  storage    <- Session.getStorage sessionId
   storage.cd (ClientPath.fromClientPath root clientPath)
   html <- do
     toolBar' <- toolBar sessionId
@@ -530,30 +530,29 @@ rename
   -> RenameFile
   -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
 rename sessionId _ _ (RenameFile old new) = do
-  root    <- Session.getRoot sessionId
+  dir     <- Session.getCurrentDir sessionId
   storage <- Session.getStorage sessionId
   storage.rename
-    (ClientPath.fromClientPath root old)
-    (ClientPath.fromClientPath root new)
+    (ClientPath.fromClientPath dir old)
+    (ClientPath.fromClientPath dir new)
   html <- view sessionId
   pure $ addHeader FileRenamed html
 
 
 newFile :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> NewFile -> Filehub (Html ())
 newFile sessionId _ _ (NewFile name) = do
-  AbsPath root <- Session.getRoot sessionId
+  AbsPath dir  <- Session.getCurrentDir sessionId
   storage      <- Session.getStorage sessionId
-  path         <- validateAbsPath (root </> Text.unpack name) (FilehubError InvalidPath ("<redacted>/" <> show name))
+  path         <- validateAbsPath (dir </> Text.unpack name) (FilehubError InvalidPath ("<redacted>/" <> show name))
   storage.new path
   view sessionId
 
 
--- @INCORRECT. path is not event absolute.
 updateFile :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> UpdatedFile -> Filehub (Html ())
 updateFile sessionId _ _ (UpdatedFile clientPath content) = do
-  root <- Session.getRoot sessionId
-  let path = ClientPath.fromClientPath root clientPath
-  storage <- Session.getStorage sessionId
+  root     <- Session.getRoot sessionId
+  let path  = ClientPath.fromClientPath root clientPath
+  storage  <- Session.getStorage sessionId
   storage.write $ defaultFileWithContent
     { path     = path
     , content  = FileContentRaw (Text.encodeUtf8 content)
@@ -564,9 +563,9 @@ updateFile sessionId _ _ (UpdatedFile clientPath content) = do
 newFolder :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> NewFolder -> Filehub (Html ())
 newFolder sessionId _ _ (NewFolder name) = do
   storage <- Session.getStorage sessionId
-  AbsPath root <- Session.getRoot sessionId
+  AbsPath dir <- Session.getCurrentDir sessionId
   path <- validateAbsPath
-            (root </> Text.unpack name)
+            (dir </> Text.unpack name)
             (FilehubError InvalidPath ("<redacted>/" <> show name))
   storage.newFolder path
   view sessionId
@@ -593,9 +592,9 @@ renameModal :: SessionId -> ConfirmLogin -> ConfirmDesktopOnly -> ConfirmReadOnl
             -> Maybe ClientPath -> Filehub (Html ())
 renameModal sessionId _ _ _ mClientPath = do
   clientPath <- withQueryParam mClientPath
-  root <- Session.getRoot sessionId
-  ctx <- makeTemplateContext sessionId
-  pure $ runTemplate ctx (Template.Desktop.renameModal (ClientPath.fromClientPath root clientPath))
+  dir        <- Session.getCurrentDir sessionId
+  ctx        <- makeTemplateContext sessionId
+  pure $ runTemplate ctx (Template.Desktop.renameModal (ClientPath.fromClientPath dir clientPath))
 
 
 newFileModal :: SessionId -> ConfirmLogin -> ConfirmDesktopOnly -> ConfirmReadOnly -> Filehub (Html ())
@@ -944,9 +943,9 @@ preview mStory mDisplay = do
         , sortedBy           = ByNameDown
         , selected           = NoSelection
         , state              = ControlPanelDefault
-        , root               = ""
+        , root               = AbsPath ""
         , locale             = EN
-        , currentDir         = ""
+        , currentDir         = AbsPath ""
         , currentTarget      = undefined
         , simpleAuthUserDB   = undefined
         , oidcAuthProviders  = undefined

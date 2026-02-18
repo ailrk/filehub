@@ -7,6 +7,8 @@ import Network.URI.Encode qualified as URI
 import System.FilePath ((</>), normalise)
 import Test.Hspec
 import Test.QuickCheck
+import Data.ClientPath (AbsPath(..))
+import Data.Coerce (coerce)
 
 
 spec :: Spec
@@ -15,7 +17,7 @@ spec =
     it "fromClientPath . toClientPath = id" do
       property $ \(RelPath p) -> do
         let absPath = mkAbsPath p
-        ClientPath.fromClientPath rootPath (ClientPath.toClientPath rootPath absPath) === absPath
+        ClientPath.fromClientPath (AbsPath rootPath) (ClientPath.toClientPath (AbsPath rootPath) (AbsPath absPath)) === AbsPath absPath
 
     it "fromRawClientPath . toRawClientPath = id" do
       property $ \(RelPath p) -> do
@@ -25,7 +27,7 @@ spec =
     it "ClientPath must be percent encoded" do
       property $ \(RelPath p) -> do
         let absPath = mkAbsPath p
-        let ClientPath s = ClientPath.toClientPath rootPath absPath
+        let ClientPath s = ClientPath.toClientPath (AbsPath rootPath) (AbsPath absPath)
         URI.encode (URI.decode s) == s
 
     it "RawClientPath should not start with /" do
@@ -36,7 +38,7 @@ spec =
           '/':_ -> False
           _ -> True
   where
-    mkAbsPath p = normalise $ rootPath </> dropWhile (== '/') p
+    mkAbsPath p = (normalise $ coerce rootPath </> dropWhile (== '/') p)
     rootPath = "/root"
 
 
