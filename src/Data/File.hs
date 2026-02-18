@@ -18,6 +18,7 @@ import Network.Mime (MimeType)
 import Data.ByteString (ByteString)
 import Conduit (ConduitT, ResourceT)
 import Text.Debug (Debug (..))
+import Data.ClientPath (AbsPath (..))
 
 
 data FileType
@@ -48,7 +49,7 @@ instance Debug FileContent where
 
 
 data File a = File
-  { path     :: FilePath -- absolute path
+  { path     :: AbsPath
   , atime    :: Maybe UTCTime
   , mtime    :: Maybe UTCTime
   , size     :: Maybe Integer
@@ -66,7 +67,7 @@ type FileWithContent = File FileContent
 defaultFileInfo :: FileInfo
 defaultFileInfo =
   File
-    { path      = ""
+    { path      = AbsPath ""
     , atime     = Nothing
     , mtime     = Nothing
     , size      = Nothing
@@ -78,7 +79,7 @@ defaultFileInfo =
 defaultFileWithContent :: FileWithContent
 defaultFileWithContent =
   File
-    { path      = ""
+    { path      = AbsPath ""
     , atime     = Nothing
     , mtime     = Nothing
     , size      = Nothing

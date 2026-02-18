@@ -3,7 +3,7 @@ module Target.Storage where
 import Conduit (ResourceT)
 import Data.File (FileInfo, FileWithContent)
 import Data.ByteString (ByteString)
-import Data.ClientPath (ClientPath)
+import Data.ClientPath (ClientPath, AbsPath)
 import Data.Conduit (ConduitT)
 import Data.Generics.Labels ()
 import Lens.Micro.Platform ()
@@ -12,27 +12,27 @@ import Servant.Multipart ( Mem, FileData )
 
 
 data Storage m = Storage
-  { get         :: FilePath -> m (Maybe FileInfo)
+  { get         :: AbsPath -> m (Maybe FileInfo)
 
   , read        :: FileInfo -> m ByteString
 
   , readStream  :: FileInfo -> m (ConduitT () ByteString (ResourceT IO) ())
 
-  , write       :: FilePath -> FileWithContent -> m ()
+  , write       :: FileWithContent -> m ()
 
-  , mv          :: [(FilePath, FilePath)] -> m ()
+  , mv          :: [(AbsPath, AbsPath)] -> m ()
 
-  , rename      :: FilePath -> FilePath -> m ()
+  , rename      :: AbsPath -> AbsPath -> m ()
 
-  , delete      :: FilePath -> m ()
+  , delete      :: AbsPath -> m ()
 
-  , new         :: FilePath -> m ()
+  , new         :: AbsPath -> m ()
 
-  , newFolder   :: FilePath -> m ()
+  , newFolder   :: AbsPath -> m ()
 
-  , ls          :: FilePath -> m [FileInfo]
+  , ls          :: AbsPath -> m [FileInfo]
 
-  , cd          :: FilePath -> m ()
+  , cd          :: AbsPath -> m ()
 
   , lsCwd       :: m [FileInfo]
 
@@ -41,5 +41,5 @@ data Storage m = Storage
   , download    :: ClientPath
                 -> m (ConduitT () ByteString (ResourceT IO) ())
 
-  , isDirectory :: FilePath -> m Bool
+  , isDirectory :: AbsPath -> m Bool
   }

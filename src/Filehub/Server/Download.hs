@@ -27,6 +27,7 @@ import System.FilePath (takeFileName, makeRelative)
 import System.IO.Temp qualified as Temp
 import System.Random (randomRIO)
 import Text.Printf (printf)
+import Data.Coerce (coerce)
 
 
 download :: SessionId -> ConfirmLogin -> [ClientPath]
@@ -60,7 +61,7 @@ download sessionId _ clientPaths = do
 
       Zip.createArchive zipPath do
         forM_ tasks \(path, conduit) -> do
-          m <- Zip.mkEntrySelector  (makeRelative root path)
+          m <- Zip.mkEntrySelector  (coerce makeRelative root path)
           Zip.sinkEntry Zip.Zstd conduit m
       tag <- Text.pack <$> replicateM 8 (randomRIO ('a', 'z'))
       let conduit =

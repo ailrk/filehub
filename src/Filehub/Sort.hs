@@ -9,8 +9,10 @@ module Filehub.Sort (SortFileBy(..), sortFiles) where
 import Data.File (File(..), FileType(..), FileInfo)
 import Data.List ( sortOn )
 import System.FilePath ( takeFileName )
+import Data.ClientPath (AbsPath(..))
 import Servant (ToHttpApiData(..), FromHttpApiData(..))
 import Text.Debug (Debug (..))
+import Data.Coerce (coerce)
 
 
 data SortFileBy
@@ -50,7 +52,7 @@ byFileNamewithDirFirst file = do
   let pre = case file.content of
               Regular -> '1'
               Dir     -> '0'
-  let name = takeFileName file.path :: String
+  let name = coerce takeFileName file.path :: String
   pre : name
 
 

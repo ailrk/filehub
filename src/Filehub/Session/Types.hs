@@ -29,6 +29,7 @@ import Worker.Task (TaskId)
 import {-# SOURCE #-} Filehub.Auth.OIDC (SomeOIDCFlow)
 import {-# SOURCE #-} Filehub.Types (Layout(..), CopyState(..), Selected)
 import Text.Debug (Debug(..))
+import Data.ClientPath (AbsPath)
 
 
 data Session = Session
@@ -64,7 +65,7 @@ data TargetView = TargetView
 
 
 data TargetSessionData = TargetSessionData
-  { currentDir   :: FilePath
+  { currentDir   :: AbsPath
   , sortedFileBy :: SortFileBy
   , selected     :: Selected
   }

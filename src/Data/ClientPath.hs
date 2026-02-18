@@ -15,6 +15,9 @@
 module Data.ClientPath
   ( ClientPath(..)
   , RawClientPath(..)
+  , AbsPath(..)
+  , (<./>)
+  , newAbsPath
   , toClientPath
   , fromClientPath
   , toRawClientPath
@@ -26,26 +29,37 @@ import Data.Aeson (ToJSON(..))
 import Data.List (stripPrefix)
 import Network.URI.Encode qualified as URI.Encode
 import Servant (FromHttpApiData (..), ToHttpApiData (..))
-import System.FilePath ((</>), normalise)
+import System.FilePath ((</>), normalise, isAbsolute)
 import Text.Debug (Debug(..))
+import Data.Hashable (Hashable)
+import Data.Coerce (coerce)
+
+
+newtype AbsPath = AbsPath { unAbsPath :: FilePath }
+  deriving (Show, Eq)
+  deriving newtype (Debug, Hashable, ToJSON)
+
+
+(<./>) :: AbsPath -> AbsPath -> AbsPath
+AbsPath a1 <./> AbsPath a2 = AbsPath (a1 </> a2)
+
+
+newAbsPath :: FilePath -> Maybe AbsPath
+newAbsPath path
+  | isAbsolute path = Just (AbsPath path)
+  | otherwise       = Nothing
 
 
 -- | Filepath without the root part. The path is percent encoded safe to show in the frontend.
 newtype ClientPath = ClientPath { unClientPath :: FilePath }
   deriving (Show, Eq)
-  deriving newtype (Semigroup, Monoid)
+  deriving newtype (Semigroup, Monoid, Debug)
 
 
 -- | ClientPath but not percent encoded
 newtype RawClientPath = RawClientPath { unRawClientPath :: FilePath }
   deriving (Show, Eq)
-  deriving newtype (Semigroup, Monoid)
-
-
-instance Debug ClientPath where debug = show
-
-
-instance Debug RawClientPath where debug = show
+  deriving newtype (Semigroup, Monoid, Debug)
 
 
 instance ToHttpApiData ClientPath where
@@ -61,16 +75,16 @@ instance ToJSON ClientPath where
 
 
 -- | Convert a file path into a ClientPath.
-toClientPath :: FilePath -> FilePath -> ClientPath
-toClientPath root path =
+toClientPath :: AbsPath -> AbsPath -> ClientPath
+toClientPath (AbsPath root) (AbsPath path)=
   let RawClientPath rcp = toRawClientPath root path
    in ClientPath (URI.Encode.encode rcp)
 
 
-fromClientPath :: FilePath -> ClientPath -> FilePath
+fromClientPath :: AbsPath -> ClientPath -> AbsPath
 fromClientPath root (ClientPath cp) =
   let decoded = URI.Encode.decode cp
-   in fromRawClientPath root (RawClientPath decoded)
+   in AbsPath (fromRawClientPath (coerce root) (RawClientPath decoded))
 
 
 -- | Remove the root part from the path, don't encode any characters.

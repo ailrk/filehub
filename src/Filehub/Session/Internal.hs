@@ -24,6 +24,7 @@ import UnliftIO.STM (newTBQueueIO, newTVarIO)
 import Effectful.Concurrent (Concurrent)
 import Effectful.Concurrent.STM (readTVarIO)
 import Data.Map.Strict qualified as Map
+import Data.ClientPath (AbsPath(..))
 
 
 createSessionId :: (IOE :> es) => Eff es SessionId
@@ -75,7 +76,7 @@ targetToSessionData (Target target) =
   where
     defaultTargetSessionData =
       TargetSessionData
-        { currentDir   = ""
+        { currentDir   = AbsPath ""
         , sortedFileBy = ByNameUp
         , selected     = NoSelection
         }

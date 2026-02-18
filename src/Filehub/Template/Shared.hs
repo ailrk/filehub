@@ -22,11 +22,11 @@ import Lucid
 import Data.Text (Text)
 import Data.String.Interpolate (iii)
 import Control.Monad (when)
-import Data.ClientPath (ClientPath(..))
+import Data.ClientPath (ClientPath(..), AbsPath (..), newAbsPath)
 import Data.ClientPath qualified as ClientPath
 import Data.File (File(..), FileType(..), FileInfo)
 import Data.Foldable (Foldable(..))
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, catMaybes)
 import Data.Sequence (Seq(..))
 import Data.Sequence qualified as Seq
 import Data.Text qualified as Text
@@ -51,6 +51,7 @@ import Text.Fuzzy (simpleFilter)
 import Filehub.Session (TargetView(..))
 import Target.Dummy (DummyTarget)
 import Filehub.Template (Template, TemplateContext(..))
+import Data.Coerce (coerce)
 
 
 -- | The bootstrap page is used to detect the client's device  information.
@@ -119,11 +120,13 @@ pathBreadcrumb = do
   root <- asks @TemplateContext (.root)
   pure do
     let breadcrumbItems =
-          currentDir
+          coerce currentDir
           & splitPath
           & scanl1 (++)
           & (\path-> if null path then ["/"] else path)
-          & filter (\path -> length (splitPath path) >= length (splitPath root))
+          & fmap newAbsPath
+          & catMaybes
+          & filter (\(AbsPath path) -> length (splitPath path) >= length (splitPath (coerce root)))
           & fmap (\path ->
             let clientPath@(ClientPath cp) = (ClientPath.toClientPath root path)
                 mkLi                       = li_ [ term "hx-get" (linkToText (apiLinks.cd (Just clientPath)))
@@ -132,7 +135,7 @@ pathBreadcrumb = do
                                                  , term "data-path" (Text.pack cp)
                                                  , class_ "dir "
                                                  ]
-             in  (mkLi . toHtml . pathShow) path)
+             in  (mkLi . toHtml . pathShow) (coerce path))
           & Seq.fromList
           & (\path -> Seq.adjust (`with` [class_ " active"]) (length path - 1) path)
           & sequence_
@@ -152,8 +155,8 @@ pathBreadcrumb = do
 
 search :: SearchWord -> [FileInfo] -> ([FileInfo] -> Template (Html ())) -> Template (Html ())
 search (SearchWord searchWord) files table = do
-  let matched = files <&> Text.pack . (.path) & simpleFilter searchWord
-  let isMatched file = Text.pack file.path `elem` matched
+  let matched = files <&> coerce Text.pack . (.path) & simpleFilter searchWord
+  let isMatched file = coerce Text.pack file.path `elem` matched
   let filteredFiles = files ^.. each . filtered isMatched
   order <- asks @TemplateContext (.sortedBy)
   table (sortFiles order filteredFiles)
@@ -290,7 +293,7 @@ icon file =
       | otherwise                                                      -> i_ [ class_ "bx bxs-file-blank "] mempty
 
 
-open :: FilePath -> FileInfo -> [Attribute]
+open :: AbsPath -> FileInfo -> [Attribute]
 open root file = do
   let clientPath = ClientPath.toClientPath root file.path
   case file.content of

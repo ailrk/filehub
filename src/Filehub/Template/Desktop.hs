@@ -23,7 +23,7 @@ module Filehub.Template.Desktop
 
 import Control.Monad (when, join)
 import Data.ByteString (ByteString)
-import Data.ClientPath (ClientPath(..))
+import Data.ClientPath (ClientPath(..), AbsPath (..))
 import Data.ClientPath qualified as ClientPath
 import Data.File (File(..), FileType(..), FileInfo)
 import Data.Foldable (traverse_)
@@ -54,6 +54,7 @@ import Target.File (FileSys, TargetBackend (..))
 import Target.S3 (S3, TargetBackend (..))
 import Target.Types (targetHandler, Target, handleTarget)
 import Target.Types qualified as Target
+import Data.Coerce (coerce)
 
 
 ------------------------------------
@@ -118,7 +119,7 @@ sideBar targets (TargetView currentTarget _) = do
 
           fromMaybe "" $ handleTarget target
             [ targetHandler @S3      \(S3Backend { bucket }) -> span_ [iii| /#{bucket} |]
-            , targetHandler @FileSys \(FileBackend { root }) -> span_ [iii| /#{takeFileName root} |]
+            , targetHandler @FileSys \(FileBackend { root = AbsPath root }) -> span_ [iii| /#{takeFileName root} |]
             ]
 
         when (selectedCount > 0) do
@@ -133,7 +134,7 @@ sideBar targets (TargetView currentTarget _) = do
           fromMaybe [] $ handleTarget target
             [ targetHandler @S3 \(S3Backend { bucket }) ->
                 [ term "data-target-info" [iii| [#{target_s3}] #{bucket} |] ]
-            , targetHandler @FileSys \(FileBackend { root }) ->
+            , targetHandler @FileSys \(FileBackend { root = AbsPath root }) ->
                 [ term "data-target-info" [iii| [#{target_filesystem}] #{takeFileName root} |] ]
             ]
 
@@ -450,7 +451,7 @@ newFolderModal = do
 
 
 -- @RENAME-MODAL
-renameModal :: FilePath -> Template (Html ())
+renameModal :: AbsPath -> Template (Html ())
 renameModal oldPath = do
   root <- asks @TemplateContext (.root)
   Phrase
@@ -495,7 +496,7 @@ fileDetailModal file = do
         tbody_ do
           tr_ do
             td_ (toHtml detail_filename)
-            td_ (toHtml (takeFileName file.path))
+            td_ (toHtml (takeFileName (coerce file.path)))
           tr_ do
             td_ (toHtml detail_modified)
             td_ (toHtml (maybe mempty (formatTime defaultTimeLocale "%F %R") file.mtime))
@@ -732,7 +733,7 @@ thumbnailLayout files = do
       tbody_ $ traverse_ thumbnail ([0..] `zip` files)
 
 
-previewElement :: FilePath -> FileInfo -> Html ()
+previewElement :: AbsPath -> FileInfo -> Html ()
 previewElement root file = do
   div_ [ class_ "thumbnail-preview " ] do
     div_ [  class_ "image-wrapper " ] do
@@ -754,9 +755,9 @@ fileNameElement file target withIcon = do
 
     displayName =
       fromMaybe "-" $ handleTarget target
-        [ targetHandler @S3      \_ -> file.path
-        , targetHandler @FileSys \_ -> takeFileName file.path
-        , targetHandler @DummyTarget \_ -> takeFileName file.path
+        [ targetHandler @S3      \_ -> coerce file.path
+        , targetHandler @FileSys \_ -> coerce takeFileName file.path
+        , targetHandler @DummyTarget \_ -> coerce takeFileName file.path
         ]
 
 

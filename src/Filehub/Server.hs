@@ -23,7 +23,7 @@ import Data.ByteString.Char8 qualified as ByteString
 import Data.ByteString.Lazy qualified as LBS
 import Data.ByteString.Base64 qualified as Base64
 import Data.Char qualified as Char
-import Data.ClientPath (ClientPath (..))
+import Data.ClientPath (ClientPath (..), AbsPath (..))
 import Data.ClientPath qualified as ClientPath
 import Data.File (File(..), defaultFileWithContent, FileContent (..))
 import Data.FileEmbed qualified as FileEmbed
@@ -128,7 +128,7 @@ import Servant
   )
 import Servant.API.EventStream (RecommendedEventSourceHeaders, recommendedEventSourceHeaders)
 import Servant.Server.Generic (AsServerT)
-import System.FilePath (takeFileName)
+import System.FilePath (takeFileName, (</>))
 import Target.Types (TargetId)
 import Target.Types qualified as Target
 import Text.Printf (printf)
@@ -138,6 +138,8 @@ import Web.Cookie (SetCookie (..), defaultSetCookie)
 import Filehub.Auth.Types (AuthId(..))
 import Filehub.SharedLink (SharedLinkHash, SharedLinkPermitSet (..), SharedLinkPermit)
 import Filehub.QQ qualified
+import Data.ClientPath.Effectful (validateAbsPath)
+import Data.Coerce (coerce)
 
 
 #ifdef DEBUG
@@ -538,17 +540,21 @@ rename sessionId _ _ (RenameFile old new) = do
 
 
 newFile :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> NewFile -> Filehub (Html ())
-newFile sessionId _ _ (NewFile path) = do
-  storage <- Session.getStorage sessionId
-  storage.new (Text.unpack path)
+newFile sessionId _ _ (NewFile name) = do
+  AbsPath root <- Session.getRoot sessionId
+  storage      <- Session.getStorage sessionId
+  path         <- validateAbsPath (root </> Text.unpack name) (FilehubError InvalidPath ("<redacted>/" <> show name))
+  storage.new path
   view sessionId
 
 
+-- @INCORRECT. path is not event absolute.
 updateFile :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> UpdatedFile -> Filehub (Html ())
 updateFile sessionId _ _ (UpdatedFile clientPath content) = do
-  let path = clientPath.unClientPath
+  root <- Session.getRoot sessionId
+  let path = ClientPath.fromClientPath root clientPath
   storage <- Session.getStorage sessionId
-  storage.write path $ defaultFileWithContent
+  storage.write $ defaultFileWithContent
     { path     = path
     , content  = FileContentRaw (Text.encodeUtf8 content)
     }
@@ -556,9 +562,13 @@ updateFile sessionId _ _ (UpdatedFile clientPath content) = do
 
 
 newFolder :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> NewFolder -> Filehub (Html ())
-newFolder sessionId _ _ (NewFolder path) = do
+newFolder sessionId _ _ (NewFolder name) = do
   storage <- Session.getStorage sessionId
-  storage.newFolder (Text.unpack path)
+  AbsPath root <- Session.getRoot sessionId
+  path <- validateAbsPath
+            (root </> Text.unpack name)
+            (FilehubError InvalidPath ("<redacted>/" <> show name))
+  storage.newFolder path
   view sessionId
 
 
@@ -820,7 +830,7 @@ serve sessionId _ mFile = do
       conduit <- storage.readStream file
       pure
         . addHeader (ByteString.unpack file.mimetype)
-        . addHeader (printf "inline; filename=%s" (takeFileName path))
+        . addHeader (printf "inline; filename=%s" (coerce takeFileName path :: String))
         . addHeader "public, max-age=31536000, immutable"
         $ conduit
     Nothing -> do
@@ -844,7 +854,7 @@ thumbnail sessionId _ mFile = do
       conduit <- serveOriginal storage file
       pure
         . addHeader (ByteString.unpack file.mimetype)
-        . addHeader (printf "inline; filename=%s" (takeFileName path))
+        . addHeader (printf "inline; filename=%s" (coerce takeFileName path :: String))
         . addHeader "public, max-age=31536000, immutable"
         $ conduit
     Nothing -> do

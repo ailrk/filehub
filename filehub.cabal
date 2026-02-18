@@ -152,6 +152,7 @@ library
     Cache.InMemory
     Cache.Key
     Data.ClientPath
+    Data.ClientPath.Effectful
     Data.File
     Data.Queue
     Effectful.Extended.Cache
@@ -179,6 +180,7 @@ library
     Filehub.Monad
     Filehub.Notification.Types
     Filehub.Orphan
+    Filehub.QQ
     Filehub.Routes
     Filehub.Selected
     Filehub.Server

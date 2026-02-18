@@ -7,9 +7,9 @@ import Data.Maybe (isJust)
 import Effectful.Concurrent.Async (async)
 import Effectful.Concurrent.STM (atomically, writeTBQueue)
 import Effectful.Error.Dynamic (throwError)
-import Filehub.Error ( FilehubError(..), Error' (..) )
+import Filehub.Error (FilehubError(..), Error' (..))
 import Filehub.Handler (ConfirmLogin, ConfirmReadOnly)
-import Filehub.Monad
+import Filehub.Monad (Filehub)
 import Filehub.Notification.Types (Notification(..))
 import Filehub.Orphan ()
 import Filehub.Server.Component (index)
@@ -20,8 +20,10 @@ import Filehub.Types (FilehubEvent (..), MoveFile (..))
 import Lucid ( Html )
 import Prelude hiding (init, readFile)
 import Servant (Headers, Header, addHeader)
-import System.FilePath (takeFileName, (</>), takeDirectory)
+import System.FilePath (takeFileName, takeDirectory)
 import Worker.Task (newTaskId)
+import Data.Coerce (coerce)
+import Data.ClientPath ((<./>))
 
 
 move :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> MoveFile
@@ -45,10 +47,10 @@ move sessionId _ _ (MoveFile src tgt) = do
     when (srcPath == tgtPath)  do
       throwError (FilehubError InvalidDir "Can't move to the same directory")
 
-    when (takeDirectory srcPath == tgtPath)  do
+    when (coerce takeDirectory srcPath == tgtPath)  do
       throwError (FilehubError InvalidDir "Already in the current directory")
 
-    let dstPath = tgtPath </> takeFileName srcPath
+    let dstPath = tgtPath <./> coerce takeFileName srcPath
     mFile <- storage.get dstPath
     when (isJust mFile) do
       throwError (FilehubError InvalidPath "The destination already exists")
@@ -58,7 +60,7 @@ move sessionId _ _ (MoveFile src tgt) = do
       writeTBQueue notifications (MoveProgressed taskId 0)
 
     storage.mv do
-      fmap (\srcPath -> (srcPath, tgtPath </> (takeFileName srcPath))) srcPaths
+      fmap (\srcPath -> (srcPath, tgtPath <./> coerce takeFileName srcPath)) srcPaths
 
     atomically do
       writeTBQueue notifications  (TaskCompleted taskId)

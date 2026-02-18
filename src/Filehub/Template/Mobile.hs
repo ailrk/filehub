@@ -12,7 +12,7 @@ module Filehub.Template.Mobile
 
 import Control.Monad (join)
 import Data.ByteString (ByteString)
-import Data.ClientPath (ClientPath(..))
+import Data.ClientPath (ClientPath(..), AbsPath (..))
 import Data.ClientPath qualified as ClientPath
 import Data.File (File(..), FileInfo)
 import Data.Foldable (traverse_)
@@ -42,6 +42,7 @@ import Target.Types (targetHandler, Target, handleTarget)
 import Target.Types qualified as Target
 import Filehub.Session (TargetView(..))
 import Target.Dummy (DummyTarget)
+import Data.Coerce (coerce)
 
 
 index :: Html ()
@@ -83,7 +84,7 @@ sideBar targets (TargetView currentTarget _) = do
            , term "hx-swap" "outerHTML"
            ] do
         fromMaybe "unknown" $ handleTarget target
-          [ targetHandler @FileSys \(FileBackend { root }) -> do
+          [ targetHandler @FileSys \(FileBackend { root = AbsPath root }) -> do
               i_ [ class_ "bx bx-folder" ] mempty
               span_ [iii| /#{takeFileName root} |]
           , targetHandler @S3 \(S3Backend { bucket }) -> do
@@ -203,7 +204,7 @@ table files = do
       tbody_ $ traverse_ (record root target selected) ([0..] `zip` files)
 
 
-record :: FilePath -> Target -> Selected -> (Int, FileInfo) -> Html ()
+record :: AbsPath -> Target -> Selected -> (Int, FileInfo) -> Html ()
 record root target selected (idx, file) =
   tr_ attrs do
     td_ do
@@ -253,9 +254,9 @@ fileNameElement target file = do
     name = span_ (toHtml displayName)
     displayName =
       fromMaybe "-" $ handleTarget target
-        [ targetHandler @S3          \_ -> file.path
-        , targetHandler @FileSys     \_ -> takeFileName file.path
-        , targetHandler @DummyTarget \_ -> takeFileName file.path
+        [ targetHandler @S3          \_ -> coerce file.path
+        , targetHandler @FileSys     \_ -> coerce takeFileName file.path
+        , targetHandler @DummyTarget \_ -> coerce takeFileName file.path
         ]
 
 

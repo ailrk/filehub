@@ -34,6 +34,8 @@ import Data.UUID (UUID)
 import Data.UUID.V4 qualified as UUID
 import Servant (FromHttpApiData (..), ToHttpApiData (..))
 import Data.Set (Set)
+import Data.Coerce (coerce)
+import Data.ClientPath (AbsPath(..))
 
 
 data SharedLinkType
@@ -117,7 +119,7 @@ mkSharedLinkHash input = SharedLinkHash (shortHash input)
 createSharedLink :: IOE :> es => FileInfo -> SharedLinkType -> Bool -> Maybe SharedLinkPasscode -> Eff es SharedLink
 createSharedLink file linkType readonly mPasscode = do
   now <- liftIO getCurrentTime
-  let hash = mkSharedLinkHash (Char8.pack file.path)
+  let hash = mkSharedLinkHash (coerce Char8.pack file.path)
   pure SharedLink
     { file        = file
     , hash        = hash

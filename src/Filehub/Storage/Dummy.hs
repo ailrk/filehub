@@ -6,9 +6,10 @@ import Effectful (Eff, Eff)
 import Lens.Micro.Platform ()
 import Prelude hiding (read, readFile, writeFile)
 import Target.Storage (Storage(..))
+import Data.ClientPath (AbsPath (..))
 
 
-storage :: [(FilePath, FileWithContent)] -> Storage (Eff es)
+storage :: [(AbsPath, FileWithContent)] -> Storage (Eff es)
 storage mockFS =
   Storage
     { get = \path -> pure do fmap extractFileInfo (lookup path mockFS)
@@ -24,7 +25,7 @@ storage mockFS =
           _ -> error "storage dummy: readStream"
 
     , ls = \case
-        "/"  -> pure $ fmap (extractFileInfo . snd) mockFS
+        AbsPath "/"  -> pure $ fmap (extractFileInfo . snd) mockFS
         path ->
           case lookup path mockFS of
             Just (File { content = FileContentDir dir }) -> pure $ fmap extractFileInfo dir

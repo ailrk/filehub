@@ -25,6 +25,7 @@ import Filehub.Auth.Simple (SimpleAuthUserDB)
 import Filehub.Auth.OIDC (OIDCAuthProviders)
 import Filehub.Monad (Filehub)
 import Filehub.Env qualified as Env
+import Data.ClientPath (AbsPath)
 
 
 -- | A Template context type that capture all useful information to render
@@ -46,9 +47,9 @@ data TemplateContext = TemplateContext
   , sortedBy          :: ~SortFileBy
   , locale            :: ~Locale
   , state             :: ~ControlPanelState
-  , currentDir        :: ~FilePath
+  , currentDir        :: ~AbsPath
   , currentTarget     :: ~TargetView
-  , root              :: ~FilePath
+  , root              :: ~AbsPath
   , simpleAuthUserDB  :: ~SimpleAuthUserDB
   , oidcAuthProviders :: ~OIDCAuthProviders
   }

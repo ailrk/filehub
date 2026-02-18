@@ -28,6 +28,7 @@ import System.FilePath (takeFileName)
 import Effectful.Error.Dynamic (throwError)
 import Filehub.Error (FilehubError(..), Error'(InvalidPath))
 import Effectful.Concurrent.STM (readTVarIO)
+import Data.Coerce (coerce)
 
 
 index :: SessionId -> Filehub (Html ())
@@ -63,7 +64,7 @@ editorModal sessionId mClientPath = do
   case mFile of
     Just file -> do
       content <- storage.read file
-      let filename = takeFileName p
+      let filename = coerce takeFileName p
       pure $ runTemplate ctx (Template.Mobile.editorModal filename content)
     Nothing -> do
       throwError (FilehubError InvalidPath "can't edit file")

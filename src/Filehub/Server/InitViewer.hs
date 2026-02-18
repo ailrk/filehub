@@ -1,6 +1,6 @@
 module Filehub.Server.InitViewer (initViewer) where
 
-import Data.ClientPath (ClientPath (..))
+import Data.ClientPath (ClientPath (..), AbsPath)
 import Data.ClientPath qualified as ClientPath
 import Data.File (File(..), FileInfo)
 import Data.List qualified as List
@@ -20,6 +20,7 @@ import Prelude hiding (init, readFile)
 import Servant (addHeader, Headers, Header, NoContent(..))
 import System.FilePath (takeDirectory)
 import Filehub.Monad (Filehub)
+import Data.Coerce (coerce)
 
 
 initViewer :: SessionId -> ConfirmLogin -> Maybe ClientPath
@@ -33,7 +34,7 @@ initViewer sessionId _ mClientPath = do
     initViewer' root clientPath = do
       storage <- Session.getStorage sessionId
       let filePath  =  ClientPath.fromClientPath root clientPath
-      let dir       =  takeDirectory filePath
+      let dir       =  coerce takeDirectory filePath
       order         <- Session.getSortFileBy sessionId
       files         <- takeResourceFiles . Sort.sortFiles order <$> (storage.ls dir)
       let idx       =  fromMaybe 0 $ List.elemIndex filePath (fmap (.path) files)
@@ -46,7 +47,7 @@ initViewer sessionId _ mClientPath = do
     takeResourceFiles :: [FileInfo] -> [FileInfo]
     takeResourceFiles = filter (isResource . (.mimetype))
 
-    toResource :: FilePath -> FileInfo -> Resource
+    toResource :: AbsPath -> FileInfo -> Resource
     toResource root f =
       Resource
         { url = let ClientPath path = ClientPath.toClientPath root f.path -- encode path url

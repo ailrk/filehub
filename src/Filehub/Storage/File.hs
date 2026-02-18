@@ -32,16 +32,17 @@ import Target.File (TargetBackend, FileSys)
 import Target.Storage (Storage(..))
 import Target.Types (handleTarget, targetHandler)
 import {-# SOURCE #-} Filehub.Session qualified as Session
+import Data.ClientPath (AbsPath(..))
+import Data.Coerce (coerce)
 
 
-cd :: SessionId -> FilePath -> Filehub ()
+cd :: SessionId -> AbsPath -> Filehub ()
 cd sessionId path = do
-  exists <- doesDirectoryExist path
+  exists <- coerce doesDirectoryExist path
   unless exists do
     logAttention "[nmb224] dir doesn't exists:" path
     throwError (FilehubError InvalidDir "Can enter, not a directory")
   Session.setCurrentDir sessionId path
-
 
 
 storage :: SessionId -> Storage Filehub
@@ -54,28 +55,23 @@ storage sessionId =
     , cd          = cd sessionId
     , isDirectory = Storage.File.isDirectory
 
-    , write = \name fileWithContent -> do
-        currentDir <- Session.getCurrentDir sessionId
-        Storage.File.write currentDir name fileWithContent
+    , write = \fileWithContent -> do
+        Storage.File.write fileWithContent
 
     , mv = \mvPairs -> withStorageError do
-        currentDir <- Session.getCurrentDir sessionId & raise
-        Storage.File.mv currentDir mvPairs
+        Storage.File.mv mvPairs
 
     , rename = \old new -> withStorageError do
         Storage.File.rename old new
 
-    , delete = \name -> do
-        currentDir <- Session.getCurrentDir sessionId
-        Storage.File.delete currentDir name
+    , delete = \path-> do
+        Storage.File.delete path
 
-    , new = \name -> withStorageError do
-        currentDir <- Session.getCurrentDir sessionId & raise
-        Storage.File.new currentDir name
+    , new = \path -> withStorageError do
+        Storage.File.new path
 
-    , newFolder = \name -> withStorageError do
-        currentDir <- Session.getCurrentDir sessionId & raise
-        Storage.File.newFolder currentDir name
+    , newFolder = \path -> withStorageError do
+        Storage.File.newFolder path
 
     , lsCwd = withStorageError do
         currentDir <- Session.getCurrentDir sessionId & raise

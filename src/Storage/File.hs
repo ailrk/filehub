@@ -37,11 +37,15 @@ import Cache.Key (CacheKey, SomeCacheKey (..))
 import Codec.Archive.Zip qualified as Zip
 import Conduit (ConduitT, ResourceT, (.|), runResourceT)
 import Conduit qualified
-import Control.Monad (unless, when, forM_, join)
+import Control.Monad (unless, when, forM_)
 import Data.ByteString (ByteString, readFile)
 import Data.ByteString.Builder (Builder)
 import Data.ByteString.Builder qualified as Builder
 import Data.ByteString.Lazy qualified as LBS
+import Data.ClientPath (ClientPath, AbsPath (..))
+import Data.ClientPath qualified as ClientPath
+import Data.ClientPath.Effectful (validateAbsPath)
+import Data.Coerce (coerce)
 import Data.File (File (..), FileInfo, FileType (..), FileWithContent, FileContent (..), defaultFileWithContent)
 import Data.Generics.Labels ()
 import Data.Kind (Type)
@@ -71,11 +75,9 @@ import Storage.Error (StorageError (..))
 import System.FilePath ((</>), takeDirectory, takeFileName)
 import System.IO.Error (isDoesNotExistError)
 import System.IO.Temp qualified as Temp
-import UnliftIO (MonadIO (..), tryIO, IOException, Handler (..), catch, throwIO, Handle)
-import UnliftIO.Retry (recovering, limitRetries, exponentialBackoff)
 import Target.File (TargetBackend(..), FileSys)
-import Data.ClientPath qualified as ClientPath
-import Data.ClientPath (ClientPath)
+import UnliftIO (MonadIO (..), tryIO, IOException, Handler (..), catch, throwIO)
+import UnliftIO.Retry (recovering, limitRetries, exponentialBackoff)
 
 
 class CacheKeyComponent (s :: Symbol) a              where toCacheKeyComponent :: Builder
@@ -99,21 +101,21 @@ get
     , Log        :> es
     , cacheType ~ FileInfo
     , cacheName ~ "file")
-  => FilePath -> Eff es (Maybe FileInfo)
+  => AbsPath -> Eff es (Maybe FileInfo)
 get path = do
   mCached <- Cache.lookup @cacheType cacheKey
   case mCached of
     Just cached -> do
       pure (Just cached)
     Nothing -> do
-      exists <- doesPathExist path
+      exists <- coerce doesPathExist path
       if exists
          then do
-           size  <- getFileSize path
-           mtime <- getModificationTime path
-           atime <- getAccessTime path
+           size  <- coerce getFileSize path
+           mtime <- coerce getModificationTime path
+           atime <- coerce getAccessTime path
            isDir <- isDirectory path
-           let mimetype = defaultMimeLookup (Text.pack path)
+           let mimetype = defaultMimeLookup (coerce Text.pack path)
            let file = File
                  { path     = path
                  , size     = Just size
@@ -126,8 +128,8 @@ get path = do
            pure (Just file)
           else pure Nothing
   where
-    cacheKey  = createCacheKey @cacheName @cacheType (Builder.string8 path)
-    cacheDeps = [ SomeCacheKey (createCacheKey @"dir" @[FileInfo] (Builder.string8 (takeDirectory path))) ]
+    cacheKey  = createCacheKey @cacheName @cacheType (coerce Builder.string8 path)
+    cacheDeps = [ SomeCacheKey (createCacheKey @"dir" @[FileInfo] (Builder.string8 (coerce takeDirectory path))) ]
     cacheTTL  = Just (secondsToNominalDiffTime 10)
 
 
@@ -138,19 +140,19 @@ isDirectory
     , Cache       :> es
     , cacheType ~ FileInfo
     , cacheName ~ "file")
-  => FilePath -> Eff es Bool
+  => AbsPath -> Eff es Bool
 isDirectory filePath = do
   mCached <- Cache.lookup @cacheType cacheKey
   case mCached of
     Just (File { content = Regular }) -> pure False
     Just (File { content = Dir })     -> pure True
     Nothing -> do
-      pathExists <- doesPathExist filePath
-      dirExists  <- doesDirectoryExist filePath
+      pathExists <- coerce doesPathExist filePath
+      dirExists  <- coerce doesDirectoryExist filePath
       result     <- if not pathExists then pure False else pure dirExists
       pure result
   where
-    cacheKey = createCacheKey @cacheName @cacheType (Builder.string8 filePath)
+    cacheKey = createCacheKey @cacheName @cacheType (coerce Builder.string8 filePath)
 
 
 read
@@ -161,23 +163,23 @@ read
     , cacheType ~ ByteString
     , cacheName ~ "file-content")
     => FileInfo -> Eff es ByteString
-read file = do
+read File { path = AbsPath path } = do
   logTrace_ [i|[8sc2z] file read|]
   mCached <- Cache.lookup @cacheType cacheKey
   case mCached of
     Just cached -> pure cached
     Nothing -> do
-      bytes <- liftIO $ readFile file.path
+      bytes <- liftIO $ readFile path
       Cache.insert cacheKey cacheDeps cacheTTL bytes
       pure bytes
   where
-    cacheKey  = createCacheKey @cacheName @cacheType (Builder.string8 file.path)
-    cacheDeps = [ SomeCacheKey (createCacheKey @"file" @FileInfo (Builder.string8 file.path)) ]
+    cacheKey  = createCacheKey @cacheName @cacheType (Builder.string8 path)
+    cacheDeps = [ SomeCacheKey (createCacheKey @"file" @FileInfo (Builder.string8 path)) ]
     cacheTTL  = Just (secondsToNominalDiffTime 10)
 
 
 readStream :: FileInfo -> Eff es (ConduitT () ByteString (ResourceT IO) ())
-readStream file = pure $ Conduit.sourceFile file.path
+readStream File{ path = AbsPath path } = pure $ Conduit.sourceFile path
 
 
 newFolder
@@ -185,15 +187,14 @@ newFolder
      , Log                :> es
      , Cache              :> es
      , Error StorageError :> es)
-  => FilePath -> String -> Eff es ()
-newFolder currentDir name = do
-  filePath <- toFilePath currentDir name
-  exists   <- doesFileExist filePath
+  => AbsPath -> Eff es ()
+newFolder path = do
+  exists   <- coerce doesFileExist path
   when exists do
-    logAttention "[vd9fdz] path doesn't exists:" filePath
+    logAttention "[vd9fdz] path doesn't exists:" path
     throwError (FileExists "Folder already exists")
-  createDirectoryIfMissing True filePath
-  Cache.delete (createCacheKey @"dir" @[FileInfo] (Builder.string8 currentDir))
+  createDirectoryIfMissing True (coerce path)
+  Cache.delete (createCacheKey @"dir" @[FileInfo] (coerce Builder.string8 path))
 
 
 new
@@ -201,15 +202,14 @@ new
      , Log                :> es
      , Cache              :> es
      , Error StorageError :> es)
-  => FilePath -> String -> Eff es ()
-new currentDir name = do
-  filePath <- toFilePath currentDir name
-  exists   <- doesFileExist filePath
+  => AbsPath -> Eff es ()
+new path = do
+  exists   <- coerce doesFileExist path
   when exists do
-    logAttention "[9sc453] path doesn't exists:" filePath
+    logAttention "[9sc453] path doesn't exists:" path
     throwError (FileExists "File already exists")
-  withFile filePath ReadWriteMode (\_ -> pure ())
-  Cache.delete (createCacheKey @"dir" @[FileInfo] (Builder.string8 currentDir))
+  withFile (coerce path) ReadWriteMode (\_ -> pure ())
+  Cache.delete (createCacheKey @"dir" @[FileInfo] (coerce Builder.string8 path))
 
 
 write
@@ -219,42 +219,34 @@ write
      , IOE         :> es
      , Cache       :> es
      , LockManager :> es)
-  => FilePath -> FilePath -> FileWithContent -> Eff es ()
-write currentDir name File{ content } = do
+  => FileWithContent -> Eff es ()
+write File{ content, path = path } = do
   case content of
-    FileContentRaw bytes -> write' currentDir name \_ h -> do hPut h bytes
+    FileContentRaw bytes -> go \_ h -> do hPut h bytes
     FileContentConduit conduit -> do
-      write' currentDir name \path h -> do
+      go \p h -> do
         hClose h -- close the handle, sinkFile will create a handle for itself.
         liftIO . runResourceT . Conduit.runConduit
           $ conduit
-          .| Conduit.sinkFile path
+          .| Conduit.sinkFile p
     FileContentDir _ -> pure ()
     FileContentNull -> pure ()
-
-
-write'
-  :: ( FileSystem  :> es
-     , Temporary   :> es
-     , IOE         :> es
-     , Log         :> es
-     , Cache       :> es
-     , LockManager :> es)
-  => FilePath -> FilePath -> (FilePath -> Handle -> Eff es ()) -> Eff es ()
-write' currentDir name performWrite = do
-  LockManager.withLock (LockManager.mkLockKey name) do
-    filePath      <- toFilePath currentDir name
-    isCreatingNew <- doesFileExist filePath
-    withTempFile currentDir (takeFileName name) \tempFile h -> do
-      performWrite tempFile h
-      when (not isCreatingNew) do
-        removeFile filePath `catch` \(e :: IOError) -> do
-          when (not (isDoesNotExistError e)) do -- it's ok if file is not there.
-            throwIO e
-      renameFile tempFile filePath
-    Cache.delete (createCacheKey @"file" @FileInfo (Builder.string8 name))
-    when (not isCreatingNew) do
-      Cache.delete (createCacheKey @"dir" @[FileInfo] (Builder.string8 currentDir))
+  where
+    go performWrite = do
+      LockManager.withLock (LockManager.mkLockKey path) do
+        isCreatingNew <- coerce doesFileExist path
+        let dir = coerce takeDirectory path
+        let name = coerce takeFileName path
+        withTempFile dir name \tempFile h -> do
+          performWrite tempFile h
+          when (not isCreatingNew) do
+            coerce removeFile path `catch` \(e :: IOError) -> do
+              when (not (isDoesNotExistError e)) do -- it's ok if file is not there.
+                throwIO e
+          renameFile tempFile (coerce path)
+        Cache.delete (createCacheKey @"file" @FileInfo (Builder.string8 name))
+        when (not isCreatingNew) do
+          Cache.delete (createCacheKey @"dir" @[FileInfo] (coerce Builder.string8 dir))
 
 
 mv
@@ -265,16 +257,16 @@ mv
      , LockManager        :> es
      , Concurrent         :> es
      , Error StorageError :> es)
-  => FilePath -> [(FilePath, FilePath)] -> Eff es ()
-mv _ [] = throwError (CopyError "Nothing to copy")
-mv currentDir cpPairs = do
+  => [(AbsPath, AbsPath)] -> Eff es ()
+mv [] = throwError (CopyError "Nothing to copy")
+mv cpPairs = do
   flip mapConcurrently_ cpPairs \(src, dst) -> do
     isDir <- isDirectory src
     if isDir then copyDirectoryRecursive src dst
-    else join $ copyFile <$> toFilePath currentDir src <*> toFilePath currentDir dst
-    delete currentDir src
-    Cache.delete (createCacheKey @"dir" @[FileInfo] (Builder.string8 (takeDirectory src)))
-    Cache.delete (createCacheKey @"dir" @[FileInfo] (Builder.string8 (takeDirectory dst)))
+    else copyFile (coerce src) (coerce dst)
+    delete src
+    Cache.delete (createCacheKey @"dir" @[FileInfo] (Builder.string8 (coerce takeDirectory src)))
+    Cache.delete (createCacheKey @"dir" @[FileInfo] (Builder.string8 (coerce takeDirectory dst)))
 
 
 rename
@@ -283,27 +275,27 @@ rename
      , Log                :> es
      , LockManager        :> es
      , Error StorageError :> es)
-  => FilePath -> FilePath -> Eff es ()
+  => AbsPath -> AbsPath -> Eff es ()
 rename oldName newName = do
   LockManager.withLock (LockManager.mkLockKey oldName) do
     LockManager.withLock (LockManager.mkLockKey newName) do
       when (oldName == newName) do
         throwError (FileExists "Can't rename to itself")
 
-      oldExists <- doesFileExist oldName
+      oldExists <- coerce doesFileExist oldName
 
       when (not oldExists) do
-        throwError (TargetError ("Can't find file " <> oldName))
+        throwError (TargetError ("Can't find file " <> coerce oldName))
 
-      newExists <- doesFileExist newName
+      newExists <- coerce doesFileExist newName
 
       when (newExists) do
-        throwError (TargetError ("File " <> newName <> " already exists"))
+        throwError (TargetError ("File " <> coerce newName <> " already exists"))
 
-      Cache.delete (createCacheKey @"file" @FileInfo (Builder.string8 newName))
-      Cache.delete (createCacheKey @"file" @FileInfo (Builder.string8 oldName))
+      Cache.delete (createCacheKey @"file" @FileInfo (coerce Builder.string8 newName))
+      Cache.delete (createCacheKey @"file" @FileInfo (coerce Builder.string8 oldName))
 
-      renameFile oldName newName
+      coerce renameFile oldName newName
 
 
 -- | Copy all files and subdirectories from src to dst.
@@ -313,18 +305,18 @@ copyDirectoryRecursive
      , Cache              :> es
      , LockManager        :> es
      , Error StorageError :> es)
-  => FilePath -> FilePath -> Eff es ()
-copyDirectoryRecursive src dst = do
+  => AbsPath -> AbsPath -> Eff es ()
+copyDirectoryRecursive (AbsPath src) (AbsPath dst) = do
   LockManager.withLock (LockManager.mkLockKey dst) do
     createDirectoryIfMissing True dst
     contents <- listDirectory src
     forM_ contents \name -> do
-        let srcPath = src </> name
-        let dstPath = dst </> name
-        isDir <- doesDirectoryExist srcPath
+        srcPath <- validateAbsPath (src </> name) (InvalidPath ("<redacted>/" <> name))
+        dstPath <- validateAbsPath (dst </> name) (InvalidPath ("<redacted>/" <> name))
+        isDir <- coerce doesDirectoryExist srcPath
         if isDir
            then copyDirectoryRecursive srcPath dstPath
-           else copyFile srcPath dstPath
+           else coerce copyFile srcPath dstPath
 
 
 delete
@@ -332,19 +324,18 @@ delete
      , IOE         :> es
      , Log         :> es
      , Cache       :> es)
-  => FilePath -> String -> Eff es ()
-delete currentDir name = do
-  filePath   <- toFilePath currentDir name
-  fileExists <- doesFileExist filePath
-  dirExists  <- doesDirectoryExist filePath
+  => AbsPath -> Eff es ()
+delete path = do
+  fileExists <- coerce doesFileExist path
+  dirExists  <- coerce doesDirectoryExist path
   if
-     | fileExists -> withRetry (removeFile filePath)
-     | dirExists  -> withRetry (removeDirectoryRecursive filePath)
+     | fileExists -> withRetry (removeFile (coerce path))
+     | dirExists  -> withRetry (removeDirectoryRecursive (coerce path))
      | otherwise  -> pure ()
-  Cache.delete (createCacheKey @"file" @FileInfo (Builder.string8 name))
+  Cache.delete (createCacheKey @"file" @FileInfo (coerce Builder.string8 path))
   where
     withRetry action = recovering policy handlers \_ -> do
-      logInfo_ [i|[vhdkl2] Retrying delete #{name}|]
+      logInfo [i|[vhdkl2] Retrying delete|] path
       result <- tryIO action
       case result of
         Left e | isDoesNotExistError e -> pure () -- it's already gone
@@ -367,30 +358,30 @@ ls
     , Error StorageError :> es
     , cacheType ~ [FileInfo]
     , cacheName ~ "dir")
-    => FilePath -> Eff es [FileInfo]
+    => AbsPath -> Eff es [FileInfo]
 ls path = do
   mCached <- Cache.lookup @cacheType cacheKey
   case mCached of
     Just cached -> pure cached
     Nothing -> do
-      exists <- doesDirectoryExist path
+      exists <- coerce doesDirectoryExist path
       unless exists do
         logAttention "[idvdxa] dir doesn't exists:" path
         throwError (InvalidDir "Can't list, not a directory")
-      (files, cacheDeps) <- withCurrentDirectory path do
+      (files, cacheDeps) <- withCurrentDirectory (coerce path) do
         unzip <$> do
-          listDirectory path
+          coerce listDirectory path
             >>= traverse makeAbsolute
-            >>= traverse get
+            >>= traverse (get . coerce)
             >>= pure . fmap maybeToList
             >>= pure . mconcat
             >>= traverse \file -> do
-              let depKey = SomeCacheKey (createCacheKey @"file" @FileInfo (Builder.string8 file.path))
+              let depKey = SomeCacheKey (createCacheKey @"file" @FileInfo (coerce Builder.string8 file.path))
               pure (file, depKey)
       Cache.insert cacheKey cacheDeps cacheTTL files
       pure files
   where
-    cacheKey = createCacheKey @cacheName @cacheType (Builder.string8 path)
+    cacheKey = createCacheKey @cacheName @cacheType (coerce Builder.string8 path)
     cacheTTL = Just (secondsToNominalDiffTime 10)
 
 
@@ -399,9 +390,9 @@ lsCwd
      , Log                :> es
      , Cache              :> es
      , Error StorageError :> es)
-    => FilePath -> Eff es [FileInfo]
+    => AbsPath -> Eff es [FileInfo]
 lsCwd currentDir = do
-  exists <- doesDirectoryExist currentDir
+  exists <- coerce doesDirectoryExist currentDir
   unless exists do
     logAttention "[icv8d3] dir doesn't exists:" currentDir
     throwError (InvalidDir "Not a directory")
@@ -415,13 +406,14 @@ upload
      , IOE         :> es
      , Cache       :> es
      , LockManager :> es)
-  => FilePath -> FileData Mem -> Eff es ()
+  => AbsPath -> FileData Mem -> Eff es ()
 upload currentDir file = do
   let mimetype = Text.encodeUtf8 file.fdFileCType
   let name     = Text.unpack file.fdFileName
   let bytes    = LBS.toStrict file.fdPayload
-  write currentDir name $ defaultFileWithContent
-    { path     = name
+  fullPath <- toFilePath currentDir name
+  write $ defaultFileWithContent
+    { path     = fullPath
     , mimetype = mimetype
     , content  = FileContentRaw bytes
     }
@@ -450,7 +442,7 @@ download fileSys clientPath = do
             Zip.packDirRecur
               Zip.Zstd
               Zip.mkEntrySelector
-              path
+              (coerce path)
 
           pure $
             Conduit.bracketP
@@ -465,6 +457,6 @@ download fileSys clientPath = do
 -- | Helpers
 --
 
-toFilePath ::  FileSystem :> es => FilePath -> FilePath -> Eff es FilePath
-toFilePath currentDir name = do
-  makeAbsolute (currentDir </> name)
+toFilePath ::  FileSystem :> es => AbsPath-> FilePath -> Eff es AbsPath
+toFilePath (AbsPath currentDir) name = do
+  AbsPath <$> makeAbsolute (currentDir </> name)

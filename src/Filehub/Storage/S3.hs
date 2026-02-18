@@ -47,9 +47,9 @@ storage sessionId =
         s3 <- getS3 sessionId
         Storage.S3.readStream s3 file
 
-    , write = \filePath fileWithContent -> do
+    , write = \fileWithContent -> do
         s3 <- getS3 sessionId
-        Storage.S3.write s3 filePath fileWithContent
+        Storage.S3.write s3 fileWithContent
 
     , mv = \mvPairs -> withStorageError do
         s3 <- getS3 sessionId & raise

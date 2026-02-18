@@ -108,27 +108,28 @@ import UnliftIO.STM (TBQueue, TVar, atomically, writeTBQueue)
 import Worker.Task (TaskId)
 import {-# SOURCE #-} Filehub.Session.Copy qualified as Copy
 import {-# SOURCE #-} Filehub.Session.Selected qualified as Selected
+import Data.ClientPath (AbsPath (..))
 
 
 -- | Get the current target root. The meaning of the root depends on the target. e.g for
 -- a normal file system root is the file path, meanwhile S3 has no root, it will always be ""
-getRoot :: SessionId -> Filehub FilePath
+getRoot :: SessionId -> Filehub AbsPath
 getRoot sessionId = do
   TargetView (Target t) _ <- currentTarget sessionId
   pure
-    . fromMaybe ""
+    . fromMaybe (AbsPath "")
     . asum
     $ [ cast t <&> \(x :: TargetBackend FileSys) -> x.root
-      , cast t <&> \(_ :: TargetBackend S3) -> ""
+      , cast t <&> \(_ :: TargetBackend S3) -> AbsPath ""
       ]
 
 -- | Get the current working directory of the session.
-getCurrentDir :: SessionId -> Filehub FilePath
+getCurrentDir :: SessionId -> Filehub AbsPath
 getCurrentDir sessionId = (^. #sessionData . #currentDir) <$> currentTarget sessionId
 
 
 -- | Set the current working directory of the session.
-setCurrentDir :: SessionId -> FilePath -> Filehub ()
+setCurrentDir :: SessionId -> AbsPath -> Filehub ()
 setCurrentDir sessionId path = do
   Session.Pool.update sessionId \s -> s & #targets . ix s.currentTargetId . #currentDir .~ path
 

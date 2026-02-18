@@ -29,11 +29,15 @@ import System.FilePath (takeFileName, (</>))
 import Target.Types (Target)
 import Target.Types qualified as Target
 import Worker.Task (newTaskId)
+import Data.ClientPath (AbsPath (..))
+import Lens.Micro ((&), (.~))
+import Data.Coerce (coerce)
+import Data.ClientPath.Effectful (validateAbsPath)
 
 
 type TargetFrom  = Target
 type TargetTo    = Target
-type Destination = FilePath
+type Destination = AbsPath
 
 
 data PasteTask
@@ -66,7 +70,9 @@ paste sessionId _ _ = do
               conduit <- withTarget sessionId fromId \_ storage -> do
                 storage.readStream file
               withTarget sessionId toId \_ storage -> do
-                storage.write dst (file `withContent` (FileContentConduit conduit))
+                storage.write $ file
+                  & flip withContent (FileContentConduit conduit)
+                  & #path .~ dst
               atomically do
                 modifyTVar' pasteCounter (+ 1)
                 n <- readTVar pasteCounter
@@ -91,18 +97,18 @@ paste sessionId _ _ = do
   where
     createPasteTasks fromDir to selections = fmap (mconcat . mconcat) do
       forM selections \(from, files) -> do
-        forM files $ flip fix fromDir \rec currentDir file -> do
-          let dst    = currentDir </> takeFileName file.path
+        forM files $ flip fix fromDir \rec (AbsPath currentDir) file -> do
+          let name  =  coerce takeFileName file.path
           let fromId = Target.getTargetId from
+          dst <- validateAbsPath (currentDir </> takeFileName name) (FilehubError InvalidPath "")
           case file.content of
-            Regular -> do
-              pure [ PasteFile from to file dst ]
+            Regular -> pure [ PasteFile from to file dst ]
             Dir -> do
-              withTarget sessionId fromId \(TargetView _ (TargetSessionData { currentDir = savedDir })) storage -> do
-                storage.cd file.path
-                result <- do
-                  dirFiles <- storage.lsCwd
-                  forM dirFiles \dfile -> do
-                    rec dst dfile
-                storage.cd savedDir -- go back
-                pure [ PasteDir to dst (mconcat result) ]
+              withTarget sessionId fromId
+                \(TargetView _ (TargetSessionData { currentDir = savedDir })) storage -> do
+                  storage.cd file.path
+                  result <- do
+                    dirFiles <- storage.lsCwd
+                    forM dirFiles \dfile -> rec dst dfile
+                  storage.cd savedDir -- go back
+                  pure [ PasteDir to dst (mconcat result) ]
