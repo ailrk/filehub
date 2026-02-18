@@ -17734,6 +17734,7 @@ const PDFViewerApplication = {
       return;
     }
     this._saveInProgressFILEHUB = true;
+    await this.pdfScriptingManager.dispatchWillSave();
     try {
       const data = await this.pdfDocument.saveDocument();
       const blob = new Blob([data], { type: "application/pdf"});
@@ -17754,6 +17755,7 @@ const PDFViewerApplication = {
       console.error(err);
       alert("Save failed: " + err.message);
     } finally {
+      await this.pdfScriptingManager.dispatchDidSave();
       this._saveInProgressFILEHUB = false;
     }
   } ,
