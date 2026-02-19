@@ -224,7 +224,6 @@ server = Api
   , healthz               = healthz
 #ifdef DEBUG
   , debug1                = \_ -> pure $ addHeader (Dummy "Hello") NoContent
-  , preview               = preview
 #endif
   }
 
@@ -927,81 +926,6 @@ static paths = do
     . addHeader "public, no-cache"
     . addHeader etag
     $ content
-
-
-
-#ifdef DEBUG
--- | Storybook for debug purposes.
-preview :: Maybe Text -> Maybe Text -> Filehub (Html ())
-preview mStory mDisplay = do
-  let ctx = TemplateContext
-        { readOnly           = False
-        , noLogin            = False
-        , display            = fromMaybe Desktop $ fmap (\case "mobile" -> Mobile; _ -> Desktop) mDisplay
-        , layout             = ThumbnailLayout
-        , theme              = Dark
-        , sortedBy           = ByNameDown
-        , selected           = NoSelection
-        , state              = ControlPanelDefault
-        , root               = AbsPath ""
-        , locale             = EN
-        , currentDir         = AbsPath ""
-        , currentTarget      = undefined
-        , simpleAuthUserDB   = undefined
-        , oidcAuthProviders  = undefined
-        }
-
-  let content = do
-        doctypehtml_ $ do
-          Template.withDefault ctx.display "#000000" do
-            style_ (Text.decodeUtf8 $ fromMaybe "no-theme" $ Map.lookup "theme-light.css" staticFiles)
-            case mStory of
-              Nothing -> mempty
-              Just "editor" -> do
-                case ctx.display of
-                  Mobile    -> runTemplate ctx $ Template.Mobile.editorModal "filename" "File content"
-                  Desktop   -> runTemplate ctx $ Template.Desktop.editorModal "filename" "File content"
-                  NoDisplay -> mempty
-              Just "new-folder" -> runTemplate ctx Template.Desktop.newFolderModal
-              Just "new-file" -> runTemplate ctx Template.Desktop.newFileModal
-              Just "locale-button" -> Template.Desktop.localeBtn
-              _ -> "unknown story"
-
-  pure do
-    html_ do
-      head_ do
-        style_ previewCSS
-
-      body_ do
-        div_ [ id_ "preview-side-bar" ] do
-          ul_ do
-            li_ do a_ [ href_ "/preview?story=editor&display=desktop" ] "editor"
-            li_ do a_ [ href_ "/preview?story=new-folder&display=desktop" ] "new-folder"
-            li_ do a_ [ href_ "/preview?story=new-file&display=desktop" ] "new-file"
-            li_ do a_ [ href_ "/preview?story=locale-button&display=desktop" ] "locale-button"
-        div_ [ id_ "preview-container"] do
-          iframe_ [ id_ "preview-frame"
-                  , srcdoc_ (LText.toStrict (renderText content))
-                  , sandbox_ "allow-same-origin allow-scripts" ]
-                  mempty
-
-  where
-    previewCSS =
-      [iii|
-        body { margin: 0; height: 100vh; display: flex; flex-direction: row; font-family: sans-serif; }
-        a { text-decoration: none; color: white; }
-        \#preview-side-bar { width: 200px; background-color: \#222;
-          color: white; display: flex; flex-direction: column; padding: 1rem; box-sizing: border-box; }
-        \#preview-side-bar ul { list-style: none; padding: 0; margin: 0; }
-        \#preview-side-bar li { padding: 0.5rem 0; cursor: pointer; }
-        \#preview-side-bar li:hover { background-color: \#444; }
-        \#preview-container { flex: 1; display: flex; justify-content: center;
-          align-items: center; background-color: \#f0f0f0; padding: 1rem; box-sizing: border-box; }
-        \#preview-frame { width: 80%; height: 80%; border: 1px solid \#ccc;
-          border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); background: white; }
-      |]
-
-#endif
 
 
 ------------------------------------
