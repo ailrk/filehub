@@ -103,6 +103,7 @@ withDefault display background html = do
   link_ [ rel_ "stylesheet", href_ "/static/boxicons2.1.4.css" ]
   link_ [ rel_ "stylesheet", href_ "/static/viewer.css" ]
   link_ [ rel_ "stylesheet", href_ "/static/reset.css" ]
+  link_ [ rel_ "stylesheet", href_ "/static/pdf.css" ]
 
   link_ [ rel_ "stylesheet", href_ "/theme.css" ]
 

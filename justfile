@@ -1,21 +1,23 @@
 default:
   @just --list
 
+
 build:
     cabal2nix . > default.nix
     nix build
 
+
 buildjs:
     #!/usr/bin/env bash
-    pushd js/
-    just build
-    popd
     rm -rf data/filehub
+    pushd js/ && just build_with_external && popd
     mv -fT js/dist/ data/filehub
+
 
 dev:
     just buildjs
     cabal build
+
 
 repl:
     cabal repl
@@ -42,7 +44,7 @@ clean:
 
 
 watch:
-  ghcid -c "cabal repl filehub" -T "Filehub.mainDev \"--config-file _cache/config.toml\"" -W
+  ghcid -c "cabal --flags=DEBUG repl filehub" -T "Filehub.mainDev \"--config-file _cache/config.toml\"" -W
 
 
 storybook:
