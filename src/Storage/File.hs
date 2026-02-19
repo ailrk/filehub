@@ -75,7 +75,7 @@ import Storage.Error (StorageError (..))
 import System.FilePath ((</>), takeDirectory, takeFileName)
 import System.IO.Error (isDoesNotExistError)
 import System.IO.Temp qualified as Temp
-import Target.File (TargetBackend(..), FileSys)
+import Target.File (Target(..), FileSys)
 import UnliftIO (MonadIO (..), tryIO, IOException, Handler (..), catch, throwIO)
 import UnliftIO.Retry (recovering, limitRetries, exponentialBackoff)
 
@@ -426,7 +426,7 @@ download
      , IOE        :> es
      , Log        :> es
      , Cache      :> es)
-  => TargetBackend FileSys -> ClientPath -> Eff es (ConduitT () ByteString (ResourceT IO) ())
+  => Target FileSys -> ClientPath -> Eff es (ConduitT () ByteString (ResourceT IO) ())
 download fileSys clientPath = do
 
   let path =  ClientPath.fromClientPath fileSys.root clientPath

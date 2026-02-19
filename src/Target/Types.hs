@@ -47,37 +47,37 @@ targetIdBuilder (TargetId targetId) =  Builder.byteString . UUID.toASCIIBytes $ 
 
 
 class IsTarget b where
-  data family TargetBackend b
+  data family Target b
   data family Config b
-  getTargetIdFromBackend :: TargetBackend b -> TargetId
+  getTargetIdFromBackend :: Target b -> TargetId
 
 
 -- | Existential wrapper of `Backend a`.
 data AnyTarget where
-  Target :: (Typeable a, IsTarget a, Debug (TargetBackend a)) => TargetBackend a -> AnyTarget
+  AnyTarget :: (Typeable a, IsTarget a, Debug (Target a)) => Target a -> AnyTarget
 
 
 instance Debug AnyTarget where
-  debug (Target backend) = debug backend
+  debug (AnyTarget backend) = debug backend
 
 
 instance Eq AnyTarget where
   t1 == t2 = getTargetId t1 == getTargetId t2
 
 
-data TargetHandler r = forall a. (Typeable a) => TargetHandler (TargetBackend a -> r)
+data TargetHandler r = forall a. (Typeable a) => TargetHandler (Target a -> r)
 
 
-targetHandler :: forall a r. (Typeable a) => (TargetBackend a -> r) -> TargetHandler r
+targetHandler :: forall a r. (Typeable a) => (Target a -> r) -> TargetHandler r
 targetHandler = TargetHandler
 
 
 runTargetHandler :: AnyTarget -> TargetHandler r -> Maybe r
-runTargetHandler (Target t) (TargetHandler f) = fmap f (cast t)
+runTargetHandler (AnyTarget t) (TargetHandler f) = fmap f (cast t)
 
 
 getTargetId :: AnyTarget -> TargetId
-getTargetId (Target t) = getTargetIdFromBackend t
+getTargetId (AnyTarget t) = getTargetIdFromBackend t
 
 
 handleTarget :: AnyTarget -> [TargetHandler r] -> Maybe r

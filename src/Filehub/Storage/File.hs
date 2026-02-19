@@ -28,7 +28,7 @@ import Filehub.Types ( SessionId )
 import Lens.Micro.Platform ()
 import Prelude hiding (read, readFile, writeFile)
 import Storage.File qualified
-import Target.File (TargetBackend, FileSys)
+import Target.File (Target, FileSys)
 import Target.Storage (Storage(..))
 import Target.Types (handleTarget, targetHandler)
 import {-# SOURCE #-} Filehub.Session qualified as Session
@@ -88,7 +88,7 @@ storage sessionId =
 
 
 
-getFileSys :: SessionId -> Filehub (TargetBackend FileSys)
+getFileSys :: SessionId -> Filehub (Target FileSys)
 getFileSys sessionId = do
   TargetView target _ <- Session.currentTarget sessionId
   maybe (throwError (FilehubError TargetError "Target is not valid file system direcotry")) pure $ handleTarget target

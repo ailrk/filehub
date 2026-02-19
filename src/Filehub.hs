@@ -126,7 +126,7 @@ main = Log.withColoredStdoutLogger \logger -> do
         transform (FSTargetConfig c) = toAssocItem <$> FS.initialize c
         transform (S3TargetConfig c) = toAssocItem <$> S3.initialize c
 
-        toAssocItem backend = (getTargetId (Target backend), Target backend)
+        toAssocItem backend = (getTargetId (AnyTarget backend), AnyTarget backend)
 
 
 -- | For developement with ghciwatch

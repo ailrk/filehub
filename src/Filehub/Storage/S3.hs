@@ -26,7 +26,7 @@ import Filehub.Types (SessionId)
 import Lens.Micro.Platform ()
 import Prelude hiding (read, readFile, writeFile)
 import Storage.S3 qualified
-import Target.S3 (TargetBackend, S3)
+import Target.S3 (Target, S3)
 import Target.Storage (Storage(..))
 import Target.Types (handleTarget, targetHandler)
 import {-# SOURCE #-} Filehub.Session qualified as Session
@@ -95,7 +95,7 @@ storage sessionId =
     }
 
 
-getS3 :: SessionId -> Filehub (TargetBackend S3)
+getS3 :: SessionId -> Filehub (Target S3)
 getS3 sessionId = do
   TargetView target _ <- Session.currentTarget sessionId
   maybe (throwError (FilehubError TargetError "Target is not valid S3 bucket")) pure $ handleTarget target

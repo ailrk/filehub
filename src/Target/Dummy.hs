@@ -1,7 +1,7 @@
 {- HLINT ignore "Avoid restricted function" -}
 module Target.Dummy (DummyTarget, newDummyTarget) where
 
-import Target.Types (TargetId(..), TargetBackend, IsTarget(..))
+import Target.Types (TargetId(..), Target, IsTarget(..))
 import Data.UUID.V4 qualified as UUID
 import System.IO.Unsafe (unsafePerformIO)
 import Text.Debug (Debug(..))
@@ -10,18 +10,18 @@ import Text.Debug (Debug(..))
 data DummyTarget
 
 
-instance Debug (TargetBackend DummyTarget) where
-  debug (DummyTargetBackend targetId) =
+instance Debug (Target DummyTarget) where
+  debug (DummyTarget targetId) =
     mconcat [ "[<DummyTarget>, ", show targetId, "]" ]
 
 
 instance IsTarget DummyTarget where
-  data instance TargetBackend DummyTarget = DummyTargetBackend TargetId
+  data instance Target DummyTarget = DummyTarget TargetId
   data instance Config DummyTarget = Config ()
-  getTargetIdFromBackend (DummyTargetBackend targetId) = targetId
+  getTargetIdFromBackend (DummyTarget targetId) = targetId
 
 
-newDummyTarget :: TargetBackend DummyTarget
+newDummyTarget :: Target DummyTarget
 newDummyTarget = do
   let targetId = unsafePerformIO $ TargetId <$> UUID.nextRandom
-  DummyTargetBackend targetId
+  DummyTarget targetId

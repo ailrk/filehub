@@ -50,8 +50,8 @@ import Lucid
 import Network.Mime.Extended (isMime)
 import System.FilePath (takeFileName)
 import Target.Dummy (DummyTarget)
-import Target.File (FileSys, TargetBackend (..))
-import Target.S3 (S3, TargetBackend (..))
+import Target.File (FileSys, Target (..))
+import Target.S3 (S3, Target (..))
 import Target.Types (targetHandler, AnyTarget, handleTarget)
 import Target.Types qualified as Target
 import Data.Coerce (coerce)

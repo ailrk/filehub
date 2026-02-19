@@ -1,7 +1,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Target.File where
 
-import Target.Types (TargetId(..), TargetBackend, IsTarget(..))
+import Target.Types (TargetId(..), Target, IsTarget(..))
 import Data.Text (Text)
 import Effectful (IOE, (:>), Eff, MonadIO (..))
 import Effectful.Log (Log, logInfo_)
@@ -16,8 +16,7 @@ import Data.Coerce (coerce)
 data FileSys
 
 
-
-instance Debug (TargetBackend FileSys) where
+instance Debug (Target FileSys) where
   debug FileBackend { targetId, targetName, root} =
     mconcat
       [ "[<FileBackend>, "
@@ -29,7 +28,7 @@ instance Debug (TargetBackend FileSys) where
 
 
 instance IsTarget FileSys where
-  data instance TargetBackend FileSys =
+  data instance Target FileSys =
     FileBackend
       { targetId   :: TargetId
       , targetName :: Maybe Text
@@ -48,7 +47,7 @@ instance IsTarget FileSys where
 instance Debug (Config FileSys) where debug = show
 
 
-initialize :: (IOE :> es, Log :> es, FileSystem :> es) => Config FileSys -> Eff es (TargetBackend FileSys)
+initialize :: (IOE :> es, Log :> es, FileSystem :> es) => Config FileSys -> Eff es (Target FileSys)
 initialize opt = do
   targetId <- liftIO $ TargetId <$> UUID.nextRandom
   root     <- AbsPath <$> makeAbsolute opt.root

@@ -76,7 +76,7 @@ import Prelude hiding (read, readFile, writeFile)
 import Servant.Multipart (Mem, FileData (..))
 import Storage.Error (StorageError (..))
 import System.IO.Temp qualified as Temp
-import Target.S3 (TargetBackend(..), S3)
+import Target.S3 (Target(..), S3)
 import Target.Types (TargetId)
 import Target.Types qualified as Target
 import System.FilePath (takeDirectory)
@@ -108,7 +108,7 @@ get
     , Error StorageError :> es
     , cacheType ~ FileInfo
     , cacheName ~ "file")
-    => TargetBackend S3 -> AbsPath -> Eff es (Maybe FileInfo)
+    => Target S3 -> AbsPath -> Eff es (Maybe FileInfo)
 get (s3@S3Backend { targetId }) path = do
   mCached <- Cache.lookup @cacheType cacheKey
   case mCached of
@@ -148,7 +148,7 @@ isDirectory
   . ( Cache :> es
     , Log   :> es
     , IOE   :> es )
-  => TargetBackend S3 -> AbsPath -> Eff es Bool
+  => Target S3 -> AbsPath -> Eff es Bool
 isDirectory s3@S3Backend { targetId } filePath = do
   mCached <- Cache.lookup @FileInfo cacheKey
   case mCached of
@@ -173,7 +173,7 @@ read
     , Cache :> es
     , cacheType ~ ByteString
     , cacheName ~ "file-content")
-  => TargetBackend S3 -> FileInfo -> Eff es ByteString
+  => Target S3 -> FileInfo -> Eff es ByteString
 read s3@S3Backend { targetId }  file = do
   mCached <- Cache.lookup @cacheType cacheKey
   case mCached of
@@ -190,7 +190,7 @@ read s3@S3Backend { targetId }  file = do
     cacheTTL  = Just (secondsToNominalDiffTime 10)
 
 
-readStream :: TargetBackend S3 -> FileInfo -> Eff es (ConduitT () ByteString (ResourceT IO) ())
+readStream :: Target S3 -> FileInfo -> Eff es (ConduitT () ByteString (ResourceT IO) ())
 readStream s3 file = do
   let bucket  = BucketName s3.bucket
       key     = ObjectKey (coerce Text.pack file.path)
@@ -205,7 +205,7 @@ new
   :: ( Cache :> es
      , Log   :> es
      , IOE   :> es)
-  => TargetBackend S3 -> AbsPath -> Eff es ()
+  => Target S3 -> AbsPath -> Eff es ()
 new s3@S3Backend { targetId } path = do
   write s3 $ defaultFileWithContent
     { path     = path
@@ -219,7 +219,7 @@ write
   :: ( Cache :> es
      , Log   :> es
      , IOE   :> es)
-  => TargetBackend S3 -> FileWithContent -> Eff es ()
+  => Target S3 -> FileWithContent -> Eff es ()
 write s3@S3Backend { targetId } File { content, mimetype, size = mSize, path } = do
   case content of
     FileContentRaw bytes -> do
@@ -242,7 +242,7 @@ write s3@S3Backend { targetId } File { content, mimetype, size = mSize, path } =
     FileContentNull -> pure ()
 
 
-writePutObject :: (IOE :> es) => TargetBackend S3 -> AbsPath -> MimeType -> RequestBody ->  Eff es ()
+writePutObject :: (IOE :> es) => Target S3 -> AbsPath -> MimeType -> RequestBody ->  Eff es ()
 writePutObject s3 filePath mimetype body = do
   void . runResourceT $ send s3.env request
   where
@@ -252,7 +252,7 @@ writePutObject s3 filePath mimetype body = do
     request = (Amazonka.newPutObject bucket key body) { contentType = Just (Text.decodeUtf8 mimetype) }
 
 
-writeMultipart :: (IOE :> es) => TargetBackend S3 -> AbsPath -> MimeType -> ConduitT () ByteString (ResourceT IO) () -> Eff es ()
+writeMultipart :: (IOE :> es) => Target S3 -> AbsPath -> MimeType -> ConduitT () ByteString (ResourceT IO) () -> Eff es ()
 writeMultipart s3 path mimetype conduit = do
   let bucket   = BucketName s3.bucket
   let key      = ObjectKey (coerce Text.pack path)
@@ -340,7 +340,7 @@ mv
      , Log                :> es
      , Cache              :> es
      , Error StorageError :> es)
-   => TargetBackend S3 -> [(AbsPath, AbsPath)] -> Eff es ()
+   => Target S3 -> [(AbsPath, AbsPath)] -> Eff es ()
 mv _ [] = throwError (CopyError "Nothing to copy")
 mv s3@S3Backend { targetId } cpPairs = do
   forM_ cpPairs \(src, dst) -> do
@@ -362,7 +362,7 @@ rename
      , Log                :> es
      , Cache              :> es
      , Error StorageError :> es)
-   => TargetBackend S3 -> AbsPath -> AbsPath -> Eff es ()
+   => Target S3 -> AbsPath -> AbsPath -> Eff es ()
 rename s3 oldFile newFile= mv s3 [(oldFile, newFile)]
 
 
@@ -370,7 +370,7 @@ delete
   :: ( IOE   :> es
      , Log   :> es
      , Cache :> es)
-  => TargetBackend S3 -> AbsPath -> Eff es ()
+  => Target S3 -> AbsPath -> Eff es ()
 delete s3@S3Backend { targetId } filePath = do
   let bucket = BucketName s3.bucket
   let key    = ObjectKey (coerce Text.pack filePath)
@@ -386,7 +386,7 @@ ls
     , IOE   :> es
     , cacheType ~ [FileInfo]
     , cacheName ~ "dir")
-  => TargetBackend S3 -> AbsPath -> Eff es [FileInfo]
+  => Target S3 -> AbsPath -> Eff es [FileInfo]
 ls s3@S3Backend { targetId } _ = do
     mCached <- Cache.lookup @cacheType cacheKey
     case mCached of
@@ -437,7 +437,7 @@ lsCwd
   :: ( Cache :> es
      , Log   :> es
      , IOE   :> es)
-  => TargetBackend S3 -> Eff es [FileInfo]
+  => Target S3 -> Eff es [FileInfo]
 lsCwd s3 = ls s3 (AbsPath "")
 
 
@@ -445,7 +445,7 @@ upload
   :: ( Cache :> es
      , Log   :> es
      , IOE   :> es)
-  => TargetBackend S3 -> FileData Mem -> Eff es ()
+  => Target S3 -> FileData Mem -> Eff es ()
 upload s3 file = do
   let mimetype = Text.encodeUtf8 file.fdFileCType
   let name     = coerce Text.unpack file.fdFileName
@@ -462,7 +462,7 @@ download
      , Log                :> es
      , Cache              :> es
      , Error StorageError :> es)
-  => TargetBackend S3 -> AbsPath -> Eff es (ConduitT () ByteString (ResourceT IO) ())
+  => Target S3 -> AbsPath -> Eff es (ConduitT () ByteString (ResourceT IO) ())
 download s3 path = do
   mFile <- get s3 path
   case mFile of

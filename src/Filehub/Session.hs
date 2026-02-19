@@ -101,7 +101,7 @@ import Lens.Micro
 import Lens.Micro.Platform ()
 import Prelude hiding (elem)
 import Prelude hiding (readFile)
-import Target.File (TargetBackend(..), FileSys)
+import Target.File (Target(..), FileSys)
 import Target.S3 (S3)
 import Target.Storage (Storage(..))
 import Target.Types (TargetId, AnyTarget (..), getTargetId, handleTarget, targetHandler)
@@ -116,12 +116,12 @@ import Data.ClientPath (AbsPath (..))
 -- a normal file system root is the file path, meanwhile S3 has no root, it will always be ""
 getRoot :: SessionId -> Filehub AbsPath
 getRoot sessionId = do
-  TargetView (Target t) _ <- currentTarget sessionId
+  TargetView (AnyTarget t) _ <- currentTarget sessionId
   pure
     . fromMaybe (AbsPath "")
     . asum
-    $ [ cast t <&> \(x :: TargetBackend FileSys) -> x.root
-      , cast t <&> \(_ :: TargetBackend S3) -> AbsPath ""
+    $ [ cast t <&> \(x :: Target FileSys) -> x.root
+      , cast t <&> \(_ :: Target S3) -> AbsPath ""
       ]
 
 -- | Get the current working directory of the session.
