@@ -14,24 +14,31 @@ module Filehub.Server (application) where
 
 import Conduit (ConduitT, ResourceT, yield)
 import Control.Applicative (Alternative((<|>)))
-import Control.Monad (when, join)
+import Control.Monad (when, join, void)
 import Crypto.Hash.SHA256 qualified as SHA256
 import Data.Aeson (object, KeyValue (..), (.:), withObject, Value)
 import Data.Aeson.Types (parseMaybe)
 import Data.ByteString (ByteString)
+import Data.ByteString.Base64 qualified as Base64
 import Data.ByteString.Char8 qualified as ByteString
 import Data.ByteString.Lazy qualified as LBS
-import Data.ByteString.Base64 qualified as Base64
 import Data.Char qualified as Char
+import Data.ClientPath (ClientPath (..))
 import Data.ClientPath (ClientPath (..), AbsPath (..))
 import Data.ClientPath qualified as ClientPath
+import Data.ClientPath qualified as ClientPath
+import Data.ClientPath.Effectful (validateAbsPath)
+import Data.Coerce (coerce)
 import Data.File (File(..), defaultFileWithContent, FileContent (..))
 import Data.FileEmbed qualified as FileEmbed
+import Data.Foldable (forM_)
 import Data.Function (fix, (&))
 import Data.List qualified as List
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (fromMaybe)
+import Data.Ratio ((%))
+import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.String.Interpolate (i, iii)
 import Data.Text (Text)
@@ -39,7 +46,9 @@ import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.Time (UTCTime (..), fromGregorian)
 import Data.UUID qualified as UUID
-import Effectful ( withRunInIO, runEff, MonadIO (..) )
+import Effectful (withRunInIO, runEff, MonadIO (..) )
+import Effectful.Concurrent.Async (async, mapConcurrently_)
+import Effectful.Concurrent.STM (newTVarIO, readTBQueue, writeTBQueue, atomically, modifyTVar', readTVar, isEmptyTBQueue, TBQueue, TVar)
 import Effectful.Error.Dynamic (throwError)
 import Effectful.Log (logInfo_, logAttention_)
 import Effectful.Reader.Dynamic (asks)
@@ -47,7 +56,7 @@ import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
 import Filehub.Auth.OIDC (AuthUrl (..), SomeOIDCFlow (..))
 import Filehub.Auth.OIDC qualified as Auth.OIDC
 import Filehub.Auth.Simple qualified as Auth.Simple
-import Filehub.Cookie qualified as Cookie
+import Filehub.Auth.Types (AuthId(..))
 import Filehub.Cookie qualified as Cookies
 import Filehub.Env (Env(..))
 import Filehub.Error ( FilehubError(..), Error' (..) )
@@ -57,12 +66,12 @@ import Filehub.Locale (Locale (..))
 import Filehub.Monad
 import Filehub.Notification.Types (Notification(..))
 import Filehub.Orphan ()
+import Filehub.QQ qualified
 import Filehub.Routes (Api (..))
 import Filehub.Routes qualified as Routes
 import Filehub.Server.Component (index, view, controlPanel, sideBar, toolBar)
 import Filehub.Server.Component.Desktop qualified as Server.Desktop
 import Filehub.Server.Component.Mobile qualified as Server.Mobile
-import Filehub.Server.Delete (delete)
 import Filehub.Server.Download (download)
 import Filehub.Server.InitViewer (initViewer)
 import Filehub.Server.Internal (withQueryParam, parseHeader')
@@ -72,34 +81,22 @@ import Filehub.Server.Paste (paste)
 import Filehub.Server.Upload (upload)
 import Filehub.Session (SessionId(..), TargetView (..))
 import Filehub.Session qualified as Session
+import Filehub.Session qualified as Session
 import Filehub.Session.Copy qualified as Copy
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Session.Selected qualified as Selected
+import Filehub.SharedLink (SharedLinkHash, SharedLinkPermitSet (..), SharedLinkPermit)
 import Filehub.Template (runTemplate, TemplateContext(..), makeTemplateContext)
-import Filehub.Template.Shared qualified as Template
 import Filehub.Template.Desktop qualified as Template.Desktop
 import Filehub.Template.Login qualified as Template.Login
 import Filehub.Template.Mobile qualified as Template.Mobile
+import Filehub.Template.Shared qualified as Template
 import Filehub.Theme qualified as Theme
-import Filehub.Types
-  ( ControlPanelState (..)
-  , Display (..)
-  , Layout (..)
-  , LoginForm(..)
-  , NewFile(..)
-  , NewFolder(..)
-  , OpenTarget
-  , Resolution
-  , SearchWord
-  , Selected (..)
-  , SortFileBy(..)
-  , Theme(..)
-  , UIComponent (..)
-  , UpdatedFile(..)
-  , UpdatedFile(..)
-  , FilehubEvent (..), RenameFile (..))
+import Filehub.Types ( ControlPanelState (..) , Display (..) , Layout (..) , LoginForm(..) , NewFile(..) , NewFolder(..) , OpenTarget , Resolution , SearchWord , Selected (..) , SortFileBy(..) , Theme(..) , UIComponent (..) , UpdatedFile(..) , UpdatedFile(..) , FilehubEvent (..), RenameFile (..))
+import Filehub.Types ( FilehubEvent(..), Selected(..) )
 import Lens.Micro ((.~), (?~))
 import Lucid
+import Lucid ( Html )
 import Network.HTTP.Types.Header (hLocation)
 import Network.Mime qualified as Mime
 import Network.Mime.Extended (isMime)
@@ -109,23 +106,9 @@ import Network.Wai.Middleware.Filehub qualified as Wai.Middleware
 import Network.Wai.Middleware.Gzip qualified as Wai.Middleware
 import Network.Wai.Middleware.RequestLogger qualified as Wai.Middleware (logStdout)
 import Prelude hiding (init, readFile)
-import Servant
-  ( Application
-  , Context (..)
-  , Header
-  , Headers
-  , NoContent (..)
-  , addHeader
-  , err301
-  , err303
-  , err400
-  , err404
-  , err500
-  , errHeaders
-  , noHeader
-  , serveWithContextT
-  , errBody
-  )
+import Prelude hiding (init, readFile)
+import Servant ( Application , Context (..) , Header , Headers , NoContent (..) , addHeader , err301 , err303 , err400 , err404 , err500 , errHeaders , noHeader , serveWithContextT , errBody)
+import Servant ( addHeader, Headers, Header )
 import Servant.API.EventStream (RecommendedEventSourceHeaders, recommendedEventSourceHeaders)
 import Servant.Server.Generic (AsServerT)
 import System.FilePath (takeFileName, (</>))
@@ -133,17 +116,8 @@ import Target.Types (TargetId)
 import Target.Types qualified as Target
 import Text.Printf (printf)
 import UnliftIO.Exception (SomeException, catch)
-import Effectful (withRunInIO)
-import Effectful.Concurrent.STM (readTBQueue, atomically, modifyTVar', readTVar, isEmptyTBQueue, TBQueue, TVar)
--- import UnliftIO.STM (readTBQueue, atomically, modifyTVar', readTVar, isEmptyTBQueue, TBQueue, TVar)
 import Web.Cookie (SetCookie (..), defaultSetCookie)
-import Filehub.Auth.Types (AuthId(..))
-import Filehub.SharedLink (SharedLinkHash, SharedLinkPermitSet (..), SharedLinkPermit)
-import Filehub.QQ qualified
-import Data.ClientPath.Effectful (validateAbsPath)
-import Data.Coerce (coerce)
-import Data.Set (Set)
-import Worker.Task (TaskId)
+import Worker.Task (TaskId, newTaskId)
 
 
 #ifdef DEBUG
@@ -319,26 +293,29 @@ listen :: SessionId -> ConfirmLogin -> Filehub (RecommendedEventSourceHeaders (C
 listen sessionId _ = recommendedEventSourceHeaders <$> do
   notifications <- Session.getSessionNotifications sessionId
   pendingTasks  <- Session.getPendingTasks sessionId
-  withRunInIO \runInIO -> do
-    pure do
-      fix \loop -> join . liftIO . runInIO $ atomically do
-        notification <- readTBQueue notifications
-        case notification of
-          TaskCompleted taskId -> do
-            modifyTVar' pendingTasks (Set.delete taskId)
-            tasksRemaining <- readTVar pendingTasks
-            if Set.null tasksRemaining
-               then do -- clear notification
-                 clearQueue notifications
-                 pure (yield notification)
-               else
-                pure do yield notification >> loop
-          DeleteProgressed _ _ -> pure do yield notification >> loop
-          PasteProgressed _ _  -> pure do yield notification >> loop
-          MoveProgressed _ _   -> pure do yield notification >> loop
-          UploadProgressed _ _ -> pure do yield notification >> loop
-          Pong                 -> pure do yield notification >> loop
+  streamAtomically \loop -> do
+    n <- readTBQueue notifications
+    case n of
+      TaskCompleted taskId -> do
+        modifyTVar' pendingTasks (Set.delete taskId)
+        tasksRemaining <- readTVar pendingTasks
+        if Set.null tasksRemaining
+           then do
+             clearQueue notifications
+             pure (yield n)
+           else pure do yield n; loop
+      DeleteProgressed _ _ -> pure do yield n; loop
+      PasteProgressed _ _  -> pure do yield n; loop
+      MoveProgressed _ _   -> pure do yield n; loop
+      UploadProgressed _ _ -> pure do yield n; loop
+      Pong                 -> pure do yield n; loop
   where
+    streamAtomically action =
+      withRunInIO \runInIO -> do
+        pure do
+          fix \loop -> join . liftIO . runInIO $ atomically do
+            action loop
+
     clearQueue notifications =
       fix \popMore -> do
         empty <- isEmptyTBQueue notifications
@@ -528,6 +505,50 @@ cd sessionId _ mClientPath = do
         toolBar' `with` [ term "hx-swap-oob" "true" ]
         view'
     pure $ addHeader DirChanged html
+
+
+delete :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> [ClientPath] -> Bool
+       -> Filehub (Headers '[ Header "X-Filehub-Selected-Count" Int
+                            , Header "HX-Trigger" FilehubEvent
+                            ] (Html ()))
+delete sessionId _ _ clientPaths deleteSelected =
+  Session.withStorage sessionId \storage -> do
+    count         <- length <$> Selected.allSelecteds sessionId
+    root          <- Session.getRoot sessionId
+    taskId        <- newTaskId
+    deleteCounter <- newTVarIO @_ @Integer 0
+    notifications <- Session.getSessionNotifications sessionId
+
+    void $ async do
+      atomically do writeTBQueue notifications (DeleteProgressed taskId 0)
+
+      do
+        flip mapConcurrently_ clientPaths \clientPath -> do
+          let path = ClientPath.fromClientPath root clientPath
+          storage.delete path
+          atomically do
+            modifyTVar' deleteCounter (+ 1)
+            n <- readTVar deleteCounter
+            writeTBQueue notifications (DeleteProgressed taskId (n % max 1 (fromIntegral count)))
+
+      when deleteSelected do
+        allSelecteds <- Selected.allSelecteds sessionId
+        forM_ allSelecteds \(target, selected) -> do
+          Session.withTarget sessionId (Target.getTargetId target) \_ _ -> do
+            case selected of
+              NoSelection -> pure ()
+              Selected x xs -> do
+                flip mapConcurrently_ (fmap (ClientPath.fromClientPath root) (x:xs)) \path -> do
+                  storage.delete path
+                  atomically do
+                    modifyTVar' deleteCounter (+ 1)
+                    n <- readTVar deleteCounter
+                    writeTBQueue notifications (DeleteProgressed taskId (n % max 1 (fromIntegral count)))
+
+      atomically do writeTBQueue notifications (TaskCompleted taskId)
+    Server.Internal.clear sessionId
+    newCount <- length <$> Selected.allSelecteds sessionId
+    addHeader newCount . addHeader SSEStarted <$> index sessionId
 
 
 rename
