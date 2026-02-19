@@ -184,16 +184,9 @@ library
     Filehub.Routes
     Filehub.Selected
     Filehub.Server
-    Filehub.Server.Component
-    Filehub.Server.Component.Desktop
-    Filehub.Server.Component.Mobile
-    Filehub.Server.Delete
-    Filehub.Server.Download
-    Filehub.Server.InitViewer
+    Filehub.Server.Desktop
+    Filehub.Server.Mobile
     Filehub.Server.Internal
-    Filehub.Server.Move
-    Filehub.Server.Paste
-    Filehub.Server.Upload
     Filehub.Session
     Filehub.Session.Copy
     Filehub.Session.Internal

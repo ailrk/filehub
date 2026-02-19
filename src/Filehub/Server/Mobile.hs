@@ -1,5 +1,5 @@
 {-# LANGUAGE PartialTypeSignatures #-}
-module Filehub.Server.Component.Mobile
+module Filehub.Server.Mobile
   ( index
   , sideBar
   , editorModal

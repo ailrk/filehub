@@ -12,9 +12,12 @@
 -- Some features that are hard to implement with servant are provided through wai middleware.
 module Filehub.Server (application) where
 
+import Codec.Archive.Zip qualified as Zip
 import Conduit (ConduitT, ResourceT, yield)
+import Conduit qualified
 import Control.Applicative (Alternative((<|>)))
-import Control.Monad (when, join, void)
+import Control.Monad (forM, void, when, join, replicateM)
+import Control.Monad.Fix (fix)
 import Crypto.Hash.SHA256 qualified as SHA256
 import Data.Aeson (object, KeyValue (..), (.:), withObject, Value)
 import Data.Aeson.Types (parseMaybe)
@@ -23,20 +26,18 @@ import Data.ByteString.Base64 qualified as Base64
 import Data.ByteString.Char8 qualified as ByteString
 import Data.ByteString.Lazy qualified as LBS
 import Data.Char qualified as Char
-import Data.ClientPath (ClientPath (..))
-import Data.ClientPath (ClientPath (..), AbsPath (..))
-import Data.ClientPath qualified as ClientPath
+import Data.ClientPath (ClientPath (..), AbsPath (..), (<./>))
 import Data.ClientPath qualified as ClientPath
 import Data.ClientPath.Effectful (validateAbsPath)
 import Data.Coerce (coerce)
-import Data.File (File(..), defaultFileWithContent, FileContent (..))
+import Data.File (FileType(..), File(..), FileContent (..), withContent, defaultFileWithContent, FileInfo)
 import Data.FileEmbed qualified as FileEmbed
 import Data.Foldable (forM_)
 import Data.Function (fix, (&))
 import Data.List qualified as List
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, catMaybes, isJust)
 import Data.Ratio ((%))
 import Data.Set (Set)
 import Data.Set qualified as Set
@@ -47,7 +48,7 @@ import Data.Text.Encoding qualified as Text
 import Data.Time (UTCTime (..), fromGregorian)
 import Data.UUID qualified as UUID
 import Effectful (withRunInIO, runEff, MonadIO (..) )
-import Effectful.Concurrent.Async (async, mapConcurrently_)
+import Effectful.Concurrent.Async (async, forConcurrently_)
 import Effectful.Concurrent.STM (newTVarIO, readTBQueue, writeTBQueue, atomically, modifyTVar', readTVar, isEmptyTBQueue, TBQueue, TVar)
 import Effectful.Error.Dynamic (throwError)
 import Effectful.Log (logInfo_, logAttention_)
@@ -69,35 +70,29 @@ import Filehub.Orphan ()
 import Filehub.QQ qualified
 import Filehub.Routes (Api (..))
 import Filehub.Routes qualified as Routes
-import Filehub.Server.Component (index, view, controlPanel, sideBar, toolBar)
-import Filehub.Server.Component.Desktop qualified as Server.Desktop
-import Filehub.Server.Component.Mobile qualified as Server.Mobile
-import Filehub.Server.Download (download)
-import Filehub.Server.InitViewer (initViewer)
+import Filehub.Server.Desktop qualified as Server.Desktop
+import Filehub.Server.Mobile qualified as Server.Mobile
 import Filehub.Server.Internal (withQueryParam, parseHeader')
 import Filehub.Server.Internal qualified as Server.Internal
-import Filehub.Server.Move (move)
-import Filehub.Server.Paste (paste)
-import Filehub.Server.Upload (upload)
-import Filehub.Session (SessionId(..), TargetView (..))
-import Filehub.Session qualified as Session
+import Filehub.Session (SessionId(..), TargetView (..), withTarget, currentTarget)
 import Filehub.Session qualified as Session
 import Filehub.Session.Copy qualified as Copy
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Session.Selected qualified as Selected
 import Filehub.SharedLink (SharedLinkHash, SharedLinkPermitSet (..), SharedLinkPermit)
+import Filehub.Sort qualified as Sort
 import Filehub.Template (runTemplate, TemplateContext(..), makeTemplateContext)
 import Filehub.Template.Desktop qualified as Template.Desktop
 import Filehub.Template.Login qualified as Template.Login
 import Filehub.Template.Mobile qualified as Template.Mobile
 import Filehub.Template.Shared qualified as Template
 import Filehub.Theme qualified as Theme
-import Filehub.Types ( ControlPanelState (..) , Display (..) , Layout (..) , LoginForm(..) , NewFile(..) , NewFolder(..) , OpenTarget , Resolution , SearchWord , Selected (..) , SortFileBy(..) , Theme(..) , UIComponent (..) , UpdatedFile(..) , UpdatedFile(..) , FilehubEvent (..), RenameFile (..))
-import Filehub.Types ( FilehubEvent(..), Selected(..) )
-import Lens.Micro ((.~), (?~))
+import Filehub.Types ( ControlPanelState (..) , Display (..) , Layout (..) , LoginForm(..) , NewFile(..) , NewFolder(..) , OpenTarget , Resolution , SearchWord , Selected (..) , SortFileBy(..) , Theme(..) , UIComponent (..) , UpdatedFile(..) , UpdatedFile(..) , FilehubEvent (..), RenameFile (..), CopyState (..), TargetSessionData (..), Selected(..), MoveFile (..), Resource (..))
+import Lens.Micro ((&), (.~), (?~), (<&>))
 import Lucid
-import Lucid ( Html )
+import Lucid (Html)
 import Network.HTTP.Types.Header (hLocation)
+import Network.Mime (MimeType)
 import Network.Mime qualified as Mime
 import Network.Mime.Extended (isMime)
 import Network.URI qualified as URI
@@ -106,24 +101,24 @@ import Network.Wai.Middleware.Filehub qualified as Wai.Middleware
 import Network.Wai.Middleware.Gzip qualified as Wai.Middleware
 import Network.Wai.Middleware.RequestLogger qualified as Wai.Middleware (logStdout)
 import Prelude hiding (init, readFile)
-import Prelude hiding (init, readFile)
-import Servant ( Application , Context (..) , Header , Headers , NoContent (..) , addHeader , err301 , err303 , err400 , err404 , err500 , errHeaders , noHeader , serveWithContextT , errBody)
-import Servant ( addHeader, Headers, Header )
+import Servant (Application , Context (..) , Header , Headers , NoContent (..) , addHeader , err301 , err303 , err400 , err404 , err500 , errHeaders , noHeader , serveWithContextT , errBody)
+import Servant (Headers, Header, addHeader)
 import Servant.API.EventStream (RecommendedEventSourceHeaders, recommendedEventSourceHeaders)
+import Servant.Multipart (MultipartData(..), Mem)
 import Servant.Server.Generic (AsServerT)
-import System.FilePath (takeFileName, (</>))
-import Target.Types (TargetId)
+import System.Directory (removeFile)
+import System.FilePath (takeFileName, (</>), makeRelative, takeDirectory)
+import System.IO.Temp qualified as Temp
+import System.Random (randomRIO)
+import Target.Types (TargetId, AnyTarget)
 import Target.Types qualified as Target
 import Text.Printf (printf)
 import UnliftIO.Exception (SomeException, catch)
 import Web.Cookie (SetCookie (..), defaultSetCookie)
 import Worker.Task (TaskId, newTaskId)
 
-
 #ifdef DEBUG
-import Effectful ( MonadIO (liftIO) )
-import System.FilePath ((</>))
-import Data.Functor ((<&>))
+import Effectful (MonadIO (liftIO))
 import Paths_filehub qualified
 import System.Directory (makeAbsolute)
 import Data.ByteString (readFile)
@@ -523,7 +518,7 @@ delete sessionId _ _ clientPaths deleteSelected =
       atomically do writeTBQueue notifications (DeleteProgressed taskId 0)
 
       do
-        flip mapConcurrently_ clientPaths \clientPath -> do
+        forConcurrently_ clientPaths \clientPath -> do
           let path = ClientPath.fromClientPath root clientPath
           storage.delete path
           atomically do
@@ -538,7 +533,7 @@ delete sessionId _ _ clientPaths deleteSelected =
             case selected of
               NoSelection -> pure ()
               Selected x xs -> do
-                flip mapConcurrently_ (fmap (ClientPath.fromClientPath root) (x:xs)) \path -> do
+                forConcurrently_ (fmap (ClientPath.fromClientPath root) (x:xs)) \path -> do
                   storage.delete path
                   atomically do
                     modifyTVar' deleteCounter (+ 1)
@@ -557,7 +552,7 @@ rename
   -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
 rename sessionId _ _ (RenameFile old new) = do
   Session.withStorage sessionId \storage -> do
-    dir     <- Session.getCurrentDir sessionId
+    dir <- Session.getCurrentDir sessionId
     storage.rename
       (ClientPath.fromClientPath dir old)
       (ClientPath.fromClientPath dir new)
@@ -614,6 +609,128 @@ copy1 sessionId _ _ mClientPath = do
   index sessionId
 
 
+type TargetFrom  = AnyTarget
+type TargetTo    = AnyTarget
+type Destination = AbsPath
+
+
+data PasteTask
+  = PasteFile TargetFrom TargetTo FileInfo Destination
+  | PasteDir TargetTo Destination [PasteTask]
+
+
+paste :: SessionId -> ConfirmLogin -> ConfirmReadOnly
+      -> Filehub (Headers '[ Header "X-Filehub-Selected-Count" Int
+                           , Header "HX-Trigger" FilehubEvent
+                           ] (Html ()))
+paste sessionId _ _ = do
+  pasteCounter  <- newTVarIO @_ @Integer 0
+  taskId        <- newTaskId
+  notifications <- Session.getSessionNotifications sessionId
+  state         <- Copy.getCopyState sessionId
+  case state of
+    Paste selections -> do
+      tasks <- do
+        TargetView to sessionData <- currentTarget sessionId
+        createPasteTasks sessionData.currentDir to selections
+      let taskCount = fromIntegral (length tasks)
+
+      (void . async) do
+        forConcurrently_ tasks $ fix \rec task -> do
+          case task of
+            PasteFile from to file dst -> do
+              let fromId = Target.getTargetId from
+              let toId   = Target.getTargetId to
+              conduit <- withTarget sessionId fromId \_ storage -> do
+                storage.readStream file
+              withTarget sessionId toId \_ storage -> do
+                storage.write $ file
+                  & flip withContent (FileContentConduit conduit)
+                  & #path .~ dst
+              atomically do
+                modifyTVar' pasteCounter (+ 1)
+                n <- readTVar pasteCounter
+                writeTBQueue notifications (PasteProgressed taskId (n % max 1 taskCount) )
+
+            PasteDir to dst subTasks -> do
+              Session.withTarget sessionId (Target.getTargetId to) \_ storage -> do
+                storage.newFolder dst
+              forConcurrently_ subTasks rec
+
+        Copy.setCopyState sessionId NoCopyPaste
+        Selected.clearSelectedAllTargets sessionId
+        atomically $ writeTBQueue notifications (TaskCompleted taskId)
+    _ -> do
+      logAttention_ [i|[v8dsaz] #{sessionId}, not in pastable state.|]
+      throwError (FilehubError SelectError "Not in a pastable state")
+
+  Server.Internal.clear sessionId
+  selectedCount <- length <$> Selected.allSelecteds sessionId
+  addHeader selectedCount . addHeader SSEStarted <$> index sessionId
+
+  where
+    createPasteTasks fromDir to selections = fmap (mconcat . mconcat) do
+      forM selections \(from, files) -> do
+        forM files $ flip fix fromDir \rec (AbsPath currentDir) file -> do
+          let name  =  coerce takeFileName file.path
+          let fromId = Target.getTargetId from
+          dst <- validateAbsPath (currentDir </> takeFileName name) (FilehubError InvalidPath "")
+          case file.content of
+            Regular -> pure [ PasteFile from to file dst ]
+            Dir -> do
+              withTarget sessionId fromId
+                \(TargetView _ (TargetSessionData { currentDir = savedDir })) storage -> do
+                  storage.cd file.path
+                  result <- do
+                    dirFiles <- storage.lsCwd
+                    forM dirFiles \dfile -> rec dst dfile
+                  storage.cd savedDir -- go back
+                  pure [ PasteDir to dst (mconcat result) ]
+
+
+move :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> MoveFile
+     -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent
+                          , Header "HX-Trigger" FilehubEvent
+                          ] (Html ()))
+move sessionId _ _ (MoveFile src tgt) =
+  Session.withStorage sessionId \storage -> do
+    root          <- Session.getRoot sessionId
+    notifications <- Session.getSessionNotifications sessionId
+    taskId        <- newTaskId
+    let srcPaths  =  fmap (ClientPath.fromClientPath root) src
+    let tgtPath   =  ClientPath.fromClientPath root tgt
+
+    -- check before take action
+    forM_ srcPaths \srcPath -> do
+      isTgtDir <- storage.isDirectory tgtPath
+      when (not isTgtDir) do
+        throwError (FilehubError InvalidDir "Target is not a directory")
+
+      when (srcPath == tgtPath)  do
+        throwError (FilehubError InvalidDir "Can't move to the same directory")
+
+      when (coerce takeDirectory srcPath == tgtPath)  do
+        throwError (FilehubError InvalidDir "Already in the current directory")
+
+      let dstPath = tgtPath <./> coerce takeFileName srcPath
+      mFile <- storage.get dstPath
+      when (isJust mFile) do
+        throwError (FilehubError InvalidPath "The destination already exists")
+
+    void $ async do
+      atomically do
+        writeTBQueue notifications (MoveProgressed taskId 0)
+
+      storage.mv do
+        fmap (\srcPath -> (srcPath, tgtPath <./> coerce takeFileName srcPath)) srcPaths
+
+      atomically do
+        writeTBQueue notifications  (TaskCompleted taskId)
+
+    Server.Internal.clear sessionId
+    addHeader FileMoved . addHeader SSEStarted <$> index sessionId
+
+
 renameModal :: SessionId -> ConfirmLogin -> ConfirmDesktopOnly -> ConfirmReadOnly
             -> Maybe ClientPath -> Filehub (Html ())
 renameModal sessionId _ _ _ mClientPath = do
@@ -655,7 +772,7 @@ selectLayout sessionId _ layout = do
   addHeader LayoutChanged <$> index sessionId
 
 
-sortTable :: SessionId ->  ConfirmLogin -> Maybe SortFileBy -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
+sortTable :: SessionId -> ConfirmLogin -> Maybe SortFileBy -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
 sortTable sessionId _ order = do
   display <- Session.getDisplay sessionId
   Session.setSortFileBy sessionId (fromMaybe ByNameUp order)
@@ -682,6 +799,75 @@ search sessionId _ searchWord = do
       Mobile    -> pure $ runTemplate ctx (Template.search searchWord files Template.Mobile.table)
       Desktop   -> pure $ runTemplate ctx (Template.search searchWord files Template.Desktop.table)
       NoDisplay -> error "impossible"
+
+
+download :: SessionId -> ConfirmLogin -> [ClientPath]
+         -> Filehub (Headers '[ Header "Content-Disposition" String ] (ConduitT () ByteString (ResourceT IO) ()))
+download sessionId _ clientPaths = do
+  Session.withStorage sessionId \storage -> do
+    root <- Session.getRoot sessionId
+    case clientPaths of
+      [clientPath@(ClientPath path)] -> do
+        mFile   <- storage.get (ClientPath.fromClientPath root clientPath)
+        conduit <- storage.download clientPath
+        case mFile of
+          Just file -> do
+            let filename =
+                  case file.content of
+                    Regular -> printf "attachement; filename=%s" (takeFileName path)
+                    Dir     -> printf "attachement; filename=%s.zip" (takeFileName path)
+            pure $ addHeader filename conduit
+          Nothing -> do
+            throwError (FilehubError InvalidPath "can't download, invalid file path")
+      _ -> do
+        (zipPath, _) <- liftIO do
+          tempDir <- Temp.getCanonicalTemporaryDirectory
+          Temp.openTempFile tempDir "DXXXXXX.zip"
+
+        files <- traverse (storage.get . ClientPath.fromClientPath root) clientPaths <&> catMaybes
+
+        tasks <- forM files \file -> do
+          conduit <- storage.readStream file
+          pure (file.path, conduit)
+
+        Zip.createArchive zipPath do
+          forM_ tasks \(path, conduit) -> do
+            m <- Zip.mkEntrySelector  (coerce makeRelative root path)
+            Zip.sinkEntry Zip.Zstd conduit m
+        tag <- Text.pack <$> replicateM 8 (randomRIO ('a', 'z'))
+        let conduit =
+              Conduit.bracketP
+                (pure ())
+                (\_ -> removeFile zipPath)
+                (\_ -> Conduit.sourceFile zipPath)
+        pure $ addHeader (printf "attachement; filename=%s.zip" tag) conduit
+
+
+upload :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> MultipartData Mem
+       -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent
+                            ] (Html ()))
+upload sessionId _ _ multipart = do
+  notifications <- Session.getSessionNotifications sessionId
+  taskId        <- newTaskId
+  uploadCounter <- newTVarIO @_ @Integer 0
+  let taskCount =  fromIntegral $ length multipart.files
+
+  void $ async do
+    atomically do
+      writeTBQueue notifications (UploadProgressed taskId 0)
+
+    Session.withStorage sessionId \storage -> do
+      forConcurrently_ multipart.files \filedata -> do
+        storage.upload filedata
+        atomically do
+          modifyTVar' uploadCounter (+ 1)
+          n <- readTVar uploadCounter
+          writeTBQueue notifications (UploadProgressed taskId (n % max 1 taskCount) )
+
+      atomically do
+        writeTBQueue notifications (UploadProgressed taskId 1)
+        writeTBQueue notifications (TaskCompleted taskId)
+  addHeader SSEStarted <$> index sessionId
 
 
 selectRows :: SessionId -> ConfirmLogin -> Selected -> Filehub (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))
@@ -713,6 +899,39 @@ cancel sessionId _ = do
   Server.Internal.clear sessionId
   count <- length <$> Selected.allSelecteds sessionId
   addHeader count <$> index sessionId
+
+
+initViewer :: SessionId -> ConfirmLogin -> Maybe ClientPath
+           -> Filehub (Headers '[Header "HX-Trigger" FilehubEvent] NoContent)
+initViewer sessionId _ mClientPath = do
+  clientPath <- withQueryParam mClientPath
+  root       <- Session.getRoot sessionId
+  payload    <- initViewer' root clientPath
+  pure $ addHeader payload NoContent
+  where
+    initViewer' root clientPath = do
+      Session.withStorage sessionId \storage -> do
+        let filePath  =  ClientPath.fromClientPath root clientPath
+        let dir       =  coerce takeDirectory filePath
+        order         <- Session.getSortFileBy sessionId
+        files         <- takeResourceFiles . Sort.sortFiles order <$> (storage.ls dir)
+        let idx       =  fromMaybe 0 $ List.elemIndex filePath (fmap (.path) files)
+        let resources =  fmap (toResource root) files
+        pure $ ViewerInited resources idx
+
+    isResource :: MimeType -> Bool
+    isResource s = any (s `isMime`)  ["image", "video", "audio"]
+
+    takeResourceFiles :: [FileInfo] -> [FileInfo]
+    takeResourceFiles = filter (isResource . (.mimetype))
+
+    toResource :: AbsPath -> FileInfo -> Resource
+    toResource root f =
+      Resource
+        { url = let ClientPath path = ClientPath.toClientPath root f.path -- encode path url
+                 in ClientPath.RawClientPath [i|/serve?file=#{path}|]
+                                                  , mimetype = Text.decodeUtf8 f.mimetype
+        }
 
 
 open :: SessionId -> ConfirmLogin -> Maybe OpenTarget -> Maybe ClientPath
@@ -953,6 +1172,56 @@ static paths = do
     . addHeader "public, no-cache"
     . addHeader etag
     $ content
+
+
+------------------------------------
+-- Components
+------------------------------------
+
+
+index :: SessionId -> Filehub (Html ())
+index sessionId = do
+  display <- Session.getDisplay sessionId
+  case display of
+    NoDisplay -> pure Template.bootstrap
+    Desktop   -> Server.Desktop.index sessionId
+    Mobile    -> Server.Mobile.index sessionId
+
+
+view :: SessionId -> Filehub (Html ())
+view sessionId = do
+  display <- Session.getDisplay sessionId
+  case display of
+    Desktop   -> Server.Desktop.view sessionId
+    Mobile    -> Server.Mobile.view sessionId
+    NoDisplay -> Server.Mobile.view sessionId
+
+
+controlPanel :: SessionId -> Filehub (Html ())
+controlPanel sessionId = do
+  ctx <- makeTemplateContext sessionId
+  display <- Session.getDisplay sessionId
+  pure $
+    case display of
+      Desktop -> runTemplate ctx Template.Desktop.controlPanel
+      Mobile  -> runTemplate ctx Template.Mobile.controlPanel
+      _       -> runTemplate ctx Template.Mobile.controlPanel
+
+
+sideBar :: SessionId -> Filehub (Html ())
+sideBar sessionId = do
+  display <- Session.getDisplay sessionId
+  case display of
+    Desktop -> Server.Desktop.sideBar sessionId
+    _       -> Server.Mobile.sideBar sessionId
+
+
+toolBar :: SessionId -> Filehub (Html ())
+toolBar sessionId = do
+  display <- Session.getDisplay sessionId
+  case display of
+    Desktop -> Server.Desktop.toolBar sessionId
+    _       -> Server.Mobile.toolBar sessionId
 
 
 ------------------------------------

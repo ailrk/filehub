@@ -32,7 +32,7 @@ import System.Directory (createDirectoryIfMissing, removePathForcibly, doesFileE
 import System.FilePath ((</>))
 import System.FilePath (takeDirectory)
 import Target.File (TargetBackend(..))
-import Target.Types (TargetId(..), Target(..))
+import Target.Types (TargetId(..), AnyTarget(..))
 import Test.Hspec
 import Test.Hspec.Wai
 import Web.FormUrlEncoded (ToForm(..))
