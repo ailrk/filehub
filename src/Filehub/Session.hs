@@ -289,7 +289,7 @@ changeCurrentTarget sessionId targetId = do
            throwError (FilehubError InvalidSession "Invalid session")
 
 
-withTarget :: SessionId -> TargetId -> (forall t. TargetView -> Storage Filehub t -> Filehub a) -> Filehub a
+withTarget :: SessionId -> TargetId -> (TargetView -> Storage Filehub -> Filehub a) -> Filehub a
 withTarget sessionId targetId action = do
   TargetView saved _ <- currentTarget sessionId
   changeCurrentTarget sessionId targetId
@@ -322,7 +322,7 @@ detachTarget sessionId targetId = do
 ------------------------------
 
 
-withStorage :: SessionId -> (forall t. Storage Filehub t -> Filehub a) -> Filehub a
+withStorage :: SessionId -> (Storage Filehub -> Filehub a) -> Filehub a
 withStorage sessionId f = do
   TargetView target _ <- currentTarget sessionId
   fromMaybe onError $ handleTarget target

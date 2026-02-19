@@ -188,6 +188,7 @@ library
     Filehub.Server.Mobile
     Filehub.Server.Internal
     Filehub.Session
+    Filehub.Session.Access
     Filehub.Session.Copy
     Filehub.Session.Internal
     Filehub.Session.Pool

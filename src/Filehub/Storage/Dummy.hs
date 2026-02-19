@@ -9,7 +9,7 @@ import Target.Storage (Storage(..))
 import Data.ClientPath (AbsPath (..))
 
 
-storage :: [(AbsPath, FileWithContent)] -> Storage (Eff es) t
+storage :: [(AbsPath, FileWithContent)] -> Storage (Eff es)
 storage mockFS =
   Storage
     { get = \path -> pure do fmap extractFileInfo (lookup path mockFS)

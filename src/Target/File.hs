@@ -1,7 +1,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Target.File where
 
-import Target.Types (TargetId(..), Target, IsTarget(..))
+import Target.Types (TargetId(..), Target, IsTarget(..), HasTargetId(..))
 import Data.Text (Text)
 import Effectful (IOE, (:>), Eff, MonadIO (..))
 import Effectful.Log (Log, logInfo_)
@@ -27,6 +27,10 @@ instance Debug (Target FileSys) where
       ]
 
 
+instance HasTargetId (Target FileSys) where
+  getTargetId FileBackend { targetId } = targetId
+
+
 instance IsTarget FileSys where
   data instance Target FileSys =
     FileBackend
@@ -39,9 +43,6 @@ instance IsTarget FileSys where
     { root :: FilePath
     }
     deriving (Show, Eq)
-
-  getTargetIdFromBackend FileBackend { targetId } = targetId
-
 
 
 instance Debug (Config FileSys) where debug = show

@@ -2,7 +2,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Target.S3 where
 
-import Target.Types (TargetId(..), Target, IsTarget(..))
+import Target.Types (TargetId(..), Target, IsTarget(..), HasTargetId(..))
 import Data.Text (Text)
 import Amazonka.Env qualified as Amazonka
 import Effectful (IOE, (:>), Eff, MonadIO (..))
@@ -41,8 +41,12 @@ instance Debug (Target S3) where
       ]
 
 
+instance HasTargetId (Target S3) where
+  getTargetId S3Backend { targetId } = targetId
+
+
 instance IsTarget S3 where
-  data instance Target        S3 = S3Backend
+  data instance Target S3 = S3Backend
     { targetId :: TargetId
     , bucket   :: Text
     , env      :: Amazonka.Env
@@ -52,9 +56,6 @@ instance IsTarget S3 where
     { bucket :: String
     }
     deriving (Show, Eq, Generic)
-
-
-  getTargetIdFromBackend S3Backend { targetId } = targetId
 
 
 instance Debug (Config S3) where debug = show

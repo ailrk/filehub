@@ -11,7 +11,7 @@ import Prelude hiding (readFile, writeFile)
 import Servant.Multipart ( Mem, FileData )
 
 
-data Storage m t = Storage
+data Storage m = Storage
   { get         :: AbsPath -> m (Maybe FileInfo)
 
   , read        :: FileInfo -> m ByteString

@@ -3,10 +3,10 @@ module Target.Types
   ( AnyTarget(..)
   , TargetHandler(..)
   , TargetId(..)
+  , HasTargetId(..)
   , IsTarget(..)
   , targetHandler
   , runTargetHandler
-  , getTargetId
   , handleTarget
   , targetIdBuilder
   )
@@ -46,15 +46,22 @@ targetIdBuilder :: TargetId -> Builder
 targetIdBuilder (TargetId targetId) =  Builder.byteString . UUID.toASCIIBytes $ targetId
 
 
-class IsTarget b where
-  data family Target b
-  data family Config b
-  getTargetIdFromBackend :: Target b -> TargetId
+class HasTargetId t where
+  getTargetId :: t -> TargetId
 
 
--- | Existential wrapper of `Backend a`.
+class HasTargetId (Target t) => IsTarget t where
+  data family Target t
+  data family Config t
+
+
+-- | Existential wrapper of `Target a`.
 data AnyTarget where
   AnyTarget :: (Typeable a, IsTarget a, Debug (Target a)) => Target a -> AnyTarget
+
+
+instance HasTargetId AnyTarget where
+  getTargetId (AnyTarget target) = getTargetId target
 
 
 instance Debug AnyTarget where
@@ -62,7 +69,7 @@ instance Debug AnyTarget where
 
 
 instance Eq AnyTarget where
-  t1 == t2 = getTargetId t1 == getTargetId t2
+  AnyTarget t1 == AnyTarget t2 = getTargetId t1 == getTargetId t2
 
 
 data TargetHandler r = forall a. (Typeable a) => TargetHandler (Target a -> r)
@@ -74,10 +81,6 @@ targetHandler = TargetHandler
 
 runTargetHandler :: AnyTarget -> TargetHandler r -> Maybe r
 runTargetHandler (AnyTarget t) (TargetHandler f) = fmap f (cast t)
-
-
-getTargetId :: AnyTarget -> TargetId
-getTargetId (AnyTarget t) = getTargetIdFromBackend t
 
 
 handleTarget :: AnyTarget -> [TargetHandler r] -> Maybe r
