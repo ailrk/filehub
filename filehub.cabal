@@ -208,7 +208,6 @@ library
     Filehub.Storage.Error
     Filehub.Storage.File
     Filehub.Storage.S3
-    Filehub.Target
     Filehub.Template
     Filehub.Template.Desktop
     Filehub.Template.Login
@@ -227,14 +226,12 @@ library
     Storage.Error
     Storage.File
     Storage.S3
-    Storage.Virtual
     System.FilePath.Extended
     Target.Dummy
     Target.File
     Target.S3
     Target.Storage
     Target.Types
-    Target.Virtual
     Text.Debug
     Worker.Pool
     Worker.Task

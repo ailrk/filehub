@@ -38,7 +38,7 @@ import Lucid
 import System.FilePath (takeFileName)
 import Target.File (TargetBackend (..), FileSys)
 import Target.S3 (TargetBackend (..), S3)
-import Target.Types (targetHandler, Target, handleTarget)
+import Target.Types (targetHandler, AnyTarget, handleTarget)
 import Target.Types qualified as Target
 import Filehub.Session (TargetView(..))
 import Target.Dummy (DummyTarget)
@@ -72,11 +72,11 @@ overlay :: Html ()
 overlay = div_ [ id_ overlayId ] mempty
 
 
-sideBar :: [Target] -> TargetView -> Html ()
+sideBar :: [AnyTarget] -> TargetView -> Html ()
 sideBar targets (TargetView currentTarget _) = do
   div_ [ id_ sideBarId ] do traverse_ targetIcon targets
   where
-    targetIcon :: Target -> Html ()
+    targetIcon :: AnyTarget -> Html ()
     targetIcon target = do
       div_ [ class_ "target-icon"
            , term "hx-get" (linkToText (apiLinks.changeTarget (Just (Target.getTargetId target))))
@@ -204,7 +204,7 @@ table files = do
       tbody_ $ traverse_ (record root target selected) ([0..] `zip` files)
 
 
-record :: AbsPath -> Target -> Selected -> (Int, FileInfo) -> Html ()
+record :: AbsPath -> AnyTarget -> Selected -> (Int, FileInfo) -> Html ()
 record root target selected (idx, file) =
   tr_ attrs do
     td_ do
@@ -244,7 +244,7 @@ modifiedDateElement file =
     displayTime = maybe mempty (formatTime defaultTimeLocale "%Y/%m/%d") file.mtime
 
 
-fileNameElement :: Target -> FileInfo -> Html ()
+fileNameElement :: AnyTarget -> FileInfo -> Html ()
 fileNameElement target file = do
   span_ (Template.icon file >> name)
     `with` [ class_ "field"

@@ -26,7 +26,7 @@ import Lucid (Html)
 import Prelude hiding (init, readFile)
 import Servant (Headers, Header, addHeader)
 import System.FilePath (takeFileName, (</>))
-import Target.Types (Target)
+import Target.Types (AnyTarget)
 import Target.Types qualified as Target
 import Worker.Task (newTaskId)
 import Data.ClientPath (AbsPath (..))
@@ -35,8 +35,8 @@ import Data.Coerce (coerce)
 import Data.ClientPath.Effectful (validateAbsPath)
 
 
-type TargetFrom  = Target
-type TargetTo    = Target
+type TargetFrom  = AnyTarget
+type TargetTo    = AnyTarget
 type Destination = AbsPath
 
 

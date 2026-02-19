@@ -20,6 +20,7 @@ import Data.Functor ((<&>))
 import Amazonka.S3 qualified as Amazonka
 import Data.Text qualified as Text
 import Text.Debug (Debug(..))
+import GHC.Generics (Generic)
 
 #ifdef DEBUG
 import Effectful.FileSystem.IO (stdout)
@@ -28,13 +29,6 @@ import Amazonka.Env (Env'(..))
 
 
 data S3
-
-
-data instance TargetBackend S3 = S3Backend
-  { targetId :: TargetId
-  , bucket   :: Text
-  , env      :: Amazonka.Env
-  }
 
 
 instance Debug (TargetBackend S3) where
@@ -48,21 +42,27 @@ instance Debug (TargetBackend S3) where
 
 
 instance IsTarget S3 where
+  data instance TargetBackend S3 = S3Backend
+    { targetId :: TargetId
+    , bucket   :: Text
+    , env      :: Amazonka.Env
+    }
+
+  data instance Config S3 = Config
+    { bucket :: String
+    }
+    deriving (Show, Eq, Generic)
+
+
   getTargetIdFromBackend S3Backend { targetId } = targetId
 
 
-data Config = Config
-  { bucket :: String
-  }
-  deriving (Show, Eq)
-
-
-instance Debug Config where debug = show
+instance Debug (Config S3) where debug = show
 
 
 -- | The default `discover` method only discover `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`,
 --   and `AWS_SESSION_TOKEN`. To set custom endpoint url, we also need to hand `AWS_ENDPOINT_URL`.
-initialize :: (IOE :> es, Log :> es) => Config -> Eff es (TargetBackend S3)
+initialize :: (IOE :> es, Log :> es) => Config S3 -> Eff es (TargetBackend S3)
 initialize opt = do
   targetId   <- liftIO $ TargetId <$> UUID.nextRandom
   let bucket =  Text.pack opt.bucket

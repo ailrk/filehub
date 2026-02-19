@@ -54,7 +54,7 @@ import Lens.Micro
 import Lens.Micro.Platform ()
 import Servant ( ToHttpApiData(..), FromHttpApiData(..), Accept (..), MimeRender )
 import Servant.API (MimeRender(..))
-import Target.Types (Target (..))
+import Target.Types (AnyTarget (..))
 import Web.FormUrlEncoded (FromForm (..), parseUnique, ToForm (..), parseAll)
 import Text.Debug (Debug(..))
 
@@ -109,9 +109,9 @@ instance FromHttpApiData Layout where
 -- | State machine reprents the copy and paste process.
 data CopyState
  -- | Ready to paste
-  = CopySelected [(Target, [FileInfo])]
+  = CopySelected [(AnyTarget, [FileInfo])]
   -- | Start pasting files to target path
-  | Paste [(Target, [FileInfo])]
+  | Paste [(AnyTarget, [FileInfo])]
   -- | No copy paste action being performed at the moment.
   | NoCopyPaste
   deriving (Generic, Debug)

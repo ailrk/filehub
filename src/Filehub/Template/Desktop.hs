@@ -52,7 +52,7 @@ import System.FilePath (takeFileName)
 import Target.Dummy (DummyTarget)
 import Target.File (FileSys, TargetBackend (..))
 import Target.S3 (S3, TargetBackend (..))
-import Target.Types (targetHandler, Target, handleTarget)
+import Target.Types (targetHandler, AnyTarget, handleTarget)
 import Target.Types qualified as Target
 import Data.Coerce (coerce)
 
@@ -97,14 +97,14 @@ toolBar = do
       searchBar'
 
 
-sideBar :: [(Target, Int)] -> TargetView -> Template (Html ())
+sideBar :: [(AnyTarget, Int)] -> TargetView -> Template (Html ())
 sideBar targets (TargetView currentTarget _) = do
   p <- phrase <$> asks @TemplateContext (.locale)
   pure do
     div_ [ id_ sideBarId ] do
       traverse_ (targetTab p) targets
   where
-    targetTab :: Phrase -> (Target, Int) -> Html ()
+    targetTab :: Phrase -> (AnyTarget, Int) -> Html ()
     targetTab Phrase { target_filesystem, target_s3 } (target, selectedCount) = do
       div_ [ class_ "target-tab"
            , term "hx-get" (linkToText (apiLinks.changeTarget (Just (Target.getTargetId target))))
@@ -747,7 +747,7 @@ previewElement root file = do
          | otherwise -> Template.icon file
 
 
-fileNameElement :: FileInfo -> Target -> Bool -> Html ()
+fileNameElement :: FileInfo -> AnyTarget -> Bool -> Html ()
 fileNameElement file target withIcon = do
   span_ ((if withIcon then Template.icon file else mempty) >> name)
     `with` [ title_ (Text.pack displayName) ]

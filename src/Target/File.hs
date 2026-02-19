@@ -16,13 +16,6 @@ import Data.Coerce (coerce)
 data FileSys
 
 
-data instance TargetBackend FileSys =
-  FileBackend
-    { targetId   :: TargetId
-    , targetName :: Maybe Text
-    , root       :: AbsPath
-    }
-
 
 instance Debug (TargetBackend FileSys) where
   debug FileBackend { targetId, targetName, root} =
@@ -36,19 +29,26 @@ instance Debug (TargetBackend FileSys) where
 
 
 instance IsTarget FileSys where
+  data instance TargetBackend FileSys =
+    FileBackend
+      { targetId   :: TargetId
+      , targetName :: Maybe Text
+      , root       :: AbsPath
+      }
+
+  data instance Config FileSys = Config
+    { root :: FilePath
+    }
+    deriving (Show, Eq)
+
   getTargetIdFromBackend FileBackend { targetId } = targetId
 
 
-data Config = Config
-  { root :: FilePath
-  }
-  deriving (Show, Eq)
+
+instance Debug (Config FileSys) where debug = show
 
 
-instance Debug Config where debug = show
-
-
-initialize :: (IOE :> es, Log :> es, FileSystem :> es) => Config -> Eff es (TargetBackend FileSys)
+initialize :: (IOE :> es, Log :> es, FileSystem :> es) => Config FileSys -> Eff es (TargetBackend FileSys)
 initialize opt = do
   targetId <- liftIO $ TargetId <$> UUID.nextRandom
   root     <- AbsPath <$> makeAbsolute opt.root

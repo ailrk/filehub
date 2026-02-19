@@ -23,7 +23,7 @@ import Filehub.Sort (SortFileBy)
 import Filehub.Theme (Theme)
 import Filehub.UserAgent (DeviceType)
 import GHC.Generics (Generic)
-import Target.Types (Target, TargetId)
+import Target.Types (AnyTarget, TargetId)
 import UnliftIO (TBQueue, TVar)
 import Worker.Task (TaskId)
 import {-# SOURCE #-} Filehub.Auth.OIDC (SomeOIDCFlow)
@@ -58,7 +58,7 @@ instance Eq Session where
 
 
 data TargetView = TargetView
-  { target      :: Target
+  { target      :: AnyTarget
   , sessionData :: TargetSessionData
   }
   deriving (Generic, Debug)
