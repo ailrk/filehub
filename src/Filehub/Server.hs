@@ -39,7 +39,7 @@ import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.Time (UTCTime (..), fromGregorian)
 import Data.UUID qualified as UUID
-import Effectful ( withRunInIO )
+import Effectful ( withRunInIO, runEff, MonadIO (..) )
 import Effectful.Error.Dynamic (throwError)
 import Effectful.Log (logInfo_, logAttention_)
 import Effectful.Reader.Dynamic (asks)
@@ -133,13 +133,17 @@ import Target.Types (TargetId)
 import Target.Types qualified as Target
 import Text.Printf (printf)
 import UnliftIO.Exception (SomeException, catch)
-import UnliftIO.STM (readTBQueue, atomically, modifyTVar', readTVar, isEmptyTBQueue)
+import Effectful (withRunInIO)
+import Effectful.Concurrent.STM (readTBQueue, atomically, modifyTVar', readTVar, isEmptyTBQueue, TBQueue, TVar)
+-- import UnliftIO.STM (readTBQueue, atomically, modifyTVar', readTVar, isEmptyTBQueue, TBQueue, TVar)
 import Web.Cookie (SetCookie (..), defaultSetCookie)
 import Filehub.Auth.Types (AuthId(..))
 import Filehub.SharedLink (SharedLinkHash, SharedLinkPermitSet (..), SharedLinkPermit)
 import Filehub.QQ qualified
 import Data.ClientPath.Effectful (validateAbsPath)
 import Data.Coerce (coerce)
+import Data.Set (Set)
+import Worker.Task (TaskId)
 
 
 #ifdef DEBUG
@@ -309,36 +313,38 @@ refresh sessionId _ mUIComponent = do
 --
 -- This means the notification conduit is created on demand. That is: it's created only when
 -- we have a task running in the back ground. When there are multiple tasks, they share the
--- same conduit; when there are no pending task, the conduit finshes; when tehre is not task,
+-- same conduit; when there are no pending task, the conduit finshes; when there is not task,
 -- no conduit.
 listen :: SessionId -> ConfirmLogin -> Filehub (RecommendedEventSourceHeaders (ConduitT () Notification IO ()))
 listen sessionId _ = recommendedEventSourceHeaders <$> do
   notifications <- Session.getSessionNotifications sessionId
   pendingTasks  <- Session.getPendingTasks sessionId
-  pure $ fix \loop -> join $ atomically do
-    notification <- readTBQueue notifications
-    case notification of
-      TaskCompleted taskId -> do
-        modifyTVar' pendingTasks (Set.delete taskId)
-        tasksRemaining <- readTVar pendingTasks
-        if Set.null tasksRemaining
-           then do -- clear notification
-             fix \popMore -> do
-               empty <- isEmptyTBQueue notifications
-               when (not empty) do
-                _ <- readTBQueue notifications
-                popMore
-             pure do
-              yield notification
-           else
-           pure do
-             yield notification
-             loop
-      DeleteProgressed _ _ -> pure do yield notification >> loop
-      PasteProgressed _ _  -> pure do yield notification >> loop
-      MoveProgressed _ _   -> pure do yield notification >> loop
-      UploadProgressed _ _ -> pure do yield notification >> loop
-      Pong                 -> pure do yield notification >> loop
+  withRunInIO \runInIO -> do
+    pure do
+      fix \loop -> join . liftIO . runInIO $ atomically do
+        notification <- readTBQueue notifications
+        case notification of
+          TaskCompleted taskId -> do
+            modifyTVar' pendingTasks (Set.delete taskId)
+            tasksRemaining <- readTVar pendingTasks
+            if Set.null tasksRemaining
+               then do -- clear notification
+                 clearQueue notifications
+                 pure (yield notification)
+               else
+                pure do yield notification >> loop
+          DeleteProgressed _ _ -> pure do yield notification >> loop
+          PasteProgressed _ _  -> pure do yield notification >> loop
+          MoveProgressed _ _   -> pure do yield notification >> loop
+          UploadProgressed _ _ -> pure do yield notification >> loop
+          Pong                 -> pure do yield notification >> loop
+  where
+    clearQueue notifications =
+      fix \popMore -> do
+        empty <- isEmptyTBQueue notifications
+        when (not empty) do
+          _ <- readTBQueue notifications
+          popMore
 
 
 -- | Return the login page
