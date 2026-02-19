@@ -1,9 +1,8 @@
 {-# LANGUAGE TypeFamilies #-}
 module Target.Types
-  ( Target(..)
+  ( AnyTarget(..)
   , TargetHandler(..)
   , TargetId(..)
-  , TargetBackend
   , IsTarget(..)
   , targetHandler
   , runTargetHandler
@@ -27,14 +26,12 @@ import Prelude hiding (readFile, writeFile)
 import Servant (ToHttpApiData (..), FromHttpApiData (..))
 import Text.Debug (Debug(..))
 import Data.Aeson (FromJSON, ToJSON)
+import GHC.Generics (Generic)
 
 
 newtype TargetId = TargetId UUID
-  deriving (Show, Eq, Ord)
-  deriving newtype (Hashable, FromJSON, ToJSON)
-
-
-instance Debug TargetId where debug = show
+  deriving (Show, Eq, Ord, Generic)
+  deriving newtype (Hashable, FromJSON, ToJSON, Debug)
 
 
 instance ToHttpApiData TargetId where
@@ -49,23 +46,22 @@ targetIdBuilder :: TargetId -> Builder
 targetIdBuilder (TargetId targetId) =  Builder.byteString . UUID.toASCIIBytes $ targetId
 
 
-data family TargetBackend b
-
-
 class IsTarget b where
+  data family TargetBackend b
+  data family Config b
   getTargetIdFromBackend :: TargetBackend b -> TargetId
 
 
 -- | Existential wrapper of `Backend a`.
-data Target where
-  Target :: (Typeable a, IsTarget a, Debug (TargetBackend a)) => TargetBackend a -> Target
+data AnyTarget where
+  Target :: (Typeable a, IsTarget a, Debug (TargetBackend a)) => TargetBackend a -> AnyTarget
 
 
-instance Debug Target where
-  debug (Target backend)= debug backend
+instance Debug AnyTarget where
+  debug (Target backend) = debug backend
 
 
-instance Eq Target where
+instance Eq AnyTarget where
   t1 == t2 = getTargetId t1 == getTargetId t2
 
 
@@ -76,13 +72,13 @@ targetHandler :: forall a r. (Typeable a) => (TargetBackend a -> r) -> TargetHan
 targetHandler = TargetHandler
 
 
-runTargetHandler :: Target -> TargetHandler r -> Maybe r
+runTargetHandler :: AnyTarget -> TargetHandler r -> Maybe r
 runTargetHandler (Target t) (TargetHandler f) = fmap f (cast t)
 
 
-getTargetId :: Target -> TargetId
+getTargetId :: AnyTarget -> TargetId
 getTargetId (Target t) = getTargetIdFromBackend t
 
 
-handleTarget :: Target -> [TargetHandler r] -> Maybe r
+handleTarget :: AnyTarget -> [TargetHandler r] -> Maybe r
 handleTarget target handlers = asum (map (runTargetHandler target) handlers)

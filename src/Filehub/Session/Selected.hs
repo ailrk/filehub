@@ -17,7 +17,7 @@ import Filehub.Types (Env(..), SessionId, Session(..), Selected(..), TargetSessi
 import Lens.Micro hiding (to)
 import Lens.Micro.Platform ()
 import Prelude hiding (elem)
-import Target.Types (Target)
+import Target.Types (AnyTarget)
 import Filehub.Monad (Filehub)
 import Effectful.Concurrent.STM (readTVarIO)
 import Data.Map.Strict qualified as Map
@@ -40,7 +40,7 @@ anySelected sessionId = go <$> Session.Pool.get sessionId
 
 
 -- | Get all selected files grouped by targets
-allSelecteds :: SessionId -> Filehub [(Target, Selected)]
+allSelecteds :: SessionId -> Filehub [(AnyTarget, Selected)]
 allSelecteds sessionId = do
   session <- Session.Pool.get sessionId
   targets <- asks @Env (.targets) >>= readTVarIO

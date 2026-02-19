@@ -519,11 +519,6 @@ data Api mode = Api
                           :> Get '[HTML] (Headers '[ Header "HX-Trigger" FilehubEvent] NoContent)
 
 
-  , preview               :: mode
-                          :- "preview"
-                          :> QueryParam "story" Text
-                          :> QueryParam "display" Text
-                          :> Get '[HTML] (Html ())
 #endif
   }
   deriving Generic

@@ -18,8 +18,9 @@ import Filehub.Auth.OIDC qualified as Auth.OIDC
 import Filehub.Auth.Simple qualified as Auth.Simple
 import Filehub.Locale (Locale (..))
 import Filehub.Theme (Theme (..), CustomTheme)
-import Target.File qualified
-import Target.S3 qualified
+import Target.File (FileSys)
+import Target.Types qualified as Target
+import Target.S3 (S3)
 
 
 data Config f = Config
@@ -45,8 +46,8 @@ newtype CustomThemeLight      = CustomThemeLight      { unCustomThemeLight      
 
 
 data TargetConfig
-  = FSTargetConfig Target.File.Config
-  | S3TargetConfig Target.S3.Config
+  = FSTargetConfig (Target.Config FileSys)
+  | S3TargetConfig (Target.Config S3)
   deriving (Show, Eq)
 
 

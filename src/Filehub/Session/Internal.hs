@@ -19,7 +19,7 @@ import Filehub.UserAgent qualified as UserAgent
 import Options.Applicative (asum)
 import Target.File (FileSys, TargetBackend(..))
 import Target.S3 (S3)
-import Target.Types (Target (..))
+import Target.Types (AnyTarget (..))
 import UnliftIO.STM (newTBQueueIO, newTVarIO)
 import Effectful.Concurrent (Concurrent)
 import Effectful.Concurrent.STM (readTVarIO)
@@ -67,7 +67,7 @@ createSession = do
     }
 
 
-targetToSessionData :: Target -> TargetSessionData
+targetToSessionData :: AnyTarget -> TargetSessionData
 targetToSessionData (Target target) =
   fromMaybe defaultTargetSessionData . asum $
     [ cast target <&> \(x :: TargetBackend FileSys) -> defaultTargetSessionData { currentDir = x.root }

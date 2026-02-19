@@ -10,15 +10,14 @@ import Text.Debug (Debug(..))
 data DummyTarget
 
 
-data instance TargetBackend DummyTarget = DummyTargetBackend TargetId
-
-
 instance Debug (TargetBackend DummyTarget) where
   debug (DummyTargetBackend targetId) =
     mconcat [ "[<DummyTarget>, ", show targetId, "]" ]
 
 
 instance IsTarget DummyTarget where
+  data instance TargetBackend DummyTarget = DummyTargetBackend TargetId
+  data instance Config DummyTarget = Config ()
   getTargetIdFromBackend (DummyTargetBackend targetId) = targetId
 
 

@@ -104,7 +104,7 @@ import Prelude hiding (readFile)
 import Target.File (TargetBackend(..), FileSys)
 import Target.S3 (S3)
 import Target.Storage (Storage(..))
-import Target.Types (TargetId, Target (..), getTargetId, handleTarget, targetHandler)
+import Target.Types (TargetId, AnyTarget (..), getTargetId, handleTarget, targetHandler)
 import UnliftIO.STM (TBQueue, TVar, atomically, writeTBQueue)
 import Worker.Task (TaskId)
 import {-# SOURCE #-} Filehub.Session.Copy qualified as Copy
@@ -299,7 +299,7 @@ withTarget sessionId targetId action = do
     pure result
 
 
-attachTarget :: SessionId -> Target -> Filehub ()
+attachTarget :: SessionId -> AnyTarget -> Filehub ()
 attachTarget sessionId target = do
   TargetView current _ <- currentTarget sessionId
   if current == target

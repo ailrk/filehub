@@ -47,10 +47,6 @@ watch:
   ghcid -c "cabal --flags=DEBUG repl filehub" -T "Filehub.mainDev \"--config-file _cache/config.toml\"" -W
 
 
-storybook:
-  ghcid -c "cabal repl filehub_storybook filehub"  -T "Main.mainDev 3333" -W
-
-
 test_integration:
   ghcid -c "cabal repl filehub_test_integration filehub"  -T "Main.main" -W
 

@@ -208,7 +208,6 @@ library
     Filehub.Storage.Error
     Filehub.Storage.File
     Filehub.Storage.S3
-    Filehub.Target
     Filehub.Template
     Filehub.Template.Desktop
     Filehub.Template.Login
@@ -227,14 +226,12 @@ library
     Storage.Error
     Storage.File
     Storage.S3
-    Storage.Virtual
     System.FilePath.Extended
     Target.Dummy
     Target.File
     Target.S3
     Target.Storage
     Target.Types
-    Target.Virtual
     Text.Debug
     Worker.Pool
     Worker.Task
@@ -342,33 +339,3 @@ benchmark filehub_bench
     , temporary
     , http-types
   default-language: Haskell2010
-
-
-executable filehub_storybook
-  import: extensions, options
-  if flag(debug)
-    cpp-options: -DDEBUG
-  main-is:
-    Main.hs
-  other-modules: Paths_filehub
-  autogen-modules: Paths_filehub
-  hs-source-dirs: storybook
-  build-depends:
-      base >=4.16.1.0
-    , bytestring
-    , effectful
-    , filehub
-    , http-types
-    , lucid
-    , optparse-applicative
-    , text
-    , wai
-    , warp
-    , network-uri
-    , string-interpolate
-    , http-client
-    , directory
-    , filepath
-    , mime-types
-    , time
-    , process

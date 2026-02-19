@@ -41,7 +41,7 @@ import Servant.Conduit ()
 import System.Environment (withArgs)
 import Target.File qualified as FS
 import Target.S3 qualified as S3
-import Target.Types (Target (..), getTargetId)
+import Target.Types (AnyTarget (..), getTargetId)
 import UnliftIO (catch, hFlush, stdout)
 import Effectful.Concurrent.STM (newTVarIO)
 
