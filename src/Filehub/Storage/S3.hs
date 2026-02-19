@@ -32,7 +32,7 @@ import Target.Types (handleTarget, targetHandler)
 import {-# SOURCE #-} Filehub.Session qualified as Session
 
 
-storage :: SessionId -> Storage Filehub
+storage :: SessionId -> Storage Filehub S3
 storage sessionId =
   Storage
     { get = \path -> withStorageError do

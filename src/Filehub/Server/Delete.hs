@@ -28,41 +28,41 @@ delete :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> [ClientPath] -> Bool
        -> Filehub (Headers '[ Header "X-Filehub-Selected-Count" Int
                             , Header "HX-Trigger" FilehubEvent
                             ] (Html ()))
-delete sessionId _ _ clientPaths deleteSelected = do
-  count         <- length <$> Selected.allSelecteds sessionId
-  root          <- Session.getRoot sessionId
-  storage       <- Session.getStorage sessionId
-  taskId        <- newTaskId
-  deleteCounter <- newTVarIO @_ @Integer 0
-  notifications <- Session.getSessionNotifications sessionId
+delete sessionId _ _ clientPaths deleteSelected =
+  Session.withStorage sessionId \storage -> do
+    count         <- length <$> Selected.allSelecteds sessionId
+    root          <- Session.getRoot sessionId
+    taskId        <- newTaskId
+    deleteCounter <- newTVarIO @_ @Integer 0
+    notifications <- Session.getSessionNotifications sessionId
 
-  void $ async do
-    atomically do writeTBQueue notifications (DeleteProgressed taskId 0)
+    void $ async do
+      atomically do writeTBQueue notifications (DeleteProgressed taskId 0)
 
-    do
-      flip mapConcurrently_ clientPaths \clientPath -> do
-        let path = ClientPath.fromClientPath root clientPath
-        storage.delete path
-        atomically do
-          modifyTVar' deleteCounter (+ 1)
-          n <- readTVar deleteCounter
-          writeTBQueue notifications (DeleteProgressed taskId (n % max 1 (fromIntegral count)))
+      do
+        flip mapConcurrently_ clientPaths \clientPath -> do
+          let path = ClientPath.fromClientPath root clientPath
+          storage.delete path
+          atomically do
+            modifyTVar' deleteCounter (+ 1)
+            n <- readTVar deleteCounter
+            writeTBQueue notifications (DeleteProgressed taskId (n % max 1 (fromIntegral count)))
 
-    when deleteSelected do
-      allSelecteds <- Selected.allSelecteds sessionId
-      forM_ allSelecteds \(target, selected) -> do
-        Session.withTarget sessionId (Target.getTargetId target) \_ _ -> do
-          case selected of
-            NoSelection -> pure ()
-            Selected x xs -> do
-              flip mapConcurrently_ (fmap (ClientPath.fromClientPath root) (x:xs)) \path -> do
-                storage.delete path
-                atomically do
-                  modifyTVar' deleteCounter (+ 1)
-                  n <- readTVar deleteCounter
-                  writeTBQueue notifications (DeleteProgressed taskId (n % max 1 (fromIntegral count)))
+      when deleteSelected do
+        allSelecteds <- Selected.allSelecteds sessionId
+        forM_ allSelecteds \(target, selected) -> do
+          Session.withTarget sessionId (Target.getTargetId target) \_ _ -> do
+            case selected of
+              NoSelection -> pure ()
+              Selected x xs -> do
+                flip mapConcurrently_ (fmap (ClientPath.fromClientPath root) (x:xs)) \path -> do
+                  storage.delete path
+                  atomically do
+                    modifyTVar' deleteCounter (+ 1)
+                    n <- readTVar deleteCounter
+                    writeTBQueue notifications (DeleteProgressed taskId (n % max 1 (fromIntegral count)))
 
-    atomically do writeTBQueue notifications (TaskCompleted taskId)
-  Server.Internal.clear sessionId
-  newCount <- length <$> Selected.allSelecteds sessionId
-  addHeader newCount . addHeader SSEStarted <$> index sessionId
+      atomically do writeTBQueue notifications (TaskCompleted taskId)
+    Server.Internal.clear sessionId
+    newCount <- length <$> Selected.allSelecteds sessionId
+    addHeader newCount . addHeader SSEStarted <$> index sessionId

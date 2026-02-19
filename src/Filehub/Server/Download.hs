@@ -33,40 +33,40 @@ import Data.Coerce (coerce)
 download :: SessionId -> ConfirmLogin -> [ClientPath]
          -> Filehub (Headers '[ Header "Content-Disposition" String ] (ConduitT () ByteString (ResourceT IO) ()))
 download sessionId _ clientPaths = do
-  storage <- Session.getStorage sessionId
-  root    <- Session.getRoot sessionId
-  case clientPaths of
-    [clientPath@(ClientPath path)] -> do
-      mFile   <- storage.get (ClientPath.fromClientPath root clientPath)
-      conduit <- storage.download clientPath
-      case mFile of
-        Just file -> do
-          let filename =
-                case file.content of
-                  Regular -> printf "attachement; filename=%s" (takeFileName path)
-                  Dir     -> printf "attachement; filename=%s.zip" (takeFileName path)
-          pure $ addHeader filename conduit
-        Nothing -> do
-          throwError (FilehubError InvalidPath "can't download, invalid file path")
-    _ -> do
-      (zipPath, _) <- liftIO do
-        tempDir <- Temp.getCanonicalTemporaryDirectory
-        Temp.openTempFile tempDir "DXXXXXX.zip"
+  Session.withStorage sessionId \storage -> do
+    root    <- Session.getRoot sessionId
+    case clientPaths of
+      [clientPath@(ClientPath path)] -> do
+        mFile   <- storage.get (ClientPath.fromClientPath root clientPath)
+        conduit <- storage.download clientPath
+        case mFile of
+          Just file -> do
+            let filename =
+                  case file.content of
+                    Regular -> printf "attachement; filename=%s" (takeFileName path)
+                    Dir     -> printf "attachement; filename=%s.zip" (takeFileName path)
+            pure $ addHeader filename conduit
+          Nothing -> do
+            throwError (FilehubError InvalidPath "can't download, invalid file path")
+      _ -> do
+        (zipPath, _) <- liftIO do
+          tempDir <- Temp.getCanonicalTemporaryDirectory
+          Temp.openTempFile tempDir "DXXXXXX.zip"
 
-      files <- traverse (storage.get . ClientPath.fromClientPath root) clientPaths <&> catMaybes
+        files <- traverse (storage.get . ClientPath.fromClientPath root) clientPaths <&> catMaybes
 
-      tasks <- forM files \file -> do
-        conduit <- storage.readStream file
-        pure (file.path, conduit)
+        tasks <- forM files \file -> do
+          conduit <- storage.readStream file
+          pure (file.path, conduit)
 
-      Zip.createArchive zipPath do
-        forM_ tasks \(path, conduit) -> do
-          m <- Zip.mkEntrySelector  (coerce makeRelative root path)
-          Zip.sinkEntry Zip.Zstd conduit m
-      tag <- Text.pack <$> replicateM 8 (randomRIO ('a', 'z'))
-      let conduit =
-            Conduit.bracketP
-              (pure ())
-              (\_ -> liftIO $ removeFile zipPath)
-              (\_ -> Conduit.sourceFile zipPath)
-      pure $ addHeader (printf "attachement; filename=%s.zip" tag) conduit
+        Zip.createArchive zipPath do
+          forM_ tasks \(path, conduit) -> do
+            m <- Zip.mkEntrySelector  (coerce makeRelative root path)
+            Zip.sinkEntry Zip.Zstd conduit m
+        tag <- Text.pack <$> replicateM 8 (randomRIO ('a', 'z'))
+        let conduit =
+              Conduit.bracketP
+                (pure ())
+                (\_ -> liftIO $ removeFile zipPath)
+                (\_ -> Conduit.sourceFile zipPath)
+        pure $ addHeader (printf "attachement; filename=%s.zip" tag) conduit

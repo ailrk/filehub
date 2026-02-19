@@ -512,17 +512,17 @@ logout sessionId _ = do
 cd :: SessionId -> ConfirmLogin -> Maybe ClientPath
    ->  Filehub (Headers '[ Header "HX-Trigger-After-Swap" FilehubEvent ] (Html ()))
 cd sessionId _ mClientPath = do
-  clientPath <- withQueryParam mClientPath
-  root       <- Session.getRoot sessionId
-  storage    <- Session.getStorage sessionId
-  storage.cd (ClientPath.fromClientPath root clientPath)
-  html <- do
-    toolBar' <- toolBar sessionId
-    view'    <- view sessionId
-    pure do
-      toolBar' `with` [ term "hx-swap-oob" "true" ]
-      view'
-  pure $ addHeader DirChanged html
+  Session.withStorage sessionId \storage -> do
+    clientPath <- withQueryParam mClientPath
+    root       <- Session.getRoot sessionId
+    storage.cd (ClientPath.fromClientPath root clientPath)
+    html <- do
+      toolBar' <- toolBar sessionId
+      view'    <- view sessionId
+      pure do
+        toolBar' `with` [ term "hx-swap-oob" "true" ]
+        view'
+    pure $ addHeader DirChanged html
 
 
 rename
@@ -530,45 +530,45 @@ rename
   -> RenameFile
   -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
 rename sessionId _ _ (RenameFile old new) = do
-  dir     <- Session.getCurrentDir sessionId
-  storage <- Session.getStorage sessionId
-  storage.rename
-    (ClientPath.fromClientPath dir old)
-    (ClientPath.fromClientPath dir new)
-  html <- view sessionId
-  pure $ addHeader FileRenamed html
+  Session.withStorage sessionId \storage -> do
+    dir     <- Session.getCurrentDir sessionId
+    storage.rename
+      (ClientPath.fromClientPath dir old)
+      (ClientPath.fromClientPath dir new)
+    html <- view sessionId
+    pure $ addHeader FileRenamed html
 
 
 newFile :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> NewFile -> Filehub (Html ())
 newFile sessionId _ _ (NewFile name) = do
-  AbsPath dir  <- Session.getCurrentDir sessionId
-  storage      <- Session.getStorage sessionId
-  path         <- validateAbsPath (dir </> Text.unpack name) (FilehubError InvalidPath ("<redacted>/" <> show name))
-  storage.new path
-  view sessionId
+  Session.withStorage sessionId \storage -> do
+    AbsPath dir  <- Session.getCurrentDir sessionId
+    path         <- validateAbsPath (dir </> Text.unpack name) (FilehubError InvalidPath ("<redacted>/" <> show name))
+    storage.new path
+    view sessionId
 
 
 updateFile :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> UpdatedFile -> Filehub (Html ())
 updateFile sessionId _ _ (UpdatedFile clientPath content) = do
-  root     <- Session.getRoot sessionId
-  let path  = ClientPath.fromClientPath root clientPath
-  storage  <- Session.getStorage sessionId
-  storage.write $ defaultFileWithContent
-    { path     = path
-    , content  = FileContentRaw (Text.encodeUtf8 content)
-    }
-  view sessionId
+  Session.withStorage sessionId \storage -> do
+    root     <- Session.getRoot sessionId
+    let path  = ClientPath.fromClientPath root clientPath
+    storage.write $ defaultFileWithContent
+      { path     = path
+      , content  = FileContentRaw (Text.encodeUtf8 content)
+      }
+    view sessionId
 
 
 newFolder :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> NewFolder -> Filehub (Html ())
 newFolder sessionId _ _ (NewFolder name) = do
-  storage <- Session.getStorage sessionId
-  AbsPath dir <- Session.getCurrentDir sessionId
-  path <- validateAbsPath
-            (dir </> Text.unpack name)
-            (FilehubError InvalidPath ("<redacted>/" <> show name))
-  storage.newFolder path
-  view sessionId
+  Session.withStorage sessionId \storage -> do
+    AbsPath dir <- Session.getCurrentDir sessionId
+    path <- validateAbsPath
+              (dir </> Text.unpack name)
+              (FilehubError InvalidPath ("<redacted>/" <> show name))
+    storage.newFolder path
+    view sessionId
 
 
 copy :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> Filehub (Html ())
@@ -648,14 +648,14 @@ sortTable sessionId _ order = do
 
 search :: SessionId -> ConfirmLogin -> SearchWord -> Filehub (Html ())
 search sessionId _ searchWord = do
-  ctx <- makeTemplateContext sessionId
-  display <- Session.getDisplay sessionId
-  storage <- Session.getStorage sessionId
-  files   <- storage.lsCwd
-  case display of
-    Mobile    -> pure $ runTemplate ctx (Template.search searchWord files Template.Mobile.table)
-    Desktop   -> pure $ runTemplate ctx (Template.search searchWord files Template.Desktop.table)
-    NoDisplay -> error "impossible"
+  Session.withStorage sessionId \storage -> do
+    ctx <- makeTemplateContext sessionId
+    display <- Session.getDisplay sessionId
+    files   <- storage.lsCwd
+    case display of
+      Mobile    -> pure $ runTemplate ctx (Template.search searchWord files Template.Mobile.table)
+      Desktop   -> pure $ runTemplate ctx (Template.search searchWord files Template.Desktop.table)
+      NoDisplay -> error "impossible"
 
 
 selectRows :: SessionId -> ConfirmLogin -> Selected -> Filehub (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))
@@ -820,20 +820,20 @@ serve :: SessionId -> ConfirmLogin -> Maybe ClientPath
                            ]
                            (ConduitT () ByteString (ResourceT IO) ()))
 serve sessionId _ mFile = do
-  storage    <- Session.getStorage sessionId
-  root       <- Session.getRoot sessionId
-  clientPath <- withQueryParam mFile
-  let path   = ClientPath.fromClientPath root clientPath
-  storage.get path >>= \case
-    Just file -> do
-      conduit <- storage.readStream file
-      pure
-        . addHeader (ByteString.unpack file.mimetype)
-        . addHeader (printf "inline; filename=%s" (coerce takeFileName path :: String))
-        . addHeader "public, max-age=31536000, immutable"
-        $ conduit
-    Nothing -> do
-      throwError (FilehubError InvalidPath "file path is invalid")
+  Session.withStorage sessionId \storage -> do
+    root       <- Session.getRoot sessionId
+    clientPath <- withQueryParam mFile
+    let path   = ClientPath.fromClientPath root clientPath
+    storage.get path >>= \case
+      Just file -> do
+        conduit <- storage.readStream file
+        pure
+          . addHeader (ByteString.unpack file.mimetype)
+          . addHeader (printf "inline; filename=%s" (coerce takeFileName path :: String))
+          . addHeader "public, max-age=31536000, immutable"
+          $ conduit
+      Nothing -> do
+        throwError (FilehubError InvalidPath "file path is invalid")
 
 
 thumbnail :: SessionId -> ConfirmLogin -> Maybe ClientPath
@@ -843,21 +843,21 @@ thumbnail :: SessionId -> ConfirmLogin -> Maybe ClientPath
                                ]
                                (ConduitT () ByteString (ResourceT IO) ()))
 thumbnail sessionId _ mFile = do
-  storage    <- Session.getStorage sessionId
-  root       <- Session.getRoot sessionId
-  clientPath <- withQueryParam mFile
-  let path   = ClientPath.fromClientPath root clientPath
+  Session.withStorage sessionId \storage -> do
+    root       <- Session.getRoot sessionId
+    clientPath <- withQueryParam mFile
+    let path   = ClientPath.fromClientPath root clientPath
 
-  storage.get path >>= \case
-    Just file -> do
-      conduit <- serveOriginal storage file
-      pure
-        . addHeader (ByteString.unpack file.mimetype)
-        . addHeader (printf "inline; filename=%s" (coerce takeFileName path :: String))
-        . addHeader "public, max-age=31536000, immutable"
-        $ conduit
-    Nothing -> do
-      throwError (FilehubError InvalidPath "thumbnail file path is invalid")
+    storage.get path >>= \case
+      Just file -> do
+        conduit <- serveOriginal storage file
+        pure
+          . addHeader (ByteString.unpack file.mimetype)
+          . addHeader (printf "inline; filename=%s" (coerce takeFileName path :: String))
+          . addHeader "public, max-age=31536000, immutable"
+          $ conduit
+      Nothing -> do
+        throwError (FilehubError InvalidPath "thumbnail file path is invalid")
 
   where
     serveOriginal storage file =

@@ -30,40 +30,40 @@ move :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> MoveFile
      -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent
                           , Header "HX-Trigger" FilehubEvent
                           ] (Html ()))
-move sessionId _ _ (MoveFile src tgt) = do
-  root          <- Session.getRoot sessionId
-  storage       <- Session.getStorage sessionId
-  notifications <- Session.getSessionNotifications sessionId
-  taskId        <- newTaskId
-  let srcPaths  =  fmap (ClientPath.fromClientPath root) src
-  let tgtPath   =  ClientPath.fromClientPath root tgt
+move sessionId _ _ (MoveFile src tgt) =
+  Session.withStorage sessionId \storage -> do
+    root          <- Session.getRoot sessionId
+    notifications <- Session.getSessionNotifications sessionId
+    taskId        <- newTaskId
+    let srcPaths  =  fmap (ClientPath.fromClientPath root) src
+    let tgtPath   =  ClientPath.fromClientPath root tgt
 
-  -- check before take action
-  forM_ srcPaths \srcPath -> do
-    isTgtDir <- storage.isDirectory tgtPath
-    when (not isTgtDir) do
-      throwError (FilehubError InvalidDir "Target is not a directory")
+    -- check before take action
+    forM_ srcPaths \srcPath -> do
+      isTgtDir <- storage.isDirectory tgtPath
+      when (not isTgtDir) do
+        throwError (FilehubError InvalidDir "Target is not a directory")
 
-    when (srcPath == tgtPath)  do
-      throwError (FilehubError InvalidDir "Can't move to the same directory")
+      when (srcPath == tgtPath)  do
+        throwError (FilehubError InvalidDir "Can't move to the same directory")
 
-    when (coerce takeDirectory srcPath == tgtPath)  do
-      throwError (FilehubError InvalidDir "Already in the current directory")
+      when (coerce takeDirectory srcPath == tgtPath)  do
+        throwError (FilehubError InvalidDir "Already in the current directory")
 
-    let dstPath = tgtPath <./> coerce takeFileName srcPath
-    mFile <- storage.get dstPath
-    when (isJust mFile) do
-      throwError (FilehubError InvalidPath "The destination already exists")
+      let dstPath = tgtPath <./> coerce takeFileName srcPath
+      mFile <- storage.get dstPath
+      when (isJust mFile) do
+        throwError (FilehubError InvalidPath "The destination already exists")
 
-  void $ async do
-    atomically do
-      writeTBQueue notifications (MoveProgressed taskId 0)
+    void $ async do
+      atomically do
+        writeTBQueue notifications (MoveProgressed taskId 0)
 
-    storage.mv do
-      fmap (\srcPath -> (srcPath, tgtPath <./> coerce takeFileName srcPath)) srcPaths
+      storage.mv do
+        fmap (\srcPath -> (srcPath, tgtPath <./> coerce takeFileName srcPath)) srcPaths
 
-    atomically do
-      writeTBQueue notifications  (TaskCompleted taskId)
+      atomically do
+        writeTBQueue notifications  (TaskCompleted taskId)
 
-  Server.Internal.clear sessionId
-  addHeader FileMoved . addHeader SSEStarted <$> index sessionId
+    Server.Internal.clear sessionId
+    addHeader FileMoved . addHeader SSEStarted <$> index sessionId

@@ -32,15 +32,15 @@ upload sessionId _ _ multipart = do
     atomically do
       writeTBQueue notifications (UploadProgressed taskId 0)
 
-    storage <- Session.getStorage sessionId
-    forConcurrently_ multipart.files \filedata -> do
-      storage.upload filedata
-      atomically do
-        modifyTVar' uploadCounter (+ 1)
-        n <- readTVar uploadCounter
-        writeTBQueue notifications (UploadProgressed taskId (n % max 1 taskCount) )
+    Session.withStorage sessionId \storage -> do
+      forConcurrently_ multipart.files \filedata -> do
+        storage.upload filedata
+        atomically do
+          modifyTVar' uploadCounter (+ 1)
+          n <- readTVar uploadCounter
+          writeTBQueue notifications (UploadProgressed taskId (n % max 1 taskCount) )
 
-    atomically do
-      writeTBQueue notifications (UploadProgressed taskId 1)
-      writeTBQueue notifications (TaskCompleted taskId)
+      atomically do
+        writeTBQueue notifications (UploadProgressed taskId 1)
+        writeTBQueue notifications (TaskCompleted taskId)
   addHeader SSEStarted <$> index sessionId

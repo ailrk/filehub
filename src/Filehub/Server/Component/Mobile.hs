@@ -54,27 +54,27 @@ toolBar sessionId = do
 
 
 editorModal :: SessionId -> Maybe ClientPath -> Filehub (Html ())
-editorModal sessionId mClientPath = do
-  ctx        <- makeTemplateContext sessionId
-  clientPath <- withQueryParam mClientPath
-  storage    <- Session.getStorage sessionId
-  root       <- Session.getRoot sessionId
-  let p      =  ClientPath.fromClientPath root clientPath
-  mFile <- storage.get p
-  case mFile of
-    Just file -> do
-      content <- storage.read file
-      let filename = coerce takeFileName p
-      pure $ runTemplate ctx (Template.Mobile.editorModal (clientPath, filename) content)
-    Nothing -> do
-      throwError (FilehubError InvalidPath "can't edit file")
+editorModal sessionId mClientPath =
+  Session.withStorage sessionId \storage -> do
+    ctx        <- makeTemplateContext sessionId
+    clientPath <- withQueryParam mClientPath
+    root       <- Session.getRoot sessionId
+    let p      =  ClientPath.fromClientPath root clientPath
+    mFile <- storage.get p
+    case mFile of
+      Just file -> do
+        content <- storage.read file
+        let filename = coerce takeFileName p
+        pure $ runTemplate ctx (Template.Mobile.editorModal (clientPath, filename) content)
+      Nothing -> do
+        throwError (FilehubError InvalidPath "can't edit file")
 
 
 view :: SessionId -> Filehub (Html ())
-view sessionId = do
-  ctx@TemplateContext{ sortedBy = order } <- makeTemplateContext sessionId
-  table <- do
-    storage <- Session.getStorage sessionId
-    files   <- sortFiles order <$> storage.lsCwd
-    pure $ runTemplate ctx (Template.Mobile.table files)
-  pure $ Template.Mobile.view table
+view sessionId =
+  Session.withStorage sessionId \storage -> do
+    ctx@TemplateContext{ sortedBy = order } <- makeTemplateContext sessionId
+    table <- do
+      files   <- sortFiles order <$> storage.lsCwd
+      pure $ runTemplate ctx (Template.Mobile.table files)
+    pure $ Template.Mobile.view table

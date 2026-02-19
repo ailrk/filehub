@@ -1,3 +1,4 @@
+{-# LANGUAGE RankNTypes #-}
 -- |
 -- Maintainer  :  jimmy@ailrk.com
 -- Copyright   :  (c) 2025-present Jinyang yao
@@ -59,7 +60,7 @@ module Filehub.Session
   , getControlPanelState
   , setSessionSharedLinkPermit
   , getSessionSharedLinkPermit
-  , getStorage
+  , withStorage
   , changeCurrentTarget
   , currentTarget
   , withTarget
@@ -288,14 +289,14 @@ changeCurrentTarget sessionId targetId = do
            throwError (FilehubError InvalidSession "Invalid session")
 
 
-withTarget :: SessionId -> TargetId -> (TargetView -> Storage Filehub -> Filehub a) -> Filehub a
+withTarget :: SessionId -> TargetId -> (forall t. TargetView -> Storage Filehub t -> Filehub a) -> Filehub a
 withTarget sessionId targetId action = do
   TargetView saved _ <- currentTarget sessionId
   changeCurrentTarget sessionId targetId
-  storage <- getStorage sessionId
-  result <- currentTarget sessionId >>= flip action storage
-  changeCurrentTarget sessionId (getTargetId saved)
-  pure result
+  withStorage sessionId \storage -> do
+    result <- currentTarget sessionId >>= flip action storage
+    changeCurrentTarget sessionId (getTargetId saved)
+    pure result
 
 
 attachTarget :: SessionId -> Target -> Filehub ()
@@ -321,12 +322,12 @@ detachTarget sessionId targetId = do
 ------------------------------
 
 
-getStorage :: SessionId -> Filehub (Storage Filehub)
-getStorage sessionId = do
+withStorage :: SessionId -> (forall t. Storage Filehub t -> Filehub a) -> Filehub a
+withStorage sessionId f = do
   TargetView target _ <- currentTarget sessionId
-  maybe onError pure $ handleTarget target
-    [ targetHandler @FileSys     \_ -> fileStorage
-    , targetHandler @S3          \_ -> s3Storage
+  fromMaybe onError $ handleTarget target
+    [ targetHandler @FileSys \_ -> f fileStorage
+    , targetHandler @S3      \_ -> f s3Storage
     ]
   where
     s3Storage   = S3.storage sessionId

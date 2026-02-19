@@ -32,14 +32,14 @@ initViewer sessionId _ mClientPath = do
   pure $ addHeader payload NoContent
   where
     initViewer' root clientPath = do
-      storage <- Session.getStorage sessionId
-      let filePath  =  ClientPath.fromClientPath root clientPath
-      let dir       =  coerce takeDirectory filePath
-      order         <- Session.getSortFileBy sessionId
-      files         <- takeResourceFiles . Sort.sortFiles order <$> (storage.ls dir)
-      let idx       =  fromMaybe 0 $ List.elemIndex filePath (fmap (.path) files)
-      let resources =  fmap (toResource root) files
-      pure $ ViewerInited resources idx
+      Session.withStorage sessionId \storage -> do
+        let filePath  =  ClientPath.fromClientPath root clientPath
+        let dir       =  coerce takeDirectory filePath
+        order         <- Session.getSortFileBy sessionId
+        files         <- takeResourceFiles . Sort.sortFiles order <$> (storage.ls dir)
+        let idx       =  fromMaybe 0 $ List.elemIndex filePath (fmap (.path) files)
+        let resources =  fmap (toResource root) files
+        pure $ ViewerInited resources idx
 
     isResource :: MimeType -> Bool
     isResource s = any (s `isMime`)  ["image", "video", "audio"]

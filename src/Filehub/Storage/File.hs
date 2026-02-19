@@ -45,7 +45,7 @@ cd sessionId dir = do
   Session.setCurrentDir sessionId dir
 
 
-storage :: SessionId -> Storage Filehub
+storage :: SessionId -> Storage Filehub FileSys
 storage sessionId =
   Storage
     { get         = Storage.File.get
