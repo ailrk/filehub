@@ -17,16 +17,19 @@ import Lens.Micro.Platform ()
 import Prelude hiding (elem)
 import Target.Types (AnyTarget)
 import Filehub.Monad (Filehub)
-import Effectful.Concurrent.STM (readTVarIO)
+import Effectful.Concurrent.STM (readTVarIO, Concurrent)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (catMaybes)
+import Effectful.Error.Dynamic (Error)
+import Filehub.Error (FilehubError)
+import Effectful.Log (Log)
 
 
-setSelected :: SessionId -> Selected -> Filehub ()
+setSelected :: (Reader Env :> es, IOE :> es) => SessionId -> Selected -> Eff es ()
 setSelected sessionId selected = Session.Pool.update sessionId \s -> s & #targets . ix s.currentTargetId . #selected .~ selected
 
 
-anySelected :: SessionId -> Filehub Bool
+anySelected :: (Reader Env :> es, IOE :> es, Error FilehubError :> es, Log :> es) => SessionId -> Eff es Bool
 anySelected sessionId = go <$> Session.Pool.get sessionId
   where
     go :: Session -> Bool
@@ -34,7 +37,12 @@ anySelected sessionId = go <$> Session.Pool.get sessionId
 
 
 -- | Get all selected files grouped by targets
-allSelecteds :: SessionId -> Filehub [(AnyTarget, Selected)]
+allSelecteds :: ( Reader Env :> es
+                , IOE :> es
+                , Error FilehubError :> es
+                , Log :> es
+                , Concurrent :> es)
+              => SessionId -> Eff es [(AnyTarget, Selected)]
 allSelecteds sessionId = do
   session <- Session.Pool.get sessionId
   targets <- asks @Env (.targets) >>= readTVarIO

@@ -36,7 +36,8 @@ import Network.Wai
 import Prelude hiding (readFile)
 import Web.Cookie (defaultSetCookie, SetCookie (..))
 import Data.ByteString.Char8 qualified as Char8
-import Filehub.Session.Access (SessionView(..), viewSession)
+import Filehub.Session.Effectful (runSessionEff, SessionGet(..))
+import Filehub.Session.Effectful qualified as Session
 
 
 displayMiddleware :: Env -> Middleware
@@ -57,8 +58,8 @@ displayMiddleware  env app req respond = toIO onErr env do
 
   -- set display cookie
   -- Note only the server set the cookie.
-  setCookieHeader <- do
-    SessionView { display = currentDisplay } <- viewSession sessionId
+  setCookieHeader <- runSessionEff sessionId do
+    currentDisplay <- Session.get (.display)
     let displaySetCookie = defaultSetCookie
           { setCookieName     = "display"
           , setCookieValue    = Char8.pack (show currentDisplay)

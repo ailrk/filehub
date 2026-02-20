@@ -1,3 +1,4 @@
+{-# LANGUAGE ConstraintKinds #-}
 -- |
 -- Maintainer  :  jimmy@ailrk.com
 -- Copyright   :  (c) 2025-present Jinyang yao
@@ -7,11 +8,12 @@ module Filehub.Monad
   ( runFilehub
   , toIO
   , Filehub
+  , IsFilehub
   )
   where
 
 import Effectful.Reader.Dynamic
-import Effectful (Eff, IOE, runEff)
+import Effectful (Eff, IOE, runEff, Subset, (:>), Effect)
 import Effectful.Log (Log, runLog)
 import Effectful.Error.Dynamic (Error, runErrorNoCallStack)
 import Effectful.FileSystem (FileSystem, runFileSystem)
@@ -24,9 +26,21 @@ import Effectful.Extended.LockManager (LockManager, runLockManagerLocal)
 import Effectful.Extended.Cache (Cache, runCacheInMemory)
 import Effectful.Temporary (Temporary, runTemporary)
 import Filehub.Error (FilehubError, toServerError)
+import Data.Kind (Constraint)
 
 
-type Filehub = Eff [Reader Env, Log, Error FilehubError, FileSystem, Temporary, Concurrent, LockManager, Cache, IOE]
+type FilehubEffects = [Reader Env, Log, Error FilehubError, FileSystem, Temporary, Concurrent, LockManager, Cache, IOE]
+
+
+type Filehub = Eff FilehubEffects
+
+
+type family All (effects :: [Effect]) (es :: [Effect]) :: Constraint where
+  All '[] es = ()
+  All (eff : effs) es = (eff :> es, All effs es)
+
+
+type IsFilehub es = All FilehubEffects es
 
 
 -- | Discharge a `Filehub` effect

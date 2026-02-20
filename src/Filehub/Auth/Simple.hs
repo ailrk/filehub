@@ -28,13 +28,14 @@ import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
 import Filehub.ActiveUser.Types (ActiveUser (..))
 import Filehub.Auth.Types (createAuthId, AuthId, Auth (..))
 import Filehub.Env (Env(..))
-import Filehub.Monad (Filehub)
+import Filehub.Monad (IsFilehub)
 import Filehub.Session (SessionId, Session)
-import Filehub.Session qualified as Session
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Types (LoginForm (..))
 import Prelude hiding (readFile)
 import Text.Debug (Debug(..))
+import Filehub.Session.Effectful (runSessionEff)
+import Filehub.Session.Effectful qualified as Session
 
 
 newtype Username = Username Text
@@ -88,13 +89,13 @@ createSimpleAuthUserDB loginInfo =
 
 
 -- | Handle the simple authetication login.
-authenticateSession :: SessionId -> LoginForm -> Filehub (Maybe Session)
-authenticateSession sessionId (LoginForm username password) =  do
+authenticateSession :: IsFilehub es => SessionId -> LoginForm -> Eff es (Maybe Session)
+authenticateSession sessionId (LoginForm username password) = runSessionEff sessionId do
   db <- asks @Env (.simpleAuthUserDB)
   let username' =  Username username
   if (validate username' (Text.encodeUtf8 password) db) then do
     authId <- createAuthId
-    Session.setAuthId sessionId (Just authId)
+    Session.set (.authId) (Just authId)
     activeUser <- createActiveUser authId sessionId username'
     ActiveUser.Pool.add activeUser
     Just <$> Session.Pool.get sessionId

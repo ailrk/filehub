@@ -16,13 +16,15 @@
 module Filehub.Storage.File (storage) where
 
 import Control.Monad (unless)
-import Effectful ( raise)
+import Effectful (Eff)
 import Effectful.Error.Dynamic (throwError)
 import Effectful.FileSystem
 import Effectful.Log
 import Filehub.Error (FilehubError(..), Error' (..))
-import Filehub.Monad (Filehub)
+import Filehub.Monad (IsFilehub)
 import Filehub.Session.Types (TargetView(..))
+import Filehub.Session.Effectful (runSessionEff, SessionGet(..), SessionSet(..))
+import Filehub.Session.Effectful qualified as Session
 import Filehub.Storage.Error (withStorageError)
 import Filehub.Types (SessionId)
 import Lens.Micro.Platform ()
@@ -31,22 +33,20 @@ import Storage.File qualified
 import Target.File (Target, FileSys)
 import Target.Storage (Storage(..))
 import Target.Types (handleTarget, targetHandler)
-import {-# SOURCE #-} Filehub.Session qualified as Session
-import Filehub.Session.Access (SessionView (..), viewSession)
 import Data.ClientPath (AbsPath(..))
 import Data.Coerce (coerce)
 
 
-cd :: SessionId -> AbsPath -> Filehub ()
-cd sessionId dir = do
+cd :: IsFilehub es => SessionId -> AbsPath -> Eff es ()
+cd sessionId dir = runSessionEff sessionId do
   exists <- doesDirectoryExist (coerce dir)
   unless exists do
     logAttention "[nmb224] dir doesn't exists:" dir
     throwError (FilehubError InvalidDir "Can't enter, not a directory")
-  Session.setCurrentDir sessionId dir
+  Session.set (.currentDir) dir
 
 
-storage :: SessionId -> Storage Filehub
+storage :: IsFilehub es => SessionId -> Storage (Eff es)
 storage sessionId =
   Storage
     { get         = Storage.File.get
@@ -75,11 +75,11 @@ storage sessionId =
         Storage.File.newFolder path
 
     , lsCwd = withStorageError do
-        SessionView { currentDir } <- raise $ viewSession sessionId
+        currentDir <- runSessionEff sessionId $ Session.get (.currentDir)
         Storage.File.lsCwd currentDir
 
     , upload = \filedata -> do
-        SessionView { currentDir } <- viewSession sessionId
+        currentDir <- runSessionEff sessionId $ Session.get (.currentDir)
         Storage.File.upload currentDir filedata
 
     , download = \clientPath -> do
@@ -89,9 +89,9 @@ storage sessionId =
 
 
 
-getFileSys :: SessionId -> Filehub (Target FileSys)
-getFileSys sessionId = do
-  SessionView { currentTarget = TargetView target _ } <- viewSession sessionId
+getFileSys :: IsFilehub es => SessionId -> Eff es (Target FileSys)
+getFileSys sessionId = runSessionEff sessionId do
+  TargetView target _ <- Session.get (.currentTarget)
   maybe (throwError (FilehubError TargetError "Target is not valid file system direcotry")) pure $ handleTarget target
     [ targetHandler @FileSys id
     ]

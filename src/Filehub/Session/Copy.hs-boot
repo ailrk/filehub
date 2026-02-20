@@ -1,8 +1,11 @@
 module Filehub.Session.Copy (getCopyState) where
 
-import Lens.Micro.Platform ()
-import Filehub.Types (CopyState(..), SessionId)
-import Filehub.Monad (Filehub)
+import Effectful.Error.Dynamic (Error)
+import Effectful.Log (Log)
+import Filehub.Error (FilehubError (..))
+import Filehub.Types (CopyState(..), SessionId, Env)
+import Effectful (Eff, (:>), IOE)
+import Effectful.Reader.Dynamic (Reader)
 
 
-getCopyState :: SessionId -> Filehub CopyState
+getCopyState :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es CopyState

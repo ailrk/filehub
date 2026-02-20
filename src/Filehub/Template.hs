@@ -22,10 +22,11 @@ import Filehub.Theme (Theme)
 import Effectful (Eff, runPureEff)
 import Filehub.Auth.Simple (SimpleAuthUserDB)
 import Filehub.Auth.OIDC (OIDCAuthProviders)
-import Filehub.Monad (Filehub)
+import Filehub.Monad (IsFilehub)
 import Filehub.Env qualified as Env
 import Data.ClientPath (AbsPath)
-import Filehub.Session.Access (SessionView(..), viewSession)
+import Filehub.Session.Effectful (runSessionEff, SessionGet(..))
+import Filehub.Session.Effectful qualified as Session
 
 
 -- | A Template context type that capture all useful information to render
@@ -62,21 +63,19 @@ runTemplate ctx = runPureEff . runReader ctx
 type Template =  Eff '[Reader TemplateContext]
 
 
-makeTemplateContext :: SessionId -> Filehub TemplateContext
-makeTemplateContext sessionId = do
-  SessionView
-    { display
-    , sidebarCollapsed
-    , layout
-    , theme
-    , sortFileBy = sortedBy
-    , controlPanelState = state
-    , selected
-    , root
-    , locale
-    , currentDir
-    , currentTarget
-    } <- viewSession sessionId
+makeTemplateContext :: IsFilehub es => SessionId -> Eff es TemplateContext
+makeTemplateContext sessionId = runSessionEff sessionId do
+  display           <- Session.get (.display)
+  sidebarCollapsed  <- Session.get (.sidebarCollapsed)
+  layout            <- Session.get (.layout)
+  theme             <- Session.get (.theme)
+  sortedBy          <- Session.get (.sortedFileBy)
+  state             <- Session.get (.controlPanelState)
+  selected          <- Session.get (.selected)
+  root              <- Session.get (.root)
+  locale            <- Session.get (.locale)
+  currentDir        <- Session.get (.currentDir)
+  currentTarget     <- Session.get (.currentTarget)
   readOnly          <- asks @Env (.readOnly)
   noLogin           <- Env.hasNoLogin <$> ask @Env
   simpleAuthUserDB  <- asks @Env (.simpleAuthUserDB)
@@ -98,4 +97,3 @@ makeTemplateContext sessionId = do
     , simpleAuthUserDB   = simpleAuthUserDB
     , oidcAuthProviders  = oidcAuthProviders
     }
-

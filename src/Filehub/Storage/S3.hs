@@ -17,10 +17,10 @@ module Filehub.Storage.S3 (storage) where
 
 import Data.ClientPath (fromClientPath)
 import Data.Function ((&))
-import Effectful (raise)
+import Effectful (raise, Eff)
 import Effectful.Error.Dynamic (throwError)
 import Filehub.Error
-import Filehub.Monad (Filehub)
+import Filehub.Monad (IsFilehub)
 import Filehub.Session.Types (TargetView(..))
 import Filehub.Storage.Error (withStorageError)
 import Filehub.Types (SessionId)
@@ -30,10 +30,11 @@ import Storage.S3 qualified
 import Target.S3 (Target, S3)
 import Target.Storage (Storage(..))
 import Target.Types (handleTarget, targetHandler)
-import Filehub.Session.Access (SessionView(..), viewSession)
+import Filehub.Session.Effectful (runSessionEff)
+import Filehub.Session.Effectful qualified as Session
 
 
-storage :: SessionId -> Storage Filehub
+storage :: IsFilehub es => SessionId -> Storage (Eff es)
 storage sessionId =
   Storage
     { get = \path -> withStorageError do
@@ -84,8 +85,8 @@ storage sessionId =
         s3 <- getS3 sessionId
         Storage.S3.upload s3 filedata
 
-    , download = \clientPath -> withStorageError do
-        SessionView { root } <- raise $ viewSession sessionId
+    , download = \clientPath -> withStorageError $ runSessionEff sessionId do
+        root     <- Session.get (.root)
         s3       <- getS3 sessionId & raise
         let path =  fromClientPath root clientPath
         Storage.S3.download s3 path
@@ -95,9 +96,9 @@ storage sessionId =
     }
 
 
-getS3 :: SessionId -> Filehub (Target S3)
-getS3 sessionId = do
-  SessionView { currentTarget = TargetView target _ } <- viewSession sessionId
+getS3 :: IsFilehub es => SessionId -> Eff es (Target S3)
+getS3 sessionId = runSessionEff sessionId do
+  TargetView target _ <- Session.get (.currentTarget)
   maybe (throwError (FilehubError TargetError "Target is not valid S3 bucket")) pure $ handleTarget target
     [ targetHandler @S3 id
     ]

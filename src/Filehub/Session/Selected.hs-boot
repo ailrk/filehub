@@ -1,9 +1,13 @@
 module Filehub.Session.Selected (anySelected) where
 
-import Lens.Micro.Platform ()
+import Effectful (Eff, (:>), Eff, (:>), IOE)
+import Effectful.Error.Dynamic (Error)
+import Effectful.Log (Log)
+import Effectful.Reader.Dynamic (Reader)
+import Filehub.Error (FilehubError)
+import Filehub.Types (Env(..))
 import Filehub.Types (SessionId)
-import Prelude hiding (elem)
-import Filehub.Monad (Filehub)
 
 
-anySelected :: SessionId -> Filehub Bool
+
+anySelected :: (Reader Env :> es, IOE :> es, Error FilehubError :> es, Log :> es) => SessionId -> Eff es Bool

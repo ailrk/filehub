@@ -12,7 +12,7 @@ module Filehub.Server.Desktop
   where
 
 import Data.ClientPath qualified as ClientPath
-import Filehub.Monad ( Filehub )
+import Filehub.Monad (IsFilehub)
 import Filehub.Session.Types (TargetSessionData(..))
 import Filehub.Session qualified as Session
 import Filehub.Sort (sortFiles)
@@ -27,51 +27,53 @@ import Filehub.Session (TargetView(..))
 import Effectful.Error.Dynamic (throwError)
 import Filehub.Error (FilehubError(..), Error'(InvalidPath))
 import Data.Coerce (coerce)
-import Filehub.Session.Access (SessionView(..), viewSession)
+import Effectful (Eff)
+import Filehub.Session.Effectful (runSessionEff, SessionGet(..))
+import Filehub.Session.Effectful qualified as Session
 
 
-fileDetailModal :: SessionId -> Maybe ClientPath -> Filehub (Html ())
-fileDetailModal sessionId mClientPath =
-  Session.withStorage sessionId \storage -> do
-    ctx@TemplateContext{ root } <- makeTemplateContext sessionId
-    clientPath <- withQueryParam mClientPath
-    mFile      <- storage.get (ClientPath.fromClientPath root clientPath)
-    case mFile of
-      Just file -> pure $ runTemplate ctx (Template.Desktop.fileDetailModal file)
-      Nothing   -> throwError (FilehubError InvalidPath "can't get file details")
+fileDetailModal :: IsFilehub es => SessionId -> Maybe ClientPath -> Eff es (Html ())
+fileDetailModal sessionId mClientPath = runSessionEff sessionId do
+  storage <- Session.get (.storage)
+  ctx@TemplateContext{ root } <- makeTemplateContext sessionId
+  clientPath <- withQueryParam mClientPath
+  mFile      <- storage.get (ClientPath.fromClientPath root clientPath)
+  case mFile of
+    Just file -> pure $ runTemplate ctx (Template.Desktop.fileDetailModal file)
+    Nothing   -> throwError (FilehubError InvalidPath "can't get file details")
 
 
-editorModal :: SessionId -> Maybe ClientPath -> Filehub (Html ())
-editorModal sessionId mClientPath = do
-  Session.withStorage sessionId \storage -> do
-    ctx@TemplateContext{ root } <- makeTemplateContext sessionId
-    clientPath <- withQueryParam mClientPath
-    let p       = ClientPath.fromClientPath root clientPath
-    mFile      <- storage.get p
-    case mFile of
-      Just file -> do
-        content <- storage.read file
-        let filename = coerce takeFileName p
-        pure $ runTemplate ctx (Template.Desktop.editorModal (clientPath, filename) content)
-      Nothing -> do
-        throwError (FilehubError InvalidPath "can't edit file")
+editorModal :: IsFilehub es => SessionId -> Maybe ClientPath -> Eff es (Html ())
+editorModal sessionId mClientPath = runSessionEff sessionId do
+  storage <- Session.get (.storage)
+  ctx@TemplateContext{ root } <- makeTemplateContext sessionId
+  clientPath <- withQueryParam mClientPath
+  let p       = ClientPath.fromClientPath root clientPath
+  mFile      <- storage.get p
+  case mFile of
+    Just file -> do
+      content <- storage.read file
+      let filename = coerce takeFileName p
+      pure $ runTemplate ctx (Template.Desktop.editorModal (clientPath, filename) content)
+    Nothing -> do
+      throwError (FilehubError InvalidPath "can't edit file")
 
 
-contextMenu :: SessionId -> [ClientPath] -> Filehub (Html ())
-contextMenu sessionId clientPaths = do
-  Session.withStorage sessionId \storage -> do
-    ctx@TemplateContext { root } <- makeTemplateContext sessionId
-    case clientPaths of
-      [clientPath] -> do
-        mFile   <- storage.get (ClientPath.fromClientPath root clientPath)
-        case mFile of
-          Just file -> pure $ runTemplate ctx (Template.Desktop.contextMenu1 file)
-          Nothing   -> throwError (FilehubError InvalidPath "can't get detail of the file")
-      _ -> do
-        pure $ runTemplate ctx (Template.Desktop.contextMenuMany clientPaths)
+contextMenu :: IsFilehub es => SessionId -> [ClientPath] -> Eff es (Html ())
+contextMenu sessionId clientPaths = runSessionEff sessionId do
+  storage <- Session.get (.storage)
+  ctx@TemplateContext { root } <- makeTemplateContext sessionId
+  case clientPaths of
+    [clientPath] -> do
+      mFile   <- storage.get (ClientPath.fromClientPath root clientPath)
+      case mFile of
+        Just file -> pure $ runTemplate ctx (Template.Desktop.contextMenu1 file)
+        Nothing   -> throwError (FilehubError InvalidPath "can't get detail of the file")
+    _ -> do
+      pure $ runTemplate ctx (Template.Desktop.contextMenuMany clientPaths)
 
 
-index :: SessionId -> Filehub (Html ())
+index :: IsFilehub es => SessionId -> Eff es (Html ())
 index sessionId = do
   ctx      <- makeTemplateContext sessionId
   sideBar' <- sideBar sessionId
@@ -80,10 +82,11 @@ index sessionId = do
   pure $ runTemplate ctx (Template.Desktop.index sideBar' view' toolBar')
 
 
-sideBar :: SessionId -> Filehub (Html ())
-sideBar sessionId = do
-  SessionView { targetViews, currentTarget } <- viewSession sessionId
-  ctx <- makeTemplateContext sessionId
+sideBar :: IsFilehub es => SessionId -> Eff es (Html ())
+sideBar sessionId = runSessionEff sessionId do
+  targetViews    <- Session.get (.targetViews)
+  currentTarget  <- Session.get (.currentTarget)
+  ctx            <- makeTemplateContext sessionId
   let targets' = flip fmap targetViews \(TargetView target targetData) -> do
         case targetData.selected of
           Selected _ sels -> (target, length sels + 1)
@@ -92,17 +95,17 @@ sideBar sessionId = do
   pure $ runTemplate ctx (Template.Desktop.sideBar targets' currentTarget)
 
 
-view :: SessionId -> Filehub (Html ())
-view sessionId = do
-  Session.withStorage sessionId \storage -> do
-    ctx@TemplateContext { sortedBy = order } <- makeTemplateContext sessionId
-    table <- do
-      files   <- sortFiles order <$> storage.lsCwd
-      pure $ runTemplate ctx (Template.Desktop.table files)
-    pure $ Template.Desktop.view table
+view :: IsFilehub es => SessionId -> Eff es (Html ())
+view sessionId = runSessionEff sessionId do
+  storage <- Session.get (.storage)
+  ctx@TemplateContext { sortedBy = order } <- makeTemplateContext sessionId
+  table <- do
+    files   <- sortFiles order <$> storage.lsCwd
+    pure $ runTemplate ctx (Template.Desktop.table files)
+  pure $ Template.Desktop.view table
 
 
-toolBar :: SessionId -> Filehub (Html ())
+toolBar :: IsFilehub es => SessionId -> Eff es (Html ())
 toolBar sessionId = do
   ctx <- makeTemplateContext sessionId
   pure $ runTemplate ctx Template.Desktop.toolBar

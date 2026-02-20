@@ -13,7 +13,7 @@ import Data.ClientPath qualified as ClientPath
 import Effectful.Reader.Dynamic (asks)
 import Filehub.Env (Env)
 import Filehub.Env qualified as Env
-import Filehub.Monad ( Filehub )
+import Filehub.Monad (IsFilehub)
 import Filehub.Server.Internal (withQueryParam)
 import Filehub.Template (makeTemplateContext, runTemplate, TemplateContext(..))
 import Filehub.Session (SessionId)
@@ -30,10 +30,12 @@ import Effectful.Error.Dynamic (throwError)
 import Filehub.Error (FilehubError(..), Error'(InvalidPath))
 import Effectful.Concurrent.STM (readTVarIO)
 import Data.Coerce (coerce)
-import Filehub.Session.Access (SessionView(..), viewSession)
+import Effectful (Eff)
+import Filehub.Session.Effectful (runSessionEff, SessionGet(..))
+import Filehub.Session.Effectful qualified as Session
 
 
-index :: SessionId -> Filehub (Html ())
+index :: IsFilehub es => SessionId -> Eff es (Html ())
 index sessionId = do
   ctx           <- makeTemplateContext sessionId
   sideBar'      <- sideBar sessionId
@@ -43,22 +45,23 @@ index sessionId = do
   pure $ runTemplate ctx (Template.Mobile.index sideBar' toolBar' view' selectedCount)
 
 
-sideBar :: SessionId -> Filehub (Html ())
-sideBar sessionId = do
-  SessionView { currentTarget } <- viewSession sessionId
+sideBar :: IsFilehub es => SessionId -> Eff es (Html ())
+sideBar sessionId = runSessionEff sessionId do
+  currentTarget <- Session.get (.currentTarget)
   targets <- asks @Env (.targets) >>= readTVarIO
   pure $ Template.Mobile.sideBar (fmap snd targets) currentTarget
 
 
-toolBar :: SessionId -> Filehub (Html ())
+toolBar :: IsFilehub es => SessionId -> Eff es (Html ())
 toolBar sessionId = do
   ctx <- makeTemplateContext sessionId
   pure $ runTemplate ctx (Template.Mobile.toolBar)
 
 
-editorModal :: SessionId -> Maybe ClientPath -> Filehub (Html ())
-editorModal sessionId mClientPath = do
-  SessionView { root, storage } <- viewSession sessionId
+editorModal :: IsFilehub es => SessionId -> Maybe ClientPath -> Eff es (Html ())
+editorModal sessionId mClientPath = runSessionEff sessionId do
+  root    <- Session.get (.root)
+  storage <- Session.get (.storage)
   ctx        <- makeTemplateContext sessionId
   clientPath <- withQueryParam mClientPath
   let p      =  ClientPath.fromClientPath root clientPath
@@ -72,11 +75,11 @@ editorModal sessionId mClientPath = do
       throwError (FilehubError InvalidPath "can't edit file")
 
 
-view :: SessionId -> Filehub (Html ())
-view sessionId =
-  Session.withStorage sessionId \storage -> do
-    ctx@TemplateContext{ sortedBy = order } <- makeTemplateContext sessionId
-    table <- do
-      files   <- sortFiles order <$> storage.lsCwd
-      pure $ runTemplate ctx (Template.Mobile.table files)
-    pure $ Template.Mobile.view table
+view :: IsFilehub es => SessionId -> Eff es (Html ())
+view sessionId = runSessionEff sessionId do
+  storage <- Session.get (.storage)
+  ctx@TemplateContext{ sortedBy = order } <- makeTemplateContext sessionId
+  table <- do
+    files   <- sortFiles order <$> storage.lsCwd
+    pure $ runTemplate ctx (Template.Mobile.table files)
+  pure $ Template.Mobile.view table
