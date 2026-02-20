@@ -1,6 +1,7 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE NamedFieldPuns #-}
 -- |
 -- Maintainer  :  jimmy@ailrk.com
 -- Copyright   :  (c) 2025-present Jinyang yao
@@ -29,7 +30,7 @@ import Storage.S3 qualified
 import Target.S3 (Target, S3)
 import Target.Storage (Storage(..))
 import Target.Types (handleTarget, targetHandler)
-import {-# SOURCE #-} Filehub.Session qualified as Session
+import Filehub.Session.Access (SessionView(..), viewSession)
 
 
 storage :: SessionId -> Storage Filehub
@@ -84,11 +85,10 @@ storage sessionId =
         Storage.S3.upload s3 filedata
 
     , download = \clientPath -> withStorageError do
-          root     <- Session.getRoot sessionId & raise
-          s3       <- getS3 sessionId & raise
-          let path =  fromClientPath root clientPath
-          Storage.S3.download s3 path
-
+        SessionView { root } <- raise $ viewSession sessionId
+        s3       <- getS3 sessionId & raise
+        let path =  fromClientPath root clientPath
+        Storage.S3.download s3 path
     , isDirectory = \filePath -> do
         s3 <- getS3 sessionId
         Storage.S3.isDirectory s3 filePath
@@ -97,7 +97,7 @@ storage sessionId =
 
 getS3 :: SessionId -> Filehub (Target S3)
 getS3 sessionId = do
-  TargetView target _ <- Session.currentTarget sessionId
+  SessionView { currentTarget = TargetView target _ } <- viewSession sessionId
   maybe (throwError (FilehubError TargetError "Target is not valid S3 bucket")) pure $ handleTarget target
     [ targetHandler @S3 id
     ]

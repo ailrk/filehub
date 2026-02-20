@@ -1,4 +1,5 @@
 {-# LANGUAGE PartialTypeSignatures #-}
+{-# LANGUAGE NamedFieldPuns #-}
 module Filehub.Server.Mobile
   ( index
   , sideBar
@@ -29,6 +30,7 @@ import Effectful.Error.Dynamic (throwError)
 import Filehub.Error (FilehubError(..), Error'(InvalidPath))
 import Effectful.Concurrent.STM (readTVarIO)
 import Data.Coerce (coerce)
+import Filehub.Session.Access (SessionView(..), viewSession)
 
 
 index :: SessionId -> Filehub (Html ())
@@ -43,8 +45,9 @@ index sessionId = do
 
 sideBar :: SessionId -> Filehub (Html ())
 sideBar sessionId = do
+  SessionView { currentTarget } <- viewSession sessionId
   targets <- asks @Env (.targets) >>= readTVarIO
-  Template.Mobile.sideBar (fmap snd targets) <$> Session.currentTarget sessionId
+  pure $ Template.Mobile.sideBar (fmap snd targets) currentTarget
 
 
 toolBar :: SessionId -> Filehub (Html ())
@@ -54,20 +57,19 @@ toolBar sessionId = do
 
 
 editorModal :: SessionId -> Maybe ClientPath -> Filehub (Html ())
-editorModal sessionId mClientPath =
-  Session.withStorage sessionId \storage -> do
-    ctx        <- makeTemplateContext sessionId
-    clientPath <- withQueryParam mClientPath
-    root       <- Session.getRoot sessionId
-    let p      =  ClientPath.fromClientPath root clientPath
-    mFile <- storage.get p
-    case mFile of
-      Just file -> do
-        content <- storage.read file
-        let filename = coerce takeFileName p
-        pure $ runTemplate ctx (Template.Mobile.editorModal (clientPath, filename) content)
-      Nothing -> do
-        throwError (FilehubError InvalidPath "can't edit file")
+editorModal sessionId mClientPath = do
+  SessionView { root, storage } <- viewSession sessionId
+  ctx        <- makeTemplateContext sessionId
+  clientPath <- withQueryParam mClientPath
+  let p      =  ClientPath.fromClientPath root clientPath
+  mFile <- storage.get p
+  case mFile of
+    Just file -> do
+      content <- storage.read file
+      let filename = coerce takeFileName p
+      pure $ runTemplate ctx (Template.Mobile.editorModal (clientPath, filename) content)
+    Nothing -> do
+      throwError (FilehubError InvalidPath "can't edit file")
 
 
 view :: SessionId -> Filehub (Html ())

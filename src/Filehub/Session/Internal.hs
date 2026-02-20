@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-deferred-out-of-scope-variables #-}
 module Filehub.Session.Internal
   ( createSession
   , extendSession

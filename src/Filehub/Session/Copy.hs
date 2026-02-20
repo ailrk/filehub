@@ -25,6 +25,7 @@ import Filehub.Types (CopyState(..), SessionId, Selected (..))
 import Lens.Micro hiding (to)
 import Target.Types qualified as Target
 import Filehub.Monad (Filehub)
+import Filehub.Session.Access (SessionView(..), viewSession)
 
 
 getCopyState :: SessionId -> Filehub CopyState
@@ -55,7 +56,7 @@ select sessionId = do
               logAttention_ [i|[asckkk] #{err}|]
               throwError err
         Selected x xs -> do
-          root <- Session.getRoot sessionId
+          SessionView { root } <- viewSession sessionId
           let paths = (x:xs) & fmap (ClientPath.fromClientPath root)
           files <- traverse storage.get paths <&> catMaybes
           state <- getCopyState sessionId

@@ -1,4 +1,5 @@
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE BangPatterns #-}
 -- |
 -- Maintainer  :  jimmy@ailrk.com
 -- Copyright   :  (c) 2025-present Jinyang yao
@@ -38,53 +39,33 @@ module Filehub.Session
   , SessionId(..)
   , TargetView(..)
   , Storage(..)
-  , getRoot
-  , getCurrentDir
   , setCurrentDir
-  , getSortFileBy
   , setSortFileBy
-  , getAuthId
   , setAuthId
-  , getSidebarCollapsed
   , toggleSidebarCollapsed
-  , getLayout
   , setLayout
-  , getSessionTheme
   , setSessionTheme
-  , getSessionLocale
   , setSessionLocale
-  , getSessionTargets
   , setSessionTargets
-  , getSessionTargetViews
-  , getDisplay
-  , getControlPanelState
   , setSessionSharedLinkPermit
-  , getSessionSharedLinkPermit
   , withStorage
   , changeCurrentTarget
-  , currentTarget
   , withTarget
   , attachTarget
   , detachTarget
-  , getSessionNotifications
-  , getPendingTasks
   , notify
   )
   where
 
-import Control.Applicative (asum)
 import Data.Generics.Labels ()
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
-import Data.Maybe (fromMaybe, mapMaybe)
-import Data.Set (Set)
-import Data.Typeable (cast)
+import Data.Maybe (fromMaybe)
 import Effectful.Concurrent.STM (readTVarIO)
 import Effectful.Error.Dynamic (throwError)
 import Effectful.Log (logAttention, logAttention_, logTrace)
 import Effectful.Reader.Dynamic (asks)
 import Filehub.Auth.Types (AuthId)
-import Filehub.Display qualified as Display
 import Filehub.Error (FilehubError (..), Error' (..))
 import Filehub.Locale (Locale)
 import Filehub.Monad (Filehub)
@@ -93,40 +74,21 @@ import Filehub.Session.Internal (targetToSessionData)
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Session.Types (TargetView(..))
 import Filehub.SharedLink (SharedLinkPermitSet)
-import Filehub.Storage.File qualified as File
+import {-# SOURCE #-} Filehub.Storage.File qualified as File
 import Filehub.Storage.S3 qualified as S3
 import Filehub.Types
-import Filehub.UserAgent qualified as UserAgent
 import Lens.Micro
 import Lens.Micro.Platform ()
 import Prelude hiding (elem)
 import Prelude hiding (readFile)
-import Target.File (Target(..), FileSys)
+import Target.File (FileSys)
 import Target.S3 (S3)
 import Target.Storage (Storage(..))
 import Target.Types (TargetId, AnyTarget (..), getTargetId, handleTarget, targetHandler)
-import UnliftIO.STM (TBQueue, TVar, atomically, writeTBQueue)
-import Worker.Task (TaskId)
-import {-# SOURCE #-} Filehub.Session.Copy qualified as Copy
-import {-# SOURCE #-} Filehub.Session.Selected qualified as Selected
+import UnliftIO.STM (TBQueue, atomically, writeTBQueue)
 import Data.ClientPath (AbsPath (..))
+import Filehub.Session.Access (SessionView(..), viewSession)
 
-
--- | Get the current target root. The meaning of the root depends on the target. e.g for
--- a normal file system root is the file path, meanwhile S3 has no root, it will always be ""
-getRoot :: SessionId -> Filehub AbsPath
-getRoot sessionId = do
-  TargetView (AnyTarget t) _ <- currentTarget sessionId
-  pure
-    . fromMaybe (AbsPath "")
-    . asum
-    $ [ cast t <&> \(x :: Target FileSys) -> x.root
-      , cast t <&> \(_ :: Target S3) -> AbsPath ""
-      ]
-
--- | Get the current working directory of the session.
-getCurrentDir :: SessionId -> Filehub AbsPath
-getCurrentDir sessionId = (^. #sessionData . #currentDir) <$> currentTarget sessionId
 
 
 -- | Set the current working directory of the session.
@@ -135,20 +97,10 @@ setCurrentDir sessionId path = do
   Session.Pool.update sessionId \s -> s & #targets . ix s.currentTargetId . #currentDir .~ path
 
 
--- | Get the file sorting order of the current session.
-getSortFileBy :: SessionId -> Filehub SortFileBy
-getSortFileBy sessionId = (^. #sessionData . #sortedFileBy) <$> currentTarget sessionId
-
-
 -- | Set the file sorting order of the current session.
 setSortFileBy :: SessionId -> SortFileBy -> Filehub ()
 setSortFileBy sessionId order = do
   Session.Pool.update sessionId \s -> s & #targets . ix s.currentTargetId . #sortedFileBy .~ order
-
-
--- | Get the session `AuthId`.
-getAuthId :: SessionId -> Filehub (Maybe AuthId)
-getAuthId sessionId = (^. #authId) <$> Session.Pool.get sessionId
 
 
 -- | Set the session `AuthId`.
@@ -157,19 +109,10 @@ setAuthId sessionId mAuthId = do
   Session.Pool.update sessionId \s -> s & #authId .~ mAuthId
 
 
-getSidebarCollapsed :: SessionId -> Filehub Bool
-getSidebarCollapsed sessionId = (^. #sidebarCollapsed) <$> Session.Pool.get sessionId
-
-
 toggleSidebarCollapsed :: SessionId -> Filehub ()
 toggleSidebarCollapsed sessionId = do
   Session.Pool.update sessionId \s ->
     s & #sidebarCollapsed .~ (not (s ^. #sidebarCollapsed))
-
-
--- | Get the current session layout.
-getLayout :: SessionId -> Filehub Layout
-getLayout sessionId = (^. #layout) <$> Session.Pool.get sessionId
 
 
 -- | Set the current session layout.
@@ -178,20 +121,11 @@ setLayout sessionId layout = do
   Session.Pool.update sessionId \s -> s & #layout .~ layout
 
 
--- | Get the current session theme.
-getSessionTheme :: SessionId -> Filehub Theme
-getSessionTheme sessionId = (^. #theme) <$> Session.Pool.get sessionId
-
 
 -- | Set the current session theme.
 setSessionTheme :: SessionId -> Theme -> Filehub ()
 setSessionTheme sessionId theme = do
   Session.Pool.update sessionId \s -> s & #theme .~ theme
-
-
--- | Get the current session theme.
-getSessionLocale :: SessionId -> Filehub Locale
-getSessionLocale sessionId = (^. #locale) <$> Session.Pool.get sessionId
 
 
 -- | Set the current session theme.
@@ -200,56 +134,9 @@ setSessionLocale sessionId locale = do
   Session.Pool.update sessionId \s -> s & #locale .~ locale
 
 
-getSessionTargets :: SessionId -> Filehub (Map TargetId TargetSessionData)
-getSessionTargets sessionId = (^. #targets) <$> Session.Pool.get sessionId
-
-
 setSessionTargets :: SessionId -> Map TargetId TargetSessionData -> Filehub ()
 setSessionTargets sessionId targets = do
   Session.Pool.update sessionId \s -> s & #targets .~ targets
-
-
-getSessionTargetViews :: SessionId -> Filehub [TargetView]
-getSessionTargetViews sessionId = do
-  sessionTargetdata <- getSessionTargets sessionId
-  let targetIds     =  Map.keys sessionTargetdata
-  targets           <- filter ((`elem` targetIds) . fst) <$> (asks @Env (.targets) >>= readTVarIO)
-  let targetViews = flip mapMaybe targets \(targetId, target) ->
-        case Map.lookup targetId sessionTargetdata of
-          Just targetData -> pure (TargetView target targetData)
-          Nothing         -> Nothing
-  pure targetViews
-
-
--- | Get the current session display. The display is calculated base on the client screen resolution.
-getDisplay :: SessionId -> Filehub Display
-getDisplay sessionId = do
-  session <- Session.Pool.get sessionId
-  case session ^. #resolution of
-    Just resolution ->
-      case session ^. #deviceType of
-        UserAgent.Desktop -> pure Desktop
-        UserAgent.Mobile  -> pure $ Display.classify resolution
-        UserAgent.Tablet  -> pure $ Display.classify resolution
-        UserAgent.Bot     -> pure $ Display.classify resolution
-        UserAgent.Unknown -> pure $ Display.classify resolution
-    Nothing -> pure NoDisplay
-
-
-getControlPanelState :: SessionId -> Filehub ControlPanelState
-getControlPanelState sessionId = do
-  isAnySelected <- Selected.anySelected sessionId
-  copyState     <- Copy.getCopyState sessionId
-  case (isAnySelected, copyState) of
-    (_, Paste {})           -> pure ControlPanelCopied
-    (True, CopySelected {}) -> pure ControlPanelSelecting
-    (True, NoCopyPaste)     -> pure ControlPanelSelecting
-    _                       -> pure ControlPanelDefault
-
-
--- | Set the current session theme.
-getSessionSharedLinkPermit:: SessionId -> Filehub (Maybe SharedLinkPermitSet)
-getSessionSharedLinkPermit sessionId = (^. #sharedLinkPermit) <$> Session.Pool.get sessionId
 
 
 setSessionSharedLinkPermit :: SessionId -> Maybe SharedLinkPermitSet -> Filehub ()
@@ -262,20 +149,9 @@ setSessionSharedLinkPermit sessionId sharedLinkPermit = do
 ------------------------------
 
 
-currentTarget :: SessionId -> Filehub TargetView
-currentTarget sessionId = do
-  mSession <- Session.Pool.get sessionId
-  targets <- asks @Env (.targets) >>= readTVarIO
-  maybe (throwError (FilehubError InvalidSession "Invalid session")) pure do
-    targetId          <- mSession ^? #currentTargetId
-    targetSessionData <- mSession ^? #targets >>= Map.lookup targetId
-    target            <- lookup targetId targets
-    pure $ TargetView target targetSessionData
-
-
 changeCurrentTarget :: SessionId -> TargetId -> Filehub ()
 changeCurrentTarget sessionId targetId = do
-  TargetView target _ <- currentTarget sessionId
+  SessionView { currentTarget = TargetView target _ } <- viewSession sessionId
   targets             <- asks @Env (.targets) >>= readTVarIO
   if getTargetId target == targetId
      then pure ()
@@ -291,17 +167,18 @@ changeCurrentTarget sessionId targetId = do
 
 withTarget :: SessionId -> TargetId -> (TargetView -> Storage Filehub -> Filehub a) -> Filehub a
 withTarget sessionId targetId action = do
-  TargetView saved _ <- currentTarget sessionId
+  SessionView { currentTarget = TargetView saved _ } <- viewSession sessionId
   changeCurrentTarget sessionId targetId
   withStorage sessionId \storage -> do
-    result <- currentTarget sessionId >>= flip action storage
+    SessionView { currentTarget } <- viewSession sessionId
+    result <- action currentTarget storage
     changeCurrentTarget sessionId (getTargetId saved)
     pure result
 
 
 attachTarget :: SessionId -> AnyTarget -> Filehub ()
 attachTarget sessionId target = do
-  TargetView current _ <- currentTarget sessionId
+  SessionView { currentTarget = TargetView current _ } <- viewSession sessionId
   if current == target
      then pure ()
      else do
@@ -324,8 +201,8 @@ detachTarget sessionId targetId = do
 
 withStorage :: SessionId -> (Storage Filehub -> Filehub a) -> Filehub a
 withStorage sessionId f = do
-  TargetView target _ <- currentTarget sessionId
-  fromMaybe onError $ handleTarget target
+  SessionView { currentTarget = TargetView current _ } <- viewSession sessionId
+  fromMaybe onError $ handleTarget current
     [ targetHandler @FileSys \_ -> f fileStorage
     , targetHandler @S3      \_ -> f s3Storage
     ]
@@ -344,10 +221,6 @@ withStorage sessionId f = do
 
 getSessionNotifications :: SessionId -> Filehub (TBQueue Notification)
 getSessionNotifications sessionId = (^. #notifications) <$> Session.Pool.get sessionId
-
-
-getPendingTasks :: SessionId -> Filehub (TVar (Set TaskId))
-getPendingTasks sessionId = (^. #pendingTasks) <$> Session.Pool.get sessionId
 
 
 notify :: SessionId -> Notification -> Filehub ()

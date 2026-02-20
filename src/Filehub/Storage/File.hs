@@ -1,6 +1,7 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NamedFieldPuns #-}
 -- |
 -- Maintainer  :  jimmy@ailrk.com
 -- Copyright   :  (c) 2025-present Jinyang yao
@@ -15,7 +16,6 @@
 module Filehub.Storage.File (storage) where
 
 import Control.Monad (unless)
-import Data.Function ((&))
 import Effectful ( raise)
 import Effectful.Error.Dynamic (throwError)
 import Effectful.FileSystem
@@ -24,7 +24,7 @@ import Filehub.Error (FilehubError(..), Error' (..))
 import Filehub.Monad (Filehub)
 import Filehub.Session.Types (TargetView(..))
 import Filehub.Storage.Error (withStorageError)
-import Filehub.Types ( SessionId )
+import Filehub.Types (SessionId)
 import Lens.Micro.Platform ()
 import Prelude hiding (read, readFile, writeFile)
 import Storage.File qualified
@@ -32,6 +32,7 @@ import Target.File (Target, FileSys)
 import Target.Storage (Storage(..))
 import Target.Types (handleTarget, targetHandler)
 import {-# SOURCE #-} Filehub.Session qualified as Session
+import Filehub.Session.Access (SessionView (..), viewSession)
 import Data.ClientPath (AbsPath(..))
 import Data.Coerce (coerce)
 
@@ -74,11 +75,11 @@ storage sessionId =
         Storage.File.newFolder path
 
     , lsCwd = withStorageError do
-        currentDir <- Session.getCurrentDir sessionId & raise
+        SessionView { currentDir } <- raise $ viewSession sessionId
         Storage.File.lsCwd currentDir
 
     , upload = \filedata -> do
-        currentDir <- Session.getCurrentDir sessionId
+        SessionView { currentDir } <- viewSession sessionId
         Storage.File.upload currentDir filedata
 
     , download = \clientPath -> do
@@ -90,7 +91,7 @@ storage sessionId =
 
 getFileSys :: SessionId -> Filehub (Target FileSys)
 getFileSys sessionId = do
-  TargetView target _ <- Session.currentTarget sessionId
+  SessionView { currentTarget = TargetView target _ } <- viewSession sessionId
   maybe (throwError (FilehubError TargetError "Target is not valid file system direcotry")) pure $ handleTarget target
     [ targetHandler @FileSys id
     ]

@@ -74,7 +74,8 @@ import Filehub.Server.Desktop qualified as Server.Desktop
 import Filehub.Server.Mobile qualified as Server.Mobile
 import Filehub.Server.Internal (withQueryParam, parseHeader')
 import Filehub.Server.Internal qualified as Server.Internal
-import Filehub.Session (SessionId(..), TargetView (..), withTarget, currentTarget)
+import Filehub.Session (SessionId(..), TargetView (..), withTarget)
+import Filehub.Session.Access (SessionView(..), viewSession)
 import Filehub.Session qualified as Session
 import Filehub.Session.Copy qualified as Copy
 import Filehub.Session.Pool qualified as Session.Pool
@@ -228,7 +229,7 @@ initialize sessionId res = do
 -- start a full reload from the bootstrap stage.
 home :: SessionId -> ConfirmLogin -> Filehub (Html ())
 home sessionId _  = do
-  display <- Session.getDisplay sessionId
+  SessionView { display } <- viewSession sessionId
   m <- manifest
   let background
         = fromMaybe "#000000"
@@ -286,8 +287,7 @@ refresh sessionId _ mUIComponent = do
 -- no conduit.
 listen :: SessionId -> ConfirmLogin -> Filehub (RecommendedEventSourceHeaders (ConduitT () Notification IO ()))
 listen sessionId _ = recommendedEventSourceHeaders <$> do
-  notifications <- Session.getSessionNotifications sessionId
-  pendingTasks  <- Session.getPendingTasks sessionId
+  SessionView { notifications, pendingTasks } <- viewSession sessionId
   streamAtomically \loop -> do
     n <- readTBQueue notifications
     case n of
@@ -328,7 +328,7 @@ loginPage sessionId cookie Nothing = do
      else do
        case fmap Text.encodeUtf8 cookie >>= parseHeader' >>= Cookies.fromCookies of
          Just authId' -> do
-           authId <- Session.getAuthId sessionId
+           SessionView { authId } <- viewSession sessionId
            if authId == Just authId'
               then go
               else pure $ runTemplate ctx Template.Login.login
@@ -342,7 +342,7 @@ loginPage sessionId _ (Just _) = do
 
 loginToggleTheme :: SessionId -> Filehub (Headers '[ Header "HX-Trigger-After-Settle" FilehubEvent ] (Html ()))
 loginToggleTheme sessionId = do
-  theme <- Session.getSessionTheme sessionId
+  SessionView { theme } <- viewSession sessionId
   case theme of
     Theme.Light -> Session.setSessionTheme sessionId Theme.Dark
     Theme.Dark  -> Session.setSessionTheme sessionId Theme.Light
@@ -489,61 +489,58 @@ logout sessionId _ = do
 cd :: SessionId -> ConfirmLogin -> Maybe ClientPath
    ->  Filehub (Headers '[ Header "HX-Trigger-After-Swap" FilehubEvent ] (Html ()))
 cd sessionId _ mClientPath = do
-  Session.withStorage sessionId \storage -> do
-    clientPath <- withQueryParam mClientPath
-    root       <- Session.getRoot sessionId
-    storage.cd (ClientPath.fromClientPath root clientPath)
-    html <- do
-      toolBar' <- toolBar sessionId
-      view'    <- view sessionId
-      pure do
-        toolBar' `with` [ term "hx-swap-oob" "true" ]
-        view'
-    pure $ addHeader DirChanged html
+  SessionView { root, storage } <- viewSession sessionId
+  clientPath <- withQueryParam mClientPath
+  storage.cd (ClientPath.fromClientPath root clientPath)
+  html <- do
+    toolBar' <- toolBar sessionId
+    view'    <- view sessionId
+    pure do
+      toolBar' `with` [ term "hx-swap-oob" "true" ]
+      view'
+  pure $ addHeader DirChanged html
 
 
 delete :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> [ClientPath] -> Bool
        -> Filehub (Headers '[ Header "X-Filehub-Selected-Count" Int
                             , Header "HX-Trigger" FilehubEvent
                             ] (Html ()))
-delete sessionId _ _ clientPaths deleteSelected =
-  Session.withStorage sessionId \storage -> do
-    count         <- length <$> Selected.allSelecteds sessionId
-    root          <- Session.getRoot sessionId
-    taskId        <- newTaskId
-    deleteCounter <- newTVarIO @_ @Integer 0
-    notifications <- Session.getSessionNotifications sessionId
+delete sessionId _ _ clientPaths deleteSelected = do
+  SessionView { root, notifications, storage } <- viewSession sessionId
+  count         <- length <$> Selected.allSelecteds sessionId
+  taskId        <- newTaskId
+  deleteCounter <- newTVarIO @_ @Integer 0
 
-    void $ async do
-      atomically do writeTBQueue notifications (DeleteProgressed taskId 0)
+  void $ async do
+    atomically do writeTBQueue notifications (DeleteProgressed taskId 0)
 
-      do
-        forConcurrently_ clientPaths \clientPath -> do
-          let path = ClientPath.fromClientPath root clientPath
-          storage.delete path
-          atomically do
-            modifyTVar' deleteCounter (+ 1)
-            n <- readTVar deleteCounter
-            writeTBQueue notifications (DeleteProgressed taskId (n % max 1 (fromIntegral count)))
+    do
+      forConcurrently_ clientPaths \clientPath -> do
+        let path = ClientPath.fromClientPath root clientPath
+        storage.delete path
+        atomically do
+          modifyTVar' deleteCounter (+ 1)
+          n <- readTVar deleteCounter
+          writeTBQueue notifications (DeleteProgressed taskId (n % max 1 (fromIntegral count)))
 
-      when deleteSelected do
-        allSelecteds <- Selected.allSelecteds sessionId
-        forM_ allSelecteds \(target, selected) -> do
-          Session.withTarget sessionId (Target.getTargetId target) \_ _ -> do
-            case selected of
-              NoSelection -> pure ()
-              Selected x xs -> do
-                forConcurrently_ (fmap (ClientPath.fromClientPath root) (x:xs)) \path -> do
-                  storage.delete path
-                  atomically do
-                    modifyTVar' deleteCounter (+ 1)
-                    n <- readTVar deleteCounter
-                    writeTBQueue notifications (DeleteProgressed taskId (n % max 1 (fromIntegral count)))
+    when deleteSelected do
+      allSelecteds <- Selected.allSelecteds sessionId
+      forM_ allSelecteds \(target, selected) -> do
+        Session.withTarget sessionId (Target.getTargetId target) \_ _ -> do
+          case selected of
+            NoSelection -> pure ()
+            Selected x xs -> do
+              forConcurrently_ (fmap (ClientPath.fromClientPath root) (x:xs)) \path -> do
+                storage.delete path
+                atomically do
+                  modifyTVar' deleteCounter (+ 1)
+                  n <- readTVar deleteCounter
+                  writeTBQueue notifications (DeleteProgressed taskId (n % max 1 (fromIntegral count)))
 
-      atomically do writeTBQueue notifications (TaskCompleted taskId)
-    Server.Internal.clear sessionId
-    newCount <- length <$> Selected.allSelecteds sessionId
-    addHeader newCount . addHeader SSEStarted <$> index sessionId
+    atomically do writeTBQueue notifications (TaskCompleted taskId)
+  Server.Internal.clear sessionId
+  newCount <- length <$> Selected.allSelecteds sessionId
+  addHeader newCount . addHeader SSEStarted <$> index sessionId
 
 
 rename
@@ -551,45 +548,41 @@ rename
   -> RenameFile
   -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
 rename sessionId _ _ (RenameFile old new) = do
-  Session.withStorage sessionId \storage -> do
-    dir <- Session.getCurrentDir sessionId
-    storage.rename
-      (ClientPath.fromClientPath dir old)
-      (ClientPath.fromClientPath dir new)
-    html <- view sessionId
-    pure $ addHeader FileRenamed html
+  SessionView { currentDir = dir, storage } <- viewSession sessionId
+  storage.rename
+    (ClientPath.fromClientPath dir old)
+    (ClientPath.fromClientPath dir new)
+  html <- view sessionId
+  pure $ addHeader FileRenamed html
 
 
 newFile :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> NewFile -> Filehub (Html ())
 newFile sessionId _ _ (NewFile name) = do
-  Session.withStorage sessionId \storage -> do
-    AbsPath dir  <- Session.getCurrentDir sessionId
-    path         <- validateAbsPath (dir </> Text.unpack name) (FilehubError InvalidPath ("<redacted>/" <> show name))
-    storage.new path
-    view sessionId
+  SessionView { currentDir = AbsPath dir, storage } <- viewSession sessionId
+  path         <- validateAbsPath (dir </> Text.unpack name) (FilehubError InvalidPath ("<redacted>/" <> show name))
+  storage.new path
+  view sessionId
 
 
 updateFile :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> UpdatedFile -> Filehub (Html ())
 updateFile sessionId _ _ (UpdatedFile clientPath content) = do
-  Session.withStorage sessionId \storage -> do
-    root     <- Session.getRoot sessionId
-    let path  = ClientPath.fromClientPath root clientPath
-    storage.write $ defaultFileWithContent
-      { path     = path
-      , content  = FileContentRaw (Text.encodeUtf8 content)
-      }
-    view sessionId
+  SessionView { root, storage } <- viewSession sessionId
+  let path  = ClientPath.fromClientPath root clientPath
+  storage.write $ defaultFileWithContent
+    { path     = path
+    , content  = FileContentRaw (Text.encodeUtf8 content)
+    }
+  view sessionId
 
 
 newFolder :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> NewFolder -> Filehub (Html ())
 newFolder sessionId _ _ (NewFolder name) = do
-  Session.withStorage sessionId \storage -> do
-    AbsPath dir <- Session.getCurrentDir sessionId
-    path <- validateAbsPath
-              (dir </> Text.unpack name)
-              (FilehubError InvalidPath ("<redacted>/" <> show name))
-    storage.newFolder path
-    view sessionId
+  SessionView { currentDir = AbsPath dir, storage } <- viewSession sessionId
+  path <- validateAbsPath
+            (dir </> Text.unpack name)
+            (FilehubError InvalidPath ("<redacted>/" <> show name))
+  storage.newFolder path
+  view sessionId
 
 
 copy :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> Filehub (Html ())
@@ -624,14 +617,14 @@ paste :: SessionId -> ConfirmLogin -> ConfirmReadOnly
                            , Header "HX-Trigger" FilehubEvent
                            ] (Html ()))
 paste sessionId _ _ = do
+  SessionView { notifications } <- viewSession sessionId
   pasteCounter  <- newTVarIO @_ @Integer 0
   taskId        <- newTaskId
-  notifications <- Session.getSessionNotifications sessionId
   state         <- Copy.getCopyState sessionId
   case state of
     Paste selections -> do
       tasks <- do
-        TargetView to sessionData <- currentTarget sessionId
+        SessionView { currentTarget = TargetView to sessionData } <- viewSession sessionId
         createPasteTasks sessionData.currentDir to selections
       let taskCount = fromIntegral (length tasks)
 
@@ -692,50 +685,48 @@ move :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> MoveFile
      -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent
                           , Header "HX-Trigger" FilehubEvent
                           ] (Html ()))
-move sessionId _ _ (MoveFile src tgt) =
-  Session.withStorage sessionId \storage -> do
-    root          <- Session.getRoot sessionId
-    notifications <- Session.getSessionNotifications sessionId
-    taskId        <- newTaskId
-    let srcPaths  =  fmap (ClientPath.fromClientPath root) src
-    let tgtPath   =  ClientPath.fromClientPath root tgt
+move sessionId _ _ (MoveFile src tgt) = do
+  SessionView { storage, root, notifications } <- viewSession sessionId
+  taskId       <- newTaskId
+  let srcPaths =  fmap (ClientPath.fromClientPath root) src
+  let tgtPath  =  ClientPath.fromClientPath root tgt
 
-    -- check before take action
-    forM_ srcPaths \srcPath -> do
-      isTgtDir <- storage.isDirectory tgtPath
-      when (not isTgtDir) do
-        throwError (FilehubError InvalidDir "Target is not a directory")
+  -- check before take action
+  forM_ srcPaths \srcPath -> do
+    isTgtDir <- storage.isDirectory tgtPath
+    when (not isTgtDir) do
+      throwError (FilehubError InvalidDir "Target is not a directory")
 
-      when (srcPath == tgtPath)  do
-        throwError (FilehubError InvalidDir "Can't move to the same directory")
+    when (srcPath == tgtPath)  do
+      throwError (FilehubError InvalidDir "Can't move to the same directory")
 
-      when (coerce takeDirectory srcPath == tgtPath)  do
-        throwError (FilehubError InvalidDir "Already in the current directory")
+    when (coerce takeDirectory srcPath == tgtPath)  do
+      throwError (FilehubError InvalidDir "Already in the current directory")
 
-      let dstPath = tgtPath <./> coerce takeFileName srcPath
-      mFile <- storage.get dstPath
-      when (isJust mFile) do
-        throwError (FilehubError InvalidPath "The destination already exists")
+    let dstPath = tgtPath <./> coerce takeFileName srcPath
+    mFile <- storage.get dstPath
+    when (isJust mFile) do
+      throwError (FilehubError InvalidPath "The destination already exists")
 
-    void $ async do
-      atomically do
-        writeTBQueue notifications (MoveProgressed taskId 0)
+  void $ async do
+    atomically do
+      writeTBQueue notifications (MoveProgressed taskId 0)
 
-      storage.mv do
-        fmap (\srcPath -> (srcPath, tgtPath <./> coerce takeFileName srcPath)) srcPaths
+    storage.mv do
+      fmap (\srcPath -> (srcPath, tgtPath <./> coerce takeFileName srcPath)) srcPaths
 
-      atomically do
-        writeTBQueue notifications  (TaskCompleted taskId)
+    atomically do
+      writeTBQueue notifications  (TaskCompleted taskId)
 
-    Server.Internal.clear sessionId
-    addHeader FileMoved . addHeader SSEStarted <$> index sessionId
+  Server.Internal.clear sessionId
+  addHeader FileMoved . addHeader SSEStarted <$> index sessionId
 
 
 renameModal :: SessionId -> ConfirmLogin -> ConfirmDesktopOnly -> ConfirmReadOnly
             -> Maybe ClientPath -> Filehub (Html ())
 renameModal sessionId _ _ _ mClientPath = do
+  SessionView { currentDir = dir } <- viewSession sessionId
   clientPath <- withQueryParam mClientPath
-  dir        <- Session.getCurrentDir sessionId
   ctx        <- makeTemplateContext sessionId
   pure $ runTemplate ctx (Template.Desktop.renameModal (ClientPath.fromClientPath dir clientPath))
 
@@ -759,7 +750,7 @@ fileDetailModal sessionId _ _ mPath = do
 
 editorModal :: SessionId -> ConfirmLogin -> Maybe ClientPath -> Filehub (Html ())
 editorModal sessionId _ mClientPath = do
-  display <- Session.getDisplay sessionId
+  SessionView { display } <- viewSession sessionId
   case display of
     Mobile    -> Server.Mobile.editorModal sessionId mClientPath
     Desktop   -> Server.Desktop.editorModal sessionId mClientPath
@@ -774,7 +765,7 @@ selectLayout sessionId _ layout = do
 
 sortTable :: SessionId -> ConfirmLogin -> Maybe SortFileBy -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
 sortTable sessionId _ order = do
-  display <- Session.getDisplay sessionId
+  SessionView { display } <- viewSession sessionId
   Session.setSortFileBy sessionId (fromMaybe ByNameUp order)
   html <- do
     view' <- view sessionId
@@ -791,63 +782,61 @@ sortTable sessionId _ order = do
 
 search :: SessionId -> ConfirmLogin -> SearchWord -> Filehub (Html ())
 search sessionId _ searchWord = do
-  Session.withStorage sessionId \storage -> do
-    ctx <- makeTemplateContext sessionId
-    display <- Session.getDisplay sessionId
-    files   <- storage.lsCwd
-    case display of
-      Mobile    -> pure $ runTemplate ctx (Template.search searchWord files Template.Mobile.table)
-      Desktop   -> pure $ runTemplate ctx (Template.search searchWord files Template.Desktop.table)
-      NoDisplay -> error "impossible"
+  SessionView { display, storage } <- viewSession sessionId
+  ctx <- makeTemplateContext sessionId
+  files   <- storage.lsCwd
+  case display of
+    Mobile    -> pure $ runTemplate ctx (Template.search searchWord files Template.Mobile.table)
+    Desktop   -> pure $ runTemplate ctx (Template.search searchWord files Template.Desktop.table)
+    NoDisplay -> error "impossible"
 
 
 download :: SessionId -> ConfirmLogin -> [ClientPath]
          -> Filehub (Headers '[ Header "Content-Disposition" String ] (ConduitT () ByteString (ResourceT IO) ()))
 download sessionId _ clientPaths = do
-  Session.withStorage sessionId \storage -> do
-    root <- Session.getRoot sessionId
-    case clientPaths of
-      [clientPath@(ClientPath path)] -> do
-        mFile   <- storage.get (ClientPath.fromClientPath root clientPath)
-        conduit <- storage.download clientPath
-        case mFile of
-          Just file -> do
-            let filename =
-                  case file.content of
-                    Regular -> printf "attachement; filename=%s" (takeFileName path)
-                    Dir     -> printf "attachement; filename=%s.zip" (takeFileName path)
-            pure $ addHeader filename conduit
-          Nothing -> do
-            throwError (FilehubError InvalidPath "can't download, invalid file path")
-      _ -> do
-        (zipPath, _) <- liftIO do
-          tempDir <- Temp.getCanonicalTemporaryDirectory
-          Temp.openTempFile tempDir "DXXXXXX.zip"
+  SessionView { root, storage } <- viewSession sessionId
+  case clientPaths of
+    [clientPath@(ClientPath path)] -> do
+      mFile   <- storage.get (ClientPath.fromClientPath root clientPath)
+      conduit <- storage.download clientPath
+      case mFile of
+        Just file -> do
+          let filename =
+                case file.content of
+                  Regular -> printf "attachement; filename=%s" (takeFileName path)
+                  Dir     -> printf "attachement; filename=%s.zip" (takeFileName path)
+          pure $ addHeader filename conduit
+        Nothing -> do
+          throwError (FilehubError InvalidPath "can't download, invalid file path")
+    _ -> do
+      (zipPath, _) <- liftIO do
+        tempDir <- Temp.getCanonicalTemporaryDirectory
+        Temp.openTempFile tempDir "DXXXXXX.zip"
 
-        files <- traverse (storage.get . ClientPath.fromClientPath root) clientPaths <&> catMaybes
+      files <- traverse (storage.get . ClientPath.fromClientPath root) clientPaths <&> catMaybes
 
-        tasks <- forM files \file -> do
-          conduit <- storage.readStream file
-          pure (file.path, conduit)
+      tasks <- forM files \file -> do
+        conduit <- storage.readStream file
+        pure (file.path, conduit)
 
-        Zip.createArchive zipPath do
-          forM_ tasks \(path, conduit) -> do
-            m <- Zip.mkEntrySelector  (coerce makeRelative root path)
-            Zip.sinkEntry Zip.Zstd conduit m
-        tag <- Text.pack <$> replicateM 8 (randomRIO ('a', 'z'))
-        let conduit =
-              Conduit.bracketP
-                (pure ())
-                (\_ -> removeFile zipPath)
-                (\_ -> Conduit.sourceFile zipPath)
-        pure $ addHeader (printf "attachement; filename=%s.zip" tag) conduit
+      Zip.createArchive zipPath do
+        forM_ tasks \(path, conduit) -> do
+          m <- Zip.mkEntrySelector  (coerce makeRelative root path)
+          Zip.sinkEntry Zip.Zstd conduit m
+      tag <- Text.pack <$> replicateM 8 (randomRIO ('a', 'z'))
+      let conduit =
+            Conduit.bracketP
+              (pure ())
+              (\_ -> removeFile zipPath)
+              (\_ -> Conduit.sourceFile zipPath)
+      pure $ addHeader (printf "attachement; filename=%s.zip" tag) conduit
 
 
 upload :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> MultipartData Mem
        -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent
                             ] (Html ()))
 upload sessionId _ _ multipart = do
-  notifications <- Session.getSessionNotifications sessionId
+  SessionView { notifications } <- viewSession sessionId
   taskId        <- newTaskId
   uploadCounter <- newTVarIO @_ @Integer 0
   let taskCount =  fromIntegral $ length multipart.files
@@ -904,16 +893,16 @@ cancel sessionId _ = do
 initViewer :: SessionId -> ConfirmLogin -> Maybe ClientPath
            -> Filehub (Headers '[Header "HX-Trigger" FilehubEvent] NoContent)
 initViewer sessionId _ mClientPath = do
+  SessionView { root } <- viewSession sessionId
   clientPath <- withQueryParam mClientPath
-  root       <- Session.getRoot sessionId
   payload    <- initViewer' root clientPath
   pure $ addHeader payload NoContent
   where
     initViewer' root clientPath = do
       Session.withStorage sessionId \storage -> do
+        SessionView { sortFileBy = order } <- viewSession sessionId
         let filePath  =  ClientPath.fromClientPath root clientPath
         let dir       =  coerce takeDirectory filePath
-        order         <- Session.getSortFileBy sessionId
         files         <- takeResourceFiles . Sort.sortFiles order <$> (storage.ls dir)
         let idx       =  fromMaybe 0 $ List.elemIndex filePath (fmap (.path) files)
         let resources =  fmap (toResource root) files
@@ -946,7 +935,7 @@ changeTarget :: SessionId -> ConfirmLogin -> Maybe TargetId
              -> Filehub (Headers '[Header "HX-Trigger-After-Swap" FilehubEvent] (Html ()))
 changeTarget sessionId _ mTargetId = do
   savedTargetId <- do
-    TargetView saved _ <- Session.currentTarget sessionId
+    SessionView { currentTarget = TargetView saved _ } <- viewSession sessionId
     pure $ Target.getTargetId saved
 
   let restore = Session.changeCurrentTarget sessionId savedTargetId
@@ -986,8 +975,8 @@ shared :: SessionId -> Maybe SharedLinkPermit -> SharedLinkHash -> Maybe ClientP
 shared sessionId mClientPermit hash mClientPath = do
   case mClientPermit of
     Just clientPermit -> do
-      mSharedLinkPermit <- Session.getSessionSharedLinkPermit sessionId
-      case mSharedLinkPermit of
+      SessionView { sharedLinkPermit } <- viewSession sessionId
+      case sharedLinkPermit of
         Just (SharedLinkPermitSet permit hashes)
           | clientPermit /= permit         -> goAuth
           | hash `Set.member` hashes       -> goAuth
@@ -1015,16 +1004,15 @@ sharedAuth sessionId = undefined
 
 themeCss :: SessionId -> Filehub ByteString
 themeCss sessionId = do
+  SessionView { theme } <- viewSession sessionId
   customThemeDark  <- (fmap . fmap) Theme.customTheme2Css (asks @Env (.customThemeDark))
   customThemeLight <- (fmap . fmap) Theme.customTheme2Css (asks @Env (.customThemeLight))
 #ifdef DEBUG
-  theme <- Session.getSessionTheme sessionId
   dir <- liftIO $ Paths_filehub.getDataDir >>= makeAbsolute <&> (++ "/data/filehub")
   case theme of
     Dark  -> liftIO $ maybe (readFile (dir </> "theme-dark.css")) pure customThemeDark
     Light -> liftIO $ maybe (readFile (dir </> "theme-light.css")) pure customThemeLight
 #else
-  theme <- Session.getSessionTheme sessionId
   pure
     case theme of
       Dark  -> fromMaybe "no-theme" $ customThemeDark <|> Map.lookup "theme-dark.css" staticFiles
@@ -1037,7 +1025,7 @@ themeCss sessionId = do
 -- to be removed by the frontend.
 toggleTheme :: SessionId -> ConfirmLogin -> Filehub (Headers '[ Header "HX-Trigger-After-Settle" FilehubEvent ] (Html ()))
 toggleTheme sessionId _ = do
-  theme <- Session.getSessionTheme sessionId
+  SessionView { theme } <- viewSession sessionId
   case theme of
     Theme.Light -> Session.setSessionTheme sessionId Theme.Dark
     Theme.Dark  -> Session.setSessionTheme sessionId Theme.Light
@@ -1065,20 +1053,19 @@ serve :: SessionId -> ConfirmLogin -> Maybe ClientPath
                            ]
                            (ConduitT () ByteString (ResourceT IO) ()))
 serve sessionId _ mFile = do
-  Session.withStorage sessionId \storage -> do
-    root       <- Session.getRoot sessionId
-    clientPath <- withQueryParam mFile
-    let path   = ClientPath.fromClientPath root clientPath
-    storage.get path >>= \case
-      Just file -> do
-        conduit <- storage.readStream file
-        pure
-          . addHeader (ByteString.unpack file.mimetype)
-          . addHeader (printf "inline; filename=%s" (coerce takeFileName path :: String))
-          . addHeader "public, max-age=31536000, immutable"
-          $ conduit
-      Nothing -> do
-        throwError (FilehubError InvalidPath "file path is invalid")
+  SessionView { root, storage } <- viewSession sessionId
+  clientPath <- withQueryParam mFile
+  let path   = ClientPath.fromClientPath root clientPath
+  storage.get path >>= \case
+    Just file -> do
+      conduit <- storage.readStream file
+      pure
+        . addHeader (ByteString.unpack file.mimetype)
+        . addHeader (printf "inline; filename=%s" (coerce takeFileName path :: String))
+        . addHeader "public, max-age=31536000, immutable"
+        $ conduit
+    Nothing -> do
+      throwError (FilehubError InvalidPath "file path is invalid")
 
 
 thumbnail :: SessionId -> ConfirmLogin -> Maybe ClientPath
@@ -1088,21 +1075,20 @@ thumbnail :: SessionId -> ConfirmLogin -> Maybe ClientPath
                                ]
                                (ConduitT () ByteString (ResourceT IO) ()))
 thumbnail sessionId _ mFile = do
-  Session.withStorage sessionId \storage -> do
-    root       <- Session.getRoot sessionId
-    clientPath <- withQueryParam mFile
-    let path   = ClientPath.fromClientPath root clientPath
+  SessionView { root, storage } <- viewSession sessionId
+  clientPath <- withQueryParam mFile
+  let path   = ClientPath.fromClientPath root clientPath
 
-    storage.get path >>= \case
-      Just file -> do
-        conduit <- serveOriginal storage file
-        pure
-          . addHeader (ByteString.unpack file.mimetype)
-          . addHeader (printf "inline; filename=%s" (coerce takeFileName path :: String))
-          . addHeader "public, max-age=31536000, immutable"
-          $ conduit
-      Nothing -> do
-        throwError (FilehubError InvalidPath "thumbnail file path is invalid")
+  storage.get path >>= \case
+    Just file -> do
+      conduit <- serveOriginal storage file
+      pure
+        . addHeader (ByteString.unpack file.mimetype)
+        . addHeader (printf "inline; filename=%s" (coerce takeFileName path :: String))
+        . addHeader "public, max-age=31536000, immutable"
+        $ conduit
+    Nothing -> do
+      throwError (FilehubError InvalidPath "thumbnail file path is invalid")
 
   where
     serveOriginal storage file =
@@ -1181,7 +1167,7 @@ static paths = do
 
 index :: SessionId -> Filehub (Html ())
 index sessionId = do
-  display <- Session.getDisplay sessionId
+  SessionView { display } <- viewSession sessionId
   case display of
     NoDisplay -> pure Template.bootstrap
     Desktop   -> Server.Desktop.index sessionId
@@ -1190,7 +1176,7 @@ index sessionId = do
 
 view :: SessionId -> Filehub (Html ())
 view sessionId = do
-  display <- Session.getDisplay sessionId
+  SessionView { display } <- viewSession sessionId
   case display of
     Desktop   -> Server.Desktop.view sessionId
     Mobile    -> Server.Mobile.view sessionId
@@ -1199,8 +1185,8 @@ view sessionId = do
 
 controlPanel :: SessionId -> Filehub (Html ())
 controlPanel sessionId = do
+  SessionView { display } <- viewSession sessionId
   ctx <- makeTemplateContext sessionId
-  display <- Session.getDisplay sessionId
   pure $
     case display of
       Desktop -> runTemplate ctx Template.Desktop.controlPanel
@@ -1210,7 +1196,7 @@ controlPanel sessionId = do
 
 sideBar :: SessionId -> Filehub (Html ())
 sideBar sessionId = do
-  display <- Session.getDisplay sessionId
+  SessionView { display } <- viewSession sessionId
   case display of
     Desktop -> Server.Desktop.sideBar sessionId
     _       -> Server.Mobile.sideBar sessionId
@@ -1218,7 +1204,7 @@ sideBar sessionId = do
 
 toolBar :: SessionId -> Filehub (Html ())
 toolBar sessionId = do
-  display <- Session.getDisplay sessionId
+  SessionView { display } <- viewSession sessionId
   case display of
     Desktop -> Server.Desktop.toolBar sessionId
     _       -> Server.Mobile.toolBar sessionId

@@ -27,6 +27,7 @@ import Filehub.Session (TargetView(..))
 import Effectful.Error.Dynamic (throwError)
 import Filehub.Error (FilehubError(..), Error'(InvalidPath))
 import Data.Coerce (coerce)
+import Filehub.Session.Access (SessionView(..), viewSession)
 
 
 fileDetailModal :: SessionId -> Maybe ClientPath -> Filehub (Html ())
@@ -81,15 +82,14 @@ index sessionId = do
 
 sideBar :: SessionId -> Filehub (Html ())
 sideBar sessionId = do
-  ctx      <- makeTemplateContext sessionId
-  targetViews <- Session.getSessionTargetViews sessionId
+  SessionView { targetViews, currentTarget } <- viewSession sessionId
+  ctx <- makeTemplateContext sessionId
   let targets' = flip fmap targetViews \(TargetView target targetData) -> do
         case targetData.selected of
           Selected _ sels -> (target, length sels + 1)
           NoSelection     -> (target, 0)
 
-  currentTargetView <- Session.currentTarget sessionId
-  pure $ runTemplate ctx (Template.Desktop.sideBar targets' currentTargetView)
+  pure $ runTemplate ctx (Template.Desktop.sideBar targets' currentTarget)
 
 
 view :: SessionId -> Filehub (Html ())

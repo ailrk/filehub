@@ -24,7 +24,6 @@ import Filehub.Env (Env (..))
 import Filehub.Error (FilehubError)
 import Filehub.Monad ( toIO )
 import Filehub.Server.Internal (parseHeader')
-import Filehub.Session qualified as Session
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Types (Session(..), SessionId(..))
 import Filehub.UserAgent qualified as UserAgent
@@ -37,6 +36,7 @@ import Network.Wai
 import Prelude hiding (readFile)
 import Web.Cookie (defaultSetCookie, SetCookie (..))
 import Data.ByteString.Char8 qualified as Char8
+import Filehub.Session.Access (SessionView(..), viewSession)
 
 
 displayMiddleware :: Env -> Middleware
@@ -58,7 +58,7 @@ displayMiddleware  env app req respond = toIO onErr env do
   -- set display cookie
   -- Note only the server set the cookie.
   setCookieHeader <- do
-    currentDisplay <- Session.getDisplay sessionId
+    SessionView { display = currentDisplay } <- viewSession sessionId
     let displaySetCookie = defaultSetCookie
           { setCookieName     = "display"
           , setCookieValue    = Char8.pack (show currentDisplay)
