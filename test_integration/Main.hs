@@ -31,7 +31,6 @@ import Network.Wai.Test hiding (request)
 import System.Directory (createDirectoryIfMissing, removePathForcibly, doesFileExist, doesDirectoryExist)
 import System.FilePath ((</>))
 import System.FilePath (takeDirectory)
-import Target.File (TargetBackend(..))
 import Target.Types (TargetId(..), AnyTarget(..))
 import Test.Hspec
 import Test.Hspec.Wai
@@ -47,6 +46,7 @@ import Control.Concurrent (threadDelay)
 import Data.Text qualified as Text
 import EvtLog qualified
 import Data.ClientPath (AbsPath(..))
+import Target.File (Target(..))
 
 
 main :: IO ()
@@ -217,7 +217,7 @@ defaultEnv = do
   cache          <- liftIO (Cache.InMemory.new 1000)
   lockRegistry   <- liftIO LockRegistry.Local.new
   targets        <- newTVarIO [ ( tid
-                                , Target $ FileBackend
+                                , AnyTarget $ FileBackend
                                   { targetId = tid
                                   , targetName = Nothing
                                   , root = AbsPath root
