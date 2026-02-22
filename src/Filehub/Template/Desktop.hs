@@ -55,7 +55,6 @@ import Target.S3 (S3, Target (..))
 import Target.Types (targetHandler, AnyTarget, handleTarget)
 import Target.Types qualified as Target
 import Data.Coerce (coerce)
-import Debug.Trace (traceShowM)
 
 
 ------------------------------------
@@ -457,14 +456,8 @@ renameModal oldPath = do
 
   let c2t           = Text.pack . coerce
       fileName      = Text.pack (coerce takeFileName oldPath)
-      dirPath       = Text.pack (coerce takeDirectory oldPath)
       oldClientPath = ClientPath.toClientPath root oldPath
 
-  traceShowM "---> renameModal"
-  traceShowM oldPath
-  traceShowM fileName
-  traceShowM dirPath
-  traceShowM oldClientPath
   pure do
     modal [ id_ renameModalId ] do
       form_ [ term "hx-post" (linkToText apiLinks.rename)
@@ -820,11 +813,6 @@ contextMenu1 file = do
     } <- phrase <$> asks @TemplateContext (.locale)
   pure do
     let clientPath@(ClientPath cp)  = ClientPath.toClientPath root file.path
-    traceShowM "contextMenu --->"
-    traceShowM clientPath
-    traceShowM root
-    traceShowM file.path
-    traceShowM "]"
     let textClientPath = Text.pack cp
 
     div_ [ class_ "dropdown-content " , id_ contextMenuId ] do

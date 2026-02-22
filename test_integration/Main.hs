@@ -45,7 +45,7 @@ import Test.Hspec.Runner
 import Control.Concurrent (threadDelay)
 import Data.Text qualified as Text
 import EvtLog qualified
-import Data.ClientPath (AbsPath(..))
+import Data.ClientPath (Root(..), AbsPath(..))
 import Target.File (Target(..))
 
 
@@ -220,7 +220,7 @@ defaultEnv = do
                                 , AnyTarget $ FileBackend
                                   { targetId = tid
                                   , targetName = Nothing
-                                  , root = AbsPath root
+                                  , root = Root (AbsPath root)
                                   }
                                 )
                               ]

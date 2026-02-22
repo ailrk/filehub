@@ -78,7 +78,6 @@ import System.IO.Temp qualified as Temp
 import Target.File (Target(..), FileSys)
 import UnliftIO (MonadIO (..), tryIO, IOException, Handler (..), catch, throwIO)
 import UnliftIO.Retry (recovering, limitRetries, exponentialBackoff)
-import Debug.Trace (traceShowM)
 
 
 class CacheKeyComponent (s :: Symbol) a              where toCacheKeyComponent :: Builder
@@ -282,11 +281,6 @@ rename
 rename oldPath newName = do
   let dir     = coerce takeDirectory oldPath
       oldName = coerce takeFileName oldPath
-  traceShowM "File.rename"
-  traceShowM oldPath
-  traceShowM newName
-  traceShowM oldName
-  traceShowM dir
 
   when (oldName == newName) do
     throwError (FileExists "Can't rename to itself")
