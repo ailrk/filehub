@@ -6,6 +6,7 @@ module Filehub.Session.Internal
   )
   where
 
+import Data.Coerce (coerce)
 import Data.Functor ((<&>))
 import Data.Maybe (fromMaybe)
 import Data.Set qualified as Set
@@ -25,7 +26,7 @@ import UnliftIO.STM (newTBQueueIO, newTVarIO)
 import Effectful.Concurrent (Concurrent)
 import Effectful.Concurrent.STM (readTVarIO)
 import Data.Map.Strict qualified as Map
-import Data.ClientPath (AbsPath(..))
+import Data.ClientPath (AbsPath(..), Root(..))
 
 
 createSessionId :: (IOE :> es) => Eff es SessionId
@@ -71,7 +72,7 @@ createSession = do
 targetToSessionData :: AnyTarget -> TargetSessionData
 targetToSessionData (AnyTarget target) =
   fromMaybe defaultTargetSessionData . asum $
-    [ cast target <&> \(x :: Target FileSys) -> defaultTargetSessionData { currentDir = x.root }
+    [ cast target <&> \(x :: Target FileSys) -> defaultTargetSessionData { currentDir = coerce x.root }
     , cast target <&> \(_ :: Target S3)      -> defaultTargetSessionData
     ]
   where

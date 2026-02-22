@@ -22,7 +22,7 @@ import Lucid
 import Data.Text (Text)
 import Data.String.Interpolate (iii)
 import Control.Monad (when)
-import Data.ClientPath (ClientPath(..), AbsPath (..), newAbsPath)
+import Data.ClientPath (ClientPath(..), AbsPath (..), newAbsPath, Root)
 import Data.ClientPath qualified as ClientPath
 import Data.File (File(..), FileType(..), FileInfo)
 import Data.Foldable (Foldable(..))
@@ -294,7 +294,7 @@ icon file =
       | otherwise                                                      -> i_ [ class_ "bx bxs-file-blank "] mempty
 
 
-open :: AbsPath -> FileInfo -> [Attribute]
+open :: Root -> FileInfo -> [Attribute]
 open root file = do
   let clientPath = ClientPath.toClientPath root file.path
   case file.content of

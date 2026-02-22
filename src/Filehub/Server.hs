@@ -26,7 +26,7 @@ import Data.ByteString.Base64 qualified as Base64
 import Data.ByteString.Char8 qualified as ByteString
 import Data.ByteString.Lazy qualified as LBS
 import Data.Char qualified as Char
-import Data.ClientPath (ClientPath (..), AbsPath (..), (<./>))
+import Data.ClientPath (ClientPath (..), AbsPath (..), (<./>), Root)
 import Data.ClientPath qualified as ClientPath
 import Data.ClientPath.Effectful (validateAbsPath)
 import Data.Coerce (coerce)
@@ -118,6 +118,7 @@ import Text.Printf (printf)
 import UnliftIO.Exception (SomeException, catch)
 import Web.Cookie (SetCookie (..), defaultSetCookie)
 import Worker.Task (TaskId, newTaskId)
+import Debug.Trace (traceShowM)
 
 #ifdef DEBUG
 import Effectful (MonadIO (liftIO))
@@ -559,10 +560,15 @@ rename
   -> Eff es (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
 rename sessionId _ _ (RenameFile old new) = runSessionEff sessionId do
   storage <- Session.get (.storage)
-  dir     <- Session.get (.currentDir)
+  root    <- Session.get (.root)
+  traceShowM "--rename"
+  traceShowM root
+  traceShowM old
+  traceShowM new
+  traceShowM (ClientPath.fromClientPath root old)
   storage.rename
-    (ClientPath.fromClientPath dir old)
-    (ClientPath.fromClientPath dir new)
+    (ClientPath.fromClientPath root old)
+    new
   html <- raise $ view sessionId
   pure $ addHeader FileRenamed html
 
@@ -748,10 +754,10 @@ renameModal :: IsFilehub es
             => SessionId -> ConfirmLogin -> ConfirmDesktopOnly -> ConfirmReadOnly
             -> Maybe ClientPath -> Eff es (Html ())
 renameModal sessionId _ _ _ mClientPath = runSessionEff sessionId do
-  dir        <- Session.get (.currentDir)
+  root       <- Session.get (.root)
   clientPath <- raise $ withQueryParam mClientPath
   ctx        <- raise $ makeTemplateContext sessionId
-  pure $ runTemplate ctx (Template.Desktop.renameModal (ClientPath.fromClientPath dir clientPath))
+  pure $ runTemplate ctx (Template.Desktop.renameModal (ClientPath.fromClientPath root clientPath))
 
 
 newFileModal :: IsFilehub es => SessionId -> ConfirmLogin -> ConfirmDesktopOnly -> ConfirmReadOnly -> Eff es (Html ())
@@ -941,7 +947,7 @@ initViewer sessionId _ mClientPath = runSessionEff sessionId do
     takeResourceFiles :: [FileInfo] -> [FileInfo]
     takeResourceFiles = filter (isResource . (.mimetype))
 
-    toResource :: AbsPath -> FileInfo -> Resource
+    toResource :: Root -> FileInfo -> Resource
     toResource root f =
       Resource
         { url = let ClientPath path = ClientPath.toClientPath root f.path -- encode path url

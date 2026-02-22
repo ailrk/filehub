@@ -12,7 +12,7 @@ module Filehub.Template.Mobile
 
 import Control.Monad (join)
 import Data.ByteString (ByteString)
-import Data.ClientPath (ClientPath(..), AbsPath (..))
+import Data.ClientPath (ClientPath(..), AbsPath (..), Root (..))
 import Data.ClientPath qualified as ClientPath
 import Data.File (File(..), FileInfo)
 import Data.Foldable (traverse_)
@@ -84,7 +84,7 @@ sideBar targets (TargetView currentTarget _) = do
            , term "hx-swap" "outerHTML"
            ] do
         fromMaybe "unknown" $ handleTarget target
-          [ targetHandler @FileSys \(FileBackend { root = AbsPath root }) -> do
+          [ targetHandler @FileSys \(FileBackend { root = Root (AbsPath root) }) -> do
               i_ [ class_ "bx bx-folder" ] mempty
               span_ [iii| /#{takeFileName root} |]
           , targetHandler @S3 \(S3Backend { bucket }) -> do
@@ -204,7 +204,7 @@ table files = do
       tbody_ $ traverse_ (record root target selected) ([0..] `zip` files)
 
 
-record :: AbsPath -> AnyTarget -> Selected -> (Int, FileInfo) -> Html ()
+record :: Root -> AnyTarget -> Selected -> (Int, FileInfo) -> Html ()
 record root target selected (idx, file) =
   tr_ attrs do
     td_ do

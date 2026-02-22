@@ -79,7 +79,7 @@ import System.IO.Temp qualified as Temp
 import Target.S3 (Target(..), S3)
 import Target.Types (TargetId)
 import Target.Types qualified as Target
-import System.FilePath (takeDirectory)
+import System.FilePath (takeDirectory, (</>))
 import Data.ClientPath (AbsPath (..))
 import Data.Coerce (coerce)
 
@@ -362,8 +362,11 @@ rename
      , Log                :> es
      , Cache              :> es
      , Error StorageError :> es)
-   => Target S3 -> AbsPath -> AbsPath -> Eff es ()
-rename s3 oldFile newFile= mv s3 [(oldFile, newFile)]
+   => Target S3 -> AbsPath -> String -> Eff es ()
+rename s3 oldPath newName =
+  let dir     = coerce takeDirectory oldPath
+      newPath = AbsPath (dir </> newName) -- @TODO need to avoid this
+   in mv s3 [(oldPath, newPath)]
 
 
 delete

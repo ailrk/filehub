@@ -23,7 +23,7 @@ module Filehub.Template.Desktop
 
 import Control.Monad (when, join)
 import Data.ByteString (ByteString)
-import Data.ClientPath (ClientPath(..), AbsPath (..))
+import Data.ClientPath (ClientPath(..), AbsPath (..), Root (..))
 import Data.ClientPath qualified as ClientPath
 import Data.File (File(..), FileType(..), FileInfo)
 import Data.Foldable (traverse_)
@@ -48,13 +48,14 @@ import Filehub.Types (Layout(..), SortFileBy(..))
 import Lens.Micro.Platform ()
 import Lucid
 import Network.Mime.Extended (isMime)
-import System.FilePath (takeFileName)
+import System.FilePath (takeFileName, takeDirectory)
 import Target.Dummy (DummyTarget)
 import Target.File (FileSys, Target (..))
 import Target.S3 (S3, Target (..))
 import Target.Types (targetHandler, AnyTarget, handleTarget)
 import Target.Types qualified as Target
 import Data.Coerce (coerce)
+import Debug.Trace (traceShowM)
 
 
 ------------------------------------
@@ -119,7 +120,7 @@ sideBar targets (TargetView currentTarget _) = do
 
           fromMaybe "" $ handleTarget target
             [ targetHandler @S3      \(S3Backend { bucket }) -> span_ [iii| /#{bucket} |]
-            , targetHandler @FileSys \(FileBackend { root = AbsPath root }) -> span_ [iii| /#{takeFileName root} |]
+            , targetHandler @FileSys \(FileBackend { root = Root (AbsPath root) }) -> span_ [iii| /#{takeFileName root} |]
             ]
 
         when (selectedCount > 0) do
@@ -134,7 +135,7 @@ sideBar targets (TargetView currentTarget _) = do
           fromMaybe [] $ handleTarget target
             [ targetHandler @S3 \(S3Backend { bucket }) ->
                 [ term "data-target-info" [iii| [#{target_s3}] #{bucket} |] ]
-            , targetHandler @FileSys \(FileBackend { root = AbsPath root }) ->
+            , targetHandler @FileSys \(FileBackend { root = Root (AbsPath root) }) ->
                 [ term "data-target-info" [iii| [#{target_filesystem}] #{takeFileName root} |] ]
             ]
 
@@ -449,27 +450,33 @@ newFolderModal = do
                   ] (toHtml modal_create)
 
 
-
--- @RENAME-MODAL
 renameModal :: AbsPath -> Template (Html ())
 renameModal oldPath = do
   root <- asks @TemplateContext (.root)
-  Phrase
-    { modal_confirm
-    } <- phrase <$> asks @TemplateContext (.locale)
-  let clientPathOld = ClientPath.toClientPath root oldPath
+  Phrase { modal_confirm } <- phrase <$> asks @TemplateContext (.locale)
+
+  let c2t           = Text.pack . coerce
+      fileName      = Text.pack (coerce takeFileName oldPath)
+      dirPath       = Text.pack (coerce takeDirectory oldPath)
+      oldClientPath = ClientPath.toClientPath root oldPath
+
+  traceShowM "---> renameModal"
+  traceShowM oldPath
+  traceShowM fileName
+  traceShowM dirPath
+  traceShowM oldClientPath
   pure do
     modal [ id_ renameModalId ] do
       form_ [ term "hx-post" (linkToText apiLinks.rename)
             , term "hx-target" "#view"
             , term "hx-swap" "outerHTML"
             ] do
-        input_ [ type_ "hidden", name_ "old", value_ (Text.pack clientPathOld.unClientPath) ]
+        input_ [ type_ "hidden", name_ "old", value_ (c2t oldClientPath) ]
         div_ [ style_ "display: flex" ] do
           input_ [ class_ "form-control "
                  , type_ "text"
                  , name_ "new"
-                 , value_ (Text.pack clientPathOld.unClientPath)
+                 , value_ fileName
                  ]
           button_ [ class_ "btn btn-modal-confirm "
                   , type_ "submit"
@@ -652,32 +659,32 @@ listLayout files = do
                   Dir     -> [ class_ "dir "]
                   Regular -> mempty
               ]
-  let sortIconName =
+      sortIconName =
         case order of
           ByNameUp   -> i_ [ class_ "bx bxs-up-arrow"] mempty
           ByNameDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
           _          -> i_ [ class_ "bx bx-sort"] mempty
-  let sortIconMTime =
+      sortIconMTime =
         case order of
           ByModifiedUp   -> i_ [ class_ "bx bxs-up-arrow"] mempty
           ByModifiedDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
           _              -> i_ [ class_ "bx bx-sort"] mempty
-  let sortIconSize =
+      sortIconSize =
         case order of
           BySizeUp   -> i_ [ class_ "bx bxs-up-arrow"] mempty
           BySizeDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
           _          -> i_ [ class_ "bx bx-sort"] mempty
-  let sortControlName =
+      sortControlName =
         case order of
           ByNameUp   -> sortControl ByNameDown
           ByNameDown -> sortControl ByNameUp
           _          -> sortControl ByNameUp
-  let sortControlMTime =
+      sortControlMTime =
         case order of
           ByModifiedUp   -> sortControl ByModifiedDown
           ByModifiedDown -> sortControl ByModifiedUp
           _              -> sortControl ByModifiedUp
-  let sortControlSize =
+      sortControlSize =
         case order of
           BySizeUp   -> sortControl BySizeDown
           BySizeDown -> sortControl BySizeUp
@@ -734,7 +741,7 @@ thumbnailLayout files = do
       tbody_ $ traverse_ thumbnail ([0..] `zip` files)
 
 
-previewElement :: AbsPath -> FileInfo -> Html ()
+previewElement :: Root -> FileInfo -> Html ()
 previewElement root file = do
   div_ [ class_ "thumbnail-preview " ] do
     div_ [  class_ "image-wrapper " ] do
@@ -813,6 +820,11 @@ contextMenu1 file = do
     } <- phrase <$> asks @TemplateContext (.locale)
   pure do
     let clientPath@(ClientPath cp)  = ClientPath.toClientPath root file.path
+    traceShowM "contextMenu --->"
+    traceShowM clientPath
+    traceShowM root
+    traceShowM file.path
+    traceShowM "]"
     let textClientPath = Text.pack cp
 
     div_ [ class_ "dropdown-content " , id_ contextMenuId ] do

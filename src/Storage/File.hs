@@ -78,6 +78,7 @@ import System.IO.Temp qualified as Temp
 import Target.File (Target(..), FileSys)
 import UnliftIO (MonadIO (..), tryIO, IOException, Handler (..), catch, throwIO)
 import UnliftIO.Retry (recovering, limitRetries, exponentialBackoff)
+import Debug.Trace (traceShowM)
 
 
 class CacheKeyComponent (s :: Symbol) a              where toCacheKeyComponent :: Builder
@@ -277,27 +278,36 @@ rename
      , Log                :> es
      , LockManager        :> es
      , Error StorageError :> es)
-  => AbsPath -> AbsPath -> Eff es ()
-rename oldName newName = do
-  LockManager.withLock (LockManager.mkLockKey oldName) do
-    LockManager.withLock (LockManager.mkLockKey newName) do
-      when (oldName == newName) do
-        throwError (FileExists "Can't rename to itself")
+  => AbsPath -> String -> Eff es ()
+rename oldPath newName = do
+  let dir     = coerce takeDirectory oldPath
+      oldName = coerce takeFileName oldPath
+  traceShowM "File.rename"
+  traceShowM oldPath
+  traceShowM newName
+  traceShowM oldName
+  traceShowM dir
 
-      oldExists <- coerce doesFileExist oldName
+  when (oldName == newName) do
+    throwError (FileExists "Can't rename to itself")
+
+  LockManager.withLock (LockManager.mkLockKey oldPath) do
+    newPath <- validateAbsPath (dir </> newName) (InvalidPath ("<redacted>/" <> newName))
+    LockManager.withLock (LockManager.mkLockKey newPath) do
+      oldExists <- coerce doesFileExist oldPath
 
       when (not oldExists) do
-        throwError (TargetError ("Can't find file " <> coerce oldName))
+        throwError (TargetError ("Can't find file <redacted>/" <> coerce oldName))
 
-      newExists <- coerce doesFileExist newName
+      newExists <- coerce doesFileExist newPath
 
       when (newExists) do
-        throwError (TargetError ("File " <> coerce newName <> " already exists"))
+        throwError (TargetError ("File <redacted>/" <> coerce newName <> " already exists"))
 
-      Cache.delete (createCacheKey @"file" @FileInfo (coerce Builder.string8 newName))
-      Cache.delete (createCacheKey @"file" @FileInfo (coerce Builder.string8 oldName))
+      Cache.delete (createCacheKey @"file" @FileInfo (coerce Builder.string8 newPath))
+      Cache.delete (createCacheKey @"file" @FileInfo (coerce Builder.string8 oldPath))
 
-      coerce renameFile oldName newName
+      coerce renameFile oldPath newPath
 
 
 -- | Copy all files and subdirectories from src to dst.

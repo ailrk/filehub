@@ -22,7 +22,7 @@ data Storage m = Storage
 
   , mv          :: [(AbsPath, AbsPath)] -> m ()
 
-  , rename      :: AbsPath -> AbsPath -> m ()
+  , rename      :: AbsPath -> String -> m ()
 
   , delete      :: AbsPath -> m ()
 

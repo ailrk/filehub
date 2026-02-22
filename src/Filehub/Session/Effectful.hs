@@ -2,7 +2,7 @@
 {-# LANGUAGE RankNTypes #-}
 module Filehub.Session.Effectful where
 
-import Data.ClientPath (AbsPath (..))
+import Data.ClientPath (AbsPath (..), Root (..))
 import Filehub.Monad (IsFilehub)
 import Filehub.Display (Display (..))
 import Filehub.Sort (SortFileBy)
@@ -81,7 +81,7 @@ set field val = do
 
 data SessionGet es = SessionGet
   { currentDir        :: Eff es AbsPath
-  , root              :: Eff es AbsPath
+  , root              :: Eff es Root
   , display           :: Eff es Display
   , sortedFileBy      :: Eff es SortFileBy
   , selected          :: Eff es Selected
@@ -150,9 +150,9 @@ newSessionGet sessionId =
 
       root = do
         (TargetView (AnyTarget tgt) _) <- currentTarget
-        fromMaybe (pure $ AbsPath "") . asum $
+        fromMaybe (pure $ Root (AbsPath "")) . asum $
           [ cast tgt <&> \(x :: Target FileSys) -> pure x.root
-          , cast tgt <&> \(_ :: Target S3) -> pure (AbsPath "")
+          , cast tgt <&> \(_ :: Target S3) -> pure (Root (AbsPath ""))
           ]
 
 

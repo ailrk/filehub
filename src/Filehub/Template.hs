@@ -24,7 +24,7 @@ import Filehub.Auth.Simple (SimpleAuthUserDB)
 import Filehub.Auth.OIDC (OIDCAuthProviders)
 import Filehub.Monad (IsFilehub)
 import Filehub.Env qualified as Env
-import Data.ClientPath (AbsPath)
+import Data.ClientPath (AbsPath, Root)
 import Filehub.Session.Effectful (runSessionEff, SessionGet(..))
 import Filehub.Session.Effectful qualified as Session
 
@@ -50,7 +50,7 @@ data TemplateContext = TemplateContext
   , state             :: ~ControlPanelState
   , currentDir        :: ~AbsPath
   , currentTarget     :: ~TargetView
-  , root              :: ~AbsPath
+  , root              :: ~Root
   , simpleAuthUserDB  :: ~SimpleAuthUserDB
   , oidcAuthProviders :: ~OIDCAuthProviders
   }

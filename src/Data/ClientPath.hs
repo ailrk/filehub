@@ -16,6 +16,7 @@ module Data.ClientPath
   ( ClientPath(..)
   , RawClientPath(..)
   , AbsPath(..)
+  , Root(..)
   , (<./>)
   , newAbsPath
   , toClientPath
@@ -33,6 +34,11 @@ import System.FilePath ((</>), normalise, isAbsolute)
 import Text.Debug (Debug(..))
 import Data.Hashable (Hashable)
 import Data.Coerce (coerce)
+
+
+newtype Root = Root AbsPath
+  deriving (Show, Eq)
+  deriving newtype (Debug, Hashable, ToJSON)
 
 
 newtype AbsPath = AbsPath { unAbsPath :: FilePath }
@@ -75,13 +81,13 @@ instance ToJSON ClientPath where
 
 
 -- | Convert a file path into a ClientPath.
-toClientPath :: AbsPath -> AbsPath -> ClientPath
-toClientPath (AbsPath prefix) (AbsPath path)=
+toClientPath :: Root -> AbsPath -> ClientPath
+toClientPath (Root (AbsPath prefix)) (AbsPath path) =
   let RawClientPath rcp = toRawClientPath prefix path
    in ClientPath (URI.Encode.encode rcp)
 
 
-fromClientPath :: AbsPath -> ClientPath -> AbsPath
+fromClientPath :: Root -> ClientPath -> AbsPath
 fromClientPath prefix (ClientPath cp) =
   let decoded = URI.Encode.decode cp
    in AbsPath (fromRawClientPath (coerce prefix) (RawClientPath decoded))

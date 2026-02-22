@@ -147,7 +147,7 @@ data MoveFile = MoveFile [ClientPath] ClientPath deriving (Show, Eq)
 instance FromForm MoveFile where fromForm f = MoveFile <$> parseAll "src" f <*> parseUnique "tgt" f
 
 
-data RenameFile = RenameFile ClientPath ClientPath deriving (Show, Eq)
+data RenameFile = RenameFile ClientPath String deriving (Show, Eq)
 instance FromForm RenameFile where fromForm f = RenameFile <$> parseUnique "old" f <*> parseUnique "new" f
 
 
