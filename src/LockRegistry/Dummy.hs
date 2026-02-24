@@ -1,8 +1,8 @@
-module LockRegistry.Dummy (withLock) where
+module LockRegistry.Dummy (withLocks) where
 
 
 import LockRegistry.Key (LockKey)
 
 
-withLock :: LockKey -> IO a -> IO a
-withLock _ action = action
+withLocks :: [LockKey] -> IO a -> IO a
+withLocks _ action = action

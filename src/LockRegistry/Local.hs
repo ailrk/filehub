@@ -12,34 +12,46 @@
 module LockRegistry.Local
   ( new
   , withLock
+  , withLocks
   , LockRegistry(..)
   )
   where
 
-import Data.Map.Strict qualified  as M
+import Data.Map.Strict (Map)
+import Data.Map.Strict qualified  as Map
 import LockRegistry.Key (LockKey)
 import UnliftIO (finally)
 import UnliftIO.STM (TVar, TMVar, newTVarIO, atomically, readTVar, newTMVar, writeTVar, takeTMVar, putTMVar)
+import Data.List (nub, sort)
 
 
 -- | A global lock registry
-newtype LockRegistry = LockRegistry (TVar (M.Map LockKey (TMVar ())))
+newtype LockRegistry = LockRegistry (TVar (Map LockKey (TMVar ())))
 
 
 new :: IO LockRegistry
-new = LockRegistry <$> newTVarIO M.empty
+new = LockRegistry <$> newTVarIO Map.empty
 
 
 withLock :: LockRegistry -> LockKey -> IO a -> IO a
 withLock (LockRegistry tv) key action = do
-  lock <- atomically $ do
+  lock <- atomically do
     m <- readTVar tv
-    case M.lookup key m of
+    case Map.lookup key m of
       Just tmv -> return tmv
       Nothing -> do
         tmv <- newTMVar ()
-        writeTVar tv (M.insert key tmv m)
+        writeTVar tv (Map.insert key tmv m)
         pure tmv
   atomically $ takeTMVar lock
   result <- action `finally` (atomically $ putTMVar lock ())
   pure result
+
+
+-- | Lock with a list of keys. Keys are deduplicated and sorted to avoid
+-- circular deadlock.
+withLocks :: LockRegistry -> [LockKey] -> IO a -> IO a
+withLocks lr keys action = go (sort (nub keys))
+  where
+    go []     = action
+    go (k:ks) = withLock lr k (go ks)
