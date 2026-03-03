@@ -4,17 +4,22 @@
 -- Maintainer  :  jimmy@ailrk.com
 -- Copyright   :  (c) 2025-present Jinyang yao
 --
--- This module implements the `LockRegistry` type that manages locks in the system.
--- The `LockRegistry` contains a vector oo
+-- `LockRegistry` manages a pool of locks that each corresponds to a `LockKey`.
+-- A `Shard` maps a `LockKey` to a `MVar`, A `LockRegistry` contains vector of shards.
+-- Lock Maps are sharded to improve the level of concurrency. With sharding, we are less
+-- likely to have contention on the same `TVar`. Instead, locking will be spread into
+-- different shard.
 --
+-- Each `LockKey` is hashed into a shard index, and the index is guaranteed to be inside the
+-- range of the `Vector`'s indices.
 --
---
--- The `LockRegistry` maps a `LockKey` to a `TMVar ()`, which is used to control the
--- synchronization among threads. the `LockKey` can be derived from any data type and
--- should be unique to that data type.
+-- `LockKey` is unbounded and can grow indefinitely as the program runs. To avoid memory leak,
+-- Locks are reference counted. When a lock is not used by anyone, it will be deleted from
+-- the registry.
 --
 -- This `LockRegistry` works in a single local instance. For distributed lock, check
 -- `Filehub.LockRegistry.Remote`
+
 module LockRegistry.Local
   ( new
   , withLock
@@ -28,8 +33,8 @@ import Data.Map.Strict qualified  as Map
 import Data.Vector qualified as Vector
 import Data.Vector (Vector)
 import LockRegistry.Key (LockKey)
-import UnliftIO (finally, MVar, bracket, withMVar, newMVar)
-import UnliftIO.STM (TVar, TMVar, newTVarIO, atomically, readTVar, newTMVar, writeTVar, takeTMVar, putTMVar)
+import UnliftIO (MVar, bracket, withMVar, newMVar)
+import UnliftIO.STM (TVar, newTVarIO, atomically, readTVar, writeTVar)
 import Data.List (nub, sort)
 import Data.Hashable (Hashable(..))
 import Data.Bits ((.&.))
@@ -57,8 +62,9 @@ newShards n = do
   pure LockRegistry { shards = shards, mask = nShards - 1 }
 
 
+-- | Create a new `LockRegistry` with 16 shards.
 new :: IO LockRegistry
-new = newShards 10
+new = newShards 4
 
 
 getShard :: LockRegistry -> LockKey -> Shard
@@ -70,7 +76,10 @@ withLock :: LockRegistry -> LockKey -> IO a -> IO a
 withLock registry key action = do
   let shard = getShard registry key
   lk <- newMVar ()
-  bracket (acquire lk shard) (release shard) use
+  bracket
+    (acquire lk shard)
+    (release shard)
+    use
   where
     acquire lk (Shard shard) = atomically do
       m <- readTVar shard
