@@ -37,12 +37,12 @@ import Data.Coerce (coerce)
 
 
 newtype Root = Root AbsPath
-  deriving (Show, Eq)
+  deriving (Show, Ord, Eq)
   deriving newtype (Debug, Hashable, ToJSON)
 
 
 newtype AbsPath = AbsPath { unAbsPath :: FilePath }
-  deriving (Show, Eq)
+  deriving (Show, Ord, Eq)
   deriving newtype (Debug, Hashable, ToJSON)
 
 

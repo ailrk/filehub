@@ -118,7 +118,6 @@ import Text.Printf (printf)
 import UnliftIO.Exception (SomeException, catch)
 import Web.Cookie (SetCookie (..), defaultSetCookie)
 import Worker.Task (TaskId, newTaskId)
-import Debug.Trace (traceShowM)
 
 #ifdef DEBUG
 import Effectful (MonadIO (liftIO))
@@ -561,11 +560,6 @@ rename
 rename sessionId _ _ (RenameFile old new) = runSessionEff sessionId do
   storage <- Session.get (.storage)
   root    <- Session.get (.root)
-  traceShowM "--rename"
-  traceShowM root
-  traceShowM old
-  traceShowM new
-  traceShowM (ClientPath.fromClientPath root old)
   storage.rename
     (ClientPath.fromClientPath root old)
     new
@@ -691,7 +685,7 @@ paste sessionId _ _ = runSessionEff sessionId do
         forM files $ flip fix fromDir \rec (AbsPath currentDir) file -> do
           let name  =  coerce takeFileName file.path
           let fromId = Target.getTargetId from
-          dst <- validateAbsPath (currentDir </> takeFileName name) (FilehubError InvalidPath "")
+          dst <- validateAbsPath (currentDir </> takeFileName name) (FilehubError InvalidPath "Invalid path")
           case file.content of
             Regular -> pure [ PasteFile from to file dst ]
             Dir -> runSessionEff sessionId do

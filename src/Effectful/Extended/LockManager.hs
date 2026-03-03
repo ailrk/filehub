@@ -5,6 +5,7 @@ module Effectful.Extended.LockManager
   , runLockManagerLocal
   , runLockManagerDummy
   , withLock
+  , withLocks
   , mkLockKey
   )
   where
@@ -46,3 +47,7 @@ runLockManagerDummy = reinterpret id \env -> \case
 
 withLock :: (LockManager :> es) => LockKey -> Eff es a -> Eff es a
 withLock key action = send (WithLock key action)
+
+
+withLocks :: (LockManager :> es) => [LockKey] -> Eff es a -> Eff es a
+withLocks keys action = send (WithLocks keys action)

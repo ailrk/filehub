@@ -11,10 +11,13 @@
 -- File system storage backend.
 --
 -- === Cache
--- We use a simple cache aside strategy.
--- when reading data, we first try to read from the cache. if it's a miss, we then
--- perform the full read, then cache the result.
--- When updating, we first delete the cache, then write the full update.
+-- We uses Cache Aside strategy. On Read, we from the cache first, if it's missing,
+-- read from backend and repopulate the cache. On Update, we delete the cache first,
+-- then update the backend.
+--
+-- The update does not repopulate the cache because we don't know if the update will
+-- be used at all. If it's accessed again, the read operation will cache it.
+
 module Storage.File
   ( get
   , isDirectory
@@ -55,7 +58,7 @@ import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.Time (secondsToNominalDiffTime)
 import Effectful ( Eff, Eff, runEff, (:>), IOE)
-import Effectful.Concurrent.Async (mapConcurrently_, Concurrent)
+import Effectful.Concurrent.Async (Concurrent, forConcurrently_)
 import Effectful.Error.Dynamic (throwError, Error)
 import Effectful.Extended.Cache (Cache)
 import Effectful.Extended.Cache qualified as Cache
@@ -78,6 +81,7 @@ import System.IO.Temp qualified as Temp
 import Target.File (Target(..), FileSys)
 import UnliftIO (MonadIO (..), tryIO, IOException, Handler (..), catch, throwIO)
 import UnliftIO.Retry (recovering, limitRetries, exponentialBackoff)
+import Data.List (sort)
 
 
 class CacheKeyComponent (s :: Symbol) a              where toCacheKeyComponent :: Builder
@@ -262,13 +266,18 @@ mv
   => [(AbsPath, AbsPath)] -> Eff es ()
 mv [] = throwError (CopyError "Nothing to copy")
 mv cpPairs = do
-  flip mapConcurrently_ cpPairs \(src, dst) -> do
-    isDir <- isDirectory src
-    if isDir then copyDirectoryRecursive src dst
-    else copyFile (coerce src) (coerce dst)
-    delete src
-    Cache.delete (createCacheKey @"dir" @[FileInfo] (Builder.string8 (coerce takeDirectory src)))
-    Cache.delete (createCacheKey @"dir" @[FileInfo] (Builder.string8 (coerce takeDirectory dst)))
+  let pairs = sort cpPairs
+  forConcurrently_ pairs \(src, dst) -> do
+    let locks = if src == dst -- Dedup
+                   then [LockManager.mkLockKey src]
+                   else (fmap LockManager.mkLockKey [src, dst])
+    LockManager.withLocks locks do
+      isDir <- isDirectory src
+      if isDir then copyDirectoryRecursive src dst
+      else copyFile (coerce src) (coerce dst)
+      delete' src
+      Cache.delete (createCacheKey @"dir" @[FileInfo] (Builder.string8 (coerce takeDirectory src)))
+      Cache.delete (createCacheKey @"dir" @[FileInfo] (Builder.string8 (coerce takeDirectory dst)))
 
 
 rename
@@ -329,9 +338,19 @@ delete
   :: ( FileSystem  :> es
      , IOE         :> es
      , Log         :> es
+     , Cache       :> es
+     , LockManager :> es)
+  => AbsPath -> Eff es ()
+delete path = LockManager.withLock (LockManager.mkLockKey path) do delete' path
+
+
+delete'
+  :: ( FileSystem  :> es
+     , IOE         :> es
+     , Log         :> es
      , Cache       :> es)
   => AbsPath -> Eff es ()
-delete path = do
+delete' path = do
   fileExists <- coerce doesFileExist path
   dirExists  <- coerce doesDirectoryExist path
   if

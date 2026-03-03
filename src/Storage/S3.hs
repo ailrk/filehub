@@ -9,10 +9,13 @@
 -- S3 storage backend.
 --
 -- === Cache
--- We use a simple cache aside strategy.
--- when reading data, we first try to read from the cache. if it's a miss, we then
--- perform the full read, then cache the result.
--- When updating, we first delete the cache, then write the full update.
+-- We uses Cache Aside strategy. On Read, we from the cache first, if it's missing,
+-- read from backend and repopulate the cache. On Update, we delete the cache first,
+-- then update the backend.
+--
+-- The update does not repopulate the cache because we don't know if the update will
+-- be used at all. If it's accessed again, the read operation will cache it.
+
 module Storage.S3
   ( get
   , isDirectory
@@ -52,7 +55,6 @@ import Data.ByteString.Builder qualified as Builder
 import Data.ByteString.Lazy qualified as LBS
 import Data.Conduit
 import Data.File (File (..), FileType (..), FileInfo, FileWithContent, FileContent (..), defaultFileWithContent)
-import Data.Foldable (forM_)
 import Data.Function (fix)
 import Data.Generics.Labels ()
 import Data.Kind (Type)
@@ -63,15 +65,18 @@ import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.Time (secondsToNominalDiffTime)
 import Effectful (Eff, Eff, MonadIO (..), runEff, (:>), IOE)
+import Effectful.Concurrent.Async (forConcurrently_, Concurrent)
 import Effectful.Error.Dynamic (Error, throwError)
 import Effectful.Extended.Cache (Cache)
 import Effectful.Extended.Cache qualified as Cache
+import Effectful.Extended.LockManager (LockManager)
+import Effectful.Extended.LockManager qualified as LockManager
 import Effectful.FileSystem (runFileSystem, removeFile)
 import Effectful.Log (Log, logAttention_)
 import GHC.TypeLits (Symbol)
 import Lens.Micro
 import Lens.Micro.Platform ()
-import Network.Mime (defaultMimeLookup, MimeType)
+import Network.Mime (defaultMimeLookup)
 import Prelude hiding (read, readFile, writeFile)
 import Servant.Multipart (Mem, FileData (..))
 import Storage.Error (StorageError (..))
@@ -82,6 +87,7 @@ import Target.Types qualified as Target
 import System.FilePath (takeDirectory, (</>))
 import Data.ClientPath (AbsPath (..))
 import Data.Coerce (coerce)
+import Data.List (sort)
 
 
 class CacheKeyComponent (s :: Symbol) a              where toCacheKeyComponent :: Builder
@@ -115,15 +121,15 @@ get (s3@S3Backend { targetId }) path = do
     Just cached -> pure (Just cached)
     Nothing -> do
       let bucket  = BucketName s3.bucket
-      let key     = ObjectKey (coerce Text.pack path)
-      let request = Amazonka.newHeadObject bucket key
+          key     = ObjectKey (coerce Text.pack path)
+          request = Amazonka.newHeadObject bucket key
       resp <- runResourceT $ send s3.env request
       if resp ^. Amazonka.headObjectResponse_httpStatus == 200
          then do
           let mtime       = resp ^. Amazonka.headObjectResponse_lastModified
-          let size        = resp ^. Amazonka.headObjectResponse_contentLength
-          let contentType = resp ^. Amazonka.headObjectResponse_contentType
-          let file = File
+              size        = resp ^. Amazonka.headObjectResponse_contentLength
+              contentType = resp ^. Amazonka.headObjectResponse_contentType
+              file = File
                 { path     = path
                 , atime    = Nothing
                 , mtime    = mtime
@@ -155,8 +161,8 @@ isDirectory s3@S3Backend { targetId } filePath = do
     Just (File { content = Regular }) -> pure False
     Just (File { content = Dir })     -> pure True
     Nothing -> do
-      let bucket = BucketName s3.bucket
-      let request = Amazonka.newListObjectsV2 bucket
+      let bucket  = BucketName s3.bucket
+          request = Amazonka.newListObjectsV2 bucket
                   & Amazonka.listObjectsV2_prefix ?~ Text.pack (coerce normalizeDirPath filePath)
                   & Amazonka.listObjectsV2_maxKeys ?~ 1
       resp <- runResourceT $ send s3.env request
@@ -202,9 +208,10 @@ readStream s3 file = do
 
 
 new
-  :: ( Cache :> es
-     , Log   :> es
-     , IOE   :> es)
+  :: ( Cache       :> es
+     , Log         :> es
+     , IOE         :> es
+     , LockManager :> es)
   => Target S3 -> AbsPath -> Eff es ()
 new s3@S3Backend { targetId } path = do
   write s3 $ defaultFileWithContent
@@ -216,74 +223,70 @@ new s3@S3Backend { targetId } path = do
 
 
 write
-  :: ( Cache :> es
-     , Log   :> es
-     , IOE   :> es)
+  :: ( Cache       :> es
+     , Log         :> es
+     , IOE         :> es
+     , LockManager :> es)
   => Target S3 -> FileWithContent -> Eff es ()
-write s3@S3Backend { targetId } File { content, mimetype, size = mSize, path } = do
-  case content of
-    FileContentRaw bytes -> do
-      writePutObject s3 path mimetype (toBody bytes)
-      Cache.delete (createCacheKey @"file" @FileInfo targetId (coerce Builder.string8 path))
-      Cache.delete (createCacheKey @"dir" @[FileInfo] targetId "")
-    FileContentConduit conduit -> do
-      case mSize of
-        Nothing -> writeMultipart s3 path mimetype conduit
-        Just size
-          | size < threshold  ->  do
-              lazyBytes <- liftIO . runResourceT . runConduit $ conduit .| sinkLazy
-              writePutObject s3 path mimetype (toBody lazyBytes)
-          | otherwise -> writeMultipart s3 path mimetype conduit
-      Cache.delete (createCacheKey @"file" @FileInfo targetId (coerce Builder.string8 path))
-      Cache.delete (createCacheKey @"dir" @[FileInfo] targetId "")
-      where
-        threshold = 5 * 1024 * 1024 -- use putObject if it's smaller than single part.
-    FileContentDir _ -> pure ()
-    FileContentNull -> pure ()
-
-
-writePutObject :: (IOE :> es) => Target S3 -> AbsPath -> MimeType -> RequestBody ->  Eff es ()
-writePutObject s3 filePath mimetype body = do
-  void . runResourceT $ send s3.env request
+write s3@S3Backend { targetId } File { content, mimetype, size = mSize, path } =
+  LockManager.withLock (LockManager.mkLockKey path) do
+    case content of
+      FileContentRaw bytes -> do
+        writePutObject path (toBody bytes)
+        Cache.delete (createCacheKey @"file" @FileInfo targetId (coerce Builder.string8 path))
+        Cache.delete (createCacheKey @"dir" @[FileInfo] targetId "")
+      FileContentConduit conduit -> do
+        case mSize of
+          Nothing -> writeMultipart conduit
+          Just size
+            | size < threshold  ->  do
+                lazyBytes <- liftIO . runResourceT . runConduit $ conduit .| sinkLazy
+                writePutObject path (toBody lazyBytes)
+            | otherwise -> writeMultipart conduit
+        Cache.delete (createCacheKey @"file" @FileInfo targetId (coerce Builder.string8 path))
+        Cache.delete (createCacheKey @"dir" @[FileInfo] targetId "")
+        where
+          threshold = 5 * 1024 * 1024 -- use putObject if it's smaller than single part.
+      FileContentDir _ -> pure ()
+      FileContentNull -> pure ()
   where
-    bucket  = BucketName s3.bucket
-    key     = ObjectKey (coerce Text.pack filePath)
-    request :: PutObject
-    request = (Amazonka.newPutObject bucket key body) { contentType = Just (Text.decodeUtf8 mimetype) }
+    writePutObject :: (IOE :> es) => AbsPath -> RequestBody ->  Eff es ()
+    writePutObject filePath body =
+      let bucket  = BucketName s3.bucket
+          key     = ObjectKey (coerce Text.pack filePath)
+          request = (Amazonka.newPutObject bucket key body) { contentType = Just (Text.decodeUtf8 mimetype) } :: PutObject
+       in void . runResourceT $ send s3.env request
 
-
-writeMultipart :: (IOE :> es) => Target S3 -> AbsPath -> MimeType -> ConduitT () ByteString (ResourceT IO) () -> Eff es ()
-writeMultipart s3 path mimetype conduit = do
-  let bucket   = BucketName s3.bucket
-  let key      = ObjectKey (coerce Text.pack path)
-  let partSize = 5 * 1024 * 1024
-
-  let request :: CreateMultipartUpload
-      request  = (Amazonka.newCreateMultipartUpload bucket key) { contentType = Just (Text.decodeUtf8 mimetype) }
-
-  createMultipartUploadResp <- runResourceT $ send s3.env request
-  let uploadId = createMultipartUploadResp.uploadId
-  completedParts <- liftIO . runResourceT . runConduit
-    $ conduit
-    .| chunking partSize
-    .| fix (\loop -> do
-        mRes <- await
-        case mRes of
-         Just (partNum, chunkBuilder) -> do
-           let chunk = chunkBuilderToByteString chunkBuilder
-           uploadPartResp <- send s3.env (Amazonka.newUploadPart bucket key partNum uploadId (toBody chunk))
-           let etag = case uploadPartResp.eTag of
-                        Just x -> x
-                        Nothing -> error "handle later"
-           let completedPart = Amazonka.newCompletedPart partNum etag
-           yield completedPart
-           loop
-         Nothing -> pure ())
-    .| Conduit.sinkList
-  void . runResourceT $ send s3.env
-        (Amazonka.newCompleteMultipartUpload bucket key uploadId)
-          { multipartUpload = Just (CompletedMultipartUpload' (Just (NonEmpty.fromList completedParts)))
-          }
+    writeMultipart :: (IOE :> es) => ConduitT () ByteString (ResourceT IO) () -> Eff es ()
+    writeMultipart conduit = do
+      let bucket   = BucketName s3.bucket
+          key      = ObjectKey (coerce Text.pack path)
+          partSize = 5 * 1024 * 1024
+          request  = (Amazonka.newCreateMultipartUpload bucket key) { contentType = Just (Text.decodeUtf8 mimetype) } :: CreateMultipartUpload
+      createMultipartUploadResp <- runResourceT $ send s3.env request
+      let uploadId = createMultipartUploadResp.uploadId
+      let mkCompletedPart = \loop -> do
+            mRes <- await
+            case mRes of
+             Just (partNum, chunkBuilder) -> do
+               let chunk = chunkBuilderToByteString chunkBuilder
+               uploadPartResp <- send s3.env (Amazonka.newUploadPart bucket key partNum uploadId (toBody chunk))
+               let etag = case uploadPartResp.eTag of
+                            Just x -> x
+                            Nothing -> error "handle later"
+               let completedPart = Amazonka.newCompletedPart partNum etag
+               yield completedPart
+               loop
+             Nothing -> pure ()
+      completedParts <- liftIO . runResourceT . runConduit
+        $ conduit
+        .| chunking partSize
+        .| fix mkCompletedPart
+        .| Conduit.sinkList
+      void . runResourceT $ send s3.env
+            (Amazonka.newCompleteMultipartUpload bucket key uploadId)
+              { multipartUpload = Just (CompletedMultipartUpload' (Just (NonEmpty.fromList completedParts)))
+              }
 
 
 data ChunkBuilder
@@ -339,28 +342,37 @@ mv
   :: ( IOE                :> es
      , Log                :> es
      , Cache              :> es
+     , LockManager        :> es
+     , Concurrent         :> es
      , Error StorageError :> es)
    => Target S3 -> [(AbsPath, AbsPath)] -> Eff es ()
 mv _ [] = throwError (CopyError "Nothing to copy")
 mv s3@S3Backend { targetId } cpPairs = do
-  forM_ cpPairs \(src, dst) -> do
-    let bucket  = BucketName s3.bucket
-    let destKey = ObjectKey (coerce Text.pack dst)
-    let request = Amazonka.newCopyObject bucket (coerce Text.pack src) destKey
-    resp <- runResourceT $ send s3.env request
-    case resp.copyObjectResult of
-      Just _ -> do
-        Cache.delete (createCacheKey @"dir" @[FileInfo] targetId (Builder.string8 (coerce takeDirectory src)))
-        Cache.delete (createCacheKey @"dir" @[FileInfo] targetId (Builder.string8 (coerce takeDirectory dst)))
-        coerce delete s3 src
-      Nothing ->
-        logAttention_ (Text.pack $ "S3 Copy Failed for " <> (coerce src))
+  let pairs = sort cpPairs
+  forConcurrently_  pairs \(src, dst) -> do
+    let locks = if src == dst -- Dedup
+                   then [LockManager.mkLockKey src]
+                   else (fmap LockManager.mkLockKey [src, dst])
+    LockManager.withLocks locks do
+      let bucket  = BucketName s3.bucket
+          destKey = ObjectKey (coerce Text.pack dst)
+          request = Amazonka.newCopyObject bucket (coerce Text.pack src) destKey
+      resp <- runResourceT $ send s3.env request
+      case resp.copyObjectResult of
+        Just _ -> do
+          Cache.delete (createCacheKey @"dir" @[FileInfo] targetId (Builder.string8 (coerce takeDirectory src)))
+          Cache.delete (createCacheKey @"dir" @[FileInfo] targetId (Builder.string8 (coerce takeDirectory dst)))
+          coerce delete' s3 src
+        Nothing ->
+          logAttention_ (Text.pack $ "S3 Copy Failed for " <> (coerce src))
 
 
 rename
   :: ( IOE                :> es
      , Log                :> es
      , Cache              :> es
+     , Concurrent         :> es
+     , LockManager        :> es
      , Error StorageError :> es)
    => Target S3 -> AbsPath -> String -> Eff es ()
 rename s3 oldPath newName =
@@ -370,13 +382,19 @@ rename s3 oldPath newName =
 
 
 delete
-  :: ( IOE   :> es
-     , Log   :> es
-     , Cache :> es)
+  :: ( IOE         :> es
+     , Log         :> es
+     , Cache       :> es
+     , LockManager :> es)
   => Target S3 -> AbsPath -> Eff es ()
-delete s3@S3Backend { targetId } filePath = do
+delete s3 filePath = LockManager.withLock (LockManager.mkLockKey filePath) do
+  delete' s3 filePath
+
+
+delete' :: (IOE :> es, Log :> es, Cache :> es) => Target S3 -> AbsPath -> Eff es ()
+delete' s3@S3Backend { targetId } filePath = do
   let bucket = BucketName s3.bucket
-  let key    = ObjectKey (coerce Text.pack filePath)
+      key    = ObjectKey (coerce Text.pack filePath)
   void . runResourceT $ send s3.env (Amazonka.newDeleteObject bucket key)
   Cache.delete (createCacheKey @"file" @FileInfo targetId (coerce Builder.string8 filePath))
   Cache.delete (createCacheKey @"dir" @[FileInfo] targetId "")
@@ -397,12 +415,12 @@ ls s3@S3Backend { targetId } _ = do
         pure cached
       Nothing -> do
         let bucket  = BucketName s3.bucket
-        let request = Amazonka.newListObjectsV2 bucket
+            request = Amazonka.newListObjectsV2 bucket
                     & Amazonka.listObjectsV2_prefix ?~ Text.pack "" -- root
         resp <- runResourceT $ send s3.env request
-        let files = maybe [] (fmap toFile) $ resp ^. Amazonka.listObjectsV2Response_contents
-        let dirs  = maybe [] (fmap toDir)  $ resp ^. Amazonka.listObjectsV2Response_commonPrefixes
-        let result = files <> dirs
+        let files  = maybe [] (fmap toFile) $ resp ^. Amazonka.listObjectsV2Response_contents
+            dirs   = maybe [] (fmap toDir)  $ resp ^. Amazonka.listObjectsV2Response_commonPrefixes
+            result = files <> dirs
         Cache.insert
           cacheKey
           (fmap (\r -> SomeCacheKey (createCacheKey @"file" @FileInfo targetId (coerce Builder.string8 r.path))) result)
@@ -445,14 +463,15 @@ lsCwd s3 = ls s3 (AbsPath "")
 
 
 upload
-  :: ( Cache :> es
-     , Log   :> es
-     , IOE   :> es)
+  :: ( Cache       :> es
+     , Log         :> es
+     , IOE         :> es
+     , LockManager :> es)
   => Target S3 -> FileData Mem -> Eff es ()
 upload s3 file = do
   let mimetype = Text.encodeUtf8 file.fdFileCType
-  let name     = coerce Text.unpack file.fdFileName
-  let bytes    = LBS.toStrict (file.fdPayload)
+      name     = coerce Text.unpack file.fdFileName
+      bytes    = LBS.toStrict (file.fdPayload)
   write s3 $ defaultFileWithContent
     { path     = name
     , mimetype = mimetype

@@ -48,7 +48,7 @@ import Filehub.Types (Layout(..), SortFileBy(..))
 import Lens.Micro.Platform ()
 import Lucid
 import Network.Mime.Extended (isMime)
-import System.FilePath (takeFileName, takeDirectory)
+import System.FilePath (takeFileName)
 import Target.Dummy (DummyTarget)
 import Target.File (FileSys, Target (..))
 import Target.S3 (S3, Target (..))
