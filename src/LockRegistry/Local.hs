@@ -29,7 +29,7 @@ module LockRegistry.Local
   where
 
 import Data.Map.Strict (Map)
-import Data.Map.Strict qualified  as Map
+import Data.Map.Strict qualified as Map
 import Data.Vector qualified as Vector
 import Data.Vector (Vector)
 import LockRegistry.Key (LockKey)
