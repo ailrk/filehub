@@ -7,7 +7,6 @@ hspkgs.shellFor {
     hspkgs.haskell-language-server
     hspkgs.hlint
     hspkgs.cabal2nix
-    hspkgs.ghcprofview
     hspkgs.eventlog2html
     hspkgs.graphmod
     pkgs.ghcid
