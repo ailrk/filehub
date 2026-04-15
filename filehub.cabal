@@ -284,7 +284,7 @@ test-suite filehub_test_unit
   type:              exitcode-stdio-1.0
   hs-source-dirs:    test_unit
   main-is:           Spec.hs
-  exposed-modules:
+  other-modules:
     Data.ClientPathSpec
     Effectful.CacheSpec
     Effectful.LockManagerSpec
