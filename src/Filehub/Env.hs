@@ -27,7 +27,6 @@ import Network.HTTP.Client qualified as HTTP
 import Target.Types (AnyTarget, TargetId)
 import {-# SOURCE #-} Filehub.Auth.OIDC (OIDCAuthProviders(..))
 import {-# SOURCE #-} Filehub.Auth.Simple (SimpleAuthUserDB(..))
-import Effectful.Concurrent.STM (TVar)
 import EvtLog qualified
 
 

@@ -33,7 +33,6 @@ import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.Time.Format (formatTime, defaultTimeLocale)
-import Effectful.Reader.Dynamic (asks)
 import Filehub.Links ( apiLinks, linkToText )
 import Filehub.Locale (Locale(..), Phrase (..), phrase)
 import Filehub.Routes (Api(..))

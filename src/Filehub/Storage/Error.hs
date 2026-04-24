@@ -5,10 +5,8 @@ module Filehub.Storage.Error
   where
 
 import Data.Generics.Labels ()
-import Effectful (Eff, Eff, (:>))
 import Lens.Micro.Platform ()
 import Prelude hiding (read, readFile, writeFile)
-import Effectful.Error.Dynamic (throwError, Error, runErrorNoCallStack)
 import Filehub.Error
 import Storage.Error (StorageError)
 import Storage.Error qualified as StorageError

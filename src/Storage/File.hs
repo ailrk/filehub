@@ -57,18 +57,10 @@ import Data.String.Interpolate (i)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.Time (secondsToNominalDiffTime)
-import Effectful ( Eff, Eff, runEff, (:>), IOE)
-import Effectful.Concurrent.Async (Concurrent, forConcurrently_)
-import Effectful.Error.Dynamic (throwError, Error)
 import Effectful.Extended.Cache (Cache)
 import Effectful.Extended.Cache qualified as Cache
 import Effectful.Extended.LockManager (LockManager)
 import Effectful.Extended.LockManager qualified as LockManager
-import Effectful.FileSystem
-import Effectful.FileSystem.IO (withFile, IOMode (..), hClose)
-import Effectful.FileSystem.IO.ByteString (hPut)
-import Effectful.Log
-import Effectful.Temporary (withTempFile, Temporary)
 import GHC.TypeLits (Symbol)
 import Lens.Micro.Platform ()
 import Network.Mime (defaultMimeLookup)

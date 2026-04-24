@@ -3,9 +3,6 @@ module Target.File where
 
 import Target.Types (TargetId(..), Target, IsTarget(..), HasTargetId(..))
 import Data.Text (Text)
-import Effectful (IOE, (:>), Eff, MonadIO (..))
-import Effectful.Log (Log, logInfo_)
-import Effectful.FileSystem (FileSystem, makeAbsolute)
 import Data.String.Interpolate (i)
 import Data.UUID.V4 qualified as UUID
 import Text.Debug (Debug(..))

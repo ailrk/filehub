@@ -16,8 +16,6 @@ import Data.Function (on)
 import Data.List (nub)
 import Data.Maybe (catMaybes)
 import Data.String.Interpolate (i)
-import Effectful.Error.Dynamic (throwError, Error)
-import Effectful.Log (logAttention_, Log)
 import Filehub.Error (FilehubError (..), Error' (..))
 import Filehub.Session (Storage(..))
 import Filehub.Session.Effectful (runSessionEff, SessionGet(..))
@@ -28,8 +26,6 @@ import Filehub.Types (CopyState(..), SessionId, Selected (..), Env)
 import Lens.Micro hiding (to)
 import Target.Types qualified as Target
 import Filehub.Monad (IsFilehub)
-import Effectful (Eff, (:>), IOE)
-import Effectful.Reader.Dynamic (Reader)
 
 
 getCopyState :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es CopyState

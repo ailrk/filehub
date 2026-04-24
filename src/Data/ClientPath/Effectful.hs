@@ -1,8 +1,6 @@
 module Data.ClientPath.Effectful (validateAbsPath) where
 
 
-import Effectful ((:>), Eff)
-import Effectful.Error.Dynamic (Error, throwError)
 import Data.ClientPath (AbsPath(..), newAbsPath)
 
 

@@ -15,7 +15,6 @@ import Control.Monad (when)
 import Data.Coerce (coerce)
 import Data.Text (Text)
 import Data.Text qualified as Text
-import Effectful.Log (LogLevel (..))
 import Filehub.Auth.OIDC qualified as Auth.OIDC
 import Filehub.Auth.Simple qualified as Auth.Simple
 import Filehub.Config

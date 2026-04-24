@@ -17,9 +17,6 @@ import Control.Monad (void)
 import Data.Dynamic (Typeable)
 import Data.String.Interpolate (i)
 import Data.Time (NominalDiffTime, getCurrentTime)
-import Effectful
-import Effectful.Dispatch.Dynamic (interpret, send)
-import Effectful.Log (logTrace_, Log)
 import Prelude hiding (lookup)
 import UnliftIO (atomicModifyIORef', readIORef)
 

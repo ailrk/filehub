@@ -2,7 +2,6 @@ module Filehub.Storage.Dummy (storage) where
 
 import Conduit (yield)
 import Data.File (File(..), FileWithContent, extractFileInfo, FileContent (..))
-import Effectful (Eff, Eff)
 import Lens.Micro.Platform ()
 import Prelude hiding (read, readFile, writeFile)
 import Target.Storage (Storage(..))

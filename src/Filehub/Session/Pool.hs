@@ -9,10 +9,6 @@ module Filehub.Session.Pool
   )
   where
 
-import Effectful.Reader.Dynamic (Reader, asks)
-import Effectful ((:>), Eff, IOE, MonadIO (liftIO))
-import Effectful.Error.Dynamic (Error, throwError)
-import Effectful.Log (logTrace_, Log)
 import Data.Time (addUTCTime)
 import Data.Time.Clock qualified as Time
 import Data.HashTable.IO qualified as HashTable
@@ -25,7 +21,6 @@ import Filehub.Session.Internal qualified as Session
 import Filehub.Error (FilehubError (..), Error' (..))
 import Filehub.Session.Types (Session(..), SessionId)
 import Filehub.Session.Types qualified as Session
-import Effectful.Concurrent (Concurrent)
 
 
 new :: (IOE :> es) => Eff es Session.Pool

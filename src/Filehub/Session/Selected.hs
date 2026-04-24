@@ -8,8 +8,6 @@ module Filehub.Session.Selected
   )
   where
 
-import Effectful (Eff, (:>), Eff, (:>), IOE)
-import Effectful.Reader.Dynamic (Reader, asks)
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Types (Env(..), SessionId, Session(..), Selected(..), TargetSessionData (..))
 import Lens.Micro hiding (to)
@@ -17,12 +15,9 @@ import Lens.Micro.Platform ()
 import Prelude hiding (elem)
 import Target.Types (AnyTarget)
 import Filehub.Monad (Filehub)
-import Effectful.Concurrent.STM (readTVarIO, Concurrent)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (catMaybes)
-import Effectful.Error.Dynamic (Error)
 import Filehub.Error (FilehubError)
-import Effectful.Log (Log)
 
 
 setSelected :: (Reader Env :> es, IOE :> es) => SessionId -> Selected -> Eff es ()

@@ -47,12 +47,6 @@ import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.Time (UTCTime (..), fromGregorian)
 import Data.UUID qualified as UUID
-import Effectful (withRunInIO, runEff, MonadIO (..), raise, Eff )
-import Effectful.Concurrent.Async (async, forConcurrently_)
-import Effectful.Concurrent.STM (newTVarIO, readTBQueue, writeTBQueue, atomically, modifyTVar', readTVar, isEmptyTBQueue, TBQueue, TVar)
-import Effectful.Error.Dynamic (throwError)
-import Effectful.Log (logInfo_, logAttention_)
-import Effectful.Reader.Dynamic (asks)
 import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
 import Filehub.Auth.OIDC (AuthUrl (..), SomeOIDCFlow (..))
 import Filehub.Auth.OIDC qualified as Auth.OIDC

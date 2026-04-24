@@ -31,7 +31,6 @@ import Options.Applicative
   , progDesc
   , optional
   )
-import Effectful.Log (LogLevel (..))
 import Filehub.Theme (Theme (..))
 import Data.List.Split (splitOn)
 import Filehub.Locale (Locale (..))

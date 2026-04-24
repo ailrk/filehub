@@ -13,13 +13,9 @@ import Filehub.Locale (Locale)
 import Filehub.Session.Types (TargetView(..), SessionId, Session(..), TargetSessionData(..))
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.SharedLink (SharedLinkPermitSet)
-import Effectful.Concurrent.STM (TBQueue, TVar, readTVarIO)
 import Filehub.Notification.Types (Notification)
 import Data.Set (Set)
 import Worker.Task (TaskId)
-import Effectful.Reader.Dynamic (asks)
-import Effectful.Error.Dynamic (throwError)
-import Effectful.Dispatch.Dynamic
 import Filehub.Error (FilehubError(FilehubError), Error' (..))
 import Data.Map qualified as Map
 import Filehub.UserAgent qualified as UserAgent
@@ -36,9 +32,7 @@ import {-# SOURCE #-} Filehub.Session.Copy qualified as Copy
 import Filehub.Session.Selected qualified as Selected
 import {-# SOURCE #-} Filehub.Storage.S3 qualified as S3
 import {-# SOURCE #-} Filehub.Storage.File qualified as File
-import Effectful.Log (logAttention_, logTrace, logAttention)
 import Target.Types (handleTarget, targetHandler, AnyTarget (..), HasTargetId (..), TargetId)
-import Effectful (Effect, DispatchOf, Dispatch(..), Eff, (:>))
 import UnliftIO (finally)
 import {-# SOURCE #-} Filehub.Auth.OIDC (SomeOIDCFlow)
 

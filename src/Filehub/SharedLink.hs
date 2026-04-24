@@ -21,8 +21,6 @@ import Data.Time (UTCTime, getCurrentTime)
 import Data.Text (Text)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
-import Effectful (Eff, MonadIO (..), (:>), IOE)
-import Effectful.Concurrent.STM (TVar, newTVarIO, Concurrent, atomically, modifyTVar', readTVar, writeTVar)
 import Crypto.Hash.SHA256 qualified as SHA256
 import Data.Vector qualified as Vector
 import Data.Vector (Vector)

@@ -7,7 +7,6 @@ module Filehub.Template
   )
   where
 
-import Effectful.Reader.Dynamic ( asks, ask, Reader, runReader )
 import Filehub.Locale ( Locale )
 import Filehub.Sort ( SortFileBy )
 import Filehub.Types
@@ -19,7 +18,6 @@ import Filehub.Types
 import Lens.Micro.Platform ()
 import Filehub.Session (TargetView(..), SessionId)
 import Filehub.Theme (Theme)
-import Effectful (Eff, runPureEff)
 import Filehub.Auth.Simple (SimpleAuthUserDB)
 import Filehub.Auth.OIDC (OIDCAuthProviders)
 import Filehub.Monad (IsFilehub)

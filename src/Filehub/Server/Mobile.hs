@@ -10,7 +10,6 @@ module Filehub.Server.Mobile
   where
 
 import Data.ClientPath qualified as ClientPath
-import Effectful.Reader.Dynamic (asks)
 import Filehub.Env (Env)
 import Filehub.Env qualified as Env
 import Filehub.Monad (IsFilehub)
@@ -26,11 +25,8 @@ import Lens.Micro.Platform ()
 import Lucid
 import Prelude hiding (readFile)
 import System.FilePath (takeFileName)
-import Effectful.Error.Dynamic (throwError)
 import Filehub.Error (FilehubError(..), Error'(InvalidPath))
-import Effectful.Concurrent.STM (readTVarIO)
 import Data.Coerce (coerce)
-import Effectful (Eff)
 import Filehub.Session.Effectful (runSessionEff, SessionGet(..))
 import Filehub.Session.Effectful qualified as Session
 

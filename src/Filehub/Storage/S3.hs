@@ -17,8 +17,6 @@ module Filehub.Storage.S3 (storage) where
 
 import Data.ClientPath (fromClientPath)
 import Data.Function ((&))
-import Effectful (raise, Eff)
-import Effectful.Error.Dynamic (throwError)
 import Filehub.Error
 import Filehub.Monad (IsFilehub)
 import Filehub.Session.Types (TargetView(..))

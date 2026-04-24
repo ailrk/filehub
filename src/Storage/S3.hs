@@ -64,15 +64,10 @@ import Data.Maybe (fromMaybe)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.Time (secondsToNominalDiffTime)
-import Effectful (Eff, Eff, MonadIO (..), runEff, (:>), IOE)
-import Effectful.Concurrent.Async (forConcurrently_, Concurrent)
-import Effectful.Error.Dynamic (Error, throwError)
 import Effectful.Extended.Cache (Cache)
 import Effectful.Extended.Cache qualified as Cache
 import Effectful.Extended.LockManager (LockManager)
 import Effectful.Extended.LockManager qualified as LockManager
-import Effectful.FileSystem (runFileSystem, removeFile)
-import Effectful.Log (Log, logAttention_)
 import GHC.TypeLits (Symbol)
 import Lens.Micro
 import Lens.Micro.Platform ()

@@ -13,10 +13,6 @@ import Control.Exception (SomeException, throwIO)
 import Data.Functor.Identity (Identity(..))
 import Data.String.Interpolate (i)
 import Data.Time (secondsToNominalDiffTime)
-import Effectful (runEff, MonadIO (..))
-import Effectful.Concurrent (runConcurrent)
-import Effectful.FileSystem (runFileSystem)
-import Effectful.Log (runLog, logInfo_)
 import EvtLog qualified
 import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
 import Filehub.Auth.OIDC (OIDCAuthProviders(..))
@@ -43,7 +39,6 @@ import Target.File qualified as FS
 import Target.S3 qualified as S3
 import Target.Types (AnyTarget (..), getTargetId)
 import UnliftIO (catch, hFlush, stdout)
-import Effectful.Concurrent.STM (newTVarIO)
 
 
 main :: IO ()

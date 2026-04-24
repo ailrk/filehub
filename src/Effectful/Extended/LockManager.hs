@@ -11,8 +11,6 @@ module Effectful.Extended.LockManager
   where
 
 
-import Effectful
-import Effectful.Dispatch.Dynamic
 import LockRegistry.Local qualified as Local
 import LockRegistry.Key (LockKey, mkLockKey)
 import LockRegistry.Dummy qualified as Dummy

@@ -30,7 +30,6 @@ import Data.Maybe (fromMaybe, catMaybes)
 import Data.Sequence (Seq(..))
 import Data.Sequence qualified as Seq
 import Data.Text qualified as Text
-import Effectful.Reader.Dynamic ( asks )
 import Filehub.Links (linkToText, apiLinks)
 import Filehub.Locale ( Phrase(..), phrase )
 import Filehub.Routes (Api (..))

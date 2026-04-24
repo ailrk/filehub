@@ -24,10 +24,8 @@ import Lucid
 import Prelude hiding (readFile)
 import System.FilePath (takeFileName)
 import Filehub.Session (TargetView(..))
-import Effectful.Error.Dynamic (throwError)
 import Filehub.Error (FilehubError(..), Error'(InvalidPath))
 import Data.Coerce (coerce)
-import Effectful (Eff)
 import Filehub.Session.Effectful (runSessionEff, SessionGet(..))
 import Filehub.Session.Effectful qualified as Session
 

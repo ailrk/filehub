@@ -14,8 +14,6 @@ import Data.Time (UTCTime, addUTCTime, NominalDiffTime)
 import Data.Time qualified as Time
 import Data.Typeable (cast)
 import Data.UUID.V4 qualified as UUID
-import Effectful ((:>), Eff, IOE, MonadIO (liftIO))
-import Effectful.Reader.Dynamic (Reader, asks)
 import Filehub.Types (Session(..), SessionId(..), Env(..), TargetSessionData (..), CopyState (..), Selected (..), SortFileBy(..), Layout(..))
 import Filehub.UserAgent qualified as UserAgent
 import Options.Applicative (asum)
@@ -23,8 +21,6 @@ import Target.File (FileSys, Target(..))
 import Target.S3 (S3)
 import Target.Types (AnyTarget (..))
 import UnliftIO.STM (newTBQueueIO, newTVarIO)
-import Effectful.Concurrent (Concurrent)
-import Effectful.Concurrent.STM (readTVarIO)
 import Data.Map.Strict qualified as Map
 import Data.ClientPath (AbsPath(..), Root(..))
 

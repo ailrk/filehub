@@ -5,8 +5,6 @@ module Target.S3 where
 import Target.Types (TargetId(..), Target, IsTarget(..), HasTargetId(..))
 import Data.Text (Text)
 import Amazonka.Env qualified as Amazonka
-import Effectful (IOE, (:>), Eff, MonadIO (..))
-import Effectful.Log (Log, logInfo_)
 import Data.String.Interpolate (i)
 import Amazonka.Types qualified as Amazonka
 import Data.UUID.V4 qualified as UUID

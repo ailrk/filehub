@@ -17,8 +17,6 @@ module Network.Wai.Middleware.Filehub
 import Control.Monad (when)
 import Data.String.Interpolate (i)
 import Data.UUID qualified as UUID
-import Effectful ( MonadIO(liftIO), liftIO, liftIO )
-import Effectful.Error.Dynamic (runErrorNoCallStack)
 import Filehub.Cookie qualified as Cookies
 import Filehub.Env (Env (..))
 import Filehub.Error (FilehubError)

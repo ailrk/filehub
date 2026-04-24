@@ -16,10 +16,6 @@
 module Filehub.Storage.File (storage) where
 
 import Control.Monad (unless)
-import Effectful (Eff)
-import Effectful.Error.Dynamic (throwError)
-import Effectful.FileSystem
-import Effectful.Log
 import Filehub.Error (FilehubError(..), Error' (..))
 import Filehub.Monad (IsFilehub)
 import Filehub.Session.Types (TargetView(..))

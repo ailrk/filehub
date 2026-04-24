@@ -42,9 +42,6 @@ import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.Time (UTCTime)
 import Data.Time.Clock.POSIX qualified as Time
-import Effectful ((:>), Eff, IOE, MonadIO(..))
-import Effectful.Error.Dynamic (Error, throwError)
-import Effectful.Reader.Dynamic (Reader, asks)
 import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
 import Filehub.ActiveUser.Types (ActiveUser(..))
 import Filehub.Auth.Types (AuthId, Auth (..), createAuthId)

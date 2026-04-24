@@ -8,8 +8,6 @@ module Filehub.ActiveUser.Pool
 import Filehub.ActiveUser.Types qualified as ActiveUser
 import Filehub.ActiveUser.Types (ActiveUser(..))
 import Data.HashTable.IO qualified as HashTable
-import Effectful (IOE, (:>), Eff, MonadIO (..))
-import Effectful.Reader.Dynamic (Reader, asks)
 import Filehub.Env
 import Filehub.Auth.Types (AuthId)
 

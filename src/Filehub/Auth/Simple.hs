@@ -22,8 +22,6 @@ import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.Time qualified as Time
-import Effectful (Eff, (:>), MonadIO (..), IOE)
-import Effectful.Reader.Dynamic (asks)
 import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
 import Filehub.ActiveUser.Types (ActiveUser (..))
 import Filehub.Auth.Types (createAuthId, AuthId, Auth (..))

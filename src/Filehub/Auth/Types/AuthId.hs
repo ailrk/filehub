@@ -3,7 +3,6 @@ module Filehub.Auth.Types.AuthId (AuthId(..), createAuthId) where
 import Data.UUID (UUID)
 import Data.UUID.V4 qualified as UUID
 import Data.Hashable (Hashable)
-import Effectful (Eff, (:>), MonadIO (..), IOE)
 import Prelude hiding (readFile)
 
 

@@ -12,7 +12,6 @@ module Filehub.Server.Internal
   where
 
 import Data.ByteString (ByteString)
-import Effectful.Error.Dynamic (throwError)
 import Filehub.Error (FilehubError (..))
 import Filehub.Monad (IsFilehub)
 import Filehub.Session.Copy qualified as Copy
@@ -23,7 +22,6 @@ import Prelude hiding (elem)
 import Prelude hiding (readFile)
 import Servant ( FromHttpApiData (..) )
 import Servant.Server (err400)
-import Effectful (Eff)
 
 
 -- | Ensure a query parameter presents, otherwise it's a client error
