@@ -5,20 +5,21 @@
 -- The custom logger for filehub.
 module Filehub.Log (withColoredStdoutLogger) where
 
-import Effectful
-import Effectful.Log (Logger, LogLevel (..), mkLogger, UTCTime, LogMessage (..), showLogLevel)
 import System.IO (stdout, hFlush)
-import Data.Time (defaultTimeLocale)
+import Data.Time (defaultTimeLocale, UTCTime)
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.IO qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.ByteString qualified as ByteString
-import Log.Internal.Logger (withLogger)
+import Log.Internal.Logger (withLogger, Logger)
 import Data.Aeson (Value)
 import Data.Time.Format (formatTime)
 import Data.Aeson.Types (emptyObject)
 import Data.Aeson.Encode.Pretty (Config(..), defConfig, encodePretty', Indent (..))
+import UnliftIO (MonadUnliftIO (..))
+import Log.Data (LogMessage (..), LogLevel (..), showLogLevel)
+import Log (mkLogger)
 
 
 withColoredStdoutLogger :: MonadUnliftIO m => (Logger -> m r) -> m r

@@ -13,10 +13,6 @@ import Control.Exception (SomeException, throwIO)
 import Data.Functor.Identity (Identity(..))
 import Data.String.Interpolate (i)
 import Data.Time (secondsToNominalDiffTime)
-import Effectful (runEff, MonadIO (..))
-import Effectful.Concurrent (runConcurrent)
-import Effectful.FileSystem (runFileSystem)
-import Effectful.Log (runLog, logInfo_)
 import EvtLog qualified
 import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
 import Filehub.Auth.OIDC (OIDCAuthProviders(..))
@@ -33,7 +29,7 @@ import Filehub.Server (application)
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.SharedLink qualified as SharedLink
 import Lens.Micro.Platform ()
-import LockRegistry.Local
+import LockManager.Local qualified
 import Network.HTTP.Client.TLS (newTlsManager)
 import Network.Wai.Handler.Warp (setPort, defaultSettings, runSettings)
 import Prelude hiding (init, readFile)
@@ -43,7 +39,10 @@ import Target.File qualified as FS
 import Target.S3 qualified as S3
 import Target.Types (AnyTarget (..), getTargetId)
 import UnliftIO (catch, hFlush, stdout)
-import Effectful.Concurrent.STM (newTVarIO)
+import Log (logInfo_, runLogT)
+import UnliftIO.STM (newTVarIO)
+import Control.Handle.Cache qualified as Cache
+import Control.Handle.LockManager qualified as LockManager
 
 
 main :: IO ()
@@ -70,7 +69,7 @@ main = Log.withColoredStdoutLogger \logger -> do
         pure
         (Config.merge optionConfig config)
 
-  runEff $ runLog "main" logger verbosity do
+  runLogT "main" logger verbosity do
     logInfo_ [i|port:      #{port}|]
     logInfo_ [i|theme:     #{theme}|]
     logInfo_ [i|verbosity: #{verbosity}|]
@@ -80,14 +79,16 @@ main = Log.withColoredStdoutLogger \logger -> do
     logInfo_ [i|debug:     true|]
 #endif
 
-  env <- runEff . runConcurrent . runFileSystem  $ do
+  env <- do
     sessionPool      <- Session.Pool.new
     activeUserPool   <- ActiveUser.Pool.new
-    targets          <- runLog "targets" logger verbosity $ fromTargetConfig targetConfigs.unTargets >>= newTVarIO
+    targets          <- runLogT "targets" logger verbosity do
+                          ts <- fromTargetConfig targetConfigs.unTargets
+                          newTVarIO ts
     simpleAuthUserDB <- Auth.Simple.createSimpleAuthUserDB simpleAuthLoginUsers.unSimpleAuthUserRecords
     sharedLinkPool   <- SharedLink.newShareLinkPool
-    lockRegistry     <- liftIO LockRegistry.Local.new
-    cache            <- liftIO $ Cache.InMemory.new 5000
+    lockManager      <- LockManager.makeLocalLockManager <$> LockManager.Local.new
+    cache            <- Cache.makeInMemoryCache <$> Cache.InMemory.new 5000
     httpManager      <- newTlsManager
     evtLogHandle     <- EvtLog.initialize "" 100
     pure Env
@@ -109,7 +110,7 @@ main = Log.withColoredStdoutLogger \logger -> do
       , activeUsers       = activeUserPool
       , httpManager       = httpManager
       , cache             = cache
-      , lockRegistry      = lockRegistry
+      , lockManager       = lockManager
       , evtLogHandle      = evtLogHandle
       }
 

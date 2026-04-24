@@ -1,10 +1,9 @@
 module Main where
 
 
-import Wrk qualified
 import Criterion
 import Criterion.Main (defaultMain)
-import System.Process
+import UnliftIO.Process
 
 
 main :: IO ()

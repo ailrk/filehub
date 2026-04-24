@@ -9,11 +9,11 @@ import Filehub.Template (Template, TemplateContext(..))
 import Control.Monad (when)
 import Data.Foldable (forM_)
 import Filehub.Locale (Phrase(..), phrase, Locale (..))
-import Effectful.Reader.Dynamic (asks)
 import Filehub.Links (linkToText, apiLinks)
 import Filehub.Routes (Api(..))
 import Filehub.Theme (Theme(..))
 import Data.Maybe (fromMaybe)
+import Control.Monad.Reader (asks)
 
 
 login :: Template (Html ())

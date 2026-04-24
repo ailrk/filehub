@@ -7,7 +7,6 @@ module Filehub.Template
   )
   where
 
-import Effectful.Reader.Dynamic ( asks, ask, Reader, runReader )
 import Filehub.Locale ( Locale )
 import Filehub.Sort ( SortFileBy )
 import Filehub.Types
@@ -19,14 +18,15 @@ import Filehub.Types
 import Lens.Micro.Platform ()
 import Filehub.Session (TargetView(..), SessionId)
 import Filehub.Theme (Theme)
-import Effectful (Eff, runPureEff)
 import Filehub.Auth.Simple (SimpleAuthUserDB)
 import Filehub.Auth.OIDC (OIDCAuthProviders)
-import Filehub.Monad (IsFilehub)
 import Filehub.Env qualified as Env
 import Data.ClientPath (AbsPath, Root)
-import Filehub.Session.Effectful (runSessionEff, SessionGet(..))
-import Filehub.Session.Effectful qualified as Session
+import Filehub.Session (SessionGet(..))
+import Filehub.Session qualified as Session
+import Data.Functor.Identity (Identity)
+import Control.Monad.Reader (ReaderT, runReader, asks, MonadReader (..))
+import Filehub.Monad (Filehub)
 
 
 -- | A Template context type that capture all useful information to render
@@ -57,25 +57,25 @@ data TemplateContext = TemplateContext
 
 
 runTemplate :: TemplateContext -> Template a -> a
-runTemplate ctx = runPureEff . runReader ctx
+runTemplate ctx = flip runReader ctx
 
 
-type Template =  Eff '[Reader TemplateContext]
+type Template = ReaderT TemplateContext Identity
 
 
-makeTemplateContext :: IsFilehub es => SessionId -> Eff es TemplateContext
-makeTemplateContext sessionId = runSessionEff sessionId do
-  display           <- Session.get (.display)
-  sidebarCollapsed  <- Session.get (.sidebarCollapsed)
-  layout            <- Session.get (.layout)
-  theme             <- Session.get (.theme)
-  sortedBy          <- Session.get (.sortedFileBy)
-  state             <- Session.get (.controlPanelState)
-  selected          <- Session.get (.selected)
-  root              <- Session.get (.root)
-  locale            <- Session.get (.locale)
-  currentDir        <- Session.get (.currentDir)
-  currentTarget     <- Session.get (.currentTarget)
+makeTemplateContext :: SessionId -> Filehub TemplateContext
+makeTemplateContext sessionId = do
+  display           <- Session.get sessionId (.display)
+  sidebarCollapsed  <- Session.get sessionId (.sidebarCollapsed)
+  layout            <- Session.get sessionId (.layout)
+  theme             <- Session.get sessionId (.theme)
+  sortedBy          <- Session.get sessionId (.sortedFileBy)
+  state             <- Session.get sessionId (.controlPanelState)
+  selected          <- Session.get sessionId (.selected)
+  root              <- Session.get sessionId (.root)
+  locale            <- Session.get sessionId (.locale)
+  currentDir        <- Session.get sessionId (.currentDir)
+  currentTarget     <- Session.get sessionId (.currentTarget)
   readOnly          <- asks @Env (.readOnly)
   noLogin           <- Env.hasNoLogin <$> ask @Env
   simpleAuthUserDB  <- asks @Env (.simpleAuthUserDB)

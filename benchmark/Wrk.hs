@@ -1,7 +1,7 @@
 module Wrk where
 
 
-import Control.Concurrent.Async
+import UnliftIO.Async
 import Data.Time.Clock
 import Network.HTTP.Req
 

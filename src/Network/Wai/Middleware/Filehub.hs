@@ -17,11 +17,8 @@ module Network.Wai.Middleware.Filehub
 import Control.Monad (when)
 import Data.String.Interpolate (i)
 import Data.UUID qualified as UUID
-import Effectful ( MonadIO(liftIO), liftIO, liftIO )
-import Effectful.Error.Dynamic (runErrorNoCallStack)
 import Filehub.Cookie qualified as Cookies
 import Filehub.Env (Env (..))
-import Filehub.Error (FilehubError)
 import Filehub.Monad ( toIO )
 import Filehub.Server.Internal (parseHeader')
 import Filehub.Session.Pool qualified as Session.Pool
@@ -36,8 +33,9 @@ import Network.Wai
 import Prelude hiding (readFile)
 import Web.Cookie (defaultSetCookie, SetCookie (..))
 import Data.ByteString.Char8 qualified as Char8
-import Filehub.Session.Effectful (runSessionEff, SessionGet(..))
-import Filehub.Session.Effectful qualified as Session
+import Filehub.Session qualified as Session
+import UnliftIO (MonadIO(..), try, throwIO)
+import Filehub.Error (FilehubError (..), Error' (..))
 
 
 displayMiddleware :: Env -> Middleware
@@ -58,8 +56,8 @@ displayMiddleware  env app req respond = toIO onErr env do
 
   -- set display cookie
   -- Note only the server set the cookie.
-  setCookieHeader <- runSessionEff sessionId do
-    currentDisplay <- Session.get (.display)
+  setCookieHeader <- do
+    currentDisplay <- Session.get sessionId (.display)
     let displaySetCookie = defaultSetCookie
           { setCookieName     = "display"
           , setCookieValue    = Char8.pack (show currentDisplay)
@@ -86,12 +84,11 @@ sessionMiddleware env app req respond = toIO onErr env do
   let mSessionId = mCookie >>= parseHeader' >>= Cookies.fromCookies
   case mSessionId of
     Just sessionId -> do
-      eSession <- runErrorNoCallStack @FilehubError $ Session.Pool.get sessionId
+      eSession <- try $ Session.Pool.get sessionId
       case eSession of
-        Left _ -> do
-          respondWithNewSession
-        Right _ -> do
-          liftIO $ app req respond
+        Left (FilehubError InvalidSession _) -> respondWithNewSession
+        Left err                             -> throwIO err
+        Right _                              -> liftIO $ app req respond
     Nothing -> do
       logTrace_ [i|[0vz333] No session found.|]
       respondWithNewSession

@@ -1,4 +1,4 @@
-{-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE NamedFieldPuns #-}
 -- |
 -- Maintainer  :  jimmy@ailrk.com
 -- Copyright   :  (c) 2025-present Jinyang yao
@@ -8,60 +8,83 @@ module Filehub.Monad
   ( runFilehub
   , toIO
   , Filehub
-  , IsFilehub
   )
   where
 
-import Effectful.Reader.Dynamic
-import Effectful (Eff, IOE, runEff, Subset, (:>), Effect)
-import Effectful.Log (Log, runLog)
-import Effectful.Error.Dynamic (Error, runErrorNoCallStack)
-import Effectful.FileSystem (FileSystem, runFileSystem)
-import Effectful.Concurrent
+
+import Control.Monad.Reader
 import Filehub.Env (Env(..))
-import Servant (ServerError)
-import Control.Monad.Trans.Except (ExceptT(ExceptT), runExceptT)
-import Control.Monad ((>=>))
-import Effectful.Extended.LockManager (LockManager, runLockManagerLocal)
-import Effectful.Extended.Cache (Cache, runCacheInMemory)
-import Effectful.Temporary (Temporary, runTemporary)
 import Filehub.Error (FilehubError, toServerError)
-import Data.Kind (Constraint)
+import UnliftIO (try, MonadUnliftIO (..))
+import Servant (ServerError)
+import Log (MonadLog(..), LogT, runLogT)
+import Control.Service.Cache (MonadCache (..))
+import Control.Service.LockManager (MonadLockManager (..))
+import Control.Handle.Cache (Cache(..))
+import Control.Handle.LockManager (LockManager(..))
+import Prelude hiding (lookup)
 
 
-type FilehubEffects = [Reader Env, Log, Error FilehubError, FileSystem, Temporary, Concurrent, LockManager, Cache, IOE]
+-- | The core Application monad.
+--
+-- `Filehub` is a concrete reader monad and all capabilities including handles
+-- and caches are based on `Env`. To test, swap `Env` with a stubbed one.
+newtype Filehub a = Filehub
+  { unFilehub :: ReaderT Env (LogT IO) a
+  } deriving newtype
+    ( Functor
+    , Applicative
+    , Monad
+    , MonadIO
+    , MonadUnliftIO
+    , MonadReader Env
+    , MonadLog
+    )
 
 
-type Filehub = Eff FilehubEffects
+instance MonadCache Filehub where
+  cacheLookup key = do
+    Cache{lookup} <- asks (.cache)
+    liftIO $ lookup key
+
+  cacheInsert key mDeps mTTL value = do
+    Cache{insert} <- asks (.cache)
+    liftIO $ insert key mDeps mTTL value
+
+  cacheDelete key = do
+    cache <- asks (.cache)
+    liftIO $ cache.delete key
+
+  cacheFlush = do
+    cache <- asks (.cache)
+    liftIO $ cache.flush
 
 
-type family All (effects :: [Effect]) (es :: [Effect]) :: Constraint where
-  All '[] es = ()
-  All (eff : effs) es = (eff :> es, All effs es)
+instance MonadLockManager Filehub where
+  withLock key action = do
+    LockManager {withLock = withLock'} <- asks (.lockManager)
+    withRunInIO \run -> do
+      withLock' key (run action)
+
+  withLocks keys action = do
+    LockManager {withLocks = withLocks'} <- asks (.lockManager)
+    withRunInIO \run -> do
+      withLocks' keys (run action)
 
 
-type IsFilehub es = All FilehubEffects es
-
-
--- | Discharge a `Filehub` effect
+-- | Discharge the Filehub stack into IO
 runFilehub :: Env -> Filehub a -> IO (Either FilehubError a)
-runFilehub env eff =
-  runEff $
-    runCacheInMemory env.cache
-  . runLockManagerLocal env.lockRegistry
-  . runConcurrent
-  . runTemporary
-  . runFileSystem
-  . runErrorNoCallStack
-  . runLog "filehub" env.logger env.logLevel
-  . runReader env
-  $ eff
+runFilehub env action = try
+                      . runLogT "filehub" env.logger env.logLevel
+                      . (`runReaderT` env)
+                      . (.unFilehub)
+                      $ action
 
 
--- | Convenient helper to run Filehub effect in IO.
+-- | Convenient helper to run Filehub in IO, mapping errors to Servant ServerError.
 toIO :: (ServerError -> IO a) -> Env -> Filehub a -> IO a
-toIO onErr env eff = do
-  (runExceptT >=> either (onErr . toServerError) pure)
-  . ExceptT
-  . runFilehub env
-  $ eff
+toIO onErr env action = do
+  result <- runFilehub env action
+  case result of
+    Left err -> onErr (toServerError err)
+    Right val -> pure val

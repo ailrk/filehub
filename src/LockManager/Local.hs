@@ -4,8 +4,8 @@
 -- Maintainer  :  jimmy@ailrk.com
 -- Copyright   :  (c) 2025-present Jinyang yao
 --
--- `LockRegistry` manages a pool of locks that each corresponds to a `LockKey`.
--- A `Shard` maps a `LockKey` to a `MVar`, A `LockRegistry` contains vector of shards.
+-- `LockManager` manages a pool of locks that each corresponds to a `LockKey`.
+-- A `Shard` maps a `LockKey` to a `MVar`, A `LockManager` contains vector of shards.
 -- Lock Maps are sharded to improve the level of concurrency. With sharding, we are less
 -- likely to have contention on the same `TVar`. Instead, locking will be spread into
 -- different shard.
@@ -17,14 +17,14 @@
 -- Locks are reference counted. When a lock is not used by anyone, it will be deleted from
 -- the registry.
 --
--- This `LockRegistry` works in a single local instance. For distributed lock, check
--- `Filehub.LockRegistry.Remote`
+-- This `LockManager` works in a single local instance. For distributed lock, check
+-- `Filehub.LockManager.Remote`
 
-module LockRegistry.Local
+module LockManager.Local
   ( new
   , withLock
   , withLocks
-  , LockRegistry(..)
+  , LockManager(..)
   )
   where
 
@@ -32,7 +32,7 @@ import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Vector qualified as Vector
 import Data.Vector (Vector)
-import LockRegistry.Key (LockKey)
+import LockManager.Key (LockKey)
 import UnliftIO (MVar, bracket, withMVar, newMVar)
 import UnliftIO.STM (TVar, newTVarIO, atomically, readTVar, writeTVar)
 import Data.List (nub, sort)
@@ -49,30 +49,30 @@ data LockEntry = LockEntry
   }
 
 
-data LockRegistry = LockRegistry
+data LockManager = LockManager
   { shards :: !(Vector Shard)
   , mask   :: !Int
   }
 
 
-newShards :: Int -> IO LockRegistry
+newShards :: Int -> IO LockManager
 newShards n = do
   let nShards = 2 ^ n
   shards <- Vector.replicateM nShards (Shard <$> newTVarIO Map.empty)
-  pure LockRegistry { shards = shards, mask = nShards - 1 }
+  pure LockManager { shards = shards, mask = nShards - 1 }
 
 
--- | Create a new `LockRegistry` with 16 shards.
-new :: IO LockRegistry
+-- | Create a new `LockManager` with 16 shards.
+new :: IO LockManager
 new = newShards 4
 
 
-getShard :: LockRegistry -> LockKey -> Shard
-getShard LockRegistry{ shards, mask } key =
+getShard :: LockManager -> LockKey -> Shard
+getShard LockManager{ shards, mask } key =
   Vector.unsafeIndex shards (hash  key .&. mask)
 
 
-withLock :: LockRegistry -> LockKey -> IO a -> IO a
+withLock :: LockManager -> LockKey -> IO a -> IO a
 withLock registry key action = do
   let shard = getShard registry key
   lk <- newMVar ()
@@ -106,7 +106,7 @@ withLock registry key action = do
 
 -- | Lock with a list of keys. Keys are deduplicated and sorted to avoid
 -- circular deadlock.
-withLocks :: LockRegistry -> [LockKey] -> IO a -> IO a
+withLocks :: LockManager -> [LockKey] -> IO a -> IO a
 withLocks lr keys action = go (sort (nub keys))
   where
     go []     = action

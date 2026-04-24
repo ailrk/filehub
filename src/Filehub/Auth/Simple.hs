@@ -22,20 +22,19 @@ import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.Time qualified as Time
-import Effectful (Eff, (:>), MonadIO (..), IOE)
-import Effectful.Reader.Dynamic (asks)
 import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
 import Filehub.ActiveUser.Types (ActiveUser (..))
 import Filehub.Auth.Types (createAuthId, AuthId, Auth (..))
 import Filehub.Env (Env(..))
-import Filehub.Monad (IsFilehub)
 import Filehub.Session (SessionId, Session)
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Types (LoginForm (..))
 import Prelude hiding (readFile)
 import Text.Debug (Debug(..))
-import Filehub.Session.Effectful (runSessionEff)
-import Filehub.Session.Effectful qualified as Session
+import Filehub.Session qualified as Session
+import Filehub.Monad (Filehub)
+import Control.Monad.Reader (asks)
+import UnliftIO (MonadIO(..))
 
 
 newtype Username = Username Text
@@ -70,7 +69,7 @@ validate name password (SimpleAuthUserDB db) =
     Nothing                  -> False
 
 
-createSimpleAuthUserDB :: (IOE :> es) => [UserRecord] -> Eff es SimpleAuthUserDB
+createSimpleAuthUserDB :: MonadIO m => [UserRecord] -> m SimpleAuthUserDB
 createSimpleAuthUserDB loginInfo =
   case loginInfo of
     [] -> pure (SimpleAuthUserDB mempty)
@@ -89,20 +88,20 @@ createSimpleAuthUserDB loginInfo =
 
 
 -- | Handle the simple authetication login.
-authenticateSession :: IsFilehub es => SessionId -> LoginForm -> Eff es (Maybe Session)
-authenticateSession sessionId (LoginForm username password) = runSessionEff sessionId do
+authenticateSession :: SessionId -> LoginForm -> Filehub (Maybe Session)
+authenticateSession sessionId (LoginForm username password) = do
   db <- asks @Env (.simpleAuthUserDB)
   let username' =  Username username
   if (validate username' (Text.encodeUtf8 password) db) then do
     authId <- createAuthId
-    Session.set (.authId) (Just authId)
+    Session.set sessionId (.authId) (Just authId)
     activeUser <- createActiveUser authId sessionId username'
     ActiveUser.Pool.add activeUser
     Just <$> Session.Pool.get sessionId
   else pure Nothing
 
 
-createActiveUser :: (IOE :> es) => AuthId -> SessionId -> Username -> Eff es ActiveUser
+createActiveUser :: AuthId -> SessionId -> Username -> Filehub ActiveUser
 createActiveUser authId sessionId username = do
   now <- liftIO Time.getCurrentTime
   pure ActiveUser

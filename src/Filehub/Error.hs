@@ -17,12 +17,13 @@ import Servant
 import Lens.Micro.Platform ()
 import Data.String (IsString(..))
 import Servant.Server (err500, err400)
+import UnliftIO.Exception (Exception)
 
 
 data FilehubError
   = FilehubError Error' String
   | HTTPError ServerError
-  deriving (Show, Eq)
+  deriving (Show, Eq, Exception)
 
 
 data Error'

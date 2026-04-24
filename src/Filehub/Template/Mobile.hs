@@ -22,7 +22,6 @@ import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.Time.Format (formatTime, defaultTimeLocale)
-import Effectful.Reader.Dynamic (asks)
 import Filehub.Links ( apiLinks, linkToText )
 import Filehub.Locale (Phrase(..), phrase, Locale (..))
 import Filehub.Routes (Api(..))
@@ -43,6 +42,7 @@ import Target.Types qualified as Target
 import Filehub.Session (TargetView(..))
 import Target.Dummy (DummyTarget)
 import Data.Coerce (coerce)
+import Control.Monad.Reader (asks)
 
 
 index :: Html ()
@@ -93,7 +93,6 @@ sideBar targets (TargetView currentTarget _) = do
           , targetHandler @DummyTarget \_ -> do
               i_ [ class_ "bx bxs-cube" ] mempty
               span_  [iii| dummy |]
-
           ]
       `with` targetAttr
       where

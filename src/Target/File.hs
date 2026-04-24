@@ -3,14 +3,14 @@ module Target.File where
 
 import Target.Types (TargetId(..), Target, IsTarget(..), HasTargetId(..))
 import Data.Text (Text)
-import Effectful (IOE, (:>), Eff, MonadIO (..))
-import Effectful.Log (Log, logInfo_)
-import Effectful.FileSystem (FileSystem, makeAbsolute)
 import Data.String.Interpolate (i)
 import Data.UUID.V4 qualified as UUID
 import Text.Debug (Debug(..))
 import Data.ClientPath (AbsPath (..), Root (..))
 import Data.Coerce (coerce)
+import UnliftIO (MonadIO(..))
+import UnliftIO.Directory (makeAbsolute)
+import Log (logInfo_, MonadLog)
 
 
 data FileSys
@@ -48,7 +48,7 @@ instance IsTarget FileSys where
 instance Debug (Config FileSys) where debug = show
 
 
-initialize :: (IOE :> es, Log :> es, FileSystem :> es) => Config FileSys -> Eff es (Target FileSys)
+initialize :: (MonadLog m, MonadIO m) => Config FileSys -> m (Target FileSys)
 initialize opt = do
   targetId <- liftIO $ TargetId <$> UUID.nextRandom
   root     <- (Root . AbsPath) <$> makeAbsolute opt.root

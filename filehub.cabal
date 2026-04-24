@@ -30,6 +30,7 @@ common extensions
       OverloadedRecordDot
       OverloadedStrings
       QuasiQuotes
+      RankNTypes
       RecordWildCards
       ScopedTypeVariables
       StandaloneDeriving
@@ -53,6 +54,7 @@ common options
       -Wno-missing-kind-signatures
       -Wno-missing-local-signatures
       -Wno-missing-safe-haskell-mode
+      -Wno-missing-role-annotations
       -Wno-monomorphism-restriction
       -Wno-safe
       -Wno-unsafe
@@ -73,13 +75,10 @@ library
   hs-source-dirs: src
   build-depends:
       base >=4.16.1.0
-    , JuicyPixels
-    , JuicyPixels-stbir
     , aeson
     , aeson-pretty
     , amazonka
     , amazonka-s3
-    , async
     , base64-bytestring
     , bcrypt
     , binary
@@ -92,7 +91,6 @@ library
     , cryptonite
     , data-default
     , directory
-    , effectful
     , file-embed
     , filepath
     , fuzzy
@@ -105,11 +103,11 @@ library
     , http-types
     , jwt
     , log-base
-    , log-effectful
     , lucid
     , microlens
     , microlens-platform
     , mime-types
+    , mtl
     , network-uri
     , optparse-applicative
     , psqueues
@@ -135,6 +133,7 @@ library
     , timers
     , tomland
     , transformers
+    , transformers-base
     , unliftio
     , unordered-containers
     , uri-encode
@@ -148,15 +147,16 @@ library
     , zip
 
   exposed-modules:
-    Cache.Dummy
     Cache.InMemory
     Cache.Key
+    Control.Handle.Cache
+    Control.Handle.LockManager
+    Control.Service.Cache
+    Control.Service.LockManager
     Data.ClientPath
-    Data.ClientPath.Effectful
+    Data.ClientPath.IO
     Data.File
     Data.Queue
-    Effectful.Extended.Cache
-    Effectful.Extended.LockManager
     EvtLog
     Filehub
     Filehub.ActiveUser.Pool
@@ -185,10 +185,9 @@ library
     Filehub.Selected
     Filehub.Server
     Filehub.Server.Desktop
-    Filehub.Server.Mobile
     Filehub.Server.Internal
+    Filehub.Server.Mobile
     Filehub.Session
-    Filehub.Session.Effectful
     Filehub.Session.Copy
     Filehub.Session.Internal
     Filehub.Session.Pool
@@ -210,9 +209,8 @@ library
     Filehub.Theme
     Filehub.Types
     Filehub.UserAgent
-    LockRegistry.Dummy
-    LockRegistry.Key
-    LockRegistry.Local
+    LockManager.Key
+    LockManager.Local
     Network.Mime.Extended
     Network.Wai.Middleware.Extended
     Network.Wai.Middleware.Filehub
@@ -241,7 +239,6 @@ executable filehub
   build-depends:
       base >=4.16.1.0
     , filehub
-
   default-language: Haskell2010
 
 
@@ -250,6 +247,12 @@ test-suite filehub_test_integration
   type:              exitcode-stdio-1.0
   hs-source-dirs:    test_integration
   main-is:           Main.hs
+  other-modules:
+    Test.Middleware
+    Test.Cache
+    Test.Api.Login
+    Test.Api.File
+    Util.Env
   build-depends:
       base >=4.16.1.0
     , QuickCheck
@@ -258,7 +261,6 @@ test-suite filehub_test_integration
     , containers
     , cookie
     , directory
-    , effectful
     , filehub
     , filepath
     , hspec
@@ -269,11 +271,11 @@ test-suite filehub_test_integration
     , http-client
     , http-client-tls
     , log-base
-    , log-effectful
     , servant-server
     , time
     , uri-encode
     , uuid
+    , unliftio
     , wai
     , wai-extra
   default-language:   Haskell2010
@@ -286,35 +288,17 @@ test-suite filehub_test_unit
   main-is:           Spec.hs
   other-modules:
     Data.ClientPathSpec
-    Effectful.CacheSpec
-    Effectful.LockManagerSpec
     EvtLogSpec
-    Spec
   build-depends:
       base >=4.16.1.0
     , QuickCheck
     , bytestring
-    , containers
-    , cookie
-    , directory
-    , effectful
     , filehub
     , filepath
     , hspec
-    , http-api-data
-    , http-client
-    , http-client-tls
-    , http-types
-    , log-base
-    , log-effectful
-    , servant-server
-    , sqlite-simple
-    , text
     , time
     , uri-encode
-    , uuid
   default-language:   Haskell2010
-
 
 
 benchmark filehub_bench
@@ -326,10 +310,8 @@ benchmark filehub_bench
       base >=4.16 && <5
     , filehub
     , criterion >=1.6
-    , async
+    , unliftio
     , req
     , time
-    , process
-    , temporary
     , http-types
   default-language: Haskell2010

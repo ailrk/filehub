@@ -13,7 +13,6 @@ module Filehub.Config
 import Control.Applicative ((<|>))
 import Control.Monad (join)
 import Data.Functor.Identity
-import Effectful.Log (LogLevel (..))
 import Filehub.Auth.OIDC qualified as Auth.OIDC
 import Filehub.Auth.Simple qualified as Auth.Simple
 import Filehub.Locale (Locale (..))
@@ -21,6 +20,7 @@ import Filehub.Theme (Theme (..), CustomTheme)
 import Target.File (FileSys)
 import Target.Types qualified as Target
 import Target.S3 (S3)
+import Log (LogLevel (..))
 
 
 data Config f = Config

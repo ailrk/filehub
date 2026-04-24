@@ -2,14 +2,14 @@ module Filehub.Storage.Dummy (storage) where
 
 import Conduit (yield)
 import Data.File (File(..), FileWithContent, extractFileInfo, FileContent (..))
-import Effectful (Eff, Eff)
 import Lens.Micro.Platform ()
 import Prelude hiding (read, readFile, writeFile)
 import Target.Storage (Storage(..))
 import Data.ClientPath (AbsPath (..))
+import Filehub.Monad (Filehub)
 
 
-storage :: [(AbsPath, FileWithContent)] -> Storage (Eff es)
+storage :: [(AbsPath, FileWithContent)] -> Storage Filehub
 storage mockFS =
   Storage
     { get = \path -> pure do fmap extractFileInfo (lookup path mockFS)

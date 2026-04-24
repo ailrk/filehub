@@ -12,23 +12,23 @@ module Filehub.Env
   )
   where
 
-import Cache.InMemory qualified
 import Data.Map.Strict qualified as Map
 import Data.Time (NominalDiffTime)
 import Filehub.ActiveUser.Types qualified as ActiveUser
 import Filehub.Locale (Locale)
 import Filehub.Session.Types qualified as Session
-import Filehub.SharedLink (SharedLinkPool)
+import {-# SOURCE #-} Filehub.SharedLink (SharedLinkPool)
 import Filehub.Theme (Theme, CustomTheme)
 import Lens.Micro.Platform ()
-import LockRegistry.Local qualified
 import Log (Logger, LogLevel)
 import Network.HTTP.Client qualified as HTTP
 import Target.Types (AnyTarget, TargetId)
 import {-# SOURCE #-} Filehub.Auth.OIDC (OIDCAuthProviders(..))
 import {-# SOURCE #-} Filehub.Auth.Simple (SimpleAuthUserDB(..))
-import Effectful.Concurrent.STM (TVar)
 import EvtLog qualified
+import Control.Concurrent.STM (TVar)
+import Control.Handle.Cache (Cache)
+import Control.Handle.LockManager (LockManager)
 
 
 data Env = Env
@@ -66,9 +66,9 @@ data Env = Env
     -- top level http-tls manager
   , httpManager       :: HTTP.Manager
     -- Global cache
-  , cache             :: Cache.InMemory.InMemoryCache
+  , cache             :: Cache IO
     -- Global lock registry
-  , lockRegistry      :: LockRegistry.Local.LockRegistry
+  , lockManager       :: LockManager IO
     -- dark custom theme
   , customThemeDark   :: Maybe CustomTheme
     -- light custom theme
