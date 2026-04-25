@@ -34,6 +34,14 @@ import Servant (FromHttpApiData (..), ToHttpApiData (..))
 import Data.Set (Set)
 import Data.Coerce (coerce)
 import Data.ClientPath (AbsPath(..))
+import UnliftIO.STM (TVar)
+import Filehub.Monad (Filehub)
+import UnliftIO (MonadIO(..))
+import UnliftIO.STM (newTVarIO)
+import UnliftIO.STM (writeTVar)
+import UnliftIO.STM (atomically)
+import UnliftIO.STM (readTVar)
+import UnliftIO.STM (modifyTVar')
 
 
 data SharedLinkType
@@ -114,7 +122,7 @@ mkSharedLinkHash :: ByteString -> SharedLinkHash
 mkSharedLinkHash input = SharedLinkHash (shortHash input)
 
 
-createSharedLink :: IOE :> es => FileInfo -> SharedLinkType -> Bool -> Maybe SharedLinkPasscode -> Eff es SharedLink
+createSharedLink :: FileInfo -> SharedLinkType -> Bool -> Maybe SharedLinkPasscode -> Filehub SharedLink
 createSharedLink file linkType readonly mPasscode = do
   now <- liftIO getCurrentTime
   let hash = mkSharedLinkHash (coerce Char8.pack file.path)
@@ -130,13 +138,13 @@ createSharedLink file linkType readonly mPasscode = do
     }
 
 
-revokeSharedLink :: Concurrent :> es => SharedLinkHash -> SharedLinkPool -> Eff es ()
+revokeSharedLink :: SharedLinkHash -> SharedLinkPool -> Filehub ()
 revokeSharedLink hash (SharedLinkPool pool) = atomically do
   modifyTVar' pool \m -> do
     Map.update (\link -> Just (link { revoked = True })) hash m
 
 
-lookupSharedLink :: (IOE :> es, Concurrent :> es) => SharedLinkHash -> SharedLinkPool -> Eff es (Maybe SharedLink)
+lookupSharedLink :: SharedLinkHash -> SharedLinkPool -> Filehub (Maybe SharedLink)
 lookupSharedLink hash (SharedLinkPool pool) = do
   now <- liftIO getCurrentTime
   atomically do
@@ -163,13 +171,13 @@ lookupSharedLink hash (SharedLinkPool pool) = do
       Nothing -> pure Nothing
 
 
-newShareLinkPool :: Concurrent :> es => Eff es SharedLinkPool
+newShareLinkPool :: MonadIO m => m SharedLinkPool
 newShareLinkPool = do
   tvar <- newTVarIO mempty
   pure $ SharedLinkPool tvar
 
 
-newSharedLinkPermit :: IOE :> es => Eff es SharedLinkPermit
+newSharedLinkPermit :: Filehub SharedLinkPermit
 newSharedLinkPermit = do
   uuid <- liftIO UUID.nextRandom
   pure (SharedLinkPermit uuid)

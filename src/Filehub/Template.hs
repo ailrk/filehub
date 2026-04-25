@@ -20,11 +20,13 @@ import Filehub.Session (TargetView(..), SessionId)
 import Filehub.Theme (Theme)
 import Filehub.Auth.Simple (SimpleAuthUserDB)
 import Filehub.Auth.OIDC (OIDCAuthProviders)
-import Filehub.Monad (IsFilehub)
 import Filehub.Env qualified as Env
 import Data.ClientPath (AbsPath, Root)
-import Filehub.Session.Effectful (runSessionEff, SessionGet(..))
+import Filehub.Session.Effectful (SessionGet(..))
 import Filehub.Session.Effectful qualified as Session
+import Data.Functor.Identity (Identity)
+import Control.Monad.Reader (ReaderT, runReader, asks, MonadReader (..))
+import Filehub.Monad (Filehub)
 
 
 -- | A Template context type that capture all useful information to render
@@ -55,14 +57,14 @@ data TemplateContext = TemplateContext
 
 
 runTemplate :: TemplateContext -> Template a -> a
-runTemplate ctx = runPureEff . runReader ctx
+runTemplate ctx = flip runReader ctx
 
 
-type Template =  Eff '[Reader TemplateContext]
+type Template = ReaderT TemplateContext Identity
 
 
-makeTemplateContext :: IsFilehub es => SessionId -> Eff es TemplateContext
-makeTemplateContext sessionId = runSessionEff sessionId do
+makeTemplateContext :: SessionId -> Filehub TemplateContext
+makeTemplateContext sessionId = do
   display           <- Session.get (.display)
   sidebarCollapsed  <- Session.get (.sidebarCollapsed)
   layout            <- Session.get (.layout)

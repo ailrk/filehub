@@ -54,6 +54,7 @@ import Target.S3 (S3, Target (..))
 import Target.Types (targetHandler, AnyTarget, handleTarget)
 import Target.Types qualified as Target
 import Data.Coerce (coerce)
+import Control.Monad.Reader (asks)
 
 
 ------------------------------------

@@ -17,14 +17,15 @@ import Target.Types (AnyTarget)
 import Filehub.Monad (Filehub)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (catMaybes)
-import Filehub.Error (FilehubError)
+import UnliftIO.STM (readTVarIO)
+import Control.Monad.Reader (asks)
 
 
-setSelected :: (Reader Env :> es, IOE :> es) => SessionId -> Selected -> Eff es ()
+setSelected :: SessionId -> Selected -> Filehub ()
 setSelected sessionId selected = Session.Pool.update sessionId \s -> s & #targets . ix s.currentTargetId . #selected .~ selected
 
 
-anySelected :: (Reader Env :> es, IOE :> es, Error FilehubError :> es, Log :> es) => SessionId -> Eff es Bool
+anySelected :: SessionId -> Filehub Bool
 anySelected sessionId = go <$> Session.Pool.get sessionId
   where
     go :: Session -> Bool
@@ -32,12 +33,7 @@ anySelected sessionId = go <$> Session.Pool.get sessionId
 
 
 -- | Get all selected files grouped by targets
-allSelecteds :: ( Reader Env :> es
-                , IOE :> es
-                , Error FilehubError :> es
-                , Log :> es
-                , Concurrent :> es)
-              => SessionId -> Eff es [(AnyTarget, Selected)]
+allSelecteds :: SessionId -> Filehub [(AnyTarget, Selected)]
 allSelecteds sessionId = do
   session <- Session.Pool.get sessionId
   targets <- asks @Env (.targets) >>= readTVarIO
@@ -61,7 +57,7 @@ clearSelected :: SessionId -> Filehub ()
 clearSelected sessionId = setSelected sessionId NoSelection
 
 
-clearSelectedAllTargets :: (Reader Env :> es, IOE :> es) => SessionId -> Eff es ()
+clearSelectedAllTargets :: SessionId -> Filehub ()
 clearSelectedAllTargets sessionId = do
   let update sessionData = sessionData & #selected .~ NoSelection
   Session.Pool.update sessionId \s -> s &  #targets . mapped %~ update

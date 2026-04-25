@@ -13,6 +13,7 @@ import Filehub.Links (linkToText, apiLinks)
 import Filehub.Routes (Api(..))
 import Filehub.Theme (Theme(..))
 import Data.Maybe (fromMaybe)
+import Control.Monad.Reader (asks)
 
 
 login :: Template (Html ())

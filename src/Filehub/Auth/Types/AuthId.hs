@@ -4,6 +4,7 @@ import Data.UUID (UUID)
 import Data.UUID.V4 qualified as UUID
 import Data.Hashable (Hashable)
 import Prelude hiding (readFile)
+import UnliftIO (MonadIO (..))
 
 
 newtype AuthId = AuthId UUID
@@ -11,5 +12,5 @@ newtype AuthId = AuthId UUID
   deriving newtype (Hashable)
 
 
-createAuthId :: (IOE :> es) => Eff es AuthId
+createAuthId :: MonadIO m => m AuthId
 createAuthId = AuthId <$> liftIO UUID.nextRandom

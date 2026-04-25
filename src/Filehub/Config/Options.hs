@@ -36,6 +36,7 @@ import Data.List.Split (splitOn)
 import Filehub.Locale (Locale (..))
 import Target.File qualified
 import Target.S3 qualified
+import Log (LogLevel (..))
 
 
 data Options = Options

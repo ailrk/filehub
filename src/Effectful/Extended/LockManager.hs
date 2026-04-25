@@ -1,9 +1,8 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GADTs #-}
 module Effectful.Extended.LockManager
-  ( LockManager
-  , runLockManagerLocal
-  , runLockManagerDummy
+  ( runLockManagerLocal
+  -- , runLockManagerDummy
   , withLock
   , withLocks
   , mkLockKey
@@ -14,38 +13,49 @@ module Effectful.Extended.LockManager
 import LockRegistry.Local qualified as Local
 import LockRegistry.Key (LockKey, mkLockKey)
 import LockRegistry.Dummy qualified as Dummy
+import Filehub.Monad (Filehub)
 
 
-data LockManager :: Effect where
-  WithLock :: LockKey -> m a -> LockManager m a
-  WithLocks :: [LockKey] -> m a -> LockManager m a
+-- data LockManager :: Effect where
+--   WithLock :: LockKey -> m a -> LockManager m a
+--   WithLocks :: [LockKey] -> m a -> LockManager m a
 
 
-type instance DispatchOf LockManager = Dynamic
+-- type instance DispatchOf LockManager = Dynamic
+
+runLockManagerLocal :: Local.LockRegistry -> Filehub a -> Filehub a
+runLockManagerLocal = undefined
 
 
-runLockManagerLocal :: (IOE :> es) => Local.LockRegistry -> Eff (LockManager : es) a -> Eff es a
-runLockManagerLocal registry = reinterpret id \env -> \case
-  WithLock key action -> do
-    localSeqUnliftIO env \toIO -> do
-      Local.withLock registry key (toIO action)
-  WithLocks keys action -> localSeqUnliftIO env \toIO -> do
-      Local.withLocks registry keys (toIO action)
+-- runLockManagerLocal :: (IOE :> es) => Local.LockRegistry -> Eff (LockManager : es) a -> Eff es a
+-- runLockManagerLocal registry = reinterpret id \env -> \case
+--   WithLock key action -> do
+--     localSeqUnliftIO env \toIO -> do
+--       Local.withLock registry key (toIO action)
+--   WithLocks keys action -> localSeqUnliftIO env \toIO -> do
+--       Local.withLocks registry keys (toIO action)
 
 
-runLockManagerDummy :: (IOE :> es) => Eff (LockManager : es) a -> Eff es a
-runLockManagerDummy = reinterpret id \env -> \case
-  WithLock key action -> do
-    localSeqUnliftIO env \toIO -> do
-      Dummy.withLocks [key] (toIO action)
-  WithLocks keys action ->
-    localSeqUnliftIO env \toIO -> do
-      Dummy.withLocks keys (toIO action)
+-- runLockManagerDummy :: (IOE :> es) => Eff (LockManager : es) a -> Eff es a
+-- runLockManagerDummy = reinterpret id \env -> \case
+--   WithLock key action -> do
+--     localSeqUnliftIO env \toIO -> do
+--       Dummy.withLocks [key] (toIO action)
+--   WithLocks keys action ->
+--     localSeqUnliftIO env \toIO -> do
+--       Dummy.withLocks keys (toIO action)
 
 
-withLock :: (LockManager :> es) => LockKey -> Eff es a -> Eff es a
-withLock key action = send (WithLock key action)
+withLock :: LockKey -> Filehub a -> Filehub a
+withLock = undefined
+
+-- withLock :: (LockManager :> es) => LockKey -> Eff es a -> Eff es a
+-- withLock key action = send (WithLock key action)
 
 
-withLocks :: (LockManager :> es) => [LockKey] -> Eff es a -> Eff es a
-withLocks keys action = send (WithLocks keys action)
+
+withLocks :: [LockKey] -> Filehub a -> Filehub a
+withLocks = undefined
+
+-- withLocks :: (LockManager :> es) => [LockKey] -> Eff es a -> Eff es a
+-- withLocks keys action = send (WithLocks keys action)

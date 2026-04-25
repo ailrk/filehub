@@ -42,6 +42,7 @@ import Target.Types qualified as Target
 import Filehub.Session (TargetView(..))
 import Target.Dummy (DummyTarget)
 import Data.Coerce (coerce)
+import Control.Monad.Reader (asks)
 
 
 index :: Html ()

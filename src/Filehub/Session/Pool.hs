@@ -21,9 +21,13 @@ import Filehub.Session.Internal qualified as Session
 import Filehub.Error (FilehubError (..), Error' (..))
 import Filehub.Session.Types (Session(..), SessionId)
 import Filehub.Session.Types qualified as Session
+import Filehub.Monad (Filehub)
+import Control.Monad.Reader (asks)
+import UnliftIO (MonadIO(..), throwIO)
+import Log (logTrace_)
 
 
-new :: (IOE :> es) => Eff es Session.Pool
+new :: MonadIO m => m Session.Pool
 new = do
   table <- liftIO HashTable.new
   let cleanUp = do
@@ -35,7 +39,7 @@ new = do
   pure $ Session.Pool table gc
 
 
-newSession :: (Reader Env :> es, Concurrent :> es, IOE :> es) => Eff es Session
+newSession :: Filehub Session
 newSession = do
   Session.Pool pool _ <- asks @Env (.sessionPool)
   session             <- Session.createSession
@@ -43,7 +47,7 @@ newSession = do
   pure session
 
 
-extendSession :: (Reader Env :> es, IOE :> es) => SessionId -> Eff es ()
+extendSession :: SessionId -> Filehub ()
 extendSession sessionId = do
   duration            <- asks @Env (.sessionDuration)
   Session.Pool pool _ <- asks @Env (.sessionPool)
@@ -55,13 +59,13 @@ extendSession sessionId = do
         \session -> (Just session { expireDate = duration `addUTCTime` now }, ())
 
 
-delete :: (Reader Env :> es, IOE :> es) => SessionId -> Eff es ()
+delete :: SessionId -> Filehub ()
 delete sessionId = do
   Session.Pool pool _ <- asks @Env (.sessionPool)
   liftIO $ HashTable.delete pool sessionId
 
 
-get :: (Reader Env :> es, IOE :> es, Log :> es, Error FilehubError :> es) => SessionId -> Eff es Session
+get :: SessionId -> Filehub Session
 get sessionId = do
   Session.Pool pool _ <- asks @Env (.sessionPool)
   mResult <- liftIO $ HashTable.lookup pool sessionId
@@ -69,10 +73,10 @@ get sessionId = do
     Just session -> pure session
     Nothing -> do
       logTrace_ [i|[zsv09d] No such session #{sessionId}|]
-      throwError (FilehubError InvalidSession "Invalid session")
+      throwIO (FilehubError InvalidSession "Invalid session")
 
 
-update :: (Reader Env :> es, IOE :> es) => SessionId -> (Session -> Session) -> Eff es ()
+update :: SessionId -> (Session -> Session) -> Filehub ()
 update sessionId f = do
   Session.Pool pool _ <- asks @Env (.sessionPool)
   liftIO

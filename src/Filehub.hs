@@ -39,6 +39,8 @@ import Target.File qualified as FS
 import Target.S3 qualified as S3
 import Target.Types (AnyTarget (..), getTargetId)
 import UnliftIO (catch, hFlush, stdout)
+import Log (logInfo_, runLogT)
+import UnliftIO.STM (newTVarIO)
 
 
 main :: IO ()
@@ -65,7 +67,7 @@ main = Log.withColoredStdoutLogger \logger -> do
         pure
         (Config.merge optionConfig config)
 
-  runEff $ runLog "main" logger verbosity do
+  runLogT "main" logger verbosity do
     logInfo_ [i|port:      #{port}|]
     logInfo_ [i|theme:     #{theme}|]
     logInfo_ [i|verbosity: #{verbosity}|]
@@ -75,14 +77,16 @@ main = Log.withColoredStdoutLogger \logger -> do
     logInfo_ [i|debug:     true|]
 #endif
 
-  env <- runEff . runConcurrent . runFileSystem  $ do
+  env <- do
     sessionPool      <- Session.Pool.new
     activeUserPool   <- ActiveUser.Pool.new
-    targets          <- runLog "targets" logger verbosity $ fromTargetConfig targetConfigs.unTargets >>= newTVarIO
+    targets          <- runLogT "targets" logger verbosity do
+                          ts <- fromTargetConfig targetConfigs.unTargets
+                          newTVarIO ts
     simpleAuthUserDB <- Auth.Simple.createSimpleAuthUserDB simpleAuthLoginUsers.unSimpleAuthUserRecords
     sharedLinkPool   <- SharedLink.newShareLinkPool
-    lockRegistry     <- liftIO LockRegistry.Local.new
-    cache            <- liftIO $ Cache.InMemory.new 5000
+    lockRegistry     <- LockRegistry.Local.new
+    cache            <- Cache.InMemory.new 5000
     httpManager      <- newTlsManager
     evtLogHandle     <- EvtLog.initialize "" 100
     pure Env

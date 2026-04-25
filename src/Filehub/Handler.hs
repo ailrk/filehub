@@ -40,7 +40,7 @@ import Control.Monad (guard)
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Cookie (FromCookies(..))
 import Filehub.SharedLink (SharedLinkPermit)
-import Filehub.Session.Effectful (runSessionEff, SessionGet(..))
+import Filehub.Session.Effectful (SessionGet(..))
 import Filehub.Session.Effectful qualified as Session
 
 
@@ -113,9 +113,9 @@ displayOnlyHandler witness predicate msg env =
   mkAuthHandler \req -> do
     sessionId <- maybe (throwError err401 { errBody = "invalid session" }) pure do
       cookie <-  lookup "Cookie" (requestHeaders req)
-      parseHeader' cookie >>= Cookies.fromCookies
+      parseHeader' cookie >>= Cookies.fromCookies @SessionId
     display <- liftIO $ runFilehub env do
-      runSessionEff sessionId do Session.get (.display)
+      Session.get (.display)
     case display of
       Right d | predicate d -> pure witness
       _                     -> throwError err400 { errBody = msg }

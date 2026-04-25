@@ -64,14 +64,14 @@ import Servant.Conduit ()
 import Servant.HTML.Lucid (HTML)
 import Servant.Links (safeLink)
 import System.Random (randomRIO)
-import UnliftIO (tryIO, Exception (..))
+import UnliftIO (tryIO, Exception (..), MonadIO (..), throwIO)
 import Web.FormUrlEncoded (ToForm)
 import Web.JWT (JWT, VerifiedJWT, JWTClaimsSet (..), JOSEHeader (..))
 import Web.JWT qualified as JWT
-import Filehub.Monad (IsFilehub)
 import Text.Debug (Debug)
-import Filehub.Session.Effectful (runSessionEff)
 import Filehub.Session.Effectful qualified as Session
+import Filehub.Monad (Filehub)
+import Control.Monad.Reader (asks)
 
 
 newtype OIDCState    = OIDCState Text
@@ -244,11 +244,11 @@ verifyWellKnownConfig WellKnownConfig
 verifyWellKnownConfig _ = Nothing
 
 
-initialize :: IsFilehub es => Text -> Eff es (OIDCFlow Inited)
+initialize :: Text -> Filehub (OIDCFlow Inited)
 initialize providerName = do
   OIDCAuthProviders providers <- asks @Env (.oidcAuthProviders)
   provider <- maybe
-    (throwError (FilehubError InternalError "Invalid provider"))
+    (throwIO (FilehubError InternalError "Invalid provider"))
     pure
     (find ((providerName ==) . (.name)) providers)
   pure $ Inited provider
@@ -268,7 +268,7 @@ type AuthorizationApi
 
 -- | Create oidc authorization uri. The server needs to redirect to the uri to start the OIDC
 -- authentication flow
-authorize :: IsFilehub es => OIDCFlow Inited -> Eff es (OIDCFlow AuthRequestPrepared)
+authorize :: OIDCFlow Inited -> Filehub (OIDCFlow AuthRequestPrepared)
 authorize (Inited provider) = do
   state        <- Text.pack <$> replicateM 32 (randomRIO ('a', 'z'))
   codeVerifier <- Text.pack <$> replicateM 43 (randomRIO ('a', 'z'))
@@ -308,10 +308,10 @@ authorize (Inited provider) = do
         (Proxy @AuthorizationApi)
 
 
-callback :: (Error FilehubError :> es) => OIDCFlow AuthRequestPrepared -> Text -> Text -> Eff es (OIDCFlow CallbackCalled)
+callback :: OIDCFlow AuthRequestPrepared -> Text -> Text -> Filehub (OIDCFlow CallbackCalled)
 callback (AuthRequestPrepared provider wellknownOpenIdConfigration (OIDCState state') codeVerifier _) code state = do
   when (state' /= state) do
-    throwError (FilehubError LoginFailed "OIDC callback state mismatch")
+    throwIO (FilehubError LoginFailed "OIDC callback state mismatch")
   pure $ CallbackCalled provider wellknownOpenIdConfigration codeVerifier (OIDCCode code)
 
 
@@ -319,7 +319,7 @@ callback (AuthRequestPrepared provider wellknownOpenIdConfigration (OIDCState st
 type ExchangeTokenApi = Servant.ReqBody '[Servant.FormUrlEncoded] TokenForm Servant.:> Post '[Servant.JSON] TokenUnverified
 
 
-exchangeToken :: (Reader Env :> es, Error FilehubError :> es, IOE :> es) => OIDCFlow CallbackCalled ->  Eff es (OIDCFlow TokenExchanged)
+exchangeToken :: OIDCFlow CallbackCalled -> Filehub (OIDCFlow TokenExchanged)
 exchangeToken
   (CallbackCalled
     provider
@@ -336,10 +336,10 @@ exchangeToken
           , code_verifier = codeVerifier
           }
 
-  baseUri <- either (\err -> throwError (FilehubError InternalError (Text.unpack err))) pure (uriToBaseUrl token_endpoint)
+  baseUri <- either (\err -> throwIO (FilehubError InternalError (Text.unpack err))) pure (uriToBaseUrl token_endpoint)
   runClientM (exchangeTokenClient form) (mkClientEnv manager baseUri) & liftIO . tryIO
-    >>= either (\(e :: IOError) -> throwError (FilehubError InternalError (displayException e))) pure
-    >>= either (\err -> throwError (FilehubError InternalError (show err))) pure
+    >>= either (\(e :: IOError) -> throwIO (FilehubError InternalError (displayException e))) pure
+    >>= either (\err -> throwIO (FilehubError InternalError (show err))) pure
     >>= pure . TokenExchanged wellknownConfig
   where
     exchangeTokenClient :: TokenForm -> ClientM TokenUnverified
@@ -361,35 +361,35 @@ data JWK = JWK
 instance FromJSON JWK
 
 
-verifyToken :: (Reader Env :> es, Error FilehubError :> es, IOE :> es) => OIDCFlow TokenExchanged -> Eff es (OIDCFlow TokenVerified)
+verifyToken :: OIDCFlow TokenExchanged -> Filehub (OIDCFlow TokenVerified)
 verifyToken
   (TokenExchanged
     (WellKnownConfig { jwks_uri = Identity jwks_uri })
     TokenUnverified { id_token, access_token, refresh_token, expires_in, token_type }) = do
   manager           <- asks @Env (.httpManager)
-  idTokenUnverified <- JWT.decode id_token & maybe (throwError (FilehubError LoginFailed "invalid id token: not a JWT")) pure
+  idTokenUnverified <- JWT.decode id_token & maybe (throwIO (FilehubError LoginFailed "invalid id token: not a JWT")) pure
 
   let JOSEHeader { kid } = JWT.header idTokenUnverified
 
   jwks <- do
-    baseUri <- uriToBaseUrl jwks_uri & either (\err -> throwError (FilehubError InternalError (Text.unpack err))) pure
+    baseUri <- uriToBaseUrl jwks_uri & either (\err -> throwIO (FilehubError InternalError (Text.unpack err))) pure
     value   <- do
       runClientM (client (Proxy @(Get '[JSON] Value))) (mkClientEnv manager baseUri) & liftIO . tryIO
-        >>= either (\(e :: IOError) -> throwError (FilehubError LoginFailed (displayException e))) pure
-        >>= either (\err -> throwError (FilehubError LoginFailed (show err))) pure
+        >>= either (\(e :: IOError) -> throwIO (FilehubError LoginFailed (displayException e))) pure
+        >>= either (\err -> throwIO (FilehubError LoginFailed (show err))) pure
 
     -- .keys.JWT[]
     let parseJWTS :: Value -> Aeson.Parser [JWK]
         parseJWTS = Aeson.withObject "JWKS" \o -> o .: "keys"
 
     case Aeson.parseEither parseJWTS value of
-      Left err -> throwError (FilehubError LoginFailed [i|failed to parse jwt. #{err}|])
+      Left err -> throwIO (FilehubError LoginFailed [i|failed to parse jwt. #{err}|])
       Right xs -> pure xs
 
   jwk <- find (\(JWK { kid = kid' }) -> Just kid' == kid ) jwks
-    & maybe (throwError (FilehubError LoginFailed "no jwk corresponds to expected kid")) pure
+    & maybe (throwIO (FilehubError LoginFailed "no jwk corresponds to expected kid")) pure
 
-  verifySigner <- either (\err -> throwError (FilehubError LoginFailed (show err))) pure do
+  verifySigner <- either (\err -> throwIO (FilehubError LoginFailed (show err))) pure do
     nBytes <- Base64.URL.decodeUnpadded . Text.encodeUtf8 $ jwk.n
     eBytes <- Base64.URL.decodeUnpadded . Text.encodeUtf8 $ jwk.e
     let n' = os2ip nBytes
@@ -403,11 +403,11 @@ verifyToken
         }
 
   idTokenVerified <- do
-    maybe (throwError (FilehubError LoginFailed "invalid id token: failed to verify")) pure
+    maybe (throwIO (FilehubError LoginFailed "invalid id token: failed to verify")) pure
       (JWT.verify verifySigner idTokenUnverified)
 
   when (Text.toLower token_type /= "bearer") do
-    throwError (FilehubError LoginFailed (Text.unpack ("invalid token type: " <> token_type)))
+    throwIO (FilehubError LoginFailed (Text.unpack ("invalid token type: " <> token_type)))
 
   pure
     $ TokenVerified Token
@@ -419,8 +419,8 @@ verifyToken
       }
 
 
-authenticateSession :: IsFilehub es => SessionId -> OIDCFlow TokenVerified -> Eff es (OIDCFlow SessionAuthenticated)
-authenticateSession sessionId (TokenVerified token) = runSessionEff sessionId do
+authenticateSession :: SessionId -> OIDCFlow TokenVerified -> Filehub (OIDCFlow SessionAuthenticated)
+authenticateSession sessionId (TokenVerified token) = do
   let user = User token
   authId <- createAuthId
   Session.set (.authId) (Just authId)
@@ -430,16 +430,16 @@ authenticateSession sessionId (TokenVerified token) = runSessionEff sessionId do
 
 
 -- | Query the standard /.well-known/openid-configuration endpoint from IdP.
-getWellknownOpenIdConfigration :: IsFilehub es => Provider -> Eff es (WellKnownConfig Identity)
+getWellknownOpenIdConfigration :: Provider -> Filehub (WellKnownConfig Identity)
 getWellknownOpenIdConfigration (Provider { issuer }) = do
   manager          <- asks @Env (.httpManager)
-  baseUri          <- uriToBaseUrl issuer & either (\err -> throwError (FilehubError InternalError (Text.unpack err))) pure
+  baseUri          <- uriToBaseUrl issuer & either (\err -> throwIO (FilehubError InternalError (Text.unpack err))) pure
   result           <- runClientM wellKnownConfigClient (mkClientEnv manager baseUri) & liftIO . tryIO
-  eWellKnownConfig <- result & either (\(e :: IOError) -> throwError (FilehubError InternalError (displayException e))) pure
+  eWellKnownConfig <- result & either (\(e :: IOError) -> throwIO (FilehubError InternalError (displayException e))) pure
   case verifyWellKnownConfig <$> eWellKnownConfig of
     Right (Just config) -> pure config
-    Right Nothing       -> throwError (FilehubError InternalError "Invalid .well-known/openid-configuration")
-    Left err            -> throwError (FilehubError InternalError (show err))
+    Right Nothing       -> throwIO (FilehubError InternalError "Invalid .well-known/openid-configuration")
+    Left err            -> throwIO (FilehubError InternalError (show err))
   where
     wellKnownConfigClient :: ClientM (WellKnownConfig Maybe)
     wellKnownConfigClient = client (Proxy :: Proxy WellKnownAPI)
@@ -459,7 +459,7 @@ uriToBaseUrl uri = do
     pure $ BaseUrl scheme (uriRegName auth) port path
 
 
-createActiveUser :: IsFilehub es => AuthId -> SessionId -> User -> Eff es ActiveUser
+createActiveUser :: AuthId -> SessionId -> User -> Filehub ActiveUser
 createActiveUser authId sessionId user = do
   now <- liftIO Time.getCurrentTime
   pure ActiveUser
@@ -471,12 +471,12 @@ createActiveUser authId sessionId user = do
 
 
 -- | Get the current oidc flow.
-getSessionOIDCFlow :: IsFilehub es => SessionId -> Eff es (Maybe SomeOIDCFlow)
+getSessionOIDCFlow :: SessionId -> Filehub (Maybe SomeOIDCFlow)
 getSessionOIDCFlow sessionId = (^. #oidcFlow) <$> Session.Pool.get sessionId
 
 
 -- | Set the current oidc flow.
-setSessionOIDCFlow :: IsFilehub es => SessionId -> Maybe (OIDCFlow s) -> Eff es ()
+setSessionOIDCFlow :: SessionId -> Maybe (OIDCFlow s) -> Filehub ()
 setSessionOIDCFlow sessionId (Just flow) = do
   Session.Pool.update sessionId \s -> s & #oidcFlow ?~ (SomeOIDCFlow flow)
 setSessionOIDCFlow sessionId Nothing = do

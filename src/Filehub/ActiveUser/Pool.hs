@@ -10,21 +10,24 @@ import Filehub.ActiveUser.Types (ActiveUser(..))
 import Data.HashTable.IO qualified as HashTable
 import Filehub.Env
 import Filehub.Auth.Types (AuthId)
+import UnliftIO (MonadIO (..))
+import Filehub.Monad (Filehub)
+import Control.Monad.Reader (asks)
 
 
-new :: (IOE :> es) => Eff es ActiveUser.Pool
+new :: MonadIO m => m ActiveUser.Pool
 new = do
   table <- liftIO HashTable.new
   pure $ ActiveUser.Pool table
 
 
-add :: (Reader Env :> es, IOE :> es) => ActiveUser -> Eff es ()
+add :: ActiveUser -> Filehub ()
 add activeUser = do
   ActiveUser.Pool pool <- asks @Env (.activeUsers)
   liftIO $ HashTable.insert pool activeUser.authId activeUser
 
 
-delete :: (Reader Env :> es, IOE :> es) => AuthId -> Eff es ()
+delete :: AuthId -> Filehub ()
 delete authId = do
   ActiveUser.Pool pool <- asks @Env (.activeUsers)
   liftIO $ HashTable.delete pool authId

@@ -20,23 +20,26 @@ import Options.Applicative (asum)
 import Target.File (FileSys, Target(..))
 import Target.S3 (S3)
 import Target.Types (AnyTarget (..))
-import UnliftIO.STM (newTBQueueIO, newTVarIO)
+import Control.Monad.Reader (asks)
+import UnliftIO (MonadIO(..))
+import UnliftIO.STM (newTBQueueIO, newTVarIO, readTVarIO)
 import Data.Map.Strict qualified as Map
 import Data.ClientPath (AbsPath(..), Root(..))
+import Filehub.Monad (Filehub)
 
 
-createSessionId :: (IOE :> es) => Eff es SessionId
+createSessionId :: Filehub SessionId
 createSessionId = SessionId <$> liftIO UUID.nextRandom
 
 
-createExpireDate :: (Reader Env :> es, IOE :> es) => Eff es UTCTime
+createExpireDate :: Filehub UTCTime
 createExpireDate = do
   duration <- asks @Env (.sessionDuration)
   current  <- liftIO Time.getCurrentTime
   pure $ duration `addUTCTime` current
 
 
-createSession :: (Reader Env :> es, Concurrent :> es, IOE :> es) => Eff es Session
+createSession :: Filehub Session
 createSession = do
   targets       <- asks @Env (.targets) >>= readTVarIO
   theme         <- asks @Env (.theme)

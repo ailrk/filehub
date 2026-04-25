@@ -3,7 +3,6 @@
 module Filehub.Session.Effectful where
 
 import Data.ClientPath (AbsPath (..), Root (..))
-import Filehub.Monad (IsFilehub)
 import Filehub.Display (Display (..))
 import Filehub.Sort (SortFileBy)
 import Filehub.Auth.Types (AuthId)
@@ -33,86 +32,92 @@ import Filehub.Session.Selected qualified as Selected
 import {-# SOURCE #-} Filehub.Storage.S3 qualified as S3
 import {-# SOURCE #-} Filehub.Storage.File qualified as File
 import Target.Types (handleTarget, targetHandler, AnyTarget (..), HasTargetId (..), TargetId)
-import UnliftIO (finally)
+import UnliftIO (finally, throwIO)
 import {-# SOURCE #-} Filehub.Auth.OIDC (SomeOIDCFlow)
+import Filehub.Monad (Filehub)
+import UnliftIO.STM (TBQueue, TVar)
+import Log (logAttention_, logTrace, logAttention)
+import Control.Monad.Reader (asks)
+import UnliftIO.STM (readTVarIO)
 
 
-data SessionEff :: Effect where
-  GetSessionGet :: IsFilehub es => SessionEff m (SessionGet es)
-  GetSessionSet :: IsFilehub es => SessionEff m (SessionSet es)
-  WithTarget    :: TargetId -> m a -> SessionEff m a
+-- data SessionEff :: Effect where
+--   GetSessionGet :: IsFilehub es => SessionEff m (SessionGet es)
+--   GetSessionSet :: IsFilehub es => SessionEff m (SessionSet es)
+--   WithTarget    :: TargetId -> m a -> SessionEff m a
 
 
-type instance DispatchOf SessionEff = Dynamic
+-- type instance DispatchOf SessionEff = Dynamic
 
 
-runSessionEff :: IsFilehub es => SessionId -> Eff (SessionEff : es) a -> Eff es a
-runSessionEff sid = interpret $ \env -> \case
-  GetSessionGet         -> pure (newSessionGet sid)
-  GetSessionSet         -> pure (newSessionSet sid)
-  WithTarget tid action -> localSeqUnlift env \unlift -> do
-    oldS <- Session.Pool.get sid
-    let oldTid = oldS.currentTargetId
-    (newSessionSet sid).currentTarget tid
-    unlift action `finally` (newSessionSet sid).currentTarget oldTid
+-- runSessionEff :: IsFilehub es => SessionId -> Eff (SessionEff : es) a -> Filehub a
+-- runSessionEff sid = interpret $ \env -> \case
+--   GetSessionGet         -> pure (newSessionGet sid)
+--   GetSessionSet         -> pure (newSessionSet sid)
+--   WithTarget tid action -> localSeqUnlift env \unlift -> do
+--     oldS <- Session.Pool.get sid
+--     let oldTid = oldS.currentTargetId
+--     (newSessionSet sid).currentTarget tid
+--     unlift action `finally` (newSessionSet sid).currentTarget oldTid
 
 
-withTarget :: (SessionEff :> es) => TargetId -> Eff es a -> Eff es a
-withTarget tid action = send $ WithTarget tid action
+withTarget :: TargetId -> Filehub a -> Filehub a
+withTarget tid action = undefined
+  -- send $ WithTarget tid action
 
 
-get :: (SessionEff :> es, IsFilehub es) => (SessionGet es -> Eff es a) -> Eff es a
-get field = do
-  viewRecord <- send GetSessionGet
-  field viewRecord
+get :: (SessionGet -> Filehub a) -> Filehub a
+get field = undefined
+  -- viewRecord <- send GetSessionGet
+  -- field viewRecord
 
 
-set :: (SessionEff :> es, IsFilehub es) => (SessionSet es -> val -> Eff es ()) -> val -> Eff es ()
-set field val = do
-  setRecord <- send GetSessionSet
-  field setRecord val
+set :: (SessionSet -> val -> Filehub ()) -> val -> Filehub ()
+set field val = undefined
+  -- setRecord <- send GetSessionSet
+  -- field setRecord val
 
 
-data SessionGet es = SessionGet
-  { currentDir        :: Eff es AbsPath
-  , root              :: Eff es Root
-  , display           :: Eff es Display
-  , sortedFileBy      :: Eff es SortFileBy
-  , selected          :: Eff es Selected
-  , authId            :: Eff es (Maybe AuthId)
-  , sidebarCollapsed  :: Eff es Bool
-  , layout            :: Eff es Layout
-  , theme             :: Eff es Theme
-  , locale            :: Eff es Locale
-  , targetViews       :: Eff es [TargetView]
-  , controlPanelState :: Eff es (ControlPanelState)
-  , sharedLinkPermit  :: Eff es (Maybe SharedLinkPermitSet)
-  , oidcFlow          :: Eff es (Maybe SomeOIDCFlow)
-  , notifications     :: Eff es (TBQueue Notification)
-  , pendingTasks      :: Eff es (TVar (Set TaskId))
-  , storage           :: Eff es (Storage (Eff es))
-  , currentTarget     :: Eff es TargetView
+data SessionGet = SessionGet
+  { currentDir        :: Filehub AbsPath
+  , root              :: Filehub Root
+  , display           :: Filehub Display
+  , sortedFileBy      :: Filehub SortFileBy
+  , selected          :: Filehub Selected
+  , authId            :: Filehub (Maybe AuthId)
+  , sidebarCollapsed  :: Filehub Bool
+  , layout            :: Filehub Layout
+  , theme             :: Filehub Theme
+  , locale            :: Filehub Locale
+  , targetViews       :: Filehub [TargetView]
+  , controlPanelState :: Filehub (ControlPanelState)
+  , sharedLinkPermit  :: Filehub (Maybe SharedLinkPermitSet)
+  , oidcFlow          :: Filehub (Maybe SomeOIDCFlow)
+  , notifications     :: Filehub (TBQueue Notification)
+  , pendingTasks      :: Filehub (TVar (Set TaskId))
+  , storage           :: Filehub (Storage Filehub)
+  , currentTarget     :: Filehub TargetView
   }
 
 
-data SessionSet es = SessionSet
-  { currentDir        :: AbsPath -> Eff es ()
-  , sortedFileBy        :: SortFileBy -> Eff es  ()
-  , selected          :: Selected -> Eff es  ()
-  , authId            :: Maybe AuthId -> Eff es ()
-  , sidebarCollapsed  :: Bool -> Eff es  ()
-  , layout            :: Layout -> Eff es  ()
-  , theme             :: Theme -> Eff es ()
-  , locale            :: Locale -> Eff es  ()
-  , sharedLinkPermit  :: Maybe SharedLinkPermitSet -> Eff es ()
-  , currentTarget     :: TargetId -> Eff es ()
-  , oidcFlow          :: Maybe SomeOIDCFlow -> Eff es ()
-  , notifications     :: TBQueue Notification -> Eff es ()
-  , pendingTasks      :: TVar (Set TaskId) -> Eff es ()
+data SessionSet = SessionSet
+  { currentDir        :: AbsPath -> Filehub ()
+  , sortedFileBy      :: SortFileBy -> Filehub ()
+  , selected          :: Selected -> Filehub  ()
+  , authId            :: Maybe AuthId -> Filehub ()
+  , sidebarCollapsed  :: Bool -> Filehub ()
+  , layout            :: Layout -> Filehub ()
+  , theme             :: Theme -> Filehub ()
+  , locale            :: Locale -> Filehub ()
+  , sharedLinkPermit  :: Maybe SharedLinkPermitSet -> Filehub ()
+  , currentTarget     :: TargetId -> Filehub ()
+  , oidcFlow          :: Maybe SomeOIDCFlow -> Filehub ()
+  , notifications     :: TBQueue Notification -> Filehub ()
+  , pendingTasks      :: TVar (Set TaskId) -> Filehub ()
   }
 
 
-newSessionGet :: IsFilehub es => SessionId -> SessionGet es
+newSessionGet :: SessionId -> SessionGet
 newSessionGet sessionId =
   let display = do
         s <- Session.Pool.get sessionId
@@ -177,7 +182,7 @@ newSessionGet sessionId =
             fileStorage = File.storage sessionId
             onError     = do
               logAttention_ "[ssshuu] Target error"
-              throwError (FilehubError TargetError "Invalid target")
+              throwIO (FilehubError TargetError "Invalid target")
 
 
         fromMaybe onError $ handleTarget t
@@ -186,11 +191,11 @@ newSessionGet sessionId =
           ]
 
 
-      currentTarget :: IsFilehub es => Eff es TargetView
+      currentTarget :: Filehub TargetView
       currentTarget = do
         s <- Session.Pool.get sessionId
         targets <- asks @Env (.targets) >>= readTVarIO
-        maybe (throwError (FilehubError InvalidSession "Invalid session")) pure do
+        maybe (throwIO (FilehubError InvalidSession "Invalid session")) pure do
           let targetId      = s.currentTargetId
           targetSessionData <- Map.lookup targetId s.targets
           target            <- lookup targetId targets
@@ -220,12 +225,12 @@ newSessionGet sessionId =
       }
 
 
-newSessionSet :: IsFilehub es => SessionId -> SessionSet es
+newSessionSet :: SessionId -> SessionSet
 newSessionSet sessionId =
-  let upS :: IsFilehub es => (Session -> Session) -> Eff es ()
+  let upS :: (Session -> Session) -> Filehub ()
       upS f = Session.Pool.update sessionId f
 
-      upT :: IsFilehub es => (TargetSessionData -> TargetSessionData) -> Eff es ()
+      upT :: (TargetSessionData -> TargetSessionData) -> Filehub ()
       upT f = upS $ \s -> s { targets = Map.adjust f s.currentTargetId s.targets }
 
       currentDir a = upT (\td -> td { currentDir = a })
@@ -253,7 +258,6 @@ newSessionSet sessionId =
       pendingTasks a = upS (\s -> s { pendingTasks = a })
 
       currentTarget tid = do
-        runSessionEff sessionId do
           TargetView target _ <- get (.currentTarget)
           targets <- asks @Env (.targets) >>= readTVarIO
           if getTargetId target == tid
@@ -265,7 +269,7 @@ newSessionSet sessionId =
                    upS (\s -> s { currentTargetId = tid })
                  Nothing -> do
                    logAttention "[vccxxa] Can't change to target" (show tid)
-                   throwError (FilehubError InvalidSession "Invalid session")
+                   throwIO (FilehubError InvalidSession "Invalid session")
 
    in
     SessionSet
@@ -285,8 +289,8 @@ newSessionSet sessionId =
       }
 
 
-attachTarget :: IsFilehub es => SessionId -> AnyTarget -> Eff es ()
-attachTarget sessionId target = runSessionEff sessionId do
+attachTarget :: SessionId -> AnyTarget -> Filehub ()
+attachTarget sessionId target = do
   TargetView current _ <- get (.currentTarget)
   if current == target
      then pure ()
@@ -296,7 +300,7 @@ attachTarget sessionId target = runSessionEff sessionId do
                  }
 
 
-detachTarget :: IsFilehub es => SessionId -> TargetId -> Eff es ()
+detachTarget :: SessionId -> TargetId -> Filehub ()
 detachTarget sessionId targetId = do
   Session.Pool.update sessionId \session -> do
     session { targets = Map.delete targetId session.targets

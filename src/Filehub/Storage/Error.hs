@@ -1,6 +1,5 @@
 module Filehub.Storage.Error
   ( mapError
-  , withStorageError
   )
   where
 
@@ -22,5 +21,5 @@ mapError = \case
   StorageError.WriteError t  -> FilehubError WriteError t
 
 
-withStorageError :: (Error FilehubError :> es) => Eff (Error StorageError : es) b -> Eff es b
-withStorageError action = runErrorNoCallStack action >>= either (\err -> throwError (mapError err)) pure
+-- withStorageError :: (Error FilehubError :> es) => Eff (Error StorageError : es) b -> Eff es b
+-- withStorageError action = runErrorNoCallStack action >>= either (\err -> throwError (mapError err)) pure

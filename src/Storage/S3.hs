@@ -64,9 +64,9 @@ import Data.Maybe (fromMaybe)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.Time (secondsToNominalDiffTime)
-import Effectful.Extended.Cache (Cache)
+-- import Effectful.Extended.Cache (Cache)
 import Effectful.Extended.Cache qualified as Cache
-import Effectful.Extended.LockManager (LockManager)
+--import Effectful.Extended.LockManager (LockManager)
 import Effectful.Extended.LockManager qualified as LockManager
 import GHC.TypeLits (Symbol)
 import Lens.Micro
@@ -83,6 +83,11 @@ import System.FilePath (takeDirectory, (</>))
 import Data.ClientPath (AbsPath (..))
 import Data.Coerce (coerce)
 import Data.List (sort)
+import Filehub.Monad (Filehub)
+import UnliftIO (MonadIO (..), throwIO)
+import UnliftIO.Directory (removeFile)
+import Log (logAttention_)
+import UnliftIO.Async (forConcurrently_)
 
 
 class CacheKeyComponent (s :: Symbol) a              where toCacheKeyComponent :: Builder
@@ -101,17 +106,9 @@ createCacheKey targetId identifier = Cache.mkCacheKey
   [cacheKeyPrefix, Target.targetIdBuilder targetId, toCacheKeyComponent @s @a, identifier]
 
 
-get
-  :: forall es cacheType cacheName
-  . ( IOE                :> es
-    , Log                :> es
-    , Cache              :> es
-    , Error StorageError :> es
-    , cacheType ~ FileInfo
-    , cacheName ~ "file")
-    => Target S3 -> AbsPath -> Eff es (Maybe FileInfo)
+get :: Target S3 -> AbsPath -> Filehub (Maybe FileInfo)
 get (s3@S3Backend { targetId }) path = do
-  mCached <- Cache.lookup @cacheType cacheKey
+  mCached <- Cache.lookup @FileInfo cacheKey
   case mCached of
     Just cached -> pure (Just cached)
     Nothing -> do
@@ -135,21 +132,16 @@ get (s3@S3Backend { targetId }) path = do
           Cache.insert cacheKey cacheDeps cacheTTL file
           pure (Just file)
         else do
-          throwError (InvalidPath "invalid path")
+          throwIO (InvalidPath "invalid path")
   where
-    cacheKey  =  createCacheKey @cacheName @cacheType targetId (coerce Builder.string8 path)
-    cacheDeps = [ SomeCacheKey (createCacheKey @cacheName @cacheType targetId "") ]
+    cacheKey  =  createCacheKey @"file" @FileInfo targetId (coerce Builder.string8 path)
+    cacheDeps = [ SomeCacheKey (createCacheKey @"file" @FileInfo targetId "") ]
     cacheTTL  = Just (secondsToNominalDiffTime 10)
 
 
 -- | Because S3 doesn't have real directory, we need to list all keys in the
 -- bucket and check if the file path is prefix of any key.
-isDirectory
-  :: forall es
-  . ( Cache :> es
-    , Log   :> es
-    , IOE   :> es )
-  => Target S3 -> AbsPath -> Eff es Bool
+isDirectory :: Target S3 -> AbsPath -> Filehub Bool
 isDirectory s3@S3Backend { targetId } filePath = do
   mCached <- Cache.lookup @FileInfo cacheKey
   case mCached of
@@ -167,16 +159,9 @@ isDirectory s3@S3Backend { targetId } filePath = do
     cacheKey = createCacheKey @"file" @FileInfo targetId (coerce Builder.string8 filePath)
 
 
-read
-  :: forall es cacheType cacheName
-  . ( IOE   :> es
-    , Log   :> es
-    , Cache :> es
-    , cacheType ~ ByteString
-    , cacheName ~ "file-content")
-  => Target S3 -> FileInfo -> Eff es ByteString
+read :: Target S3 -> FileInfo -> Filehub ByteString
 read s3@S3Backend { targetId }  file = do
-  mCached <- Cache.lookup @cacheType cacheKey
+  mCached <- Cache.lookup @ByteString cacheKey
   case mCached of
     Just cached -> pure cached
     Nothing -> do
@@ -186,12 +171,12 @@ read s3@S3Backend { targetId }  file = do
       Cache.insert cacheKey cacheDeps cacheTTL result
       pure result
   where
-    cacheKey  = createCacheKey @cacheName @cacheType targetId (coerce Builder.string8 file.path)
+    cacheKey  = createCacheKey @"file-content" @ByteString targetId (coerce Builder.string8 file.path)
     cacheDeps = [ SomeCacheKey (createCacheKey @"file" @FileInfo targetId (coerce Builder.string8 file.path)) ]
     cacheTTL  = Just (secondsToNominalDiffTime 10)
 
 
-readStream :: Target S3 -> FileInfo -> Eff es (ConduitT () ByteString (ResourceT IO) ())
+readStream :: Target S3 -> FileInfo -> Filehub (ConduitT () ByteString (ResourceT IO) ())
 readStream s3 file = do
   let bucket  = BucketName s3.bucket
       key     = ObjectKey (coerce Text.pack file.path)
@@ -202,12 +187,7 @@ readStream s3 file = do
     conduit
 
 
-new
-  :: ( Cache       :> es
-     , Log         :> es
-     , IOE         :> es
-     , LockManager :> es)
-  => Target S3 -> AbsPath -> Eff es ()
+new :: Target S3 -> AbsPath -> Filehub ()
 new s3@S3Backend { targetId } path = do
   write s3 $ defaultFileWithContent
     { path     = path
@@ -217,12 +197,7 @@ new s3@S3Backend { targetId } path = do
   Cache.delete (createCacheKey @"dir" @[FileInfo] targetId "")
 
 
-write
-  :: ( Cache       :> es
-     , Log         :> es
-     , IOE         :> es
-     , LockManager :> es)
-  => Target S3 -> FileWithContent -> Eff es ()
+write :: Target S3 -> FileWithContent -> Filehub ()
 write s3@S3Backend { targetId } File { content, mimetype, size = mSize, path } =
   LockManager.withLock (LockManager.mkLockKey path) do
     case content of
@@ -245,14 +220,14 @@ write s3@S3Backend { targetId } File { content, mimetype, size = mSize, path } =
       FileContentDir _ -> pure ()
       FileContentNull -> pure ()
   where
-    writePutObject :: (IOE :> es) => AbsPath -> RequestBody ->  Eff es ()
+    writePutObject :: AbsPath -> RequestBody -> Filehub ()
     writePutObject filePath body =
       let bucket  = BucketName s3.bucket
           key     = ObjectKey (coerce Text.pack filePath)
           request = (Amazonka.newPutObject bucket key body) { contentType = Just (Text.decodeUtf8 mimetype) } :: PutObject
        in void . runResourceT $ send s3.env request
 
-    writeMultipart :: (IOE :> es) => ConduitT () ByteString (ResourceT IO) () -> Eff es ()
+    writeMultipart :: ConduitT () ByteString (ResourceT IO) () -> Filehub ()
     writeMultipart conduit = do
       let bucket   = BucketName s3.bucket
           key      = ObjectKey (coerce Text.pack path)
@@ -333,15 +308,8 @@ chunking chunkSize = flip fix (1, ChunkBuilder (Builder.byteString ByteString.em
             rec (idx, combined)
 
 
-mv
-  :: ( IOE                :> es
-     , Log                :> es
-     , Cache              :> es
-     , LockManager        :> es
-     , Concurrent         :> es
-     , Error StorageError :> es)
-   => Target S3 -> [(AbsPath, AbsPath)] -> Eff es ()
-mv _ [] = throwError (CopyError "Nothing to copy")
+mv :: Target S3 -> [(AbsPath, AbsPath)] -> Filehub ()
+mv _ [] = throwIO (CopyError "Nothing to copy")
 mv s3@S3Backend { targetId } cpPairs = do
   let pairs = sort cpPairs
   forConcurrently_  pairs \(src, dst) -> do
@@ -362,31 +330,19 @@ mv s3@S3Backend { targetId } cpPairs = do
           logAttention_ (Text.pack $ "S3 Copy Failed for " <> (coerce src))
 
 
-rename
-  :: ( IOE                :> es
-     , Log                :> es
-     , Cache              :> es
-     , Concurrent         :> es
-     , LockManager        :> es
-     , Error StorageError :> es)
-   => Target S3 -> AbsPath -> String -> Eff es ()
+rename :: Target S3 -> AbsPath -> String -> Filehub ()
 rename s3 oldPath newName =
   let dir     = coerce takeDirectory oldPath
       newPath = AbsPath (dir </> newName) -- @TODO need to avoid this
    in mv s3 [(oldPath, newPath)]
 
 
-delete
-  :: ( IOE         :> es
-     , Log         :> es
-     , Cache       :> es
-     , LockManager :> es)
-  => Target S3 -> AbsPath -> Eff es ()
+delete :: Target S3 -> AbsPath -> Filehub ()
 delete s3 filePath = LockManager.withLock (LockManager.mkLockKey filePath) do
   delete' s3 filePath
 
 
-delete' :: (IOE :> es, Log :> es, Cache :> es) => Target S3 -> AbsPath -> Eff es ()
+delete' :: Target S3 -> AbsPath -> Filehub ()
 delete' s3@S3Backend { targetId } filePath = do
   let bucket = BucketName s3.bucket
       key    = ObjectKey (coerce Text.pack filePath)
@@ -395,16 +351,9 @@ delete' s3@S3Backend { targetId } filePath = do
   Cache.delete (createCacheKey @"dir" @[FileInfo] targetId "")
 
 
-ls
-  :: forall es cacheType cacheName
-  . ( Cache :> es
-    , Log   :> es
-    , IOE   :> es
-    , cacheType ~ [FileInfo]
-    , cacheName ~ "dir")
-  => Target S3 -> AbsPath -> Eff es [FileInfo]
+ls :: Target S3 -> AbsPath -> Filehub [FileInfo]
 ls s3@S3Backend { targetId } _ = do
-    mCached <- Cache.lookup @cacheType cacheKey
+    mCached <- Cache.lookup @[FileInfo] cacheKey
     case mCached of
       Just cached -> do
         pure cached
@@ -423,7 +372,7 @@ ls s3@S3Backend { targetId } _ = do
           result
         pure result
   where
-    cacheKey = createCacheKey @cacheName @cacheType targetId ""
+    cacheKey = createCacheKey @"dir" @[FileInfo] targetId ""
     cacheTTL = Just (secondsToNominalDiffTime 10)
 
     toDir (commonPrefix :: CommonPrefix) =
@@ -449,20 +398,11 @@ ls s3@S3Backend { targetId } _ = do
          }
 
 
-lsCwd
-  :: ( Cache :> es
-     , Log   :> es
-     , IOE   :> es)
-  => Target S3 -> Eff es [FileInfo]
+lsCwd :: Target S3 -> Filehub [FileInfo]
 lsCwd s3 = ls s3 (AbsPath "")
 
 
-upload
-  :: ( Cache       :> es
-     , Log         :> es
-     , IOE         :> es
-     , LockManager :> es)
-  => Target S3 -> FileData Mem -> Eff es ()
+upload :: Target S3 -> FileData Mem -> Filehub ()
 upload s3 file = do
   let mimetype = Text.encodeUtf8 file.fdFileCType
       name     = coerce Text.unpack file.fdFileName
@@ -474,12 +414,7 @@ upload s3 file = do
     }
 
 
-download
-  :: ( IOE                :> es
-     , Log                :> es
-     , Cache              :> es
-     , Error StorageError :> es)
-  => Target S3 -> AbsPath -> Eff es (ConduitT () ByteString (ResourceT IO) ())
+download :: Target S3 -> AbsPath -> Filehub (ConduitT () ByteString (ResourceT IO) ())
 download s3 path = do
   mFile <- get s3 path
   case mFile of
@@ -500,7 +435,7 @@ download s3 path = do
           pure $
             Conduit.bracketP
               (pure ())
-              (\_ -> runEff . runFileSystem $ removeFile zipPath)
+              (\_ -> removeFile zipPath)
               (\_ -> Conduit.sourceFile zipPath)
     Nothing -> pure undefined
 

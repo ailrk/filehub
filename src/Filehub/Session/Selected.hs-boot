@@ -1,9 +1,8 @@
 module Filehub.Session.Selected (anySelected) where
 
-import Filehub.Error (FilehubError)
-import Filehub.Types (Env(..))
 import Filehub.Types (SessionId)
+import Filehub.Monad (Filehub)
 
 
 
-anySelected :: (Reader Env :> es, IOE :> es, Error FilehubError :> es, Log :> es) => SessionId -> Eff es Bool
+anySelected :: SessionId -> Filehub Bool

@@ -28,6 +28,7 @@ import Target.S3 qualified
 import Toml (TomlCodec, (.=), Key)
 import Toml qualified
 import Toml.Codec (TomlBiMap)
+import Log (LogLevel (..))
 
 
 simpleAuthUserRecord :: TomlCodec Auth.Simple.UserRecord

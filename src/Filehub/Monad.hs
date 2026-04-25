@@ -8,37 +8,42 @@ module Filehub.Monad
   ( runFilehub
   , toIO
   , Filehub
-  , IsFilehub
   )
   where
 
 
 import Control.Monad.Reader
-import Control.Monad.Except
-import Control.Monad.IO.Class
 import Filehub.Env (Env(..))
 import Filehub.Error (FilehubError, toServerError)
+import UnliftIO (try, MonadUnliftIO)
 import Servant (ServerError)
+import Log (MonadLog(..))
 
 
 -- | The core Application monad.
--- We use a simple Newtype over ReaderT Env (ExceptT FilehubError IO).
--- This gives you all the benefits of 'effectful' (IO access, Error handling, Reader)
--- without the type-level overhead.
 newtype Filehub a = Filehub
   { unFilehub :: ReaderT Env IO a
-  } deriving
+  } deriving newtype
     ( Functor
     , Applicative
     , Monad
     , MonadIO
+    , MonadUnliftIO
     , MonadReader Env
     )
 
 
+instance MonadLog Filehub where
+  logMessage = undefined
+  localData = undefined
+  localDomain = undefined
+  localMaxLogLevel = undefined
+  getLoggerEnv = undefined
+
+
 -- | Discharge the Filehub stack into IO
 runFilehub :: Env -> Filehub a -> IO (Either FilehubError a)
-runFilehub env action = runExceptT (runReaderT (unFilehub action) env)
+runFilehub env action = try (runReaderT (action.unFilehub) env)
 
 -- | Convenient helper to run Filehub in IO, mapping errors to Servant ServerError.
 toIO :: (ServerError -> IO a) -> Env -> Filehub a -> IO a

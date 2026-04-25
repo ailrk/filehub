@@ -51,6 +51,7 @@ import Filehub.Session (TargetView(..))
 import Target.Dummy (DummyTarget)
 import Filehub.Template (Template, TemplateContext(..))
 import Data.Coerce (coerce)
+import Control.Monad.Reader (asks)
 
 
 -- | The bootstrap page is used to detect the client's device  information.

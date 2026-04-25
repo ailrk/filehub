@@ -19,6 +19,8 @@ import Amazonka.S3 qualified as Amazonka
 import Data.Text qualified as Text
 import Text.Debug (Debug(..))
 import GHC.Generics (Generic)
+import UnliftIO (MonadIO(..))
+import Log (logInfo_, MonadLog)
 
 #ifdef DEBUG
 import Effectful.FileSystem.IO (stdout)
@@ -61,7 +63,7 @@ instance Debug (Config S3) where debug = show
 
 -- | The default `discover` method only discover `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`,
 --   and `AWS_SESSION_TOKEN`. To set custom endpoint url, we also need to hand `AWS_ENDPOINT_URL`.
-initialize :: (IOE :> es, Log :> es) => Config S3 -> Eff es (Target S3)
+initialize :: (MonadLog m, MonadIO m) => Config S3 -> m (Target S3)
 initialize opt = do
   targetId   <- liftIO $ TargetId <$> UUID.nextRandom
   let bucket =  Text.pack opt.bucket

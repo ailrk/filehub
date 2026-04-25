@@ -17,11 +17,9 @@ module Filehub.Storage.File (storage) where
 
 import Control.Monad (unless)
 import Filehub.Error (FilehubError(..), Error' (..))
-import Filehub.Monad (IsFilehub)
 import Filehub.Session.Types (TargetView(..))
-import Filehub.Session.Effectful (runSessionEff, SessionGet(..), SessionSet(..))
+import Filehub.Session.Effectful (SessionGet(..), SessionSet(..))
 import Filehub.Session.Effectful qualified as Session
-import Filehub.Storage.Error (withStorageError)
 import Filehub.Types (SessionId)
 import Lens.Micro.Platform ()
 import Prelude hiding (read, readFile, writeFile)
@@ -31,51 +29,55 @@ import Target.Storage (Storage(..))
 import Target.Types (handleTarget, targetHandler)
 import Data.ClientPath (AbsPath(..))
 import Data.Coerce (coerce)
+import Filehub.Monad (Filehub)
+import UnliftIO.Directory (doesDirectoryExist)
+import Log (logAttention)
+import UnliftIO (throwIO)
 
 
-cd :: IsFilehub es => SessionId -> AbsPath -> Eff es ()
-cd sessionId dir = runSessionEff sessionId do
+cd :: SessionId -> AbsPath -> Filehub ()
+cd sessionId dir = do
   exists <- doesDirectoryExist (coerce dir)
   unless exists do
     logAttention "[nmb224] dir doesn't exists:" dir
-    throwError (FilehubError InvalidDir "Can't enter, not a directory")
+    throwIO (FilehubError InvalidDir "Can't enter, not a directory")
   Session.set (.currentDir) dir
 
 
-storage :: IsFilehub es => SessionId -> Storage (Eff es)
+storage :: SessionId -> Storage Filehub
 storage sessionId =
   Storage
     { get         = Storage.File.get
     , read        = Storage.File.read
     , readStream  = Storage.File.readStream
-    , ls          = withStorageError . Storage.File.ls
+    , ls          = Storage.File.ls
     , cd          = cd sessionId
     , isDirectory = Storage.File.isDirectory
 
     , write = \fileWithContent -> do
         Storage.File.write fileWithContent
 
-    , mv = \mvPairs -> withStorageError do
+    , mv = \mvPairs -> do
         Storage.File.mv mvPairs
 
-    , rename = \old new -> withStorageError do
+    , rename = \old new -> do
         Storage.File.rename old new
 
     , delete = \path-> do
         Storage.File.delete path
 
-    , new = \path -> withStorageError do
+    , new = \path -> do
         Storage.File.new path
 
-    , newFolder = \path -> withStorageError do
+    , newFolder = \path -> do
         Storage.File.newFolder path
 
-    , lsCwd = withStorageError do
-        currentDir <- runSessionEff sessionId $ Session.get (.currentDir)
+    , lsCwd = do
+        currentDir <- Session.get (.currentDir)
         Storage.File.lsCwd currentDir
 
     , upload = \filedata -> do
-        currentDir <- runSessionEff sessionId $ Session.get (.currentDir)
+        currentDir <- Session.get (.currentDir)
         Storage.File.upload currentDir filedata
 
     , download = \clientPath -> do
@@ -85,9 +87,9 @@ storage sessionId =
 
 
 
-getFileSys :: IsFilehub es => SessionId -> Eff es (Target FileSys)
-getFileSys sessionId = runSessionEff sessionId do
+getFileSys :: SessionId -> Filehub (Target FileSys)
+getFileSys sessionId = do
   TargetView target _ <- Session.get (.currentTarget)
-  maybe (throwError (FilehubError TargetError "Target is not valid file system direcotry")) pure $ handleTarget target
+  maybe (throwIO (FilehubError TargetError "Target is not valid file system direcotry")) pure $ handleTarget target
     [ targetHandler @FileSys id
     ]

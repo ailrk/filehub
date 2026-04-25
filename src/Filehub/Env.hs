@@ -18,7 +18,7 @@ import Data.Time (NominalDiffTime)
 import Filehub.ActiveUser.Types qualified as ActiveUser
 import Filehub.Locale (Locale)
 import Filehub.Session.Types qualified as Session
-import Filehub.SharedLink (SharedLinkPool)
+import {-# SOURCE #-} Filehub.SharedLink (SharedLinkPool)
 import Filehub.Theme (Theme, CustomTheme)
 import Lens.Micro.Platform ()
 import LockRegistry.Local qualified
@@ -28,6 +28,7 @@ import Target.Types (AnyTarget, TargetId)
 import {-# SOURCE #-} Filehub.Auth.OIDC (OIDCAuthProviders(..))
 import {-# SOURCE #-} Filehub.Auth.Simple (SimpleAuthUserDB(..))
 import EvtLog qualified
+import Control.Concurrent.STM (TVar)
 
 
 data Env = Env

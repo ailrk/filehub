@@ -19,7 +19,6 @@ import Data.String.Interpolate (i)
 import Data.UUID qualified as UUID
 import Filehub.Cookie qualified as Cookies
 import Filehub.Env (Env (..))
-import Filehub.Error (FilehubError)
 import Filehub.Monad ( toIO )
 import Filehub.Server.Internal (parseHeader')
 import Filehub.Session.Pool qualified as Session.Pool
@@ -34,8 +33,9 @@ import Network.Wai
 import Prelude hiding (readFile)
 import Web.Cookie (defaultSetCookie, SetCookie (..))
 import Data.ByteString.Char8 qualified as Char8
-import Filehub.Session.Effectful (runSessionEff, SessionGet(..))
+import Filehub.Session.Effectful (SessionGet(..))
 import Filehub.Session.Effectful qualified as Session
+import UnliftIO (MonadIO(..), tryIO)
 
 
 displayMiddleware :: Env -> Middleware
@@ -56,7 +56,7 @@ displayMiddleware  env app req respond = toIO onErr env do
 
   -- set display cookie
   -- Note only the server set the cookie.
-  setCookieHeader <- runSessionEff sessionId do
+  setCookieHeader <- do
     currentDisplay <- Session.get (.display)
     let displaySetCookie = defaultSetCookie
           { setCookieName     = "display"
@@ -84,7 +84,7 @@ sessionMiddleware env app req respond = toIO onErr env do
   let mSessionId = mCookie >>= parseHeader' >>= Cookies.fromCookies
   case mSessionId of
     Just sessionId -> do
-      eSession <- runErrorNoCallStack @FilehubError $ Session.Pool.get sessionId
+      eSession <- tryIO $ Session.Pool.get sessionId
       case eSession of
         Left _ -> do
           respondWithNewSession

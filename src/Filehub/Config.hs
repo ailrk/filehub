@@ -20,6 +20,7 @@ import Filehub.Theme (Theme (..), CustomTheme)
 import Target.File (FileSys)
 import Target.Types qualified as Target
 import Target.S3 (S3)
+import Log (LogLevel (..))
 
 
 data Config f = Config
