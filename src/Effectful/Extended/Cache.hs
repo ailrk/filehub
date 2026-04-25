@@ -1,11 +1,10 @@
-
+{-# LANGUAGE DefaultSignatures #-}
 module Effectful.Extended.Cache
-  ( runCacheInMemory
-  -- , runCacheDummy
-  , lookup
-  , insert
-  , delete
-  , flush
+  ( MonadCache(..)
+  , InMemoryCacheT(..)
+  , DummyCacheT(..)
+  , runCacheInMemory
+  , runCacheDummy
   , mkCacheKey
   )
   where
@@ -15,89 +14,76 @@ import Cache.InMemory qualified as InMemory
 import Cache.Key (CacheKey, mkCacheKey, SomeCacheKey (..))
 import Control.Monad (void)
 import Data.Dynamic (Typeable)
-import Data.String.Interpolate (i)
 import Data.Time (NominalDiffTime, getCurrentTime)
 import Prelude hiding (lookup)
-import UnliftIO (atomicModifyIORef', readIORef)
-import Filehub.Monad (Filehub)
+import UnliftIO (atomicModifyIORef', readIORef, MonadUnliftIO)
+import Control.Monad.Reader (ReaderT (..), MonadReader (..), MonadIO (..))
+import Cache.InMemory (InMemoryCache(..))
+import Control.Monad.Base (MonadBase)
 
 
--- | A generic cache effect
--- data Cache :: Effect where
---   Lookup :: (Typeable a) => CacheKey a -> Cache m (Maybe a)
---   Insert :: (Typeable a) => CacheKey a -> [SomeCacheKey] -> Maybe NominalDiffTime -> a -> Cache m ()
---   Delete :: SomeCacheKey -> Cache m ()
---   Flush  :: Cache m ()
+class Monad m => MonadCache m where
+  cacheLookup :: (Typeable a) => CacheKey a -> m (Maybe a)
+  cacheInsert :: (Typeable a) => CacheKey a -> [SomeCacheKey] -> Maybe NominalDiffTime -> a -> m ()
+  cacheDelete :: SomeCacheKey -> m ()
+  cacheFlush :: m ()
 
 
--- type instance DispatchOf Cache = Dynamic
-
-runCacheInMemory :: InMemory.InMemoryCache -> Filehub a -> Filehub a
-runCacheInMemory = undefined
-
-
--- runCacheInMemory :: (IOE :> es) => InMemory.InMemoryCache -> Eff (Cache : es) a -> Eff es a
--- runCacheInMemory (InMemory.InMemoryCache cacheRef) = interpret \_ -> \case
---   Lookup key -> do
---     cache <- readIORef cacheRef
---     now <- liftIO getCurrentTime
---     case InMemory.lookup now key cache of
---       Just (value, cache') -> do
---         atomicModifyIORef' cacheRef (const (cache', ()))
---         pure value
---       Nothing -> pure Nothing
---   Insert key mDeps mTTL value -> do
---       now <- liftIO getCurrentTime
---       void $ atomicModifyIORef' cacheRef (\cache -> (InMemory.insert now key mDeps mTTL value cache, ()))
---   Delete key -> do
---       void $ atomicModifyIORef' cacheRef (\cache -> (InMemory.delete key cache, ()))
---   Flush ->
---       void $ atomicModifyIORef' cacheRef (\cache -> (InMemory.empty cache.capacity, ()))
+newtype InMemoryCacheT m a = InMemoryCacheT { unInMemoryCacheT :: ReaderT InMemoryCache m a }
+  deriving newtype
+  ( Functor
+  , Applicative
+  , Monad
+  , MonadIO
+  , MonadUnliftIO
+  , MonadBase b
+  , MonadReader InMemoryCache
+  )
 
 
--- runCacheDummy :: (IOE :> es) =>  Eff (Cache : es) a -> Eff es a
--- runCacheDummy = interpret \_ -> \case
---   Lookup key                  -> liftIO $ Dummy.lookup key
---   Insert key mDeps mTTL value -> liftIO $ Dummy.insert key mDeps mTTL value
---   Delete key                  -> liftIO $ Dummy.delete key
---   Flush                       -> liftIO Dummy.flush
+instance MonadIO m => MonadCache (InMemoryCacheT m) where
+  cacheLookup key = do
+    InMemory.InMemoryCache cacheRef <- ask
+    cache <- liftIO $ readIORef cacheRef
+    now <- liftIO getCurrentTime
+    case InMemory.lookup now key cache of
+      Just (value, cache') -> do
+        atomicModifyIORef' cacheRef (const (cache', ()))
+        pure value
+      Nothing -> pure Nothing
+  cacheInsert key mDeps mTTL value = do
+    InMemoryCache cacheRef <- ask
+    now <- liftIO getCurrentTime
+    void $ atomicModifyIORef' cacheRef (\cache -> (InMemory.insert now key mDeps mTTL value cache, ()))
+  cacheDelete key = do
+    InMemoryCache cacheRef <- ask
+    void $ atomicModifyIORef' cacheRef (\cache -> (InMemory.delete key cache, ()))
+  cacheFlush = do
+    InMemoryCache cacheRef <- ask
+    void $ atomicModifyIORef' cacheRef (\cache -> (InMemory.empty cache.capacity, ()))
 
 
-
-lookup :: forall a . Typeable a => CacheKey a -> Filehub (Maybe a)
-lookup key = undefined
-
--- lookup :: forall a es . (Cache :> es, Log :> es, Typeable a) => CacheKey a -> Eff es (Maybe a)
--- lookup key = do
---   result <- send (Lookup key)
---   case result of
---     Just _ -> logTrace_ [i|[9vd2zj] CACHE HIT #{key}|]
---     Nothing -> pure ()
---   pure result
+runCacheInMemory :: InMemoryCache -> InMemoryCacheT m a -> m a
+runCacheInMemory cache (InMemoryCacheT m) = (`runReaderT` cache) m
 
 
-
-insert :: forall a . Typeable a => CacheKey a -> [SomeCacheKey] -> Maybe NominalDiffTime -> a -> Filehub ()
-insert = undefined
-
--- insert :: forall a es . (Cache :> es, Typeable a)
---        => CacheKey a -> [SomeCacheKey] -> Maybe NominalDiffTime -> a -> Eff es ()
--- insert key deps mTTL value = send (Insert key deps mTTL value)
-
-
-delete :: CacheKey a -> Filehub ()
-delete key = undefined
+newtype DummyCacheT m a = DummyCacheT { unInMemoryCacheT :: m a }
+  deriving newtype
+  ( Functor
+  , Applicative
+  , Monad
+  , MonadIO
+  , MonadUnliftIO
+  , MonadBase b
+  )
 
 
--- delete :: (Cache :> es, Log :> es) => CacheKey a -> Eff es ()
--- delete key = do
---   logTrace_ [i|[0cvba1] CACHE DELETE #{key}|]
---   send (Delete (SomeCacheKey key))
+runCacheDummy :: DummyCacheT m a -> m a
+runCacheDummy (DummyCacheT m) = m
 
 
-flush :: Filehub ()
-flush = undefined
-
-
--- flush :: (Cache :> es) => Eff es ()
--- flush = send Flush
+instance MonadIO m => MonadCache (DummyCacheT m) where
+  cacheLookup = liftIO . Dummy.lookup
+  cacheInsert key mDeps mTTL value = liftIO $ Dummy.insert key mDeps mTTL value
+  cacheDelete = liftIO . Dummy.delete
+  cacheFlush = liftIO $ Dummy.flush

@@ -109,6 +109,7 @@ library
     , microlens
     , microlens-platform
     , mime-types
+    , monad-control
     , mtl
     , network-uri
     , optparse-applicative
@@ -135,6 +136,7 @@ library
     , timers
     , tomland
     , transformers
+    , transformers-base
     , unliftio
     , unordered-containers
     , uri-encode

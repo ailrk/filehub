@@ -1,10 +1,12 @@
+{-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GADTs #-}
 module Effectful.Extended.LockManager
-  ( runLockManagerLocal
-  -- , runLockManagerDummy
-  , withLock
-  , withLocks
+  ( LocalLockManagerT(..)
+  , runLockManagerLocal
+  , DummyLockManagerT(..)
+  , runLockManagerDummy
+  , MonadLockManager(..)
   , mkLockKey
   )
   where
@@ -13,49 +15,65 @@ module Effectful.Extended.LockManager
 import LockRegistry.Local qualified as Local
 import LockRegistry.Key (LockKey, mkLockKey)
 import LockRegistry.Dummy qualified as Dummy
-import Filehub.Monad (Filehub)
+import Control.Monad.Trans.Control (MonadTransControl (..))
+import Control.Monad.Reader (ReaderT (..), MonadReader (..))
+import UnliftIO (MonadIO, MonadUnliftIO (..))
+import Control.Monad.Base (MonadBase)
 
 
--- data LockManager :: Effect where
---   WithLock :: LockKey -> m a -> LockManager m a
---   WithLocks :: [LockKey] -> m a -> LockManager m a
+class (Monad m) => MonadLockManager m where
+  withLock :: LockKey -> m a -> m a
+  withLocks :: [LockKey] -> m a -> m a
+
+  default withLock :: (MonadTransControl t, MonadLockManager m', m ~ t m') => LockKey -> m a -> m a
+  default withLocks :: (MonadTransControl t, MonadLockManager m', m ~ t m') => [LockKey] -> m a -> m a
+
+  withLock key action = liftWith (\run -> withLock key (run action)) >>= restoreT . pure
+  withLocks keys action = liftWith (\run -> withLocks keys (run action)) >>= restoreT . pure
 
 
--- type instance DispatchOf LockManager = Dynamic
-
-runLockManagerLocal :: Local.LockRegistry -> Filehub a -> Filehub a
-runLockManagerLocal = undefined
-
-
--- runLockManagerLocal :: (IOE :> es) => Local.LockRegistry -> Eff (LockManager : es) a -> Eff es a
--- runLockManagerLocal registry = reinterpret id \env -> \case
---   WithLock key action -> do
---     localSeqUnliftIO env \toIO -> do
---       Local.withLock registry key (toIO action)
---   WithLocks keys action -> localSeqUnliftIO env \toIO -> do
---       Local.withLocks registry keys (toIO action)
+newtype LocalLockManagerT m a = LocalLockManagerT { unLocalLockManagerT :: ReaderT Local.LockRegistry m a }
+  deriving newtype
+  ( Functor
+  , Applicative
+  , Monad
+  , MonadIO
+  , MonadUnliftIO
+  , MonadBase b
+  , MonadReader Local.LockRegistry
+  )
 
 
--- runLockManagerDummy :: (IOE :> es) => Eff (LockManager : es) a -> Eff es a
--- runLockManagerDummy = reinterpret id \env -> \case
---   WithLock key action -> do
---     localSeqUnliftIO env \toIO -> do
---       Dummy.withLocks [key] (toIO action)
---   WithLocks keys action ->
---     localSeqUnliftIO env \toIO -> do
---       Dummy.withLocks keys (toIO action)
+runLockManagerLocal :: Local.LockRegistry -> LocalLockManagerT m a -> m a
+runLockManagerLocal reg (LocalLockManagerT m) = (`runReaderT` reg) m
 
 
-withLock :: LockKey -> Filehub a -> Filehub a
-withLock = undefined
+instance MonadUnliftIO m => MonadLockManager (LocalLockManagerT m) where
+  withLock key action = do
+    reg <- ask
+    withRunInIO \run -> do
+      Local.withLock reg key (run action)
+  withLocks keys action = do
+    reg <- ask
+    withRunInIO \run -> do
+      Local.withLocks reg keys (run action)
 
--- withLock :: (LockManager :> es) => LockKey -> Eff es a -> Eff es a
--- withLock key action = send (WithLock key action)
+
+newtype DummyLockManagerT m a = DummyLockManagerT { unLocalLockManagerT :: m a }
+  deriving newtype
+  ( Functor
+  , Applicative
+  , Monad
+  , MonadIO
+  , MonadUnliftIO
+  , MonadBase b
+  )
 
 
+runLockManagerDummy :: DummyLockManagerT m a -> m a
+runLockManagerDummy (DummyLockManagerT m) = m
 
-withLocks :: [LockKey] -> Filehub a -> Filehub a
-withLocks = undefined
 
--- withLocks :: (LockManager :> es) => [LockKey] -> Eff es a -> Eff es a
--- withLocks keys action = send (WithLocks keys action)
+instance MonadUnliftIO m => MonadLockManager (DummyLockManagerT m) where
+  withLock key action = withRunInIO \run -> Dummy.withLocks [key] (run action)
+  withLocks keys action = withRunInIO \run -> Dummy.withLocks keys (run action)

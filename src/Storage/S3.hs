@@ -86,6 +86,7 @@ import UnliftIO (MonadIO (..), throwIO)
 import UnliftIO.Directory (removeFile)
 import Log (logAttention_)
 import UnliftIO.Async (forConcurrently_)
+import Effectful.Extended.Cache (MonadCache(..))
 
 
 class CacheKeyComponent (s :: Symbol) a              where toCacheKeyComponent :: Builder
@@ -106,7 +107,7 @@ createCacheKey targetId identifier = Cache.mkCacheKey
 
 get :: Target S3 -> AbsPath -> Filehub (Maybe FileInfo)
 get (s3@S3Backend { targetId }) path = do
-  mCached <- Cache.lookup @FileInfo cacheKey
+  mCached <- cacheLookup cacheKey
   case mCached of
     Just cached -> pure (Just cached)
     Nothing -> do
@@ -127,7 +128,7 @@ get (s3@S3Backend { targetId }) path = do
                 , mimetype = maybe "application/octet-stream" Text.encodeUtf8 contentType
                 , content  = Regular
                 }
-          Cache.insert cacheKey cacheDeps cacheTTL file
+          cacheInsert cacheKey cacheDeps cacheTTL file
           pure (Just file)
         else do
           throwIO (InvalidPath "invalid path")
@@ -141,7 +142,7 @@ get (s3@S3Backend { targetId }) path = do
 -- bucket and check if the file path is prefix of any key.
 isDirectory :: Target S3 -> AbsPath -> Filehub Bool
 isDirectory s3@S3Backend { targetId } filePath = do
-  mCached <- Cache.lookup @FileInfo cacheKey
+  mCached <- cacheLookup cacheKey
   case mCached of
     Just (File { content = Regular }) -> pure False
     Just (File { content = Dir })     -> pure True
@@ -159,14 +160,14 @@ isDirectory s3@S3Backend { targetId } filePath = do
 
 read :: Target S3 -> FileInfo -> Filehub ByteString
 read s3@S3Backend { targetId }  file = do
-  mCached <- Cache.lookup @ByteString cacheKey
+  mCached <- cacheLookup cacheKey
   case mCached of
     Just cached -> pure cached
     Nothing -> do
       stream <- readStream s3 file
       chunks <- liftIO $ runResourceT . Conduit.runConduit $ stream Conduit..| Conduit.sinkList
       let result = LBS.toStrict (LBS.fromChunks chunks)
-      Cache.insert cacheKey cacheDeps cacheTTL result
+      cacheInsert cacheKey cacheDeps cacheTTL result
       pure result
   where
     cacheKey  = createCacheKey @"file-content" @ByteString targetId (coerce Builder.string8 file.path)
@@ -192,7 +193,7 @@ new s3@S3Backend { targetId } path = do
     , mimetype = "text/plain"
     , content  = FileContentRaw ""
     }
-  Cache.delete (createCacheKey @"dir" @[FileInfo] targetId "")
+  cacheDelete (SomeCacheKey (createCacheKey @"dir" @[FileInfo] targetId ""))
 
 
 write :: Target S3 -> FileWithContent -> Filehub ()
@@ -201,8 +202,8 @@ write s3@S3Backend { targetId } File { content, mimetype, size = mSize, path } =
     case content of
       FileContentRaw bytes -> do
         writePutObject path (toBody bytes)
-        Cache.delete (createCacheKey @"file" @FileInfo targetId (coerce Builder.string8 path))
-        Cache.delete (createCacheKey @"dir" @[FileInfo] targetId "")
+        cacheDelete (SomeCacheKey (createCacheKey @"file" @FileInfo targetId (coerce Builder.string8 path)))
+        cacheDelete (SomeCacheKey (createCacheKey @"dir" @[FileInfo] targetId ""))
       FileContentConduit conduit -> do
         case mSize of
           Nothing -> writeMultipart conduit
@@ -211,8 +212,8 @@ write s3@S3Backend { targetId } File { content, mimetype, size = mSize, path } =
                 lazyBytes <- liftIO . runResourceT . runConduit $ conduit .| sinkLazy
                 writePutObject path (toBody lazyBytes)
             | otherwise -> writeMultipart conduit
-        Cache.delete (createCacheKey @"file" @FileInfo targetId (coerce Builder.string8 path))
-        Cache.delete (createCacheKey @"dir" @[FileInfo] targetId "")
+        cacheDelete (SomeCacheKey (createCacheKey @"file" @FileInfo targetId (coerce Builder.string8 path)))
+        cacheDelete (SomeCacheKey (createCacheKey @"dir" @[FileInfo] targetId ""))
         where
           threshold = 5 * 1024 * 1024 -- use putObject if it's smaller than single part.
       FileContentDir _ -> pure ()
@@ -321,8 +322,8 @@ mv s3@S3Backend { targetId } cpPairs = do
       resp <- runResourceT $ send s3.env request
       case resp.copyObjectResult of
         Just _ -> do
-          Cache.delete (createCacheKey @"dir" @[FileInfo] targetId (Builder.string8 (coerce takeDirectory src)))
-          Cache.delete (createCacheKey @"dir" @[FileInfo] targetId (Builder.string8 (coerce takeDirectory dst)))
+          cacheDelete (SomeCacheKey (createCacheKey @"dir" @[FileInfo] targetId (Builder.string8 (coerce takeDirectory src))))
+          cacheDelete (SomeCacheKey (createCacheKey @"dir" @[FileInfo] targetId (Builder.string8 (coerce takeDirectory dst))))
           coerce delete' s3 src
         Nothing ->
           logAttention_ (Text.pack $ "S3 Copy Failed for " <> (coerce src))
@@ -345,13 +346,13 @@ delete' s3@S3Backend { targetId } filePath = do
   let bucket = BucketName s3.bucket
       key    = ObjectKey (coerce Text.pack filePath)
   void . runResourceT $ send s3.env (Amazonka.newDeleteObject bucket key)
-  Cache.delete (createCacheKey @"file" @FileInfo targetId (coerce Builder.string8 filePath))
-  Cache.delete (createCacheKey @"dir" @[FileInfo] targetId "")
+  cacheDelete (SomeCacheKey (createCacheKey @"file" @FileInfo targetId (coerce Builder.string8 filePath)))
+  cacheDelete (SomeCacheKey (createCacheKey @"dir" @[FileInfo] targetId ""))
 
 
 ls :: Target S3 -> AbsPath -> Filehub [FileInfo]
 ls s3@S3Backend { targetId } _ = do
-    mCached <- Cache.lookup @[FileInfo] cacheKey
+    mCached <- cacheLookup cacheKey
     case mCached of
       Just cached -> do
         pure cached
@@ -363,7 +364,7 @@ ls s3@S3Backend { targetId } _ = do
         let files  = maybe [] (fmap toFile) $ resp ^. Amazonka.listObjectsV2Response_contents
             dirs   = maybe [] (fmap toDir)  $ resp ^. Amazonka.listObjectsV2Response_commonPrefixes
             result = files <> dirs
-        Cache.insert
+        cacheInsert
           cacheKey
           (fmap (\r -> SomeCacheKey (createCacheKey @"file" @FileInfo targetId (coerce Builder.string8 r.path))) result)
           cacheTTL

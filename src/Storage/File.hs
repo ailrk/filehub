@@ -77,6 +77,7 @@ import UnliftIO.Directory (removeFile, makeAbsolute, getFileSize, getAccessTime,
 import Log (logTrace_, logAttention, logInfo)
 import Data.ByteString qualified as ByteString
 import UnliftIO.Async (forConcurrently_)
+import Effectful.Extended.Cache (MonadCache(..))
 
 
 class CacheKeyComponent (s :: Symbol) a              where toCacheKeyComponent :: Builder
@@ -95,7 +96,7 @@ createCacheKey identifier = Cache.mkCacheKey [cacheKeyPrefix, toCacheKeyComponen
 
 get :: AbsPath -> Filehub (Maybe FileInfo)
 get path = do
-  mCached <- Cache.lookup @FileInfo cacheKey
+  mCached <- cacheLookup cacheKey
   case mCached of
     Just cached -> do
       pure (Just cached)
@@ -116,7 +117,7 @@ get path = do
                  , mimetype = mimetype
                  , content  = if isDir then Dir else Regular
                  }
-           Cache.insert cacheKey cacheDeps cacheTTL file
+           cacheInsert cacheKey cacheDeps cacheTTL file
            pure (Just file)
           else pure Nothing
   where
@@ -127,7 +128,7 @@ get path = do
 
 isDirectory :: AbsPath -> Filehub Bool
 isDirectory filePath = do
-  mCached <- Cache.lookup @FileInfo cacheKey
+  mCached <- cacheLookup cacheKey
   case mCached of
     Just (File { content = Regular }) -> pure False
     Just (File { content = Dir })     -> pure True
@@ -143,12 +144,12 @@ isDirectory filePath = do
 read :: FileInfo -> Filehub ByteString
 read File { path = AbsPath path } = do
   logTrace_ [i|[8sc2z] file read|]
-  mCached <- Cache.lookup @ByteString cacheKey
+  mCached <- cacheLookup cacheKey
   case mCached of
     Just cached -> pure cached
     Nothing -> do
       bytes <- liftIO $ readFile path
-      Cache.insert cacheKey cacheDeps cacheTTL bytes
+      cacheInsert cacheKey cacheDeps cacheTTL bytes
       pure bytes
   where
     cacheKey  = createCacheKey @"file-content" @ByteString (Builder.string8 path)
@@ -168,7 +169,7 @@ newFolder path = do
     logAttention "[vd9fdz] path doesn't exists:" path
     throwIO (FileExists "Folder already exists")
   createDirectoryIfMissing True (coerce path)
-  Cache.delete (createCacheKey @"dir" @[FileInfo] (Builder.string8 dir))
+  cacheDelete (SomeCacheKey (createCacheKey @"dir" @[FileInfo] (Builder.string8 dir)))
 
 
 new :: AbsPath -> Filehub ()
@@ -179,7 +180,7 @@ new path = do
     logAttention "[9sc453] path doesn't exists:" path
     throwIO (FileExists "File already exists")
   withFile (coerce path) ReadWriteMode (\_ -> pure ())
-  Cache.delete (createCacheKey @"dir" @[FileInfo] (Builder.string8 dir))
+  cacheDelete (SomeCacheKey (createCacheKey @"dir" @[FileInfo] (Builder.string8 dir)))
 
 
 write :: FileWithContent -> Filehub ()
@@ -207,9 +208,9 @@ write File{ content, path = path } = do
               when (not (isDoesNotExistError e)) do -- it's ok if file is not there.
                 throwIO e
           renameFile tempFile (coerce path)
-        Cache.delete (createCacheKey @"file" @FileInfo (coerce Builder.string8 path))
+        cacheDelete (SomeCacheKey (createCacheKey @"file" @FileInfo (coerce Builder.string8 path)))
         when (not isCreatingNew) do
-          Cache.delete (createCacheKey @"dir" @[FileInfo] (coerce Builder.string8 dir))
+          cacheDelete (SomeCacheKey (createCacheKey @"dir" @[FileInfo] (coerce Builder.string8 dir)))
 
 
 mv :: [(AbsPath, AbsPath)] -> Filehub ()
@@ -225,8 +226,8 @@ mv cpPairs = do
       if isDir then copyDirectoryRecursive src dst
       else copyFile (coerce src) (coerce dst)
       delete' src
-      Cache.delete (createCacheKey @"dir" @[FileInfo] (Builder.string8 (coerce takeDirectory src)))
-      Cache.delete (createCacheKey @"dir" @[FileInfo] (Builder.string8 (coerce takeDirectory dst)))
+      cacheDelete (SomeCacheKey (createCacheKey @"dir" @[FileInfo] (Builder.string8 (coerce takeDirectory src))))
+      cacheDelete (SomeCacheKey (createCacheKey @"dir" @[FileInfo] (Builder.string8 (coerce takeDirectory dst))))
 
 
 rename :: AbsPath -> String -> Filehub ()
@@ -250,8 +251,8 @@ rename oldPath newName = do
       when (newExists) do
         throwIO (TargetError ("File <redacted>/" <> coerce newName <> " already exists"))
 
-      Cache.delete (createCacheKey @"file" @FileInfo (coerce Builder.string8 newPath))
-      Cache.delete (createCacheKey @"file" @FileInfo (coerce Builder.string8 oldPath))
+      cacheDelete (SomeCacheKey (createCacheKey @"file" @FileInfo (coerce Builder.string8 newPath)))
+      cacheDelete (SomeCacheKey (createCacheKey @"file" @FileInfo (coerce Builder.string8 oldPath)))
 
       renameFile (coerce oldPath) (coerce newPath)
 
@@ -283,7 +284,7 @@ delete' path = do
      | fileExists -> withRetry (removeFile (coerce path))
      | dirExists  -> withRetry (removeDirectoryRecursive (coerce path))
      | otherwise  -> pure ()
-  Cache.delete (createCacheKey @"file" @FileInfo (coerce Builder.string8 path))
+  cacheDelete (SomeCacheKey (createCacheKey @"file" @FileInfo (coerce Builder.string8 path)))
   where
     withRetry action = recovering policy handlers \_ -> do
       logInfo [i|[vhdkl2] Retrying delete|] path
@@ -303,7 +304,7 @@ delete' path = do
 
 ls :: AbsPath -> Filehub [FileInfo]
 ls path = do
-  mCached <- Cache.lookup @[FileInfo] cacheKey
+  mCached <- cacheLookup cacheKey
   case mCached of
     Just cached -> pure cached
     Nothing -> do
@@ -321,7 +322,7 @@ ls path = do
             >>= traverse \file -> do
               let depKey = SomeCacheKey (createCacheKey @"file" @FileInfo (coerce Builder.string8 file.path))
               pure (file, depKey)
-      Cache.insert cacheKey cacheDeps cacheTTL files
+      cacheInsert cacheKey cacheDeps cacheTTL files
       pure files
   where
     cacheKey = createCacheKey @"dir" @[FileInfo] (coerce Builder.string8 path)
@@ -352,7 +353,6 @@ upload currentDir file = do
 
 download :: Target FileSys -> ClientPath -> Filehub (ConduitT () ByteString (ResourceT IO) ())
 download fileSys clientPath = do
-
   let path =  ClientPath.fromClientPath fileSys.root clientPath
   mFile <- get path
   case mFile of
