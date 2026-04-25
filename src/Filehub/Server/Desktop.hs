@@ -33,7 +33,7 @@ import UnliftIO (throwIO)
 
 fileDetailModal :: SessionId -> Maybe ClientPath -> Filehub (Html ())
 fileDetailModal sessionId mClientPath = do
-  storage <- Session.get (.storage)
+  storage <- Session.get sessionId (.storage)
   ctx@TemplateContext{ root } <- makeTemplateContext sessionId
   clientPath <- withQueryParam mClientPath
   mFile      <- storage.get (ClientPath.fromClientPath root clientPath)
@@ -44,7 +44,7 @@ fileDetailModal sessionId mClientPath = do
 
 editorModal :: SessionId -> Maybe ClientPath -> Filehub (Html ())
 editorModal sessionId mClientPath = do
-  storage <- Session.get (.storage)
+  storage <- Session.get sessionId (.storage)
   ctx@TemplateContext{ root } <- makeTemplateContext sessionId
   clientPath <- withQueryParam mClientPath
   let p       = ClientPath.fromClientPath root clientPath
@@ -60,7 +60,7 @@ editorModal sessionId mClientPath = do
 
 contextMenu :: SessionId -> [ClientPath] -> Filehub (Html ())
 contextMenu sessionId clientPaths = do
-  storage <- Session.get (.storage)
+  storage <- Session.get sessionId (.storage)
   ctx@TemplateContext { root } <- makeTemplateContext sessionId
   case clientPaths of
     [clientPath] -> do
@@ -83,8 +83,8 @@ index sessionId = do
 
 sideBar :: SessionId -> Filehub (Html ())
 sideBar sessionId = do
-  targetViews    <- Session.get (.targetViews)
-  currentTarget  <- Session.get (.currentTarget)
+  targetViews    <- Session.get sessionId (.targetViews)
+  currentTarget  <- Session.get sessionId (.currentTarget)
   ctx            <- makeTemplateContext sessionId
   let targets' = flip fmap targetViews \(TargetView target targetData) -> do
         case targetData.selected of
@@ -96,7 +96,7 @@ sideBar sessionId = do
 
 view :: SessionId -> Filehub (Html ())
 view sessionId = do
-  storage <- Session.get (.storage)
+  storage <- Session.get sessionId (.storage)
   ctx@TemplateContext { sortedBy = order } <- makeTemplateContext sessionId
   table <- do
     files   <- sortFiles order <$> storage.lsCwd

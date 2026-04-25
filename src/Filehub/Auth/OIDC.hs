@@ -423,7 +423,7 @@ authenticateSession :: SessionId -> OIDCFlow TokenVerified -> Filehub (OIDCFlow 
 authenticateSession sessionId (TokenVerified token) = do
   let user = User token
   authId <- createAuthId
-  Session.set (.authId) (Just authId)
+  Session.set sessionId (.authId) (Just authId)
   activeUser <- createActiveUser authId sessionId user
   ActiveUser.Pool.add activeUser
   pure SessionAuthenticated

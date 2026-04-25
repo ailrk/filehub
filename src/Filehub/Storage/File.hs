@@ -18,7 +18,6 @@ module Filehub.Storage.File (storage) where
 import Control.Monad (unless)
 import Filehub.Error (FilehubError(..), Error' (..))
 import Filehub.Session.Types (TargetView(..))
-import Filehub.Session.Effectful (SessionGet(..), SessionSet(..))
 import Filehub.Session.Effectful qualified as Session
 import Filehub.Types (SessionId)
 import Lens.Micro.Platform ()
@@ -41,7 +40,7 @@ cd sessionId dir = do
   unless exists do
     logAttention "[nmb224] dir doesn't exists:" dir
     throwIO (FilehubError InvalidDir "Can't enter, not a directory")
-  Session.set (.currentDir) dir
+  Session.set sessionId (.currentDir) dir
 
 
 storage :: SessionId -> Storage Filehub
@@ -73,11 +72,11 @@ storage sessionId =
         Storage.File.newFolder path
 
     , lsCwd = do
-        currentDir <- Session.get (.currentDir)
+        currentDir <- Session.get sessionId (.currentDir)
         Storage.File.lsCwd currentDir
 
     , upload = \filedata -> do
-        currentDir <- Session.get (.currentDir)
+        currentDir <- Session.get sessionId (.currentDir)
         Storage.File.upload currentDir filedata
 
     , download = \clientPath -> do
@@ -89,7 +88,7 @@ storage sessionId =
 
 getFileSys :: SessionId -> Filehub (Target FileSys)
 getFileSys sessionId = do
-  TargetView target _ <- Session.get (.currentTarget)
+  TargetView target _ <- Session.get sessionId (.currentTarget)
   maybe (throwIO (FilehubError TargetError "Target is not valid file system direcotry")) pure $ handleTarget target
     [ targetHandler @FileSys id
     ]

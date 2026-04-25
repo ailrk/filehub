@@ -64,9 +64,7 @@ import Data.Maybe (fromMaybe)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.Time (secondsToNominalDiffTime)
--- import Effectful.Extended.Cache (Cache)
 import Effectful.Extended.Cache qualified as Cache
---import Effectful.Extended.LockManager (LockManager)
 import Effectful.Extended.LockManager qualified as LockManager
 import GHC.TypeLits (Symbol)
 import Lens.Micro

@@ -41,41 +41,25 @@ import Control.Monad.Reader (asks)
 import UnliftIO.STM (readTVarIO)
 
 
--- data SessionEff :: Effect where
---   GetSessionGet :: IsFilehub es => SessionEff m (SessionGet es)
---   GetSessionSet :: IsFilehub es => SessionEff m (SessionSet es)
---   WithTarget    :: TargetId -> m a -> SessionEff m a
+
+withTarget :: SessionId -> TargetId -> Filehub a -> Filehub a
+withTarget sid tid action = do
+  oldS <- Session.Pool.get sid
+  let oldTid = oldS.currentTargetId
+  (newSessionSet sid).currentTarget tid
+  action `finally` (newSessionSet sid).currentTarget oldTid
 
 
--- type instance DispatchOf SessionEff = Dynamic
+get :: SessionId -> (SessionGet -> Filehub a) -> Filehub a
+get sessionId field = do
+  let viewRecord = newSessionGet sessionId
+  field viewRecord
 
 
--- runSessionEff :: IsFilehub es => SessionId -> Eff (SessionEff : es) a -> Filehub a
--- runSessionEff sid = interpret $ \env -> \case
---   GetSessionGet         -> pure (newSessionGet sid)
---   GetSessionSet         -> pure (newSessionSet sid)
---   WithTarget tid action -> localSeqUnlift env \unlift -> do
---     oldS <- Session.Pool.get sid
---     let oldTid = oldS.currentTargetId
---     (newSessionSet sid).currentTarget tid
---     unlift action `finally` (newSessionSet sid).currentTarget oldTid
-
-
-withTarget :: TargetId -> Filehub a -> Filehub a
-withTarget tid action = undefined
-  -- send $ WithTarget tid action
-
-
-get :: (SessionGet -> Filehub a) -> Filehub a
-get field = undefined
-  -- viewRecord <- send GetSessionGet
-  -- field viewRecord
-
-
-set :: (SessionSet -> val -> Filehub ()) -> val -> Filehub ()
-set field val = undefined
-  -- setRecord <- send GetSessionSet
-  -- field setRecord val
+set :: SessionId -> (SessionSet -> val -> Filehub ()) -> val -> Filehub ()
+set sessionId field val = do
+  let setRecord = newSessionSet sessionId
+  field setRecord val
 
 
 data SessionGet = SessionGet
@@ -258,7 +242,7 @@ newSessionSet sessionId =
       pendingTasks a = upS (\s -> s { pendingTasks = a })
 
       currentTarget tid = do
-          TargetView target _ <- get (.currentTarget)
+          TargetView target _ <- get sessionId (.currentTarget)
           targets <- asks @Env (.targets) >>= readTVarIO
           if getTargetId target == tid
              then pure ()
@@ -291,7 +275,7 @@ newSessionSet sessionId =
 
 attachTarget :: SessionId -> AnyTarget -> Filehub ()
 attachTarget sessionId target = do
-  TargetView current _ <- get (.currentTarget)
+  TargetView current _ <- get sessionId (.currentTarget)
   if current == target
      then pure ()
      else do

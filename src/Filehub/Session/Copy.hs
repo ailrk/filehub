@@ -47,8 +47,8 @@ select :: SessionId -> Filehub ()
 select sessionId = do
   allSelecteds <- Selected.allSelecteds sessionId
   forM_ allSelecteds \(target, selected) -> do
-    Session.withTarget (Target.getTargetId target) do
-      storage <- Session.get (.storage)
+    Session.withTarget sessionId (Target.getTargetId target) do
+      storage <- Session.get sessionId (.storage)
       case selected of
         NoSelection -> do
           state <- getCopyState sessionId
@@ -59,7 +59,7 @@ select sessionId = do
               logAttention_ [i|[asckkk] #{err}|]
               throwIO err
         Selected x xs -> do
-          root <- Session.get (.root)
+          root <- Session.get sessionId (.root)
           let paths = (x:xs) & fmap (ClientPath.fromClientPath root)
           files <- traverse storage.get paths <&> catMaybes
           state <- getCopyState sessionId

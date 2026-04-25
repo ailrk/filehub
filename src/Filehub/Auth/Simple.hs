@@ -94,7 +94,7 @@ authenticateSession sessionId (LoginForm username password) = do
   let username' =  Username username
   if (validate username' (Text.encodeUtf8 password) db) then do
     authId <- createAuthId
-    Session.set (.authId) (Just authId)
+    Session.set sessionId (.authId) (Just authId)
     activeUser <- createActiveUser authId sessionId username'
     ActiveUser.Pool.add activeUser
     Just <$> Session.Pool.get sessionId

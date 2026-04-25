@@ -82,7 +82,7 @@ storage sessionId =
         Storage.S3.upload s3 filedata
 
     , download = \clientPath -> do
-        root     <- Session.get (.root)
+        root     <- Session.get sessionId (.root)
         s3       <- getS3 sessionId
         let path =  fromClientPath root clientPath
         Storage.S3.download s3 path
@@ -94,7 +94,7 @@ storage sessionId =
 
 getS3 :: SessionId -> Filehub (Target S3)
 getS3 sessionId = do
-  TargetView target _ <- Session.get (.currentTarget)
+  TargetView target _ <- Session.get sessionId (.currentTarget)
   maybe (throwIO (FilehubError TargetError "Target is not valid S3 bucket")) pure $ handleTarget target
     [ targetHandler @S3 id
     ]

@@ -46,7 +46,7 @@ index sessionId = do
 
 sideBar :: SessionId -> Filehub (Html ())
 sideBar sessionId = do
-  currentTarget <- Session.get (.currentTarget)
+  currentTarget <- Session.get sessionId (.currentTarget)
   targets <- asks @Env (.targets) >>= readTVarIO
   pure $ Template.Mobile.sideBar (fmap snd targets) currentTarget
 
@@ -59,8 +59,8 @@ toolBar sessionId = do
 
 editorModal :: SessionId -> Maybe ClientPath -> Filehub (Html ())
 editorModal sessionId mClientPath = do
-  root    <- Session.get (.root)
-  storage <- Session.get (.storage)
+  root    <- Session.get sessionId (.root)
+  storage <- Session.get sessionId (.storage)
   ctx        <- makeTemplateContext sessionId
   clientPath <- withQueryParam mClientPath
   let p      =  ClientPath.fromClientPath root clientPath
@@ -76,7 +76,7 @@ editorModal sessionId mClientPath = do
 
 view :: SessionId -> Filehub (Html ())
 view sessionId = do
-  storage <- Session.get (.storage)
+  storage <- Session.get sessionId (.storage)
   ctx@TemplateContext{ sortedBy = order } <- makeTemplateContext sessionId
   table <- do
     files   <- sortFiles order <$> storage.lsCwd
