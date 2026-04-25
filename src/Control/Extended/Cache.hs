@@ -1,5 +1,5 @@
 {-# LANGUAGE DefaultSignatures #-}
-module Effectful.Extended.Cache
+module Control.Extended.Cache
   ( MonadCache(..)
   , mkCacheKey
   )

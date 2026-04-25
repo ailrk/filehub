@@ -1,7 +1,7 @@
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GADTs #-}
-module Effectful.Extended.LockManager
+module Control.Extended.LockManager
   ( MonadLockManager(..)
   , mkLockKey
   )

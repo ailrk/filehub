@@ -157,8 +157,8 @@ library
     Data.ClientPath.Effectful
     Data.File
     Data.Queue
-    Effectful.Extended.Cache
-    Effectful.Extended.LockManager
+    Control.Extended.Cache
+    Control.Extended.LockManager
     EvtLog
     Filehub
     Filehub.ActiveUser.Pool

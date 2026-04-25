@@ -57,8 +57,8 @@ import Data.String.Interpolate (i)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.Time (secondsToNominalDiffTime)
-import Effectful.Extended.Cache qualified as Cache
-import Effectful.Extended.LockManager qualified as LockManager
+import Control.Extended.Cache qualified as Cache
+import Control.Extended.LockManager qualified as LockManager
 import GHC.TypeLits (Symbol)
 import Lens.Micro.Platform ()
 import Network.Mime (defaultMimeLookup)
@@ -77,7 +77,7 @@ import UnliftIO.Directory (removeFile, makeAbsolute, getFileSize, getAccessTime,
 import Log (logTrace_, logAttention, logInfo)
 import Data.ByteString qualified as ByteString
 import UnliftIO.Async (forConcurrently_)
-import Effectful.Extended.Cache (MonadCache(..))
+import Control.Extended.Cache (MonadCache(..))
 
 
 class CacheKeyComponent (s :: Symbol) a              where toCacheKeyComponent :: Builder

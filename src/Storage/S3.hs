@@ -64,8 +64,8 @@ import Data.Maybe (fromMaybe)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.Time (secondsToNominalDiffTime)
-import Effectful.Extended.Cache qualified as Cache
-import Effectful.Extended.LockManager qualified as LockManager
+import Control.Extended.Cache qualified as Cache
+import Control.Extended.LockManager qualified as LockManager
 import GHC.TypeLits (Symbol)
 import Lens.Micro
 import Lens.Micro.Platform ()
@@ -86,7 +86,7 @@ import UnliftIO (MonadIO (..), throwIO)
 import UnliftIO.Directory (removeFile)
 import Log (logAttention_)
 import UnliftIO.Async (forConcurrently_)
-import Effectful.Extended.Cache (MonadCache(..))
+import Control.Extended.Cache (MonadCache(..))
 
 
 class CacheKeyComponent (s :: Symbol) a              where toCacheKeyComponent :: Builder
