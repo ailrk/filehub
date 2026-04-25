@@ -23,7 +23,7 @@ import UnliftIO (MonadIO(..))
 import Log (logInfo_, MonadLog)
 
 #ifdef DEBUG
-import Effectful.FileSystem.IO (stdout)
+import UnliftIO (stdout)
 import Amazonka.Env (Env'(..))
 #endif
 

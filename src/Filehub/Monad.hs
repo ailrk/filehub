@@ -28,10 +28,6 @@ import Cache.InMemory qualified as InMemory
 import Control.Monad (void)
 
 
-instance MonadCache m => MonadCache (ReaderT r m)
-instance MonadCache m => MonadCache (LogT m)
-
-
 -- | The core Application monad.
 newtype Filehub a = Filehub
   { unFilehub :: ReaderT Env (LogT IO) a
@@ -84,7 +80,7 @@ instance MonadLockManager Filehub where
 -- | Discharge the Filehub stack into IO
 runFilehub :: Env -> Filehub a -> IO (Either FilehubError a)
 runFilehub env action = try
-                      . runLogT undefined undefined undefined
+                      . runLogT "filehub" env.logger env.logLevel
                       . (`runReaderT` env)
                       . (.unFilehub)
                       $ action

@@ -119,7 +119,7 @@ import UnliftIO.Async (async, forConcurrently_)
 import Control.Monad.Reader (asks)
 
 #ifdef DEBUG
-import Effectful (MonadIO (liftIO))
+import UnliftIO (MonadIO(liftIO))
 import Paths_filehub qualified
 import System.Directory (makeAbsolute)
 import Data.ByteString (readFile)
