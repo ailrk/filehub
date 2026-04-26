@@ -55,17 +55,20 @@ instance MonadCache Filehub where
         atomicModifyIORef' cacheRef (const (cache', ()))
         pure value
       Nothing -> pure Nothing
+
   cacheInsert key mDeps mTTL value = do
     InMemoryCache cacheRef <- asks (.cache)
     now <- liftIO getCurrentTime
     void do
       atomicModifyIORef' cacheRef
         \cache -> (InMemory.insert now key mDeps mTTL value cache, ())
+
   cacheDelete key = do
     InMemoryCache cacheRef <- asks (.cache)
     void do
       atomicModifyIORef' cacheRef
         \cache -> (InMemory.delete key cache, ())
+
   cacheFlush = do
     InMemoryCache cacheRef <- asks (.cache)
     void do
@@ -78,6 +81,7 @@ instance MonadLockManager Filehub where
     reg <- asks (.lockRegistry)
     withRunInIO \run -> do
       Local.withLock reg key (run action)
+
   withLocks keys action = do
     reg <- asks (.lockRegistry)
     withRunInIO \run -> do

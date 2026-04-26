@@ -16,7 +16,7 @@ import Codec.Archive.Zip qualified as Zip
 import Conduit (ConduitT, ResourceT, yield, MonadIO (..), MonadUnliftIO (..))
 import Conduit qualified
 import Control.Applicative (Alternative((<|>)))
-import Control.Monad (forM, void, when, join, replicateM)
+import Control.Monad (void, when, join, replicateM)
 import Control.Monad.Fix (fix)
 import Crypto.Hash.SHA256 qualified as SHA256
 import Data.Aeson (object, KeyValue (..), (.:), withObject, Value)
@@ -32,7 +32,8 @@ import Data.ClientPath.IO (validateAbsPath)
 import Data.Coerce (coerce)
 import Data.File (FileType(..), File(..), FileContent (..), withContent, defaultFileWithContent, FileInfo)
 import Data.FileEmbed qualified as FileEmbed
-import Data.Foldable (forM_)
+import Data.Foldable (for_)
+import Data.Traversable (for)
 import Data.Function (fix, (&))
 import Data.List qualified as List
 import Data.Map.Strict (Map)
@@ -85,7 +86,7 @@ import Filehub.Template.Shared qualified as Template
 import Filehub.Theme qualified as Theme
 import Filehub.Types ( ControlPanelState (..) , Display (..) , Layout (..) , LoginForm(..) , NewFile(..) , NewFolder(..) , OpenTarget , Resolution , SearchWord , Selected (..) , SortFileBy(..) , Theme(..) , UIComponent (..) , UpdatedFile(..) , UpdatedFile(..) , FilehubEvent (..), RenameFile (..), CopyState (..), TargetSessionData (..), Selected(..), MoveFile (..), Resource (..))
 import Lens.Micro ((&), (.~), (?~), (<&>))
-import Lucid
+import Lucid hiding (for_)
 import Lucid (Html)
 import Network.HTTP.Types.Header (hLocation)
 import Network.Mime (MimeType)
@@ -528,7 +529,7 @@ delete sessionId _ _ clientPaths deleteSelected = do
 
     when deleteSelected do
       allSelecteds <- Selected.allSelecteds sessionId
-      forM_ allSelecteds \(target, selected) -> do
+      for_ allSelecteds \(target, selected) -> do
         let targetId = Target.getTargetId target
         Session.withTarget sessionId  targetId do
           case selected of
@@ -673,8 +674,8 @@ paste sessionId _ _ = do
 
   where
     createPasteTasks fromDir to selections = fmap (mconcat . mconcat) do
-      forM selections \(from, files) -> do
-        forM files $ flip fix fromDir \rec (AbsPath currentDir) file -> do
+      for selections \(from, files) -> do
+        for files $ flip fix fromDir \rec (AbsPath currentDir) file -> do
           let name  =  coerce takeFileName file.path
           let fromId = Target.getTargetId from
           dst <- validateAbsPath (currentDir </> takeFileName name) (FilehubError InvalidPath "Invalid path")
@@ -687,7 +688,7 @@ paste sessionId _ _ = do
                 storage.cd file.path
                 result <- do
                   dirFiles <- storage.lsCwd
-                  forM dirFiles \dfile -> rec dst dfile
+                  for dirFiles \dfile -> rec dst dfile
                 storage.cd savedDir -- go back
                 pure [ PasteDir to dst (mconcat result) ]
 
@@ -705,7 +706,7 @@ move sessionId _ _ (MoveFile src tgt) = do
   let tgtPath   =  ClientPath.fromClientPath root tgt
 
   -- check before take action
-  forM_ srcPaths \srcPath -> do
+  for_ srcPaths \srcPath -> do
     isTgtDir <- storage.isDirectory tgtPath
     when (not isTgtDir) do
       throwIO (FilehubError InvalidDir "Target is not a directory")
@@ -829,12 +830,12 @@ download sessionId _ clientPaths = do
 
       files <- traverse (storage.get . ClientPath.fromClientPath root) clientPaths <&> catMaybes
 
-      tasks <- forM files \file -> do
+      tasks <- for files \file -> do
         conduit <- storage.readStream file
         pure (file.path, conduit)
 
       Zip.createArchive zipPath do
-        forM_ tasks \(path, conduit) -> do
+        for_ tasks \(path, conduit) -> do
           m <- Zip.mkEntrySelector  (coerce makeRelative root path)
           Zip.sinkEntry Zip.Zstd conduit m
       tag <- Text.pack <$> replicateM 8 (randomRIO ('a', 'z'))
