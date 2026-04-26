@@ -40,7 +40,7 @@ import Control.Monad (guard)
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Cookie (FromCookies(..))
 import Filehub.SharedLink (SharedLinkPermit)
-import Filehub.Session.Effectful qualified as Session
+import Filehub.Session qualified as Session
 
 
 toServantHandler :: Env -> Filehub a -> Handler a

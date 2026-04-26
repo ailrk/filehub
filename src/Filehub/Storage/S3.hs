@@ -25,7 +25,7 @@ import Storage.S3 qualified
 import Target.S3 (Target, S3)
 import Target.Storage (Storage(..))
 import Target.Types (handleTarget, targetHandler)
-import Filehub.Session.Effectful qualified as Session
+import Filehub.Session qualified as Session
 import Filehub.Monad (Filehub)
 import UnliftIO (throwIO)
 

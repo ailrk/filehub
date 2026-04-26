@@ -26,8 +26,8 @@ import Prelude hiding (readFile)
 import System.FilePath (takeFileName)
 import Filehub.Error (FilehubError(..), Error'(InvalidPath))
 import Data.Coerce (coerce)
-import Filehub.Session.Effectful (SessionGet(..))
-import Filehub.Session.Effectful qualified as Session
+import Filehub.Session (SessionGet(..))
+import Filehub.Session qualified as Session
 import Filehub.Monad (Filehub)
 import Control.Monad.Reader (asks)
 import UnliftIO.STM (readTVarIO)

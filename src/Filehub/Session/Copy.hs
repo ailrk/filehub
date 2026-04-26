@@ -18,8 +18,8 @@ import Data.Maybe (catMaybes)
 import Data.String.Interpolate (i)
 import Filehub.Error (FilehubError (..), Error' (..))
 import Filehub.Session (Storage(..))
-import Filehub.Session.Effectful (SessionGet(..))
-import Filehub.Session.Effectful qualified as Session
+import Filehub.Session (SessionGet(..))
+import Filehub.Session qualified as Session
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Session.Selected qualified as Selected
 import Filehub.Types (CopyState(..), SessionId, Selected (..))

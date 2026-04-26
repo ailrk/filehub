@@ -47,7 +47,7 @@ import Data.ByteString.Builder qualified as Builder
 import Data.ByteString.Lazy qualified as LBS
 import Data.ClientPath (ClientPath, AbsPath (..))
 import Data.ClientPath qualified as ClientPath
-import Data.ClientPath.Effectful (validateAbsPath)
+import Data.ClientPath.IO (validateAbsPath)
 import Data.Coerce (coerce)
 import Data.File (File (..), FileInfo, FileType (..), FileWithContent, FileContent (..), defaultFileWithContent)
 import Data.Generics.Labels ()

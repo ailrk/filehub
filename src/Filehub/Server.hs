@@ -28,7 +28,7 @@ import Data.ByteString.Lazy qualified as LBS
 import Data.Char qualified as Char
 import Data.ClientPath (ClientPath (..), AbsPath (..), (<./>), Root)
 import Data.ClientPath qualified as ClientPath
-import Data.ClientPath.Effectful (validateAbsPath)
+import Data.ClientPath.IO (validateAbsPath)
 import Data.Coerce (coerce)
 import Data.File (FileType(..), File(..), FileContent (..), withContent, defaultFileWithContent, FileInfo)
 import Data.FileEmbed qualified as FileEmbed
@@ -70,8 +70,8 @@ import Filehub.Server.Internal (withQueryParam, parseHeader')
 import Filehub.Server.Internal qualified as Server.Internal
 import Filehub.Session (SessionId(..), TargetView (..))
 import Filehub.Session qualified as Session
-import Filehub.Session.Effectful (SessionGet(..))
-import Filehub.Session.Effectful qualified as Session
+import Filehub.Session (SessionGet(..))
+import Filehub.Session qualified as Session
 import Filehub.Session.Copy qualified as Copy
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Session.Selected qualified as Selected

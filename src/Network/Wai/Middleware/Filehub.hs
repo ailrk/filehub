@@ -33,7 +33,7 @@ import Network.Wai
 import Prelude hiding (readFile)
 import Web.Cookie (defaultSetCookie, SetCookie (..))
 import Data.ByteString.Char8 qualified as Char8
-import Filehub.Session.Effectful qualified as Session
+import Filehub.Session qualified as Session
 import UnliftIO (MonadIO(..), try, throwIO)
 import Filehub.Error (FilehubError (..), Error' (..))
 

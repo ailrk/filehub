@@ -69,7 +69,7 @@ import Web.FormUrlEncoded (ToForm)
 import Web.JWT (JWT, VerifiedJWT, JWTClaimsSet (..), JOSEHeader (..))
 import Web.JWT qualified as JWT
 import Text.Debug (Debug)
-import Filehub.Session.Effectful qualified as Session
+import Filehub.Session qualified as Session
 import Filehub.Monad (Filehub)
 import Control.Monad.Reader (asks)
 

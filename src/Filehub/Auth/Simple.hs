@@ -31,7 +31,7 @@ import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Types (LoginForm (..))
 import Prelude hiding (readFile)
 import Text.Debug (Debug(..))
-import Filehub.Session.Effectful qualified as Session
+import Filehub.Session qualified as Session
 import Filehub.Monad (Filehub)
 import Control.Monad.Reader (asks)
 import UnliftIO (MonadIO(..))

@@ -22,8 +22,8 @@ import Filehub.Auth.Simple (SimpleAuthUserDB)
 import Filehub.Auth.OIDC (OIDCAuthProviders)
 import Filehub.Env qualified as Env
 import Data.ClientPath (AbsPath, Root)
-import Filehub.Session.Effectful (SessionGet(..))
-import Filehub.Session.Effectful qualified as Session
+import Filehub.Session (SessionGet(..))
+import Filehub.Session qualified as Session
 import Data.Functor.Identity (Identity)
 import Control.Monad.Reader (ReaderT, runReader, asks, MonadReader (..))
 import Filehub.Monad (Filehub)

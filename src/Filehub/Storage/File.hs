@@ -18,7 +18,7 @@ module Filehub.Storage.File (storage) where
 import Control.Monad (unless)
 import Filehub.Error (FilehubError(..), Error' (..))
 import Filehub.Session.Types (TargetView(..))
-import Filehub.Session.Effectful qualified as Session
+import Filehub.Session qualified as Session
 import Filehub.Types (SessionId)
 import Lens.Micro.Platform ()
 import Prelude hiding (read, readFile, writeFile)

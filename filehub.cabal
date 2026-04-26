@@ -154,7 +154,7 @@ library
     Cache.InMemory
     Cache.Key
     Data.ClientPath
-    Data.ClientPath.Effectful
+    Data.ClientPath.IO
     Data.File
     Data.Queue
     Control.Extended.Cache
@@ -190,7 +190,6 @@ library
     Filehub.Server.Mobile
     Filehub.Server.Internal
     Filehub.Session
-    Filehub.Session.Effectful
     Filehub.Session.Copy
     Filehub.Session.Internal
     Filehub.Session.Pool
