@@ -29,6 +29,9 @@ import Control.Monad (void)
 
 
 -- | The core Application monad.
+--
+-- `Filehub` is a concrete reader monad and all capabilities including handles
+-- and caches are based on `Env`. To test, swap `Env` with a stubbed one.
 newtype Filehub a = Filehub
   { unFilehub :: ReaderT Env (LogT IO) a
   } deriving newtype
@@ -45,7 +48,7 @@ newtype Filehub a = Filehub
 instance MonadCache Filehub where
   cacheLookup key = do
     InMemoryCache cacheRef <- asks (.cache)
-    cache <- liftIO $ readIORef cacheRef
+    cache <- liftIO (readIORef cacheRef)
     now <- liftIO getCurrentTime
     case InMemory.lookup now key cache of
       Just (value, cache') -> do
@@ -55,14 +58,19 @@ instance MonadCache Filehub where
   cacheInsert key mDeps mTTL value = do
     InMemoryCache cacheRef <- asks (.cache)
     now <- liftIO getCurrentTime
-    void $ atomicModifyIORef' cacheRef (\cache -> (InMemory.insert now key mDeps mTTL value cache, ()))
+    void do
+      atomicModifyIORef' cacheRef
+        \cache -> (InMemory.insert now key mDeps mTTL value cache, ())
   cacheDelete key = do
     InMemoryCache cacheRef <- asks (.cache)
-    void $ atomicModifyIORef' cacheRef (\cache -> (InMemory.delete key cache, ()))
+    void do
+      atomicModifyIORef' cacheRef
+        \cache -> (InMemory.delete key cache, ())
   cacheFlush = do
     InMemoryCache cacheRef <- asks (.cache)
-    void $ atomicModifyIORef' cacheRef (\cache -> (InMemory.empty cache.capacity, ()))
-
+    void do
+      atomicModifyIORef' cacheRef
+        \cache -> (InMemory.empty cache.capacity, ())
 
 
 instance MonadLockManager Filehub where

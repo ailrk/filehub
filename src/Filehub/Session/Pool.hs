@@ -65,6 +65,15 @@ delete sessionId = do
   liftIO $ HashTable.delete pool sessionId
 
 
+-- | Get a session.
+-- This function returns a `Session` directly, if it fails, we throw an Filehub
+-- error.
+--
+-- The reason we don't return an Either or Maybe is because `get` is expected
+-- to succeed in almost all call sites. The only place that needs to handle
+-- `InvalidSession` is in the wai middleware. Once we pass the middleware
+-- check, a session with sessionId should alway exist. If not, it's an
+-- unrecoverable exception and there's not much to do about it.
 get :: SessionId -> Filehub Session
 get sessionId = do
   Session.Pool pool _ <- asks @Env (.sessionPool)

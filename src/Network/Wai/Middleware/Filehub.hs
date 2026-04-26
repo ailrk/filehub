@@ -34,7 +34,8 @@ import Prelude hiding (readFile)
 import Web.Cookie (defaultSetCookie, SetCookie (..))
 import Data.ByteString.Char8 qualified as Char8
 import Filehub.Session.Effectful qualified as Session
-import UnliftIO (MonadIO(..), tryIO)
+import UnliftIO (MonadIO(..), try, throwIO)
+import Filehub.Error (FilehubError (..), Error' (..))
 
 
 displayMiddleware :: Env -> Middleware
@@ -83,12 +84,11 @@ sessionMiddleware env app req respond = toIO onErr env do
   let mSessionId = mCookie >>= parseHeader' >>= Cookies.fromCookies
   case mSessionId of
     Just sessionId -> do
-      eSession <- tryIO $ Session.Pool.get sessionId
+      eSession <- try $ Session.Pool.get sessionId
       case eSession of
-        Left _ -> do
-          respondWithNewSession
-        Right _ -> do
-          liftIO $ app req respond
+        Left (FilehubError InvalidSession _) -> respondWithNewSession
+        Left err                             -> throwIO err
+        Right _                              -> liftIO $ app req respond
     Nothing -> do
       logTrace_ [i|[0vz333] No session found.|]
       respondWithNewSession
