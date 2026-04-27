@@ -16,62 +16,61 @@
 -- When updating, we first delete the cache, then write the full update.
 module Filehub.Storage.File (storage) where
 
-import Control.Monad (unless)
-import Filehub.Error (FilehubError(..), Error' (..))
-import Filehub.Session.Types (TargetView(..))
-import Filehub.Session qualified as Session
-import Filehub.Types (SessionId)
-import Lens.Micro.Platform ()
-import Prelude hiding (read, readFile, writeFile)
-import Target.File (Target, FileSys)
-import Target.Storage (Storage(..))
-import Target.Types (handleTarget, targetHandler)
-import Data.ClientPath (AbsPath(..))
-import Data.Coerce (coerce)
-import Filehub.Monad (Filehub)
-import UnliftIO.Directory (doesDirectoryExist)
-import Log (logAttention)
-import UnliftIO (throwIO)
 import Cache.Key (CacheKey, SomeCacheKey (..))
 import Codec.Archive.Zip qualified as Zip
 import Conduit (ConduitT, ResourceT, (.|), runResourceT)
 import Conduit qualified
+import Control.Monad (unless)
 import Control.Monad (when, forM_)
+import Control.Service.Cache (MonadCache(..))
+import Control.Service.Cache qualified as Cache
+import Control.Service.LockManager qualified as LockManager
 import Data.ByteString (ByteString, readFile)
+import Data.ByteString qualified as ByteString
 import Data.ByteString.Builder (Builder)
 import Data.ByteString.Builder qualified as Builder
 import Data.ByteString.Lazy qualified as LBS
+import Data.ClientPath (AbsPath(..))
 import Data.ClientPath (ClientPath)
 import Data.ClientPath qualified as ClientPath
 import Data.ClientPath.IO (validateAbsPath)
+import Data.Coerce (coerce)
+import Data.Conduit.Binary qualified as Conduit
 import Data.File (File (..), FileInfo, FileType (..), FileWithContent, FileContent (..), defaultFileWithContent)
 import Data.Generics.Labels ()
 import Data.Kind (Type)
+import Data.List (sort)
 import Data.Maybe (maybeToList)
 import Data.String.Interpolate (i)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.Time (secondsToNominalDiffTime)
-import Control.Service.Cache qualified as Cache
-import Control.Service.LockManager qualified as LockManager
+import Filehub.Error (FilehubError(..), Error' (..))
+import Filehub.Monad (Filehub)
+import Filehub.Session qualified as Session
+import Filehub.Session.Types (TargetView(..))
+import Filehub.Types (SessionId)
 import GHC.TypeLits (Symbol)
 import Lens.Micro.Platform ()
+import Lens.Micro.Platform ()
+import Log (logAttention)
+import Log (logTrace_, logInfo)
 import Network.Mime (defaultMimeLookup)
+import Prelude hiding (read, readFile, writeFile)
 import Prelude hiding (read, readFile, writeFile)
 import Servant.Multipart (Mem, FileData (..))
 import System.FilePath ((</>), takeDirectory, takeFileName)
 import System.IO.Error (isDoesNotExistError)
 import System.IO.Temp qualified as Temp
-import Target.File (Target(..))
+import Target.File (Target(..), FileSys)
+import Target.Storage (Storage(..))
+import Target.Types (handleTarget, targetHandler)
 import UnliftIO (MonadIO (..), tryIO, IOException, Handler (..), catch, withFile, IOMode (..), hClose, withTempFile)
-import UnliftIO.Retry (recovering, limitRetries, exponentialBackoff)
-import Data.List (sort)
-import UnliftIO.Directory (removeFile, makeAbsolute, getFileSize, getAccessTime, getModificationTime, doesPathExist, doesFileExist, createDirectoryIfMissing, renameFile, copyFile, listDirectory, removeDirectoryRecursive, withCurrentDirectory)
-import Log (logTrace_, logInfo)
-import Data.ByteString qualified as ByteString
+import UnliftIO (throwIO)
 import UnliftIO.Async (forConcurrently_)
-import Control.Service.Cache (MonadCache(..))
-
+import UnliftIO.Directory (doesDirectoryExist)
+import UnliftIO.Directory (removeFile, makeAbsolute, getFileSize, getAccessTime, getModificationTime, doesPathExist, doesFileExist, createDirectoryIfMissing, renameFile, copyFile, listDirectory, removeDirectoryRecursive, withCurrentDirectory)
+import UnliftIO.Retry (recovering, limitRetries, exponentialBackoff)
 
 
 cd :: SessionId -> AbsPath -> Filehub ()
@@ -198,8 +197,8 @@ read File { path = AbsPath path } = do
     cacheTTL  = Just (secondsToNominalDiffTime 10)
 
 
-readStream :: FileInfo -> Filehub (ConduitT () ByteString (ResourceT IO) ())
-readStream File{ path = AbsPath path } = pure $ Conduit.sourceFile path
+readStream :: FileInfo -> Maybe Integer -> Maybe Integer -> Filehub (ConduitT () ByteString (ResourceT IO) ())
+readStream File{ path = AbsPath path } mOffset mCount = pure $ Conduit.sourceFileRange path mOffset mCount
 
 
 newFolder :: AbsPath -> Filehub ()
@@ -399,7 +398,7 @@ download fileSys clientPath = do
   case mFile of
     Just file -> do
       case file.content of
-        Regular -> readStream file
+        Regular -> readStream file Nothing Nothing
         Dir     -> do
           (zipPath, _) <- liftIO do
             tempDir <- Temp.getCanonicalTemporaryDirectory

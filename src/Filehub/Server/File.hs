@@ -15,7 +15,7 @@ import Data.File (FileType(..), File(..), FileContent (..), withContent, default
 import Data.Foldable (for_)
 import Data.Traversable (for)
 import Data.Function ((&))
-import Data.Maybe (catMaybes, isJust)
+import Data.Maybe (catMaybes, isJust, fromMaybe)
 import Data.Ratio ((%))
 import Data.String.Interpolate (i)
 import Data.Text qualified as Text
@@ -50,14 +50,11 @@ import UnliftIO.STM (atomically, modifyTVar', readTVar, newTVarIO, writeTBQueue)
 import Log (logAttention_)
 import UnliftIO.Async (async, forConcurrently_)
 import Filehub.Server.UI ( clear, index, view, controlPanel, toolBar )
-import Network.Wai.Application.Static (StaticSettings(..), defaultFileServerSettings, staticApp)
-import WaiAppStatic.Types qualified
 import Network.Wai (Request(..), responseLBS, responseStream)
-import Network.HTTP.Types.Status (status404)
-import WaiAppStatic.Types (LookupResult(..), unsafeToPiece)
+import Network.HTTP.Types.Status (status404, status206, status200)
 import Data.Binary.Builder qualified as Builder
-import Foreign.C (CTime(..))
-import Data.Time.Clock.POSIX (utcTimeToPOSIXSeconds)
+import Network.HTTP.Types (ByteRange(..), parseByteRanges)
+import Data.ByteString.Char8 qualified as Char8
 
 
 cd :: SessionId -> ConfirmLogin -> Maybe ClientPath -> Filehub (Headers '[ Header "HX-Trigger-After-Swap" FilehubEvent ] (Html ()))
@@ -215,7 +212,7 @@ paste sessionId _ _ = do
               let toId   = Target.getTargetId to
               conduit <- Session.withTarget sessionId fromId do
                 storage <- Session.get sessionId (.storage)
-                storage.readStream file
+                storage.readStream file Nothing Nothing
               Session.withTarget sessionId toId do
                 storage <- Session.get sessionId (.storage)
                 storage.write $ file
@@ -334,12 +331,12 @@ download sessionId _ clientPaths = do
       files <- traverse (storage.get . ClientPath.fromClientPath root) clientPaths <&> catMaybes
 
       tasks <- for files \file -> do
-        conduit <- storage.readStream file
+        conduit <- storage.readStream file Nothing Nothing
         pure (file.path, conduit)
 
       Zip.createArchive zipPath do
         for_ tasks \(path, conduit) -> do
-          m <- Zip.mkEntrySelector  (coerce makeRelative root path)
+          m <- Zip.mkEntrySelector (coerce makeRelative root path)
           Zip.sinkEntry Zip.Zstd conduit m
       tag <- Text.pack <$> replicateM 8 (randomRIO ('a', 'z'))
       let conduit =
@@ -382,6 +379,7 @@ serve env sessionId _ = Tagged $ \req respond -> do
   let query = queryString req
   let mFile = join $ lookup "file" query
 
+  -- Lookup the file
   res <- runFilehub env $ do
     root       <- Session.get sessionId (.root)
     storage    <- Session.get sessionId (.storage)
@@ -394,34 +392,47 @@ serve env sessionId _ = Tagged $ \req respond -> do
     let path = ClientPath.fromClientPath root clientPath
 
     storage.get path >>= \case
-      Just file -> do
-        stream <- storage.readStream file
-        pure (Just (file, stream))
+      Just file -> do pure (Just (file, storage))
       Nothing   -> pure Nothing
 
   case res of
-    Left err -> throwIO err
+    Left err                         -> throwIO err
+    Right Nothing                    -> respond $ responseLBS status404 [] "File not found"
+    Right (Just (fileInfo, storage)) -> do
+      let fileSize = fromMaybe 0 fileInfo.size
 
-    Right Nothing -> respond $ responseLBS status404 [] "File not found"
+      let mReqRange = lookup "Range" (requestHeaders req) >>= parseByteRanges
 
-    Right (Just (fileInfo, stream)) -> do
-      let streamResponse =
-            \status headers -> responseStream status headers $ \send flush ->
+      -- We need handle the Range header to support video seek.
+      let (status, mOff, mLen) = case mReqRange of
+                                   Just (ByteRangeFromTo s e : _) -> (status206, Just s, Just (e - s + 1))
+                                   Just (ByteRangeFrom s : _)     -> (status206, Just s, Just (fileSize - s))
+                                   _                              -> (status200, Nothing, Nothing)
+
+      let renderRangeHeader s e t = Char8.pack $ printf "bytes %d-%d/%d" s e t
+
+      let from = fromMaybe 0 mOff
+      let len  = fromMaybe 0 mLen
+      let to   = from + len - 1
+
+      let headers = [ ("Content-Type", fileInfo.mimetype)
+                    , ("Accept-Ranges", "bytes")
+                    ]
+                ++ if status == status206
+                      then [ ("Content-Range", renderRangeHeader from  to fileSize)
+                           , ("Content-Length", Char8.pack (show len))
+                           ]
+                      else [ ("Content-Length", Char8.pack (show fileSize)) ]
+
+      respond do
+        responseStream status headers $ \send flush -> do
+
+          mStream <- runFilehub env do
+            storage.readStream fileInfo mOff mLen
+
+          case mStream of
+            Left err     -> throwIO do HTTPError err404 { errBody = [i|#{err}|] }
+            Right stream ->
               runResourceT . runConduit
-              $ stream .| Conduit.mapM_C \chunk -> liftIO do send (Builder.fromByteString chunk)
-                                                             flush
-
-      let settings = (defaultFileServerSettings "")
-                      { ssLookupFile = \_ -> do
-                          let absPath = coerce fileInfo.path :: FilePath
-                          pure $ LRFile WaiAppStatic.Types.File
-                            { fileGetSize     = maybe 0 id fileInfo.size
-                            , fileToResponse  = streamResponse
-                            , fileName        = unsafeToPiece (Text.pack (takeFileName absPath))
-                            , fileGetHash     = pure Nothing
-                            , fileGetModified = (CTime . round . utcTimeToPOSIXSeconds) <$> fileInfo.mtime
-                            }
-                      , ssGetMimeType  = \_file -> pure fileInfo.mimetype
-                      , ssIndices = []
-                      }
-      staticApp settings req respond
+                $ stream
+                .| Conduit.mapM_C \chunk -> liftIO do send (Builder.fromByteString chunk); flush

@@ -17,34 +17,33 @@ storage mockFS =
     , read = \file ->
         case lookup file.path mockFS of
           Just (File { content = FileContentRaw bytes }) -> pure bytes
-          _ -> error "storage dummy: read"
+          _                                              -> error "storage dummy: read"
 
-    , readStream  = \file ->
+    , readStream = \file _ _ ->
         case lookup file.path mockFS of
           Just (File { content = FileContentRaw bytes }) -> pure (yield bytes)
-          _ -> error "storage dummy: readStream"
+          _                                              -> error "storage dummy: readStream"
 
     , ls = \case
-        AbsPath "/"  -> pure $ fmap (extractFileInfo . snd) mockFS
-        path ->
-          case lookup path mockFS of
-            Just (File { content = FileContentDir dir }) -> pure $ fmap extractFileInfo dir
-            _ -> pure []
+        AbsPath "/" -> pure $ fmap (extractFileInfo . snd) mockFS
+        path        -> case lookup path mockFS of
+                         Just (File { content = FileContentDir dir }) -> pure $ fmap extractFileInfo dir
+                         _                                            -> pure []
 
     , cd = \_ -> pure ()
 
     , isDirectory = \path ->
         case lookup path mockFS of
           Just (File { content = FileContentDir _ }) -> pure True
-          _ -> pure False
+          _                                          -> pure False
 
-    , write     = error "not implemented"
-    , mv        = error "not implemented"
-    , rename    = error "not implemented"
-    , delete    = error "not implemented"
-    , new       = error "not implemented"
-    , newFolder = error "not implemented"
-    , lsCwd     = error "not implemented"
-    , upload    = error "not implemented"
-    , download  = error "not implemented"
+    , write       = error "not implemented"
+    , mv          = error "not implemented"
+    , rename      = error "not implemented"
+    , delete      = error "not implemented"
+    , new         = error "not implemented"
+    , newFolder   = error "not implemented"
+    , lsCwd       = error "not implemented"
+    , upload      = error "not implemented"
+    , download    = error "not implemented"
     }

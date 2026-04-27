@@ -16,7 +16,7 @@ data Storage m = Storage
 
   , read        :: FileInfo -> m ByteString
 
-  , readStream  :: FileInfo -> m (ConduitT () ByteString (ResourceT IO) ())
+  , readStream  :: FileInfo -> Maybe Integer -> Maybe Integer -> m (ConduitT () ByteString (ResourceT IO) ())
 
   , write       :: FileWithContent -> m ()
 

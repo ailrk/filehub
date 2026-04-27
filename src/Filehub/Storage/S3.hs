@@ -76,6 +76,8 @@ import Target.Types qualified as Target
 import UnliftIO (MonadIO (..), throwIO)
 import UnliftIO.Async (forConcurrently_)
 import UnliftIO.Directory (removeFile)
+import Amazonka.S3.GetObject (GetObject(..))
+import Data.ByteString.Char8 qualified as Char8
 
 
 storage :: SessionId -> Storage Filehub
@@ -89,9 +91,9 @@ storage sessionId =
         s3 <- getS3 sessionId
         read s3 file
 
-    , readStream = \file -> do
+    , readStream = \file mOff mMax -> do
         s3 <- getS3 sessionId
-        readStream s3 file
+        readStream s3 file mOff mMax
 
     , write = \fileWithContent -> do
         s3 <- getS3 sessionId
@@ -225,7 +227,7 @@ read s3@S3Backend { targetId }  file = do
   case mCached of
     Just cached -> pure cached
     Nothing -> do
-      stream <- readStream s3 file
+      stream <- readStream s3 file Nothing Nothing
       chunks <- liftIO $ runResourceT . Conduit.runConduit $ stream Conduit..| Conduit.sinkList
       let result = LBS.toStrict (LBS.fromChunks chunks)
       cacheInsert cacheKey cacheDeps cacheTTL result
@@ -236,11 +238,29 @@ read s3@S3Backend { targetId }  file = do
     cacheTTL  = Just (secondsToNominalDiffTime 10)
 
 
-readStream :: Target S3 -> FileInfo -> Filehub (ConduitT () ByteString (ResourceT IO) ())
-readStream s3 file = do
+readStream :: Target S3
+           -> FileInfo
+           -> Maybe Integer -- ^ Offest
+           -> Maybe Integer -- ^ Max Bytes
+           -> Filehub (ConduitT () ByteString (ResourceT IO) ())
+readStream s3 file mOff mMax = do
   let bucket  = BucketName s3.bucket
       key     = ObjectKey (coerce Text.pack file.path)
-      request = Amazonka.newGetObject bucket key
+      range   = case (mOff, mMax) of
+                  (Just off, Just len) -> Just $ mconcat [ "bytes="
+                                                         , Char8.pack (show off)
+                                                         , "-"
+                                                         , Char8.pack (show (off + len - 1))
+                                                         ]
+                  (Just off, Nothing)  -> Just $ mconcat [ "bytes="
+                                                         , Char8.pack (show off)
+                                                         , "-"
+                                                         ]
+                  (Nothing, Just len)  -> Just $ mconcat [ "bytes=0-"
+                                                         , Char8.pack (show (len - 1)) -- be careful with off by 1
+                                                         ]
+                  (Nothing, Nothing)   -> Nothing
+      request = (Amazonka.newGetObject bucket key) { range = Text.decodeUtf8 <$> range }
   pure $ do
     resp <- lift $ send s3.env request
     let (ResponseBody conduit) = resp ^. Amazonka.getObjectResponse_body
@@ -480,7 +500,7 @@ download s3 path = do
   case mFile of
     Just file -> do
       case file.content of
-        Regular -> readStream s3 file
+        Regular -> readStream s3 file Nothing Nothing
         Dir     -> do
           (zipPath, _) <- liftIO do
             tempDir <- Temp.getCanonicalTemporaryDirectory

@@ -467,7 +467,7 @@ thumbnail sessionId _ mFile = do
   where
     serveOriginal storage file =
       if
-        | file.mimetype `isMime` "image" -> storage.readStream file
+        | file.mimetype `isMime` "image" -> storage.readStream file Nothing Nothing
         | otherwise                      -> throwIO (FilehubError FormatError "Invalid mime type for thumbnail")
 
 
