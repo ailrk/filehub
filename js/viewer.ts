@@ -134,7 +134,6 @@ class Viewer {
   }
 
   init() {
-    this.load();
     this.canvas.onclick = e => {
       let target = e.target as HTMLElement ;
       if (!this.canvas.contains(target) || this.canvas === target) {

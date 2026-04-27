@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE CPP #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 -- |
 -- Maintainer  :  jimmy@ailrk.com
 -- Copyright   :  (c) 2025-present Jinyang yao
@@ -49,6 +50,7 @@ import Servant
       CaptureAll,
       QueryParams,
       Capture,
+      Raw,
     )
 import Lucid
 import Lens.Micro.Platform ()
@@ -436,21 +438,14 @@ data Api mode = Api
                           :> AuthProtect "session"
                           :> Get '[HTML] (Html ())
 
-
-  -- Servant api for      ces you to provide a content type at compile time, but we want to dynamically determine the content type instead.
-  -- The current set       up will add two Content-Type headers to the response. One for octet-stream one for the actual content type.
-  -- The type level       fix is too hacky, I decided to simply strip the unwanted header in a wai middleware.
-  -- Check the dedup      HeadersKeepLast middleware, if there are duplicated headers, it will keep the last one. In this case we will
-  -- discard the oct      et-stream and keep the content-type we set in the handler.
+  -- The Raw handler is a wai-static-app, the endpoint has the following format:
+  -- /serve?file=<clientpath>
   , serve                 :: mode
                           :- "serve"
                           :> AuthProtect "session"
                           :> AuthProtect "login"
-                          :> QueryParam "file" ClientPath
-                          :> StreamGet NoFraming OctetStream (Headers '[ Header "Content-Type" String
-                                                                       , Header "Content-Disposition" String
-                                                                       , Header "Cache-Control" String
-                                                                       ] (ConduitT () ByteString (ResourceT IO) ()))
+                          :> Raw
+
 
   , toggleSidebar         :: mode
                           :- "sidebar"

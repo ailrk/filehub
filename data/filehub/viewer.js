@@ -99,7 +99,6 @@ class Viewer {
         this.currentContent = content;
     }
     init() {
-        this.load();
         this.canvas.onclick = e => {
             let target = e.target;
             if (!this.canvas.contains(target) || this.canvas === target) {

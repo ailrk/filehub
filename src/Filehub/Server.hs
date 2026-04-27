@@ -26,7 +26,7 @@ import Data.ByteString.Base64 qualified as Base64
 import Data.ByteString.Char8 qualified as ByteString
 import Data.ByteString.Lazy qualified as LBS
 import Data.Char qualified as Char
-import Data.ClientPath (ClientPath (..), AbsPath (..), (<./>), Root)
+import Data.ClientPath (ClientPath (..), AbsPath (..), (<./>), Root (..))
 import Data.ClientPath qualified as ClientPath
 import Data.ClientPath.IO (validateAbsPath)
 import Data.Coerce (coerce)
@@ -38,7 +38,7 @@ import Data.Function (fix, (&))
 import Data.List qualified as List
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
-import Data.Maybe (fromMaybe, catMaybes, isJust)
+import Data.Maybe (fromMaybe, catMaybes, isJust, maybeToList)
 import Data.Ratio ((%))
 import Data.Set (Set)
 import Data.Set qualified as Set
@@ -98,12 +98,12 @@ import Network.Wai.Middleware.Filehub qualified as Wai.Middleware
 import Network.Wai.Middleware.Gzip qualified as Wai.Middleware
 import Network.Wai.Middleware.RequestLogger qualified as Wai.Middleware (logStdout)
 import Prelude hiding (init, readFile)
-import Servant (Application , Context (..) , Header , Headers , NoContent (..) , addHeader , err301 , err303 , err400 , err404 , err500 , errHeaders , noHeader , serveWithContextT , errBody)
+import Servant (Application , Context (..) , Header , Headers , NoContent (..) , addHeader , err301 , err303 , err400 , err404 , err500 , errHeaders , noHeader , serveWithContextT , errBody, Tagged (..), FromHttpApiData (..))
 import Servant (Headers, Header, addHeader)
 import Servant.API.EventStream (RecommendedEventSourceHeaders, recommendedEventSourceHeaders)
 import Servant.Multipart (MultipartData(..), Mem)
 import Servant.Server.Generic (AsServerT)
-import System.Directory (removeFile)
+import System.Directory (removeFile, doesFileExist)
 import System.FilePath (takeFileName, (</>), makeRelative, takeDirectory)
 import System.IO.Temp qualified as Temp
 import System.Random (randomRIO)
@@ -118,6 +118,12 @@ import UnliftIO.STM (readTBQueue, atomically, isEmptyTBQueue, modifyTVar', readT
 import Log (logInfo_, logAttention_)
 import UnliftIO.Async (async, forConcurrently_)
 import Control.Monad.Reader (asks)
+import Network.Wai (Request(..), responseLBS, responseFile)
+import Network.HTTP.Types (status404)
+import Network.Wai.Application.Static (defaultFileServerSettings, StaticSettings (..), staticApp)
+import WaiAppStatic.Types (MaxAge(..), toPiece, LookupResult (..), File(..), unsafeToPiece)
+import Data.Time.Clock.POSIX (utcTimeToPOSIXSeconds)
+import Foreign.C (CTime(..))
 
 #ifdef DEBUG
 import UnliftIO (MonadIO(liftIO))
@@ -145,8 +151,8 @@ staticFiles = Map.fromList
 ------------------------------------
 
 
-server :: Api (AsServerT Filehub)
-server = Api
+server :: Env -> Api (AsServerT Filehub)
+server env = Api
   { initialize            = initialize
   , home                  = home
   , refresh               = refresh
@@ -189,7 +195,7 @@ server = Api
   , themeCss              = themeCss
   , toggleTheme           = toggleTheme
   , changeLocale          = changeLocale
-  , serve                 = serve
+  , serve                 = serve env
   , toggleSidebar         = toggleSidebar
   , thumbnail             = thumbnail
   , manifest              = manifest
@@ -1059,27 +1065,102 @@ toggleSidebar sessionId _ = do
   index sessionId
 
 
-serve :: SessionId -> ConfirmLogin -> Maybe ClientPath
-      -> Filehub (Headers '[ Header "Content-Type" String
-                           , Header "Content-Disposition" String
-                           , Header "Cache-Control" String
-                           ]
-                           (ConduitT () ByteString (ResourceT IO) ()))
-serve sessionId _ mFile = do
-  root       <- Session.get sessionId (.root)
-  storage    <- Session.get sessionId (.storage)
-  clientPath <- withQueryParam mFile
-  let path   = ClientPath.fromClientPath root clientPath
-  storage.get path >>= \case
-    Just file -> do
-      conduit <- storage.readStream file
-      pure
-        . addHeader (ByteString.unpack file.mimetype)
-        . addHeader (printf "inline; filename=%s" (coerce takeFileName path :: String))
-        . addHeader "public, max-age=31536000, immutable"
-        $ conduit
-    Nothing -> do
-      throwIO (FilehubError InvalidPath "file path is invalid")
+-- serve :: SessionId -> ConfirmLogin -> Maybe ClientPath
+--       -> Filehub (Headers '[ Header "Content-Type" String
+--                            , Header "Content-Disposition" String
+--                            , Header "Cache-Control" String
+--                            ]
+--                            (ConduitT () ByteString (ResourceT IO) ()))
+-- serve sessionId _ mFile = do
+--   root       <- Session.get sessionId (.root)
+--   storage    <- Session.get sessionId (.storage)
+--   clientPath <- withQueryParam mFile
+--   let path   = ClientPath.fromClientPath root clientPath
+--   storage.get path >>= \case
+--     Just file -> do
+--       conduit <- storage.readStream file
+--       pure
+--         . addHeader (ByteString.unpack file.mimetype)
+--         . addHeader (printf "inline; filename=%s" (coerce takeFileName path :: String))
+--         . addHeader "public, max-age=31536000, immutable"
+--         $ conduit
+--     Nothing -> do
+--       throwIO (FilehubError InvalidPath "file path is invalid")
+
+
+
+-- serve :: Env -> SessionId -> ConfirmLogin -> Tagged Filehub Application
+-- serve env sessionId _ mFile = Tagged $ \req respond -> do
+--       -- 1. Run your existing logic inside your Filehub monad
+--       -- We use env.toServantHandler to convert Filehub to Servant.Handler,
+--       -- then runHandler (from Servant) to get it into IO.
+--       res <- runFilehub env $ do
+--         root    <- Session.get sessionId (.root)
+--         storage <- Session.get sessionId (.storage)
+--         clientPath <- withQueryParam mFile
+--         let path = ClientPath.fromClientPath root clientPath
+
+--         -- Get file metadata from your storage abstraction
+--         storage.get path >>= \case
+--           Just file -> pure (Just (path, file))
+--           Nothing   -> pure Nothing
+
+--       case res of
+--         -- Handler error (e.g. 404 or session failure)
+--         Left err -> respond $ responseLBS (err.errHTTPCode ) [] (err.errBody)
+
+--         -- Logic succeeded, but file wasn't found
+--         Right Nothing -> respond $ responseLBS status404 [] "File not found"
+
+--         -- 2. Success! Hand over to WAI for the Range Request handling
+--         Right (Just (fullPath, fileInfo)) -> do
+--           let settings = (defaultFileServerSettings "")
+--                 { ssMaxAge = MaxAgeSeconds (60*60)
+--                 , ssIndices = []
+--                 }
+--           -- This staticApp call is what enables the 206 Partial Content response
+--           staticApp settings req respond
+
+
+serve :: Env -> SessionId -> ConfirmLogin -> Tagged Filehub Application
+serve env sessionId _ = Tagged $ \req respond -> do
+  let query = queryString req
+  let mFile = join $ lookup "file" query
+
+  res <- runFilehub env $ do
+    root    <- Session.get sessionId (.root)
+    storage <- Session.get sessionId (.storage)
+    clientPath <- do
+      byte <- withQueryParam mFile
+      let text = Text.decodeUtf8 byte
+      case parseUrlPiece @ClientPath text of
+        Right c -> pure c
+        Left err -> throwIO do HTTPError err404 { errBody = [i|#{err}|] }
+
+    let path = ClientPath.fromClientPath root clientPath
+
+    storage.get path >>= \case
+      Just file -> pure (Just file)
+      Nothing   -> pure Nothing
+
+  case res of
+    Left err -> throwIO err
+    Right Nothing -> respond $ responseLBS status404 [] "File not found"
+    Right (Just fileInfo) -> do
+      let settings = (defaultFileServerSettings "")
+                      { ssLookupFile = \_ -> do
+                          let absPath = coerce fileInfo.path :: FilePath
+                          pure $ LRFile WaiAppStatic.Types.File
+                            { fileGetSize     = maybe 0 id fileInfo.size
+                            , fileToResponse  = \status headers -> responseFile status headers absPath Nothing
+                            , fileName        = unsafeToPiece (Text.pack (takeFileName absPath))
+                            , fileGetHash     = pure Nothing
+                            , fileGetModified = (CTime . round . utcTimeToPOSIXSeconds) <$> fileInfo.mtime
+                            }
+                      , ssGetMimeType  = \_file -> pure fileInfo.mimetype
+                      , ssIndices = []
+                      }
+      staticApp settings req respond
 
 
 thumbnail :: SessionId -> ConfirmLogin -> Maybe ClientPath
@@ -1240,7 +1321,7 @@ application env
   . Wai.Middleware.dedupHeadersKeepLast
   . Wai.Middleware.displayMiddleware env
   . serveWithContextT Routes.api ctx (Filehub.Handler.toServantHandler env)
-  $ server
+  $ server env
   where
     ctx = Filehub.Handler.sessionHandler env
         :. Filehub.Handler.readOnlyHandler env
