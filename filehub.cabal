@@ -150,6 +150,7 @@ library
     Cache.InMemory
     Cache.Key
     Control.Handle.Cache
+    Control.Handle.EvtLog
     Control.Handle.LockManager
     Control.Service.Cache
     Control.Service.LockManager
@@ -172,7 +173,6 @@ library
     Filehub.Display
     Filehub.Env
     Filehub.Error
-    Filehub.EvtLog
     Filehub.Handler
     Filehub.Links
     Filehub.Locale
@@ -184,9 +184,12 @@ library
     Filehub.Routes
     Filehub.Selected
     Filehub.Server
-    Filehub.Server.Desktop
-    Filehub.Server.Internal
-    Filehub.Server.Mobile
+    Filehub.Server.File
+    Filehub.Server.Login
+    Filehub.Server.UI
+    Filehub.Server.UI.Desktop
+    Filehub.Server.UI.Mobile
+    Filehub.Server.Util
     Filehub.Session
     Filehub.Session.Copy
     Filehub.Session.Internal
@@ -198,7 +201,6 @@ library
     Filehub.Size
     Filehub.Sort
     Filehub.Storage.Dummy
-    Filehub.Storage.Error
     Filehub.Storage.File
     Filehub.Storage.S3
     Filehub.Template
@@ -215,9 +217,6 @@ library
     Network.Wai.Middleware.Extended
     Network.Wai.Middleware.Filehub
     Paths_filehub
-    Storage.Error
-    Storage.File
-    Storage.S3
     System.FilePath.Extended
     Target.Dummy
     Target.File

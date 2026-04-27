@@ -1,6 +1,6 @@
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE NamedFieldPuns #-}
-module Filehub.Server.Mobile
+module Filehub.Server.UI.Mobile
   ( index
   , sideBar
   , editorModal
@@ -12,7 +12,7 @@ module Filehub.Server.Mobile
 import Data.ClientPath qualified as ClientPath
 import Filehub.Env (Env)
 import Filehub.Env qualified as Env
-import Filehub.Server.Internal (withQueryParam)
+import Filehub.Server.Util (withQueryParam)
 import Filehub.Template (makeTemplateContext, runTemplate, TemplateContext(..))
 import Filehub.Session (SessionId)
 import Filehub.Session qualified as Session
@@ -27,7 +27,6 @@ import System.FilePath (takeFileName)
 import Filehub.Error (FilehubError(..), Error'(InvalidPath))
 import Data.Coerce (coerce)
 import Filehub.Session (SessionGet(..))
-import Filehub.Session qualified as Session
 import Filehub.Monad (Filehub)
 import Control.Monad.Reader (asks)
 import UnliftIO.STM (readTVarIO)

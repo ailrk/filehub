@@ -13,7 +13,6 @@ import Control.Exception (SomeException, throwIO)
 import Data.Functor.Identity (Identity(..))
 import Data.String.Interpolate (i)
 import Data.Time (secondsToNominalDiffTime)
-import EvtLog qualified
 import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
 import Filehub.Auth.OIDC (OIDCAuthProviders(..))
 import Filehub.Auth.Simple qualified as Auth.Simple
@@ -42,6 +41,7 @@ import UnliftIO (catch, hFlush, stdout)
 import Log (logInfo_, runLogT)
 import UnliftIO.STM (newTVarIO)
 import Control.Handle.Cache qualified as Cache
+import Control.Handle.EvtLog qualified as EvtLog
 import Control.Handle.LockManager qualified as LockManager
 
 

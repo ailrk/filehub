@@ -65,10 +65,9 @@ import Filehub.Orphan ()
 import Filehub.QQ qualified
 import Filehub.Routes (Api (..))
 import Filehub.Routes qualified as Routes
-import Filehub.Server.Desktop qualified as Server.Desktop
-import Filehub.Server.Mobile qualified as Server.Mobile
-import Filehub.Server.Internal (withQueryParam, parseHeader')
-import Filehub.Server.Internal qualified as Server.Internal
+import Filehub.Server.UI.Desktop qualified as Server.Desktop
+import Filehub.Server.UI.Mobile qualified as Server.Mobile
+import Filehub.Server.Util (withQueryParam, parseHeader')
 import Filehub.Session (SessionId(..), TargetView (..))
 import Filehub.Session qualified as Session
 import Filehub.Session (SessionGet(..))
@@ -125,6 +124,10 @@ import WaiAppStatic.Types (MaxAge(..), toPiece, LookupResult (..), File(..), uns
 import Data.Time.Clock.POSIX (utcTimeToPOSIXSeconds)
 import Foreign.C (CTime(..))
 import Data.Binary.Builder qualified as Builder
+import Filehub.Server.UI (index, clear, controlPanel, sideBar, view)
+import Filehub.Server.UI qualified
+import Filehub.Server.Login qualified
+import Filehub.Server.File qualified
 
 #ifdef DEBUG
 import UnliftIO (MonadIO(liftIO))
@@ -158,46 +161,46 @@ server env = Api
   , home                  = home
   , refresh               = refresh
   , listen                = listen
-  , loginPage             = loginPage
-  , loginToggleTheme      = loginToggleTheme
-  , loginChangeLocale     = loginChangeLocale
-  , loginAuthSimple       = loginAuthSimple
-  , loginAuthOIDCRedirect = loginAuthOIDCRedirect
-  , loginAuthOIDCCallback = loginAuthOIDCCallback
-  , logout                = logout
-  , cd                    = cd
-  , newFile               = newFile
-  , updateFile            = updateFile
-  , rename                = rename
-  , delete                = delete
-  , newFolder             = newFolder
-  , renameModal           = renameModal
-  , newFileModal          = newFileModal
-  , newFolderModal        = newFolderModal
-  , fileDetailModal       = fileDetailModal
-  , editorModal           = editorModal
+  , loginPage             = Filehub.Server.Login.loginPage
+  , loginToggleTheme      = Filehub.Server.Login.loginToggleTheme
+  , loginChangeLocale     = Filehub.Server.Login.loginChangeLocale
+  , loginAuthSimple       = Filehub.Server.Login.loginAuthSimple
+  , loginAuthOIDCRedirect = Filehub.Server.Login.loginAuthOIDCRedirect
+  , loginAuthOIDCCallback = Filehub.Server.Login.loginAuthOIDCCallback
+  , logout                = Filehub.Server.Login.logout
+  , cd                    = Filehub.Server.File.cd
+  , newFile               = Filehub.Server.File.newFile
+  , updateFile            = Filehub.Server.File.updateFile
+  , rename                = Filehub.Server.File.rename
+  , delete                = Filehub.Server.File.delete
+  , newFolder             = Filehub.Server.File.newFolder
+  , renameModal           = Filehub.Server.UI.renameModal
+  , newFileModal          = Filehub.Server.UI.newFileModal
+  , newFolderModal        = Filehub.Server.UI.newFolderModal
+  , fileDetailModal       = Filehub.Server.UI.fileDetailModal
+  , editorModal           = Filehub.Server.UI.editorModal
   , search                = search
-  , sortTable             = sortTable
-  , selectLayout          = selectLayout
-  , selectRows            = selectRows
-  , upload                = upload
-  , download              = download
-  , copy                  = copy
-  , copy1                 = copy1
-  , paste                 = paste
-  , move                  = move
+  , sortTable             = Filehub.Server.UI.sortTable
+  , selectLayout          = Filehub.Server.UI.selectLayout
+  , selectRows            = Filehub.Server.UI.selectRows
+  , upload                = Filehub.Server.File.upload
+  , download              = Filehub.Server.File.download
+  , copy                  = Filehub.Server.File.copy
+  , copy1                 = Filehub.Server.File.copy1
+  , paste                 = Filehub.Server.File.paste
+  , move                  = Filehub.Server.File.move
   , cancel                = cancel
-  , contextMenu           = contextMenu
-  , initViewer            = initViewer
-  , open                  = open
+  , contextMenu           = Filehub.Server.UI.contextMenu
+  , initViewer            = Filehub.Server.UI.initViewer
+  , open                  = Filehub.Server.UI.open
   , changeTarget          = changeTarget
   , shared                = shared
   , sharedAuth            = sharedAuth
   , themeCss              = themeCss
-  , toggleTheme           = toggleTheme
-  , changeLocale          = changeLocale
-  , serve                 = serve env
-  , toggleSidebar         = toggleSidebar
+  , toggleTheme           = Filehub.Server.UI.toggleTheme
+  , changeLocale          = Filehub.Server.UI.changeLocale
+  , serve                 = Filehub.Server.File.serve env
+  , toggleSidebar         = Filehub.Server.UI.toggleSidebar
   , thumbnail             = thumbnail
   , manifest              = manifest
   , favicon               = pure $(FileEmbed.embedFile "data/filehub/favicon.ico")
@@ -220,7 +223,7 @@ healthz _ = do
 initialize :: SessionId -> Resolution -> Filehub (Html ())
 initialize sessionId res = do
   Session.Pool.update sessionId \s -> s & #resolution ?~ res
-  Server.Internal.clear sessionId
+  clear sessionId
   index sessionId
 
 
@@ -244,7 +247,7 @@ home sessionId _  = do
         . flip parseMaybe m
         . withObject "manifest"
         $ (.: "theme_color")
-  Server.Internal.clear sessionId
+  clear sessionId
   case display of
     NoDisplay -> pure Template.bootstrap
     -- Index is initially hidden, the frontend will play an intro animation, set
@@ -328,478 +331,6 @@ listen sessionId _ = recommendedEventSourceHeaders <$> do
           popMore
 
 
--- | Return the login page
-loginPage :: SessionId -> Maybe Text -> Maybe Text -> Filehub (Html ())
-loginPage sessionId cookie Nothing = do
-  ctx@TemplateContext { noLogin } <- makeTemplateContext sessionId
-  if noLogin
-     then go
-     else do
-       case fmap Text.encodeUtf8 cookie >>= parseHeader' >>= Cookies.fromCookies of
-         Just authId' -> do
-           authId <- Session.get sessionId (.authId)
-           if authId == Just authId'
-              then go
-              else pure $ runTemplate ctx Template.Login.login
-         Nothing -> pure $ runTemplate ctx Template.Login.login
-  where
-    go = throwIO do HTTPError (err301 { errHeaders = [(hLocation, "/")] })
-loginPage sessionId _ (Just _) = do
-  ctx <- makeTemplateContext sessionId
-  pure $ runTemplate ctx Template.Login.login
-
-
-loginToggleTheme :: SessionId -> Filehub (Headers '[ Header "HX-Trigger-After-Settle" FilehubEvent ] (Html ()))
-loginToggleTheme sessionId = do
-  theme <- Session.get sessionId (.theme)
-  case theme of
-    Theme.Light -> Session.set sessionId (.theme) Theme.Dark
-    Theme.Dark  -> Session.set sessionId (.theme) Theme.Light
-  ctx <- makeTemplateContext sessionId
-  let html = runTemplate ctx Template.Login.login'
-  pure $ addHeader ThemeChanged html
-
-
-loginChangeLocale :: SessionId -> Maybe Locale -> Filehub (Headers '[ Header "HX-Trigger-After-Settle" FilehubEvent ] (Html ()))
-loginChangeLocale _ Nothing = throwIO (FilehubError LocaleError "Invalid locale")
-loginChangeLocale sessionId (Just locale) = do
-  Session.set sessionId (.locale) locale
-  ctx <- makeTemplateContext sessionId
-  let html = runTemplate ctx Template.Login.login'
-  pure $ addHeader LocaleChanged html
-
-
--- | Handle the simple authetication login.
-loginAuthSimple :: SessionId -> LoginForm
-                -> Filehub (Headers '[ Header "Set-Cookie" SetCookie
-                                     , Header "HX-Redirect" Text
-                                     ] (Html ()))
-loginAuthSimple sessionId form@(LoginForm username _) =  do
-  ctx <- makeTemplateContext sessionId
-  let failed = runTemplate ctx (Template.Login.loginFailed Nothing)
-  mSession <- Auth.Simple.authenticateSession sessionId form
-  case mSession of
-    Just session -> do
-      case session.authId of
-        Just (AuthId authId) -> do
-          let bytes = UUID.toASCIIBytes authId
-          let setCookie = defaultSetCookie
-                { setCookieName     = "authId"
-                , setCookieValue    = bytes
-                , setCookieExpires  = Just session.expireDate
-                , setCookieHttpOnly = True
-                , setCookiePath     = Just "/"
-                , setCookieSecure   = True
-                }
-          logInfo_ [i|[2445sz] User #{username} logged in|]
-          addHeader setCookie . addHeader "/" <$> pure mempty
-        Nothing -> noHeader . noHeader <$> (pure failed)
-
-    Nothing -> do
-      noHeader . noHeader <$> (pure failed)
-
-
-loginAuthOIDCRedirect :: SessionId -> Text -> Filehub NoContent
-loginAuthOIDCRedirect sessionId providerName = do
-  stage <- Auth.OIDC.initialize providerName >>= Auth.OIDC.authorize
-  Auth.OIDC.setSessionOIDCFlow sessionId (Just stage)
-  case stage of
-    Auth.OIDC.AuthRequestPrepared _ _ _ _ (AuthUrl url) ->
-      throwIO do
-        HTTPError err303
-          { errHeaders =
-              [( "Location"
-               , ByteString.pack (URI.uriToString id url "")
-               )]
-          }
-
-
-loginAuthOIDCCallback :: SessionId
-                      -> Maybe Text
-                      -> Maybe Text
-                      -> Maybe Text
-                      -> Maybe Text
-                      -> Maybe Text
-                      -> Maybe Text
-                      -> Filehub NoContent
-loginAuthOIDCCallback sessionId (Just code) (Just state) _ _ _ _ = do
-  Auth.OIDC.getSessionOIDCFlow sessionId >>= \case
-    Just (SomeOIDCFlow (stage@Auth.OIDC.AuthRequestPrepared {})) -> do
-        Auth.OIDC.callback stage code state
-          >>= Auth.OIDC.exchangeToken
-          >>= Auth.OIDC.verifyToken
-          >>= Auth.OIDC.authenticateSession sessionId
-          >>= Auth.OIDC.setSessionOIDCFlow sessionId . Just
-    _ -> do
-      logAttention_ "[s9vf9d] OIDC Error: invalid stage"
-      pure ()
-  session <- Session.Pool.get sessionId
-  case session.authId of
-    Just (AuthId authId) -> do
-      let bytes = UUID.toASCIIBytes authId
-      let setCookie = defaultSetCookie
-            { setCookieName     = "authId"
-            , setCookieValue    = bytes
-            , setCookieExpires  = Just session.expireDate
-            , setCookieHttpOnly = True
-            , setCookiePath     = Just "/"
-            , setCookieSecure   = True
-            }
-      throwIO do
-        HTTPError err303
-          { errHeaders = [( "Location" , "/"), ("Set-Cookie", Cookies.renderSetCookie setCookie)]
-          }
-    Nothing -> do
-      throwIO do
-        HTTPError err303
-          { errHeaders = [( "Location" , "/login")]
-          }
-
-
-loginAuthOIDCCallback _ _ _ mErr mErrDescription _ _ = do
-  let message = fromMaybe "" mErr <> ", " <> fromMaybe "" mErrDescription
-  throwIO do
-    HTTPError err303
-      { errHeaders = [( "Location" , "/login?error=\"" <> Text.encodeUtf8 message <> "\"" )]
-      }
-
-
-logout :: SessionId -> ConfirmLogin -> Filehub (Headers '[ Header "Set-Cookie" SetCookie
-                                                         , Header "HX-Redirect" Text
-                                                         ] NoContent)
-logout sessionId _ = do
-  session <- Session.Pool.get sessionId
-  let mSetCookie =
-        fmap (\(AuthId authId) -> do
-          let bytes = UUID.toASCIIBytes authId
-          defaultSetCookie
-            { setCookieName     = "authId"
-            , setCookieValue    = bytes
-            , setCookieExpires  = Just session.expireDate
-            , setCookieHttpOnly = True
-            , setCookiePath     = Just "/"
-            , setCookieSecure   = True
-            })
-       session.authId
-
-  case (,) <$> mSetCookie  <*> session.authId of
-    Just (setCookie, authId) -> do
-      Session.set sessionId (.authId) Nothing
-      Session.set sessionId (.oidcFlow) Nothing
-      ActiveUser.Pool.delete authId
-      addHeader
-        (setCookie
-          { setCookieExpires = Just (UTCTime (fromGregorian 1970 1 1) 0) })
-        . addHeader "/login"
-        <$> pure NoContent
-    Nothing -> noHeader . noHeader <$> pure NoContent
-
-
-cd :: SessionId -> ConfirmLogin -> Maybe ClientPath -> Filehub (Headers '[ Header "HX-Trigger-After-Swap" FilehubEvent ] (Html ()))
-cd sessionId _ mClientPath = do
-  root       <- Session.get sessionId (.root)
-  storage    <- Session.get sessionId (.storage)
-  clientPath <- withQueryParam mClientPath
-  storage.cd (ClientPath.fromClientPath root clientPath)
-  html <- do
-    toolBar' <- toolBar sessionId
-    view'    <- view sessionId
-    pure do
-      toolBar' `with` [ term "hx-swap-oob" "true" ]
-      view'
-  pure $ addHeader DirChanged html
-
-
-delete :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> [ClientPath] -> Bool
-       -> Filehub (Headers '[ Header "X-Filehub-Selected-Count" Int
-                            , Header "HX-Trigger" FilehubEvent
-                            ] (Html ()))
-delete sessionId _ _ clientPaths deleteSelected = do
-  root          <- Session.get sessionId (.root)
-  storage       <- Session.get sessionId (.storage)
-  notifications <- Session.get sessionId (.notifications)
-  count         <- length <$> Selected.allSelecteds sessionId
-  taskId        <- newTaskId
-  deleteCounter <- newTVarIO @_ @Integer 0
-
-  void $ async do
-    atomically do writeTBQueue notifications (DeleteProgressed taskId 0)
-
-    do
-      forConcurrently_ clientPaths \clientPath -> do
-        let path = ClientPath.fromClientPath root clientPath
-        storage.delete path
-        atomically do
-          modifyTVar' deleteCounter (+ 1)
-          n <- readTVar deleteCounter
-          writeTBQueue notifications (DeleteProgressed taskId (n % max 1 (fromIntegral count)))
-
-    when deleteSelected do
-      allSelecteds <- Selected.allSelecteds sessionId
-      for_ allSelecteds \(target, selected) -> do
-        let targetId = Target.getTargetId target
-        Session.withTarget sessionId  targetId do
-          case selected of
-            NoSelection -> pure ()
-            Selected x xs -> do
-              forConcurrently_ (fmap (ClientPath.fromClientPath root) (x:xs)) \path -> do
-                storage.delete path
-                atomically do
-                  modifyTVar' deleteCounter (+ 1)
-                  n <- readTVar deleteCounter
-                  writeTBQueue notifications (DeleteProgressed taskId (n % max 1 (fromIntegral count)))
-
-    atomically do writeTBQueue notifications (TaskCompleted taskId)
-  Server.Internal.clear sessionId
-  newCount <- length <$> Selected.allSelecteds sessionId
-  addHeader newCount . addHeader SSEStarted <$> index sessionId
-
-
-rename :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> RenameFile
-  -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
-rename sessionId _ _ (RenameFile old new) = do
-  storage <- Session.get sessionId (.storage)
-  root    <- Session.get sessionId (.root)
-  storage.rename
-    (ClientPath.fromClientPath root old)
-    new
-  html <- view sessionId
-  pure $ addHeader FileRenamed html
-
-
-newFile :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> NewFile -> Filehub (Html ())
-newFile sessionId _ _ (NewFile name) = do
-  storage     <- Session.get sessionId (.storage)
-  AbsPath dir <- Session.get sessionId (.currentDir)
-  path        <- validateAbsPath (dir </> Text.unpack name) (FilehubError InvalidPath ("<redacted>/" <> show name))
-  storage.new path
-  view sessionId
-
-
-updateFile :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> UpdatedFile -> Filehub (Html ())
-updateFile sessionId _ _ (UpdatedFile clientPath content) = do
-  storage <- Session.get sessionId (.storage)
-  root    <- Session.get sessionId (.root)
-  let path  = ClientPath.fromClientPath root clientPath
-  storage.write $ defaultFileWithContent
-    { path     = path
-    , content  = FileContentRaw (Text.encodeUtf8 content)
-    }
-  view sessionId
-
-
-newFolder :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> NewFolder -> Filehub (Html ())
-newFolder sessionId _ _ (NewFolder name) = do
-  AbsPath dir <- Session.get sessionId (.currentDir)
-  storage     <- Session.get sessionId (.storage)
-  path <- validateAbsPath
-            (dir </> Text.unpack name)
-            (FilehubError InvalidPath ("<redacted>/" <> show name))
-  storage.newFolder path
-  view sessionId
-
-
-copy :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> Filehub (Html ())
-copy sessionId _ _ = do
-  Copy.select sessionId
-  Copy.copy sessionId
-  controlPanel sessionId
-
-
-copy1 :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> Maybe ClientPath -> Filehub (Html ())
-copy1 sessionId _ _ mClientPath = do
-  clientPath <- withQueryParam mClientPath
-  Server.Internal.clear sessionId
-  Selected.setSelected sessionId (Selected clientPath [])
-  Copy.select sessionId
-  Copy.copy sessionId
-  index sessionId
-
-
-type TargetFrom  = AnyTarget
-type TargetTo    = AnyTarget
-type Destination = AbsPath
-
-
-data PasteTask
-  = PasteFile TargetFrom TargetTo FileInfo Destination
-  | PasteDir TargetTo Destination [PasteTask]
-
-
-paste :: SessionId -> ConfirmLogin -> ConfirmReadOnly
-      -> Filehub (Headers '[ Header "X-Filehub-Selected-Count" Int
-                           , Header "HX-Trigger" FilehubEvent
-                           ] (Html ()))
-paste sessionId _ _ = do
-  notifications <- Session.get sessionId (.notifications)
-  pasteCounter  <- newTVarIO @_ @Integer 0
-  taskId        <- newTaskId
-  state         <- Copy.getCopyState sessionId
-  case state of
-    Paste selections -> do
-      tasks <- do
-        TargetView to sessionData <- Session.get sessionId (.currentTarget)
-        createPasteTasks sessionData.currentDir to selections
-      let taskCount = fromIntegral (length tasks)
-
-      (void . async) do
-        forConcurrently_ tasks $ fix \rec task -> do
-          case task of
-            PasteFile from to file dst -> do
-              let fromId = Target.getTargetId from
-              let toId   = Target.getTargetId to
-              conduit <- Session.withTarget sessionId fromId do
-                storage <- Session.get sessionId (.storage)
-                storage.readStream file
-              Session.withTarget sessionId toId do
-                storage <- Session.get sessionId (.storage)
-                storage.write $ file
-                  & flip withContent (FileContentConduit conduit)
-                  & #path .~ dst
-              atomically do
-                modifyTVar' pasteCounter (+ 1)
-                n <- readTVar pasteCounter
-                writeTBQueue notifications (PasteProgressed taskId (n % max 1 taskCount) )
-
-            PasteDir to dst subTasks -> do
-              let targetId = Target.getTargetId to
-              Session.withTarget sessionId targetId do
-                storage <- Session.get sessionId (.storage)
-                storage.newFolder dst
-              forConcurrently_ subTasks rec
-
-        Copy.setCopyState sessionId NoCopyPaste
-        Selected.clearSelectedAllTargets sessionId
-        atomically $ writeTBQueue notifications (TaskCompleted taskId)
-    _ -> do
-      logAttention_ [i|[v8dsaz] #{sessionId}, not in pastable state.|]
-      throwIO (FilehubError SelectError "Not in a pastable state")
-
-  Server.Internal.clear sessionId
-  selectedCount <- length <$> Selected.allSelecteds sessionId
-  addHeader selectedCount . addHeader SSEStarted <$> index sessionId
-
-  where
-    createPasteTasks fromDir to selections = fmap (mconcat . mconcat) do
-      for selections \(from, files) -> do
-        for files $ flip fix fromDir \rec (AbsPath currentDir) file -> do
-          let name  =  coerce takeFileName file.path
-          let fromId = Target.getTargetId from
-          dst <- validateAbsPath (currentDir </> takeFileName name) (FilehubError InvalidPath "Invalid path")
-          case file.content of
-            Regular -> pure [ PasteFile from to file dst ]
-            Dir -> do
-              Session.withTarget sessionId fromId do
-                storage <- Session.get sessionId (.storage)
-                (TargetView _ (TargetSessionData { currentDir = savedDir })) <- Session.get sessionId (.currentTarget)
-                storage.cd file.path
-                result <- do
-                  dirFiles <- storage.lsCwd
-                  for dirFiles \dfile -> rec dst dfile
-                storage.cd savedDir -- go back
-                pure [ PasteDir to dst (mconcat result) ]
-
-
-move :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> MoveFile
-     -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent
-                          , Header "HX-Trigger" FilehubEvent
-                          ] (Html ()))
-move sessionId _ _ (MoveFile src tgt) = do
-  storage       <- Session.get sessionId (.storage)
-  root          <- Session.get sessionId (.root)
-  notifications <- Session.get sessionId (.notifications)
-  taskId        <- newTaskId
-  let srcPaths  =  fmap (ClientPath.fromClientPath root) src
-  let tgtPath   =  ClientPath.fromClientPath root tgt
-
-  -- check before take action
-  for_ srcPaths \srcPath -> do
-    isTgtDir <- storage.isDirectory tgtPath
-    when (not isTgtDir) do
-      throwIO (FilehubError InvalidDir "Target is not a directory")
-
-    when (srcPath == tgtPath)  do
-      throwIO (FilehubError InvalidDir "Can't move to the same directory")
-
-    when (coerce takeDirectory srcPath == tgtPath)  do
-      throwIO (FilehubError InvalidDir "Already in the current directory")
-
-    let dstPath = tgtPath <./> coerce takeFileName srcPath
-    mFile <- storage.get dstPath
-    when (isJust mFile) do
-      throwIO (FilehubError InvalidPath "The destination already exists")
-
-  void $ async do
-    atomically do
-      writeTBQueue notifications (MoveProgressed taskId 0)
-
-    storage.mv do
-      fmap (\srcPath -> (srcPath, tgtPath <./> coerce takeFileName srcPath)) srcPaths
-
-    atomically do
-      writeTBQueue notifications  (TaskCompleted taskId)
-
-  Server.Internal.clear sessionId
-  addHeader FileMoved . addHeader SSEStarted <$> index sessionId
-
-
-renameModal :: SessionId -> ConfirmLogin -> ConfirmDesktopOnly -> ConfirmReadOnly -> Maybe ClientPath -> Filehub (Html ())
-renameModal sessionId _ _ _ mClientPath = do
-  root       <- Session.get sessionId (.root)
-  clientPath <- withQueryParam mClientPath
-  ctx        <- makeTemplateContext sessionId
-  pure $ runTemplate ctx (Template.Desktop.renameModal (ClientPath.fromClientPath root clientPath))
-
-
-newFileModal :: SessionId -> ConfirmLogin -> ConfirmDesktopOnly -> ConfirmReadOnly -> Filehub (Html ())
-newFileModal sessionId _ _ _ = do
-  ctx <- makeTemplateContext sessionId
-  pure $ runTemplate ctx Template.Desktop.newFileModal
-
-
-newFolderModal :: SessionId -> ConfirmLogin -> ConfirmDesktopOnly -> ConfirmReadOnly -> Filehub (Html ())
-newFolderModal sessionId  _ _ _ = do
-  ctx <- makeTemplateContext sessionId
-  pure $ runTemplate ctx Template.Desktop.newFolderModal
-
-
-fileDetailModal :: SessionId -> ConfirmLogin -> ConfirmDesktopOnly -> Maybe ClientPath -> Filehub (Html ())
-fileDetailModal sessionId _ _ mPath = do
-  Server.Desktop.fileDetailModal sessionId mPath
-
-
-editorModal :: SessionId -> ConfirmLogin -> Maybe ClientPath -> Filehub (Html ())
-editorModal sessionId _ mClientPath = do
-  display <- Session.get sessionId (.display)
-  case display of
-    Mobile    -> Server.Mobile.editorModal sessionId mClientPath
-    Desktop   -> Server.Desktop.editorModal sessionId mClientPath
-    NoDisplay -> error "impossible"
-
-
-selectLayout :: SessionId -> ConfirmLogin -> Maybe Layout -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
-selectLayout sessionId _ layout = do
-  Session.set sessionId (.layout) (fromMaybe ThumbnailLayout layout)
-  addHeader LayoutChanged <$> index sessionId
-
-
-sortTable :: SessionId -> ConfirmLogin -> Maybe SortFileBy -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
-sortTable sessionId _ order = do
-  display <- Session.get sessionId (.display)
-  Session.set sessionId (.sortedFileBy) (fromMaybe ByNameUp order)
-  html <- do
-    view' <- view sessionId
-    case display of
-      Mobile -> do
-        toolBar' <- Server.Mobile.toolBar sessionId
-        pure do
-          toolBar' `with` [ term "hx-swap-oob" "true" ]
-          view'
-      Desktop   -> pure view'
-      NoDisplay -> pure view'
-  pure $ addHeader TableSorted html
-
-
 search :: SessionId -> ConfirmLogin -> SearchWord -> Filehub (Html ())
 search sessionId _ searchWord = do
   storage <- Session.get sessionId (.storage)
@@ -812,142 +343,12 @@ search sessionId _ searchWord = do
     NoDisplay -> error "impossible"
 
 
-download :: SessionId -> ConfirmLogin -> [ClientPath]
-         -> Filehub (Headers '[ Header "Content-Disposition" String ] (ConduitT () ByteString (ResourceT IO) ()))
-download sessionId _ clientPaths = do
-  root    <- Session.get sessionId (.root)
-  storage <- Session.get sessionId (.storage)
-  case clientPaths of
-    [clientPath@(ClientPath path)] -> do
-      mFile   <- storage.get (ClientPath.fromClientPath root clientPath)
-      conduit <- storage.download clientPath
-      case mFile of
-        Just file -> do
-          let filename =
-                case file.content of
-                  Regular -> printf "attachement; filename=%s" (takeFileName path)
-                  Dir     -> printf "attachement; filename=%s.zip" (takeFileName path)
-          pure $ addHeader filename conduit
-        Nothing -> do
-          throwIO (FilehubError InvalidPath "can't download, invalid file path")
-    _ -> do
-      (zipPath, _) <- liftIO do
-        tempDir <- Temp.getCanonicalTemporaryDirectory
-        Temp.openTempFile tempDir "DXXXXXX.zip"
-
-      files <- traverse (storage.get . ClientPath.fromClientPath root) clientPaths <&> catMaybes
-
-      tasks <- for files \file -> do
-        conduit <- storage.readStream file
-        pure (file.path, conduit)
-
-      Zip.createArchive zipPath do
-        for_ tasks \(path, conduit) -> do
-          m <- Zip.mkEntrySelector  (coerce makeRelative root path)
-          Zip.sinkEntry Zip.Zstd conduit m
-      tag <- Text.pack <$> replicateM 8 (randomRIO ('a', 'z'))
-      let conduit =
-            Conduit.bracketP
-              (pure ())
-              (\_ -> removeFile zipPath)
-              (\_ -> Conduit.sourceFile zipPath)
-      pure $ addHeader (printf "attachement; filename=%s.zip" tag) conduit
-
-
-upload :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> MultipartData Mem
-       -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
-upload sessionId _ _ multipart = do
-  notifications <- Session.get sessionId (.notifications)
-  taskId        <- newTaskId
-  uploadCounter <- newTVarIO @_ @Integer 0
-  let taskCount =  fromIntegral $ length multipart.files
-
-  void $ async do
-    atomically do
-      writeTBQueue notifications (UploadProgressed taskId 0)
-
-    storage <- Session.get sessionId (.storage)
-    forConcurrently_ multipart.files \filedata -> do
-      storage.upload filedata
-      atomically do
-        modifyTVar' uploadCounter (+ 1)
-        n <- readTVar uploadCounter
-        writeTBQueue notifications (UploadProgressed taskId (n % max 1 taskCount) )
-
-    atomically do
-      writeTBQueue notifications (UploadProgressed taskId 1)
-      writeTBQueue notifications (TaskCompleted taskId)
-  addHeader SSEStarted <$> index sessionId
-
-
-selectRows :: SessionId -> ConfirmLogin -> Selected -> Filehub (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))
-selectRows sessionId _ selected = do
-  case selected of
-    NoSelection -> do
-      Selected.setSelected sessionId NoSelection
-      sideBar'      <- sideBar sessionId
-      controlPanel' <- controlPanel sessionId
-      pure $ addHeader 0 do
-        sideBar' `with` [ term "hx-swap-oob" "true" ]
-        controlPanel'
-    _ -> do
-      Selected.setSelected sessionId selected
-      count         <- length <$> Selected.allSelecteds sessionId
-      sideBar'      <- sideBar sessionId
-      controlPanel' <- controlPanel sessionId
-      pure $ addHeader count do
-        sideBar' `with` [ term "hx-swap-oob" "true" ]
-        controlPanel'
-
-
-contextMenu :: SessionId -> ConfirmLogin -> ConfirmDesktopOnly -> [ClientPath] -> Filehub (Html ())
-contextMenu sessionId _ _ paths = Server.Desktop.contextMenu sessionId paths
-
 
 cancel :: SessionId -> ConfirmLogin -> Filehub (Headers '[Header "X-Filehub-Selected-Count" Int] (Html ()))
 cancel sessionId _ = do
-  Server.Internal.clear sessionId
+  clear sessionId
   count <- length <$> Selected.allSelecteds sessionId
   addHeader count <$> index sessionId
-
-
-initViewer :: SessionId -> ConfirmLogin -> Maybe ClientPath
-           -> Filehub (Headers '[Header "HX-Trigger" FilehubEvent] NoContent)
-initViewer sessionId _ mClientPath = do
-  root       <- Session.get sessionId (.root)
-  order      <- Session.get sessionId (.sortedFileBy)
-  storage    <- Session.get sessionId (.storage)
-  clientPath <- withQueryParam mClientPath
-  payload <- do
-    let filePath  =  ClientPath.fromClientPath root clientPath
-    let dir       =  coerce takeDirectory filePath
-    files         <- takeResourceFiles . Sort.sortFiles order <$> (storage.ls dir)
-    let idx       =  fromMaybe 0 $ List.elemIndex filePath (fmap (.path) files)
-    let resources =  fmap (toResource root) files
-    pure $ ViewerInited resources idx
-  pure $ addHeader payload NoContent
-  where
-    isResource :: MimeType -> Bool
-    isResource s = any (s `isMime`)  ["image", "video", "audio"]
-
-    takeResourceFiles :: [FileInfo] -> [FileInfo]
-    takeResourceFiles = filter (isResource . (.mimetype))
-
-    toResource :: Root -> FileInfo -> Resource
-    toResource root f =
-      Resource
-        { url = let ClientPath path = ClientPath.toClientPath root f.path -- encode path url
-                 in ClientPath.RawClientPath [i|/serve?file=#{path}|]
-                                                  , mimetype = Text.decodeUtf8 f.mimetype
-        }
-
-
-open :: SessionId -> ConfirmLogin -> Maybe OpenTarget -> Maybe ClientPath
-     -> Filehub (Headers '[Header "HX-Trigger" FilehubEvent] NoContent)
-open _ _ mTarget mClientPath = do
-  clientPath <- withQueryParam mClientPath
-  target     <- withQueryParam mTarget
-  pure $ addHeader (Opened target clientPath) NoContent
 
 
 changeTarget :: SessionId -> ConfirmLogin -> Maybe TargetId
@@ -1038,82 +439,6 @@ themeCss sessionId = do
       Light -> fromMaybe "no-theme" $ customThemeLight <|> Map.lookup "theme-light.css" staticFiles
 #endif
 
-
--- | Toggle the frontend theme by triggering the event handler of `ThemeChanged`
--- in the frontend. A fade-in animation is played when the theme toggled, and it needs
--- to be removed by the frontend.
-toggleTheme :: SessionId -> ConfirmLogin -> Filehub (Headers '[ Header "HX-Trigger-After-Settle" FilehubEvent ] (Html ()))
-toggleTheme sessionId _ = do
-  theme <- Session.get sessionId (.theme)
-  case theme of
-    Theme.Light -> Session.set sessionId (.theme) Dark
-    Theme.Dark  -> Session.set sessionId (.theme) Light
-  html <- index sessionId
-  pure $ addHeader ThemeChanged (html `with` [ class_ "fade-in " ])
-
-
-changeLocale :: SessionId -> Maybe Locale -> Filehub (Headers '[ Header "HX-Trigger-After-Settle" FilehubEvent ] (Html ()))
-changeLocale _ Nothing = throwIO (FilehubError LocaleError "Invalid locale")
-changeLocale sessionId (Just locale) = do
-  Session.set sessionId (.locale) locale
-  addHeader LocaleChanged <$> index sessionId
-
-
-toggleSidebar :: SessionId -> ConfirmLogin -> Filehub (Html ())
-toggleSidebar sessionId _ = do
-  b <- Session.get sessionId (.sidebarCollapsed)
-  Session.set sessionId (.sidebarCollapsed) (not b)
-  index sessionId
-
-
-serve :: Env -> SessionId -> ConfirmLogin -> Tagged Filehub Application
-serve env sessionId _ = Tagged $ \req respond -> do
-  let query = queryString req
-  let mFile = join $ lookup "file" query
-
-  res <- runFilehub env $ do
-    root    <- Session.get sessionId (.root)
-    storage <- Session.get sessionId (.storage)
-    clientPath <- do
-      byte <- withQueryParam mFile
-      let text = Text.decodeUtf8 byte
-      case parseUrlPiece @ClientPath text of
-        Right c -> pure c
-        Left err -> throwIO do HTTPError err404 { errBody = [i|#{err}|] }
-
-    let path = ClientPath.fromClientPath root clientPath
-
-    storage.get path >>= \case
-      Just file -> do
-        stream <- storage.readStream file
-        pure (Just (file, stream))
-      Nothing   -> pure Nothing
-
-  case res of
-    Left err -> throwIO err
-    Right Nothing -> respond $ responseLBS status404 [] "File not found"
-    Right (Just (fileInfo, stream)) -> do
-      let settings = (defaultFileServerSettings "")
-                      { ssLookupFile = \_ -> do
-                          let absPath = coerce fileInfo.path :: FilePath
-                          pure $ LRFile WaiAppStatic.Types.File
-                            { fileGetSize     = maybe 0 id fileInfo.size
-                            , fileToResponse  = \status headers ->
-                                                  responseStream status headers $ \send flush ->
-                                                    runResourceT . runConduit
-                                                    $ stream
-                                                    .| Conduit.mapM_C
-                                                        (\chunk -> liftIO do
-                                                          send (Builder.fromByteString chunk)
-                                                          flush)
-                            , fileName        = unsafeToPiece (Text.pack (takeFileName absPath))
-                            , fileGetHash     = pure Nothing
-                            , fileGetModified = (CTime . round . utcTimeToPOSIXSeconds) <$> fileInfo.mtime
-                            }
-                      , ssGetMimeType  = \_file -> pure fileInfo.mimetype
-                      , ssIndices = []
-                      }
-      staticApp settings req respond
 
 
 thumbnail :: SessionId -> ConfirmLogin -> Maybe ClientPath
@@ -1207,56 +532,6 @@ static paths = do
     . addHeader "public, no-cache"
     . addHeader etag
     $ content
-
-
-------------------------------------
--- Components
-------------------------------------
-
-
-index :: SessionId -> Filehub (Html ())
-index sessionId = do
-  display <- Session.get sessionId (.display)
-  case display of
-    NoDisplay -> pure Template.bootstrap
-    Desktop   -> Server.Desktop.index sessionId
-    Mobile    -> Server.Mobile.index sessionId
-
-
-view :: SessionId -> Filehub (Html ())
-view sessionId = do
-  display <- Session.get sessionId (.display)
-  case display of
-    Desktop   -> Server.Desktop.view sessionId
-    Mobile    -> Server.Mobile.view sessionId
-    NoDisplay -> Server.Mobile.view sessionId
-
-
-controlPanel :: SessionId -> Filehub (Html ())
-controlPanel sessionId = do
-  display <- Session.get sessionId (.display)
-  ctx <- makeTemplateContext sessionId
-  pure $
-    case display of
-      Desktop -> runTemplate ctx Template.Desktop.controlPanel
-      Mobile  -> runTemplate ctx Template.Mobile.controlPanel
-      _       -> runTemplate ctx Template.Mobile.controlPanel
-
-
-sideBar :: SessionId -> Filehub (Html ())
-sideBar sessionId = do
-  display <- Session.get sessionId (.display)
-  case display of
-    Desktop -> Server.Desktop.sideBar sessionId
-    _       -> Server.Mobile.sideBar sessionId
-
-
-toolBar :: SessionId -> Filehub (Html ())
-toolBar sessionId = do
-  display <- Session.get sessionId (.display)
-  case display of
-    Desktop -> Server.Desktop.toolBar sessionId
-    _       -> Server.Mobile.toolBar sessionId
 
 
 ------------------------------------

@@ -29,7 +29,7 @@ import Prelude hiding (readFile)
 import Lens.Micro.Platform ()
 import Servant
 import Filehub.Cookie qualified as Cookies
-import Filehub.Server.Internal (parseHeader')
+import Filehub.Server.Util (parseHeader')
 import Filehub.Monad (runFilehub, Filehub)
 import UnliftIO (MonadIO(..))
 import Data.ByteString.Lazy (ByteString)

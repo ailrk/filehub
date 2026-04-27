@@ -20,7 +20,7 @@ import Data.UUID qualified as UUID
 import Filehub.Cookie qualified as Cookies
 import Filehub.Env (Env (..))
 import Filehub.Monad ( toIO )
-import Filehub.Server.Internal (parseHeader')
+import Filehub.Server.Util (parseHeader')
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Types (Session(..), SessionId(..))
 import Filehub.UserAgent qualified as UserAgent

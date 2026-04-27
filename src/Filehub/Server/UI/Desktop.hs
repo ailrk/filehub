@@ -1,6 +1,6 @@
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE NamedFieldPuns #-}
-module Filehub.Server.Desktop
+module Filehub.Server.UI.Desktop
   ( fileDetailModal
   , editorModal
   , contextMenu
@@ -16,7 +16,7 @@ import Filehub.Session.Types (TargetSessionData(..))
 import Filehub.Session qualified as Session
 import Filehub.Sort (sortFiles)
 import Filehub.Template.Desktop qualified as Template.Desktop
-import Filehub.Server.Internal (withQueryParam)
+import Filehub.Server.Util (withQueryParam)
 import Filehub.Template (TemplateContext(..), runTemplate, makeTemplateContext)
 import Filehub.Types ( SessionId(..), ClientPath, Selected(..))
 import Lucid
@@ -26,7 +26,6 @@ import Filehub.Session (TargetView(..))
 import Filehub.Error (FilehubError(..), Error'(InvalidPath))
 import Data.Coerce (coerce)
 import Filehub.Session (SessionGet(..))
-import Filehub.Session qualified as Session
 import Filehub.Monad (Filehub)
 import UnliftIO (throwIO)
 

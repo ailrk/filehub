@@ -1,5 +1,5 @@
 {-# LANGUAGE NamedFieldPuns #-}
-module EvtLog
+module Control.Handle.EvtLog
   ( EvtLog
   , LogEvt(..)
   , ToLogEvt(..)

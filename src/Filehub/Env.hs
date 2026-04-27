@@ -25,10 +25,11 @@ import Network.HTTP.Client qualified as HTTP
 import Target.Types (AnyTarget, TargetId)
 import {-# SOURCE #-} Filehub.Auth.OIDC (OIDCAuthProviders(..))
 import {-# SOURCE #-} Filehub.Auth.Simple (SimpleAuthUserDB(..))
-import EvtLog qualified
+-- import EvtLog qualified
 import Control.Concurrent.STM (TVar)
 import Control.Handle.Cache (Cache)
 import Control.Handle.LockManager (LockManager)
+import Control.Handle.EvtLog (EvtLog)
 
 
 data Env = Env
@@ -59,7 +60,7 @@ data Env = Env
     -- Pool of all shared links
   , sharedLinkPool    :: SharedLinkPool
     -- Handle for the event log
-  , evtLogHandle      :: EvtLog.Handle
+  , evtLogHandle      :: EvtLog
     -- Map from `AuthId` to `ActiveUser`. The definition of an active user depends on
     -- its login method. An active user can have multiple sessions.
   , activeUsers       :: ActiveUser.Pool

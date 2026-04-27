@@ -1,21 +1,12 @@
-{-# LANGUAGE PartialTypeSignatures #-}
--- |
--- Maintainer  :  jimmy@ailrk.com
--- Copyright   :  (c) 2025-present Jinyang yao
---
--- Utilities for Server.
-module Filehub.Server.Internal
+module Filehub.Server.Util
   ( withQueryParam
-  , clear
   , parseHeader'
   )
   where
 
+
 import Data.ByteString (ByteString)
 import Filehub.Error (FilehubError (..))
-import Filehub.Session.Copy qualified as Copy
-import Filehub.Session.Selected qualified as Selected
-import Filehub.Types
 import Lens.Micro.Platform ()
 import Prelude hiding (elem)
 import Prelude hiding (readFile)
@@ -31,13 +22,6 @@ withQueryParam m =
   case m of
     Just a  -> pure a
     Nothing -> throwIO do HTTPError err400
-
-
--- | Completely reset all state machines. This should be the only place to reset state.
-clear :: SessionId -> Filehub ()
-clear sessionId = do
-  Selected.clearSelectedAllTargets sessionId
-  Copy.clearCopyState sessionId
 
 
 parseHeader' :: FromHttpApiData a => ByteString -> Maybe a
