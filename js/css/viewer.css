@@ -38,7 +38,7 @@
   touch-action: none;
   -webkit-touch-callout: none;
   user-select: none;
-
+  background-color: rgba(0, 0, 0, 0.6);
 }
 
 .viewer-container::selection,
