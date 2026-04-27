@@ -78,7 +78,7 @@ targetToSessionData (AnyTarget target) =
     defaultTargetSessionData =
       TargetSessionData
         { currentDir   = AbsPath ""
-        , sortedFileBy = ByNameUp
+        , sortedFileBy = ByModifiedDown
         , selected     = NoSelection
         }
 

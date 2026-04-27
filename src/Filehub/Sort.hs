@@ -47,19 +47,20 @@ instance FromHttpApiData SortFileBy where
   parseUrlPiece _              = Left "Unknown order"
 
 
-byFileNamewithDirFirst :: FileInfo -> String
+byFileNamewithDirFirst :: FileInfo -> (FileType, String)
 byFileNamewithDirFirst file = do
   let pre = case file.content of
               Regular -> '1'
               Dir     -> '0'
   let name = coerce takeFileName file.path :: String
-  pre : name
+  (file.content, pre : name)
+
 
 
 sortFiles :: SortFileBy -> [FileInfo] -> [FileInfo]
 sortFiles ByNameUp       = sortOn byFileNamewithDirFirst
 sortFiles ByNameDown     = reverse . sortFiles ByNameUp
-sortFiles ByModifiedUp   = sortOn (.mtime)
+sortFiles ByModifiedUp   = sortOn (\f -> (f.content, f.mtime))
 sortFiles ByModifiedDown = reverse . sortFiles ByModifiedUp
-sortFiles BySizeUp       = sortOn (.size)
+sortFiles BySizeUp       = sortOn (\f -> (f.content, f.size))
 sortFiles BySizeDown     = reverse . sortFiles BySizeUp

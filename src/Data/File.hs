@@ -24,7 +24,7 @@ import Data.ClientPath (AbsPath (..))
 data FileType
   = Regular
   | Dir
-  deriving (Show, Eq, Generic)
+  deriving (Show, Eq, Ord, Generic)
 
 
 instance Debug FileType
