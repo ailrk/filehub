@@ -35,7 +35,7 @@ import Filehub.Types ( NewFile(..) , NewFolder(..)    , Selected (..)    , Updat
 import Lens.Micro ((.~), (<&>))
 import Lucid hiding (for_)
 import Prelude hiding (init, readFile)
-import Servant (Header , Headers  , addHeader, Tagged (..), Application, ServerError (..), FromHttpApiData (..), err404         )
+import Servant (Header , Headers  , addHeader, Tagged (..), Application, ServerError (..), FromHttpApiData (..), err404, NoContent (..)         )
 import Servant.Multipart (MultipartData(..), Mem)
 import System.Directory (removeFile)
 import System.FilePath (takeFileName, (</>), makeRelative, takeDirectory)
@@ -46,7 +46,7 @@ import Target.Types qualified as Target
 import Text.Printf (printf)
 import Worker.Task (newTaskId)
 import UnliftIO (throwIO)
-import UnliftIO.STM (atomically, modifyTVar', readTVar, newTVarIO, writeTBQueue)
+import UnliftIO.STM (atomically, modifyTVar', readTVar, newTVarIO, writeTBQueue, newTQueueIO, writeTQueue)
 import Log (logAttention_)
 import UnliftIO.Async (async, forConcurrently_)
 import Filehub.Server.UI ( clear, index, view, controlPanel, toolBar )
@@ -55,6 +55,8 @@ import Network.HTTP.Types.Status (status404, status206, status200)
 import Data.Binary.Builder qualified as Builder
 import Network.HTTP.Types (ByteRange(..), parseByteRanges)
 import Data.ByteString.Char8 qualified as Char8
+import Data.Hashable (Hashable(..))
+import Control.Concurrent.STM (flushTQueue)
 
 
 cd :: SessionId -> ConfirmLogin -> Maybe ClientPath -> Filehub (Headers '[ Header "HX-Trigger-After-Swap" FilehubEvent ] (Html ()))
@@ -72,10 +74,16 @@ cd sessionId _ mClientPath = do
   pure $ addHeader DirChanged html
 
 
+-- | Delete files.
+-- This handler returns immediately, which command the frontend to open a
+-- /listen connection. Meanwhile it spawns a new thread running the deletion
+-- task. The new thread periodically report progress to the frontend via
+-- /listen, and on complete it will send a htmx response that the frontend can
+-- use to update the UI.
 delete :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> [ClientPath] -> Bool
        -> Filehub (Headers '[ Header "X-Filehub-Selected-Count" Int
                             , Header "HX-Trigger" FilehubEvent
-                            ] (Html ()))
+                            ] NoContent)
 delete sessionId _ _ clientPaths deleteSelected = do
   root          <- Session.get sessionId (.root)
   storage       <- Session.get sessionId (.storage)
@@ -83,19 +91,28 @@ delete sessionId _ _ clientPaths deleteSelected = do
   count         <- length <$> Selected.allSelecteds sessionId
   taskId        <- newTaskId
   deleteCounter <- newTVarIO @_ @Integer 0
+  deleted       <- newTQueueIO @_ @ClientPath
+
+  -- Record on each successful delete.
+  let jot clientPath = do
+        modifyTVar' deleteCounter (+ 1)
+        writeTQueue deleted clientPath
+        readTVar deleteCounter
 
   void $ async do
-    atomically do writeTBQueue notifications (DeleteProgressed taskId 0)
+    -- Make sure the frontend opens a /listen connection otherwise this will block.
+    atomically do
+      writeTBQueue notifications (DeleteProgressed taskId 0)
 
-    do
-      forConcurrently_ clientPaths \clientPath -> do
-        let path = ClientPath.fromClientPath root clientPath
-        storage.delete path
-        atomically do
-          modifyTVar' deleteCounter (+ 1)
-          n <- readTVar deleteCounter
-          writeTBQueue notifications (DeleteProgressed taskId (n % max 1 (fromIntegral count)))
+    -- Delete from parameters
+    forConcurrently_ clientPaths \clientPath -> do
+      let path = ClientPath.fromClientPath root clientPath
+      storage.delete path
+      atomically do
+        n <- jot clientPath
+        writeTBQueue notifications (DeleteProgressed taskId (n % max 1 (fromIntegral count)))
 
+    -- Delete selected
     when deleteSelected do
       allSelecteds <- Selected.allSelecteds sessionId
       for_ allSelecteds \(target, selected) -> do
@@ -104,17 +121,27 @@ delete sessionId _ _ clientPaths deleteSelected = do
           case selected of
             NoSelection -> pure ()
             Selected x xs -> do
-              forConcurrently_ (fmap (ClientPath.fromClientPath root) (x:xs)) \path -> do
+              let ps = fmap (\p -> (ClientPath.fromClientPath root p, p)) (x:xs)
+              forConcurrently_  ps \(path, clientPath) -> do
                 storage.delete path
                 atomically do
-                  modifyTVar' deleteCounter (+ 1)
-                  n <- readTVar deleteCounter
+                  n <- jot clientPath
                   writeTBQueue notifications (DeleteProgressed taskId (n % max 1 (fromIntegral count)))
 
-    atomically do writeTBQueue notifications (TaskCompleted taskId)
+    atomically do
+      report <- flushTQueue deleted
+      let htmx = response report
+      writeTBQueue notifications (TaskCompleted taskId (Just htmx))
+
   clear sessionId
   newCount <- length <$> Selected.allSelecteds sessionId
-  addHeader newCount . addHeader SSEStarted <$> index sessionId
+  addHeader newCount . addHeader SSEStarted <$> (pure NoContent)
+  where
+    response :: [ClientPath] -> Html ()
+    response paths = mconcat
+                   $ fmap (\path -> let pathHash = fromIntegral (hash path) :: Word
+                                     in div_ [ id_ [i|tr-#{pathHash}|], term "hx-swap-oob" "delete" ] mempty)
+                   $ paths
 
 
 rename :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> RenameFile
@@ -232,7 +259,7 @@ paste sessionId _ _ = do
 
         Copy.setCopyState sessionId NoCopyPaste
         Selected.clearSelectedAllTargets sessionId
-        atomically $ writeTBQueue notifications (TaskCompleted taskId)
+        atomically $ writeTBQueue notifications (TaskCompleted taskId Nothing)
     _ -> do
       logAttention_ [i|[v8dsaz] #{sessionId}, not in pastable state.|]
       throwIO (FilehubError SelectError "Not in a pastable state")
@@ -299,7 +326,7 @@ move sessionId _ _ (MoveFile src tgt) = do
       fmap (\srcPath -> (srcPath, tgtPath <./> coerce takeFileName srcPath)) srcPaths
 
     atomically do
-      writeTBQueue notifications  (TaskCompleted taskId)
+      writeTBQueue notifications  (TaskCompleted taskId Nothing)
 
   clear sessionId
   addHeader FileMoved . addHeader SSEStarted <$> index sessionId
@@ -369,7 +396,7 @@ upload sessionId _ _ multipart = do
 
     atomically do
       writeTBQueue notifications (UploadProgressed taskId 1)
-      writeTBQueue notifications (TaskCompleted taskId)
+      writeTBQueue notifications (TaskCompleted taskId Nothing)
   addHeader SSEStarted <$> index sessionId
 
 

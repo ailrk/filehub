@@ -4,16 +4,17 @@ import Servant.API.EventStream (ToServerEvent(..), ServerEvent (..))
 import Worker.Task (TaskId)
 import Data.Aeson ((.=), ToJSON(..))
 import Data.Aeson qualified as Aeson
+import Lucid (Html, renderText)
 
 
 data Notification
   = Pong
-  | TaskCompleted TaskId
+  | TaskCompleted TaskId (Maybe (Html ()))
   | DeleteProgressed TaskId Rational
   | PasteProgressed TaskId Rational
   | MoveProgressed TaskId Rational
   | UploadProgressed TaskId Rational
-  deriving (Show, Eq)
+  deriving (Show)
 
 
 -- https://html.spec.whatwg.org/multipage/server-sent-events.html
@@ -23,10 +24,13 @@ instance ToServerEvent Notification where
     , eventId   = Nothing
     , eventData = "Pong"
     }
-  toServerEvent (TaskCompleted taskId) = ServerEvent
+  toServerEvent (TaskCompleted taskId htmxResponse) = ServerEvent
     { eventType = Just "TaskCompleted"
     , eventId   = Nothing
-    , eventData = Aeson.encode $ Aeson.object [ "taskId" .= toJSON taskId ]
+    , eventData = Aeson.encode $ Aeson.object
+        [ "taskId"       .= toJSON taskId
+        , "htmxResponse" .= toJSON (renderText <$> htmxResponse)
+        ]
     }
   toServerEvent (DeleteProgressed taskId progress) = ServerEvent
     { eventType = Just "DeleteProgressed"

@@ -265,10 +265,11 @@ function listenSSE(_) {
             evtSource.close();
             evtSource = null;
         }
-        htmx.ajax('GET', `/refresh?component=UIComponentIndex`, { target: '#index',
-            source: '#index',
-            swap: 'outerHTML'
-        });
+        if (htmx !== null && htmx !== "") {
+            htmx.swap(document.body, data.htmxResponse, {
+                swapStyle: 'none'
+            });
+        }
     });
     evtSource.addEventListener('DeleteProgressed', e => {
         let data = JSON.parse(e.data);

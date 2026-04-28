@@ -308,17 +308,20 @@ function listenSSE(_: Event) {
 
   evtSource.addEventListener('TaskCompleted', e => {
     console.log('Task completed')
-    let data = JSON.parse(e.data) as { taskId: number }
+    let data = JSON.parse(e.data) as {
+      taskId: number,
+      htmxResponse: string | null
+    }
     let remaining = Balloon.deleteLongLivedBalloon(data.taskId)
     if (remaining === 0 && evtSource) {
       evtSource.close()
       evtSource = null
     }
-    htmx.ajax('GET', `/refresh?component=UIComponentIndex`,
-      { target: '#index',
-        source: '#index',
-        swap: 'outerHTML'
+    if (htmx !== null && htmx !== "") {
+      htmx.swap(document.body, data.htmxResponse, {
+        swapStyle: 'none'
       });
+    }
   })
 
   evtSource.addEventListener('DeleteProgressed', e => {

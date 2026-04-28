@@ -413,8 +413,7 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
       pure do
         button_ [ class_ "action-btn urgent "
                 , term "hx-delete" (linkToText (apiLinks.delete (Selected.toList selected) True))
-                , term "hx-target" "#index"
-                , term "hx-swap" "outerHTML"
+                , term "hx-swap" "none"
                 , term "hx-confirm" ("Are you sure about deleting selected files?")
                 ] do
           span_ [ class_ "field " ] do

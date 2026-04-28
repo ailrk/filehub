@@ -254,8 +254,7 @@ deleteBtn = do
     button_ [ class_ "btn btn-control urgent"
             , type_ "submit"
             , term "hx-delete" (linkToText (apiLinks.delete (Selected.toList selected) True))
-            , term "hx-target" "#index"
-            , term "hx-swap" "outerHTML"
+            , term "hx-swap" "none"
             , term "hx-confirm" confirm_delete_all
             , term "data-btn-title" control_panel_delete
             ] do
@@ -854,8 +853,7 @@ contextMenu1 file = do
 
           div_ [ class_ "dropdown-item"
                , term "hx-delete" (linkToText (apiLinks.delete [clientPath] False))
-               , term "hx-target" "#index"
-               , term "hx-swap" "outerHTML"
+               , term "hx-swap" "none"
                , term "hx-confirm" (Text.replace "{}" textClientPath confirm_delete1)
                ] do
             i_ [ class_ "bx bxs-trash" ] mempty
@@ -893,8 +891,7 @@ contextMenuMany clientPaths = do
         False -> do
           div_ [ class_ "dropdown-item"
                , term "hx-delete" (linkToText (apiLinks.delete clientPaths False))
-               , term "hx-target" "#index"
-               , term "hx-swap" "outerHTML"
+               , term "hx-target" "none"
                , term "hx-confirm" (Text.replace "{}" (Text.pack (show (length clientPaths))) confirm_delete_local)
                ] do
             i_ [ class_ "bx bxs-trash" ] mempty

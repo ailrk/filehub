@@ -38,8 +38,7 @@ data Storage m = Storage
 
   , upload      :: FileData Mem -> m ()
 
-  , download    :: ClientPath
-                -> m (ConduitT () ByteString (ResourceT IO) ())
+  , download    :: ClientPath -> m (ConduitT () ByteString (ResourceT IO) ())
 
   , isDirectory :: AbsPath -> m Bool
   }

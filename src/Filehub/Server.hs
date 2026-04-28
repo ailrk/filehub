@@ -303,7 +303,7 @@ listen sessionId _ = recommendedEventSourceHeaders <$> do
   streamAtomically \loop -> do
     n <- readTBQueue notifications
     case n of
-      TaskCompleted taskId -> do
+      TaskCompleted taskId _ -> do
         modifyTVar' pendingTasks (Set.delete taskId)
         tasksRemaining <- readTVar pendingTasks
         if Set.null tasksRemaining
