@@ -55,6 +55,7 @@ import Target.Types (targetHandler, AnyTarget, handleTarget)
 import Target.Types qualified as Target
 import Data.Coerce (coerce)
 import Control.Monad.Reader (asks)
+import Data.Hashable (Hashable(..))
 
 
 ------------------------------------
@@ -632,8 +633,9 @@ listLayout files = do
     } <- phrase <$> asks @TemplateContext (.locale)
 
   let record :: (Int, FileInfo) -> Html ()
-      record (idx, file) = do
+      record (_, file) = do
         let clientPath@(ClientPath path) = ClientPath.toClientPath root file.path
+            pathHash                     = fromIntegral @_ @Word (hash clientPath)
         tr_ do
           td_ $ fileNameElement file target True
                   `with` Template.open root file
@@ -644,7 +646,7 @@ listLayout files = do
             mconcat
               [ [ term "data-path" (Text.pack path) ]
               , [ class_ "selected confirmed " | clientPath `Selected.elem` selected]
-              , [ id_ [i|tr-#{idx}|]
+              , [ id_ [i|tr-#{pathHash}|]
                 , class_ "table-item "
                 , draggable_ "true"
                 ]
@@ -710,7 +712,7 @@ thumbnailLayout files = do
   selected <- asks @TemplateContext (.selected)
   TargetView target _ <- asks @TemplateContext (.currentTarget)
   let thumbnail :: (Int, FileInfo) -> Html ()
-      thumbnail (idx, file) = card `with` Template.open root file
+      thumbnail (_, file) = card `with` Template.open root file
         where
           card = div_ do
             previewElement root file
@@ -719,7 +721,7 @@ thumbnailLayout files = do
               mconcat
                 [ [ term "data-path" (Text.pack path) ]
                 , [ class_ "selected confirmed " | clientPath `Selected.elem` selected ]
-                , [ id_ [i|tr-#{idx}|]
+                , [ id_ [i|tr-#{pathHash}|]
                   , class_ "thumbnail table-item "
                   , draggable_ "true"
                   ]
@@ -728,7 +730,7 @@ thumbnailLayout files = do
                     Regular -> mempty
                 ]
           clientPath@(ClientPath path) = ClientPath.toClientPath root file.path
-
+          pathHash                     = fromIntegral @_ @Word (hash clientPath)
   pure do
     div_ [ id_ tableId, class_ "thumbnail-view " ] do
       tbody_ $ traverse_ thumbnail ([0..] `zip` files)

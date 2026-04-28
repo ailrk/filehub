@@ -59,13 +59,13 @@ newAbsPath path
 -- | Filepath without the prefix part. The path is percent encoded safe to show in the frontend.
 newtype ClientPath = ClientPath { unClientPath :: FilePath }
   deriving (Show, Eq)
-  deriving newtype (Semigroup, Monoid, Debug)
+  deriving newtype (Semigroup, Monoid, Hashable, Debug)
 
 
 -- | ClientPath but not percent encoded
 newtype RawClientPath = RawClientPath { unRawClientPath :: FilePath }
   deriving (Show, Eq)
-  deriving newtype (Semigroup, Monoid, Debug)
+  deriving newtype (Semigroup, Monoid, Hashable, Debug)
 
 
 instance ToHttpApiData ClientPath where
