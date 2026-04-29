@@ -12,7 +12,7 @@ import * as DesktopSelected from './handlers/desktop/selected.js';
 import * as MobileCloseSidebar from './handlers/mobile/closeSidebar.js';
 import * as MobileSelected from './handlers/mobile/selected.js';
 import Viewer from './viewer.js';
-import type { Opened, UIComponent, ViewerInited } from './def.js';
+import type { DeleteProgressed, MoveProgressed, Opened, PasteProgressed, TaskCompleted, UIComponent, UploadProgressed, ViewerInited } from './def.js';
 import { Display } from './def.js';
 
 
@@ -298,6 +298,15 @@ function reloadUIComponent (e: any) {
 }
 
 
+function htmxProcessOOB(data: { htmxResponse: string | null }) {
+  if (data.htmxResponse !== null && data.htmxResponse !== "") {
+    htmx.swap(document.body, data.htmxResponse, {
+      swapStyle: 'none'
+    });
+  }
+}
+
+
 function listenSSE(_: Event) {
   console.log('listenSSE')
   if (!evtSource) {
@@ -308,115 +317,66 @@ function listenSSE(_: Event) {
 
   evtSource.addEventListener('TaskCompleted', e => {
     console.log('Task completed')
-    let data = JSON.parse(e.data) as {
-      taskId: number,
-      htmxResponse: string | null
-    }
+    let data = JSON.parse(e.data) as TaskCompleted;
+
+    htmxProcessOOB (data);
+
     let remaining = Balloon.deleteLongLivedBalloon(data.taskId)
     if (remaining === 0 && evtSource) {
       evtSource.close()
       evtSource = null
     }
-    if (htmx !== null && htmx !== "") {
-      htmx.swap(document.body, data.htmxResponse, {
-        swapStyle: 'none'
-      });
-    }
   })
 
   evtSource.addEventListener('DeleteProgressed', e => {
-    let data = JSON.parse(e.data) as {
-      taskId: number
-      progress: {
-        numerator: number,
-        denominator: number
-      },
-      htmxResponse: string | null
-    };
+    let data = JSON.parse(e.data) as DeleteProgressed;
 
-    if (htmx !== null && htmx !== "") {
-      htmx.swap(document.body, data.htmxResponse, {
-        swapStyle: 'none'
-      });
-    }
+    htmxProcessOOB (data);
 
     Balloon.pushBalloon({
       kind: "ProgressedMsg",
       msg: `Deleting ${data.taskId}`,
       taskId: data.taskId,
-      progress: [data.progress.numerator, data.progress.denominator]
+      progress: data.progress
     })
   })
 
   evtSource.addEventListener('PasteProgressed', e => {
-    let data = JSON.parse(e.data) as {
-      taskId: number
-      progress: {
-        numerator: number,
-        denominator: number
-      },
-      htmxResponse: string | null
-    };
+    let data = JSON.parse(e.data) as PasteProgressed;
 
-    if (htmx !== null && htmx !== "") {
-      htmx.swap(document.body, data.htmxResponse, {
-        swapStyle: 'none'
-      });
-    }
+    htmxProcessOOB (data);
 
     Balloon.pushBalloon({
       kind: "ProgressedMsg",
       msg: `Pasting ${data.taskId}`,
       taskId: data.taskId,
-      progress: [data.progress.numerator, data.progress.denominator]
+      progress: data.progress
     })
   })
 
   evtSource.addEventListener('MoveProgressed', e => {
-    let data = JSON.parse(e.data) as {
-      taskId: number
-      progress: {
-        numerator: number,
-        denominator: number
-      },
-      htmxResponse: string | null
-    };
+    let data = JSON.parse(e.data) as MoveProgressed;
 
-    if (htmx !== null && htmx !== "") {
-      htmx.swap(document.body, data.htmxResponse, {
-        swapStyle: 'none'
-      });
-    }
+    htmxProcessOOB (data);
 
     Balloon.pushBalloon({
       kind: "ProgressedMsg",
       msg: `Moving ${data.taskId}`,
       taskId: data.taskId,
-      progress: [data.progress.numerator, data.progress.denominator]
+      progress: data.progress
     })
   })
 
   evtSource.addEventListener('UploadProgressed', e => {
-    let data = JSON.parse(e.data) as {
-      taskId: number
-      progress: {
-        numerator: number,
-        denominator: number
-      },
-      htmxResponse: string | null
-    };
+    let data = JSON.parse(e.data) as UploadProgressed;
 
-    if (htmx !== null && htmx !== "") {
-      htmx.swap(document.body, data.htmxResponse, {
-        swapStyle: 'none'
-      });
-    }
+    htmxProcessOOB (data);
 
     Balloon.pushBalloon({
       kind: "ProgressedMsg",
       msg: `Uploading ${data.taskId}`,
       taskId: data.taskId,
-      progress: [data.progress.numerator, data.progress.denominator]
+      progress: data.progress
     })
   })
 }

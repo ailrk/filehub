@@ -26,7 +26,7 @@ function pushErrorMsgBalloon(message, duration = 3000) {
     }, duration);
 }
 function pushProgressBarBalloon(message, taskId, progress) {
-    const [numerator, denominator] = progress;
+    const { numerator, denominator } = progress;
     const percent = Math.min(100, Math.max(0, (numerator / denominator) * 100));
     if (longLivedBallons.get(taskId)) { // update exsting ballon
         let balloon = document.getElementById(`progress-balloon-${taskId}`);

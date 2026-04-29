@@ -101,18 +101,19 @@ attachTarget sessionId target = do
                  }
 
 
-detachTarget :: SessionId -> TargetId -> Filehub ()
-detachTarget sessionId targetId = do
+detachTarget :: HasTargetId t => SessionId -> t -> Filehub ()
+detachTarget sessionId target = do
+  let tid = getTargetId target
   Session.Pool.update sessionId \session -> do
-    session { targets = Map.delete targetId session.targets
+    session { targets = Map.delete tid session.targets
             }
 
 
-withTarget :: SessionId -> TargetId -> Filehub a -> Filehub a
-withTarget sid tid action = do
+withTarget :: HasTargetId t => SessionId -> t -> Filehub a -> Filehub a
+withTarget sid t action = do
   oldS <- Session.Pool.get sid
   let oldTid = oldS.currentTargetId
-  (newSessionSet sid).currentTarget tid
+  (newSessionSet sid).currentTarget (getTargetId t)
   action `finally` (newSessionSet sid).currentTarget oldTid
 
 

@@ -398,8 +398,7 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
       pure do
         button_ [ class_ "action-btn"
                 , term "hx-post" (linkToText apiLinks.paste)
-                , term "hx-target" "#index"
-                , term "hx-swap" "outerHTML"
+                , term "hx-swap" "none"
                 ] do
           span_ [ class_ "field " ] do
             i_ [ class_ "bx bxs-paste" ] mempty

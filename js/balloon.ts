@@ -1,3 +1,5 @@
+import { Rational } from "./def";
+
 export type MessageKind
   = "ErrorMsg"
   | "ProgressedMsg"
@@ -12,7 +14,7 @@ export type Message
     kind: "ProgressedMsg";
     taskId: number;
     msg: string;
-    progress: [number, number];
+    progress: Rational;
   }
 
 
@@ -49,8 +51,8 @@ function pushErrorMsgBalloon(message: string, duration = 3000) {
 }
 
 
-function pushProgressBarBalloon(message: string, taskId: number, progress: [number, number]) {
-  const [numerator, denominator] = progress;
+function pushProgressBarBalloon(message: string, taskId: number, progress: Rational) {
+  const { numerator, denominator } = progress;
   const percent = Math.min(100, Math.max(0, (numerator / denominator) * 100));
 
   if (longLivedBallons.get(taskId)) { // update exsting ballon

@@ -42,7 +42,6 @@ import System.FilePath (takeFileName, (</>), makeRelative, takeDirectory)
 import System.IO.Temp qualified as Temp
 import System.Random (randomRIO)
 import Target.Types (AnyTarget)
-import Target.Types qualified as Target
 import Text.Printf (printf)
 import Worker.Task (newTaskId)
 import UnliftIO (throwIO)
@@ -124,8 +123,7 @@ delete sessionId _ _ clientPaths deleteSelected = do
     when deleteSelected do
       allSelecteds <- Selected.allSelecteds sessionId
       for_ allSelecteds \(target, selected) -> do
-        let targetId = Target.getTargetId target
-        withTarget sessionId  targetId do
+        withTarget sessionId target do
           case selected of
             NoSelection -> pure ()
             Selected x xs -> do
@@ -246,54 +244,64 @@ paste sessionId _ _ = do
         readTVar pasteCounter
 
   case state of
-    Paste selections -> do
+    Paste selections -> void $ async do
       tasks <- do
         TargetView to sdata <- Session.get sessionId (.currentTarget)
         createPasteTasks sdata.currentDir to selections
+
       let taskCount = fromIntegral (length tasks)
 
-      void $ async do
-        forConcurrently_ tasks $ \task -> do
-          case task of
-            PasteFile { from, to, file, dst } -> do
-              let fromId = Target.getTargetId from
-              let toId   = Target.getTargetId to
-              conduit <- withTarget sessionId fromId do
-                storage <- Session.get sessionId (.storage)
-                storage.readStream file Nothing Nothing
-              withTarget sessionId toId do
-                storage <- Session.get sessionId (.storage)
-                storage.write $ file
-                  & flip withContent (FileContentConduit conduit)
-                  & #path .~ dst
-              atomically do
-                n <- jot task
-                writeTBQueue notifications $ PasteProgressed
-                  { taskId       = taskId
-                  , progress     = (n % max 1 taskCount)
-                  , htmxResponse = Nothing
-                  }
+      forConcurrently_ tasks $ \task -> do
+        case task of
+          PasteFile { from, to, file, dst } -> do
 
-            CreateDir to dst -> do
-              let targetId = Target.getTargetId to
-              withTarget sessionId targetId do
-                storage <- Session.get sessionId (.storage)
-                storage.newFolder dst
+            conduit <- withTarget sessionId from do
+              storage <- Session.get sessionId (.storage)
+              storage.readStream file Nothing Nothing
 
-        Copy.setCopyState sessionId NoCopyPaste
-        Selected.clearSelectedAllTargets sessionId
-        atomically do
-          writeTBQueue notifications $ TaskCompleted
-            { taskId       = taskId
-            , htmxResponse = Nothing
-            }
+            withTarget sessionId to do
+              storage <- Session.get sessionId (.storage)
+              storage.write $ file
+                & flip withContent (FileContentConduit conduit)
+                & #path .~ dst
+
+            atomically do
+              n <- jot task
+              writeTBQueue notifications $ PasteProgressed
+                { taskId       = taskId
+                , progress     = (n % max 1 taskCount)
+                , htmxResponse = Nothing
+                }
+
+          CreateDir to dst -> do
+            withTarget sessionId to do
+              storage <- Session.get sessionId (.storage)
+              storage.newFolder dst
+
+      Copy.setCopyState sessionId NoCopyPaste
+      Selected.clearSelectedAllTargets sessionId
+
+      view' <- view sessionId
+      atomically do
+        writeTBQueue notifications $ TaskCompleted
+          { taskId       = taskId
+          , htmxResponse = Just $ view' `with` [ term "hx-swap-oob" "true" ]
+          }
+
     _ -> do
       logAttention_ [i|[v8dsaz] #{sessionId}, not in pastable state.|]
       throwIO (FilehubError SelectError "Not in a pastable state")
 
   clear sessionId
   selectedCount <- length <$> Selected.allSelecteds sessionId
-  addHeader selectedCount . addHeader SSEStarted <$> index sessionId
+
+  addHeader selectedCount . addHeader SSEStarted
+    <$> (do controlPanel' <- controlPanel sessionId
+            sideBar'      <- sideBar sessionId
+            pure do
+              controlPanel' `with` [ term "hx-swap-oob" "true" ]
+              sideBar' `with` [ term "hx-swap-oob" "true" ])
+
 
   where
     createPasteTasks fromDir to selections = fmap (mconcat . mconcat) do
@@ -302,14 +310,13 @@ paste sessionId _ _ = do
           flip fix fromDir \rec (AbsPath currentDir) file -> do
 
           let name   = coerce takeFileName file.path
-          let fromId = Target.getTargetId from
 
           dst <- validateAbsPath (currentDir </> takeFileName name) (FilehubError InvalidPath "Invalid path")
 
           case file.content of
             Regular -> pure [ PasteFile from to file dst ]
             Dir -> do
-              withTarget sessionId fromId do
+              withTarget sessionId from do
                 storage <- Session.get sessionId (.storage)
                 (TargetView _ (TargetSessionData { currentDir = savedDir })) <- Session.get sessionId (.currentTarget)
                 storage.cd file.path

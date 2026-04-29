@@ -235,8 +235,7 @@ pasteBtn = do
     button_ [ class_ "btn btn-control"
             , type_ "submit"
             , term "hx-post" (linkToText apiLinks.paste)
-            , term "hx-target" "#index"
-            , term "hx-swap" "outerHTML"
+            , term "hx-swap" "none"
             , term "data-btn-title" control_panel_paste
             ] do
       span_ [ class_ "field " ] do

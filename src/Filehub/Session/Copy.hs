@@ -17,7 +17,7 @@ import Data.List (nub)
 import Data.Maybe (catMaybes)
 import Data.String.Interpolate (i)
 import Filehub.Error (FilehubError (..), Error' (..))
-import Filehub.Session (Storage(..))
+import Filehub.Session (Storage(..), withTarget)
 import Filehub.Session (SessionGet(..))
 import Filehub.Session qualified as Session
 import Filehub.Session.Pool qualified as Session.Pool
@@ -47,7 +47,7 @@ select :: SessionId -> Filehub ()
 select sessionId = do
   allSelecteds <- Selected.allSelecteds sessionId
   forM_ allSelecteds \(target, selected) -> do
-    Session.withTarget sessionId (Target.getTargetId target) do
+    withTarget sessionId target do
       storage <- Session.get sessionId (.storage)
       case selected of
         NoSelection -> do
