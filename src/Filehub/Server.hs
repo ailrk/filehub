@@ -311,11 +311,11 @@ listen sessionId _ = recommendedEventSourceHeaders <$> do
              clearQueue notifications
              pure (yield n)
            else pure do yield n; loop
-      DeleteProgressed _ _ -> pure do yield n; loop
-      PasteProgressed _ _  -> pure do yield n; loop
-      MoveProgressed _ _   -> pure do yield n; loop
-      UploadProgressed _ _ -> pure do yield n; loop
-      Pong                 -> pure do yield n; loop
+      DeleteProgressed _ _ _ -> pure do yield n; loop
+      PasteProgressed _ _ _  -> pure do yield n; loop
+      MoveProgressed _ _ _   -> pure do yield n; loop
+      UploadProgressed _ _ _ -> pure do yield n; loop
+      Pong                   -> pure do yield n; loop
   where
     streamAtomically action =
       withRunInIO \runInIO -> do

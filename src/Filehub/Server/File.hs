@@ -26,7 +26,7 @@ import Filehub.Monad
 import Filehub.Notification.Types (Notification(..))
 import Filehub.Orphan ()
 import Filehub.Server.Util (withQueryParam)
-import Filehub.Session (SessionId(..), TargetView (..))
+import Filehub.Session (SessionId(..), TargetView (..), withTarget)
 import Filehub.Session qualified as Session
 import Filehub.Session (SessionGet(..))
 import Filehub.Session.Copy qualified as Copy
@@ -56,7 +56,6 @@ import Data.Binary.Builder qualified as Builder
 import Network.HTTP.Types (ByteRange(..), parseByteRanges)
 import Data.ByteString.Char8 qualified as Char8
 import Data.Hashable (Hashable(..))
-import Control.Concurrent.STM (flushTQueue)
 
 
 cd :: SessionId -> ConfirmLogin -> Maybe ClientPath -> Filehub (Headers '[ Header "HX-Trigger-After-Swap" FilehubEvent ] (Html ()))
@@ -102,7 +101,11 @@ delete sessionId _ _ clientPaths deleteSelected = do
   void $ async do
     -- Make sure the frontend opens a /listen connection otherwise this will block.
     atomically do
-      writeTBQueue notifications (DeleteProgressed taskId 0)
+      writeTBQueue notifications $ DeleteProgressed
+        { taskId       = taskId
+        , progress     = 0
+        , htmxResponse = Nothing
+        }
 
     -- Delete from parameters
     forConcurrently_ clientPaths \clientPath -> do
@@ -110,14 +113,19 @@ delete sessionId _ _ clientPaths deleteSelected = do
       storage.delete path
       atomically do
         n <- jot clientPath
-        writeTBQueue notifications (DeleteProgressed taskId (n % max 1 (fromIntegral count)))
+        writeTBQueue notifications $ DeleteProgressed
+          { taskId       = taskId
+          , progress     = n % max 1 (fromIntegral count)
+          , htmxResponse = Just let pathHash = fromIntegral (hash clientPath) :: Word
+                                 in div_ [ id_ [i|tr-#{pathHash}|], term "hx-swap-oob" "delete" ] mempty
+          }
 
     -- Delete selected
     when deleteSelected do
       allSelecteds <- Selected.allSelecteds sessionId
       for_ allSelecteds \(target, selected) -> do
         let targetId = Target.getTargetId target
-        Session.withTarget sessionId  targetId do
+        withTarget sessionId  targetId do
           case selected of
             NoSelection -> pure ()
             Selected x xs -> do
@@ -126,12 +134,18 @@ delete sessionId _ _ clientPaths deleteSelected = do
                 storage.delete path
                 atomically do
                   n <- jot clientPath
-                  writeTBQueue notifications (DeleteProgressed taskId (n % max 1 (fromIntegral count)))
+                  writeTBQueue notifications $ DeleteProgressed
+                    { taskId       = taskId
+                    , progress     = n % max 1 (fromIntegral count)
+                    , htmxResponse = Just let pathHash = fromIntegral (hash clientPath) :: Word
+                                           in div_ [ id_ [i|tr-#{pathHash}|], term "hx-swap-oob" "delete" ] mempty
+                    }
 
     atomically do
-      report <- flushTQueue deleted
-      let htmx = response report
-      writeTBQueue notifications (TaskCompleted taskId (Just htmx))
+      writeTBQueue notifications $ TaskCompleted
+        { taskId      = taskId
+        , htmxResponse = Nothing
+        }
 
   clear sessionId
   newCount <- length <$> Selected.allSelecteds sessionId
@@ -141,12 +155,6 @@ delete sessionId _ _ clientPaths deleteSelected = do
             pure do
               controlPanel' `with` [ term "hx-swap-oob" "true" ]
               sideBar' `with` [ term "hx-swap-oob" "true" ])
-  where
-    response :: [ClientPath] -> Html ()
-    response paths = mconcat
-                   $ fmap (\path -> let pathHash = fromIntegral (hash path) :: Word
-                                     in div_ [ id_ [i|tr-#{pathHash}|], term "hx-swap-oob" "delete" ] mempty)
-                   $ paths
 
 
 rename :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> RenameFile
@@ -210,14 +218,15 @@ copy1 sessionId _ _ mClientPath = do
   index sessionId
 
 
-type TargetFrom  = AnyTarget
-type TargetTo    = AnyTarget
-type Destination = AbsPath
-
-
 data PasteTask
-  = PasteFile TargetFrom TargetTo FileInfo Destination
-  | PasteDir TargetTo Destination [PasteTask]
+  = PasteFile { from  :: AnyTarget
+              , to    :: AnyTarget
+              , file  :: FileInfo
+              , dst   :: AbsPath
+              }
+  | CreateDir { to  :: AnyTarget
+              , dst :: AbsPath
+              }
 
 
 paste :: SessionId -> ConfirmLogin -> ConfirmReadOnly
@@ -229,42 +238,55 @@ paste sessionId _ _ = do
   pasteCounter  <- newTVarIO @_ @Integer 0
   taskId        <- newTaskId
   state         <- Copy.getCopyState sessionId
+  pasted        <- newTQueueIO @_ @PasteTask
+
+  let jot clientPath = do
+        modifyTVar' pasteCounter (+ 1)
+        writeTQueue pasted clientPath
+        readTVar pasteCounter
+
   case state of
     Paste selections -> do
       tasks <- do
-        TargetView to sessionData <- Session.get sessionId (.currentTarget)
-        createPasteTasks sessionData.currentDir to selections
+        TargetView to sdata <- Session.get sessionId (.currentTarget)
+        createPasteTasks sdata.currentDir to selections
       let taskCount = fromIntegral (length tasks)
 
-      (void . async) do
-        forConcurrently_ tasks $ fix \rec task -> do
+      void $ async do
+        forConcurrently_ tasks $ \task -> do
           case task of
-            PasteFile from to file dst -> do
+            PasteFile { from, to, file, dst } -> do
               let fromId = Target.getTargetId from
               let toId   = Target.getTargetId to
-              conduit <- Session.withTarget sessionId fromId do
+              conduit <- withTarget sessionId fromId do
                 storage <- Session.get sessionId (.storage)
                 storage.readStream file Nothing Nothing
-              Session.withTarget sessionId toId do
+              withTarget sessionId toId do
                 storage <- Session.get sessionId (.storage)
                 storage.write $ file
                   & flip withContent (FileContentConduit conduit)
                   & #path .~ dst
               atomically do
-                modifyTVar' pasteCounter (+ 1)
-                n <- readTVar pasteCounter
-                writeTBQueue notifications (PasteProgressed taskId (n % max 1 taskCount) )
+                n <- jot task
+                writeTBQueue notifications $ PasteProgressed
+                  { taskId       = taskId
+                  , progress     = (n % max 1 taskCount)
+                  , htmxResponse = Nothing
+                  }
 
-            PasteDir to dst subTasks -> do
+            CreateDir to dst -> do
               let targetId = Target.getTargetId to
-              Session.withTarget sessionId targetId do
+              withTarget sessionId targetId do
                 storage <- Session.get sessionId (.storage)
                 storage.newFolder dst
-              forConcurrently_ subTasks rec
 
         Copy.setCopyState sessionId NoCopyPaste
         Selected.clearSelectedAllTargets sessionId
-        atomically $ writeTBQueue notifications (TaskCompleted taskId Nothing)
+        atomically do
+          writeTBQueue notifications $ TaskCompleted
+            { taskId       = taskId
+            , htmxResponse = Nothing
+            }
     _ -> do
       logAttention_ [i|[v8dsaz] #{sessionId}, not in pastable state.|]
       throwIO (FilehubError SelectError "Not in a pastable state")
@@ -276,14 +298,18 @@ paste sessionId _ _ = do
   where
     createPasteTasks fromDir to selections = fmap (mconcat . mconcat) do
       for selections \(from, files) -> do
-        for files $ flip fix fromDir \rec (AbsPath currentDir) file -> do
-          let name  =  coerce takeFileName file.path
+        for files $
+          flip fix fromDir \rec (AbsPath currentDir) file -> do
+
+          let name   = coerce takeFileName file.path
           let fromId = Target.getTargetId from
+
           dst <- validateAbsPath (currentDir </> takeFileName name) (FilehubError InvalidPath "Invalid path")
+
           case file.content of
             Regular -> pure [ PasteFile from to file dst ]
             Dir -> do
-              Session.withTarget sessionId fromId do
+              withTarget sessionId fromId do
                 storage <- Session.get sessionId (.storage)
                 (TargetView _ (TargetSessionData { currentDir = savedDir })) <- Session.get sessionId (.currentTarget)
                 storage.cd file.path
@@ -291,7 +317,8 @@ paste sessionId _ _ = do
                   dirFiles <- storage.lsCwd
                   for dirFiles \dfile -> rec dst dfile
                 storage.cd savedDir -- go back
-                pure [ PasteDir to dst (mconcat result) ]
+                pure $ ([CreateDir to dst] ++ mconcat result)
+
 
 
 move :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> MoveFile
@@ -325,13 +352,20 @@ move sessionId _ _ (MoveFile src tgt) = do
 
   void $ async do
     atomically do
-      writeTBQueue notifications (MoveProgressed taskId 0)
+      writeTBQueue notifications $ MoveProgressed
+        { taskId       = taskId
+        , progress     = 0
+        , htmxResponse = Nothing
+        }
 
     storage.mv do
       fmap (\srcPath -> (srcPath, tgtPath <./> coerce takeFileName srcPath)) srcPaths
 
     atomically do
-      writeTBQueue notifications  (TaskCompleted taskId Nothing)
+      writeTBQueue notifications $ TaskCompleted
+        { taskId       = taskId
+        , htmxResponse = Nothing
+        }
 
   clear sessionId
   addHeader FileMoved . addHeader SSEStarted <$> index sessionId
@@ -389,7 +423,11 @@ upload sessionId _ _ multipart = do
 
   void $ async do
     atomically do
-      writeTBQueue notifications (UploadProgressed taskId 0)
+      writeTBQueue notifications $ UploadProgressed
+        { taskId       = taskId
+        , progress     = 0
+        , htmxResponse = Nothing
+        }
 
     storage <- Session.get sessionId (.storage)
     forConcurrently_ multipart.files \filedata -> do
@@ -397,13 +435,24 @@ upload sessionId _ _ multipart = do
       atomically do
         modifyTVar' uploadCounter (+ 1)
         n <- readTVar uploadCounter
-        writeTBQueue notifications (UploadProgressed taskId (n % max 1 taskCount) )
+        writeTBQueue notifications $ UploadProgressed
+          { taskId       = taskId
+          , progress     = n % max 1 taskCount
+          , htmxResponse = Nothing
+          }
 
     atomically do
-      writeTBQueue notifications (UploadProgressed taskId 1)
-      writeTBQueue notifications (TaskCompleted taskId Nothing)
-  addHeader SSEStarted <$> index sessionId
+      writeTBQueue notifications $ UploadProgressed
+        { taskId       = taskId
+        , progress     = 1
+        , htmxResponse = Nothing
+        }
+      writeTBQueue notifications $ TaskCompleted
+        { taskId       = taskId
+        , htmxResponse = Nothing
+        }
 
+  addHeader SSEStarted <$> index sessionId
 
 
 serve :: Env -> SessionId -> ConfirmLogin -> Tagged Filehub Application

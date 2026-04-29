@@ -273,6 +273,11 @@ function listenSSE(_) {
     });
     evtSource.addEventListener('DeleteProgressed', e => {
         let data = JSON.parse(e.data);
+        if (htmx !== null && htmx !== "") {
+            htmx.swap(document.body, data.htmxResponse, {
+                swapStyle: 'none'
+            });
+        }
         Balloon.pushBalloon({
             kind: "ProgressedMsg",
             msg: `Deleting ${data.taskId}`,
@@ -282,6 +287,11 @@ function listenSSE(_) {
     });
     evtSource.addEventListener('PasteProgressed', e => {
         let data = JSON.parse(e.data);
+        if (htmx !== null && htmx !== "") {
+            htmx.swap(document.body, data.htmxResponse, {
+                swapStyle: 'none'
+            });
+        }
         Balloon.pushBalloon({
             kind: "ProgressedMsg",
             msg: `Pasting ${data.taskId}`,
@@ -291,6 +301,11 @@ function listenSSE(_) {
     });
     evtSource.addEventListener('MoveProgressed', e => {
         let data = JSON.parse(e.data);
+        if (htmx !== null && htmx !== "") {
+            htmx.swap(document.body, data.htmxResponse, {
+                swapStyle: 'none'
+            });
+        }
         Balloon.pushBalloon({
             kind: "ProgressedMsg",
             msg: `Moving ${data.taskId}`,
@@ -300,6 +315,11 @@ function listenSSE(_) {
     });
     evtSource.addEventListener('UploadProgressed', e => {
         let data = JSON.parse(e.data);
+        if (htmx !== null && htmx !== "") {
+            htmx.swap(document.body, data.htmxResponse, {
+                swapStyle: 'none'
+            });
+        }
         Balloon.pushBalloon({
             kind: "ProgressedMsg",
             msg: `Uploading ${data.taskId}`,

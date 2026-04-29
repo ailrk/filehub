@@ -55,6 +55,7 @@ common options
       -Wno-missing-local-signatures
       -Wno-missing-safe-haskell-mode
       -Wno-missing-role-annotations
+      -Wno-partial-fields
       -Wno-monomorphism-restriction
       -Wno-safe
       -Wno-unsafe

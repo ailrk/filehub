@@ -9,11 +9,30 @@ import Lucid (Html, renderText)
 
 data Notification
   = Pong
-  | TaskCompleted TaskId (Maybe (Html ()))
-  | DeleteProgressed TaskId Rational
-  | PasteProgressed TaskId Rational
-  | MoveProgressed TaskId Rational
-  | UploadProgressed TaskId Rational
+  | TaskCompleted
+      { taskId :: TaskId
+      , htmxResponse :: Maybe (Html ())
+      }
+  | DeleteProgressed
+      { taskId       :: TaskId
+      , progress     :: Rational
+      , htmxResponse :: Maybe (Html ())
+      }
+  | PasteProgressed
+      { taskId       :: TaskId
+      , progress     :: Rational
+      , htmxResponse :: Maybe (Html ())
+      }
+  | MoveProgressed
+      { taskId       :: TaskId
+      , progress     :: Rational
+      , htmxResponse :: Maybe (Html ())
+      }
+  | UploadProgressed
+      { taskId       :: TaskId
+      , progress     :: Rational
+      , htmxResponse :: Maybe (Html ())
+      }
   deriving (Show)
 
 
@@ -32,35 +51,39 @@ instance ToServerEvent Notification where
         , "htmxResponse" .= toJSON (renderText <$> htmxResponse)
         ]
     }
-  toServerEvent (DeleteProgressed taskId progress) = ServerEvent
+  toServerEvent (DeleteProgressed taskId progress htmxResponse) = ServerEvent
     { eventType = Just "DeleteProgressed"
     , eventId   = Nothing
     , eventData = Aeson.encode $ Aeson.object
-        [ "taskId"   .= toJSON taskId
-        , "progress" .= toJSON progress
+        [ "taskId"       .= toJSON taskId
+        , "progress"     .= toJSON progress
+        , "htmxResponse" .= toJSON (renderText <$> htmxResponse)
         ]
     }
-  toServerEvent (PasteProgressed taskId progress) = ServerEvent
+  toServerEvent (PasteProgressed taskId progress htmxResponse) = ServerEvent
     { eventType = Just "PasteProgressed"
     , eventId   = Nothing
     , eventData = Aeson.encode $ Aeson.object
-        [ "taskId"   .= toJSON taskId
-        , "progress" .= toJSON progress
+        [ "taskId"       .= toJSON taskId
+        , "progress"     .= toJSON progress
+        , "htmxResponse" .= toJSON (renderText <$> htmxResponse)
         ]
     }
-  toServerEvent (MoveProgressed taskId progress) = ServerEvent
+  toServerEvent (MoveProgressed taskId progress htmxResponse) = ServerEvent
     { eventType = Just "MoveProgressed"
     , eventId   = Nothing
     , eventData = Aeson.encode $ Aeson.object
-        [ "taskId"   .= toJSON taskId
-        , "progress" .= toJSON progress
+        [ "taskId"       .= toJSON taskId
+        , "progress"     .= toJSON progress
+        , "htmxResponse" .= toJSON (renderText <$> htmxResponse)
         ]
     }
-  toServerEvent (UploadProgressed taskId progress) = ServerEvent
+  toServerEvent (UploadProgressed taskId progress htmxResponse) = ServerEvent
     { eventType = Just "UploadProgressed"
     , eventId   = Nothing
     , eventData = Aeson.encode $ Aeson.object
-        [ "taskId"   .= toJSON taskId
-        , "progress" .= toJSON progress
+        [ "taskId"       .= toJSON taskId
+        , "progress"     .= toJSON progress
+        , "htmxResponse" .= toJSON (renderText <$> htmxResponse)
         ]
     }
