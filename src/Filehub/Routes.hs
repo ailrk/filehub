@@ -238,7 +238,7 @@ data Api mode = Api
                           :> QueryFlag "selected"
                           :> Delete '[HTML] (Headers '[ Header "X-Filehub-Selected-Count" Int
                                                       , Header "HX-Trigger" FilehubEvent
-                                                      ] NoContent)
+                                                      ] (Html ()))
 
 
   , copy                  :: mode

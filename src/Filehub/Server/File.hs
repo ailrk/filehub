@@ -35,7 +35,7 @@ import Filehub.Types ( NewFile(..) , NewFolder(..)    , Selected (..)    , Updat
 import Lens.Micro ((.~), (<&>))
 import Lucid hiding (for_)
 import Prelude hiding (init, readFile)
-import Servant (Header , Headers  , addHeader, Tagged (..), Application, ServerError (..), FromHttpApiData (..), err404, NoContent (..)         )
+import Servant (Header , Headers  , addHeader, Tagged (..), Application, ServerError (..), FromHttpApiData (..), err404)
 import Servant.Multipart (MultipartData(..), Mem)
 import System.Directory (removeFile)
 import System.FilePath (takeFileName, (</>), makeRelative, takeDirectory)
@@ -49,7 +49,7 @@ import UnliftIO (throwIO)
 import UnliftIO.STM (atomically, modifyTVar', readTVar, newTVarIO, writeTBQueue, newTQueueIO, writeTQueue)
 import Log (logAttention_)
 import UnliftIO.Async (async, forConcurrently_)
-import Filehub.Server.UI ( clear, index, view, controlPanel, toolBar )
+import Filehub.Server.UI ( clear, index, view, controlPanel, toolBar, sideBar )
 import Network.Wai (Request(..), responseLBS, responseStream)
 import Network.HTTP.Types.Status (status404, status206, status200)
 import Data.Binary.Builder qualified as Builder
@@ -83,7 +83,7 @@ cd sessionId _ mClientPath = do
 delete :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> [ClientPath] -> Bool
        -> Filehub (Headers '[ Header "X-Filehub-Selected-Count" Int
                             , Header "HX-Trigger" FilehubEvent
-                            ] NoContent)
+                            ] (Html ()))
 delete sessionId _ _ clientPaths deleteSelected = do
   root          <- Session.get sessionId (.root)
   storage       <- Session.get sessionId (.storage)
@@ -135,7 +135,12 @@ delete sessionId _ _ clientPaths deleteSelected = do
 
   clear sessionId
   newCount <- length <$> Selected.allSelecteds sessionId
-  addHeader newCount . addHeader SSEStarted <$> (pure NoContent)
+  addHeader newCount . addHeader SSEStarted
+    <$> (do controlPanel' <- controlPanel sessionId
+            sideBar'      <- sideBar sessionId
+            pure do
+              controlPanel' `with` [ term "hx-swap-oob" "true" ]
+              sideBar' `with` [ term "hx-swap-oob" "true" ])
   where
     response :: [ClientPath] -> Html ()
     response paths = mconcat

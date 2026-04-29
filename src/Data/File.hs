@@ -63,7 +63,6 @@ type FileInfo        = File FileType
 type FileWithContent = File FileContent
 
 
-
 defaultFileInfo :: FileInfo
 defaultFileInfo =
   File
