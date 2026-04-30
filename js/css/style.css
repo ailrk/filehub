@@ -1,5 +1,10 @@
 /* Elements */
 
+html, body {
+  overscroll-behavior-y: none;
+}
+
+
 input {
   font-size: 1em;
   background-color: var(--background3);
