@@ -292,7 +292,7 @@ function listenSSE(_: Event) {
 
     Balloon.pushBalloon({
       kind: "ProgressedMsg",
-      msg: `Deleting ${data.taskId}`,
+      msg: `Deleting`,
       taskId: data.taskId,
       progress: data.progress
     })
@@ -305,7 +305,7 @@ function listenSSE(_: Event) {
 
     Balloon.pushBalloon({
       kind: "ProgressedMsg",
-      msg: `Pasting ${data.taskId}`,
+      msg: `Pasting`,
       taskId: data.taskId,
       progress: data.progress
     })
@@ -318,7 +318,7 @@ function listenSSE(_: Event) {
 
     Balloon.pushBalloon({
       kind: "ProgressedMsg",
-      msg: `Moving ${data.taskId}`,
+      msg: `Moving`,
       taskId: data.taskId,
       progress: data.progress
     })
@@ -331,7 +331,7 @@ function listenSSE(_: Event) {
 
     Balloon.pushBalloon({
       kind: "ProgressedMsg",
-      msg: `Uploading ${data.taskId}`,
+      msg: `Uploading`,
       taskId: data.taskId,
       progress: data.progress
     })

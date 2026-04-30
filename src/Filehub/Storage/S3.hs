@@ -42,7 +42,7 @@ import Data.ClientPath (AbsPath (..))
 import Data.ClientPath (fromClientPath)
 import Data.Coerce (coerce)
 import Data.Conduit
-import Data.File (File (..), FileType (..), FileInfo, FileWithContent, FileContent (..), defaultFileWithContent, IsLink (..), defaultFileInfo)
+import Data.File (File (..), FileType (..), FileInfo, FileWithContent, FileContent (..), defaultFileWithContent, IsLink (..))
 import Data.Function (fix)
 import Data.Generics.Labels ()
 import Data.Kind (Type)
