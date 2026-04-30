@@ -111,7 +111,7 @@ sessionMiddleware env app req respond = toIO onErr env do
       liftIO $ app req' \res ->
         let res' = mapResponseHeaders (setCookieHeader :) res
          in respond res'
-    onErr _ = respond $ responseLBS status500 [] "server error" -- impossible
+    onErr _ = respond $ responseLBS status500 [] "server error"
 
 
 

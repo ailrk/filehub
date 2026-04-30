@@ -42,7 +42,7 @@ import Data.ClientPath (AbsPath (..))
 import Data.ClientPath (fromClientPath)
 import Data.Coerce (coerce)
 import Data.Conduit
-import Data.File (File (..), FileType (..), FileInfo, FileWithContent, FileContent (..), defaultFileWithContent, IsLink (..))
+import Data.File (File (..), FileType (..), FileInfo, FileWithContent, FileContent (..), defaultFileWithContent, IsLink (..), defaultFileInfo)
 import Data.Function (fix)
 import Data.Generics.Labels ()
 import Data.Kind (Type)
@@ -115,7 +115,7 @@ storage sessionId =
         s3 <- getS3 sessionId
         new s3 filePath
 
-    , newFolder = error "impossible"
+    , newFolder = \_ -> pure (error "not supported")
 
     , ls = \filePath -> do
         s3 <- getS3 sessionId

@@ -175,8 +175,8 @@ get path = do
             pure file
 
         | otherwise -> do
-            logAttention_ (Text.pack ("[97zcsm] broken link" ++ show path))
-            throwIO (FilehubError InvalidPath "broken linke")
+            logAttention_ (Text.pack ("[97zcsm] get: invalid path" ++ show path))
+            throwIO (FilehubError InvalidPath "get: invalid path")
   where
     cacheKey  = createCacheKey @"file" @FileInfo (coerce Builder.string8 path)
     cacheDeps = [ SomeCacheKey (createCacheKey @"dir" @[FileInfo] (Builder.string8 (coerce takeDirectory path))) ]

@@ -488,6 +488,7 @@ upload sessionId _ _ multipart = do
           , htmxResponse = Nothing
           }
 
+    view' <- UI.view sessionId
     atomically do
       writeTBQueue notifications $ UploadProgressed
         { taskId       = taskId
@@ -496,7 +497,7 @@ upload sessionId _ _ multipart = do
         }
       writeTBQueue notifications $ TaskCompleted
         { taskId       = taskId
-        , htmxResponse = Nothing
+        , htmxResponse = Just $ view' `with` [ term "hx-swap-oob" "true" ]
         }
 
   addHeader SSEStarted <$> UI.index sessionId

@@ -114,7 +114,7 @@ import Web.Cookie (SetCookie (..), defaultSetCookie)
 import Worker.Task (TaskId, newTaskId)
 import UnliftIO (throwIO)
 import UnliftIO.STM (readTBQueue, atomically, isEmptyTBQueue, modifyTVar', readTVar, newTVarIO, writeTBQueue)
-import Log (logInfo_, logAttention_)
+import Log (logInfo_, logAttention_, logAttention)
 import UnliftIO.Async (async, forConcurrently_)
 import Control.Monad.Reader (asks)
 import Network.Wai (Request(..), responseLBS, responseFile, responseStream)
@@ -364,8 +364,9 @@ changeTarget sessionId _ mTargetId = do
 
   html <- withRunInIO \unlift -> do
     unlift (index sessionId)
-      `catch` \(_ :: SomeException) -> unlift do
+      `catch` \(e :: SomeException) -> unlift do
         restore
+        logAttention "[5ngtzx] Change target failed" (show e)
         throwIO (HTTPError (err500 { errBody = [i|Invalid target|]}))
 
   pure $ addHeader TargetChanged html
