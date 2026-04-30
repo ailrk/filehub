@@ -64,7 +64,7 @@ import Servant.Conduit ()
 import Servant.HTML.Lucid (HTML)
 import Servant.Links (safeLink)
 import System.Random (randomRIO)
-import UnliftIO (tryIO, Exception (..), MonadIO (..), throwIO)
+import UnliftIO (Exception (..), MonadIO (..), throwIO, try)
 import Web.FormUrlEncoded (ToForm)
 import Web.JWT (JWT, VerifiedJWT, JWTClaimsSet (..), JOSEHeader (..))
 import Web.JWT qualified as JWT
@@ -337,7 +337,7 @@ exchangeToken
           }
 
   baseUri <- either (\err -> throwIO (FilehubError InternalError (Text.unpack err))) pure (uriToBaseUrl token_endpoint)
-  runClientM (exchangeTokenClient form) (mkClientEnv manager baseUri) & liftIO . tryIO
+  runClientM (exchangeTokenClient form) (mkClientEnv manager baseUri) & liftIO . try
     >>= either (\(e :: IOError) -> throwIO (FilehubError InternalError (displayException e))) pure
     >>= either (\err -> throwIO (FilehubError InternalError (show err))) pure
     >>= pure . TokenExchanged wellknownConfig
@@ -374,7 +374,7 @@ verifyToken
   jwks <- do
     baseUri <- uriToBaseUrl jwks_uri & either (\err -> throwIO (FilehubError InternalError (Text.unpack err))) pure
     value   <- do
-      runClientM (client (Proxy @(Get '[JSON] Value))) (mkClientEnv manager baseUri) & liftIO . tryIO
+      runClientM (client (Proxy @(Get '[JSON] Value))) (mkClientEnv manager baseUri) & liftIO . try
         >>= either (\(e :: IOError) -> throwIO (FilehubError LoginFailed (displayException e))) pure
         >>= either (\err -> throwIO (FilehubError LoginFailed (show err))) pure
 
@@ -434,7 +434,7 @@ getWellknownOpenIdConfigration :: Provider -> Filehub (WellKnownConfig Identity)
 getWellknownOpenIdConfigration (Provider { issuer }) = do
   manager          <- asks (.httpManager)
   baseUri          <- uriToBaseUrl issuer & either (\err -> throwIO (FilehubError InternalError (Text.unpack err))) pure
-  result           <- runClientM wellKnownConfigClient (mkClientEnv manager baseUri) & liftIO . tryIO
+  result           <- runClientM wellKnownConfigClient (mkClientEnv manager baseUri) & liftIO . try
   eWellKnownConfig <- result & either (\(e :: IOError) -> throwIO (FilehubError InternalError (displayException e))) pure
   case verifyWellKnownConfig <$> eWellKnownConfig of
     Right (Just config) -> pure config

@@ -159,8 +159,8 @@ function handleDrop(e) {
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded'
                 },
-                target: '#index',
-                swap: 'outerHTML'
+                target: 'body',
+                swap: 'none'
             });
         }
         if (Array.isArray(src)) {
@@ -170,8 +170,8 @@ function handleDrop(e) {
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded'
                 },
-                target: '#index',
-                swap: 'outerHTML'
+                target: 'body',
+                swap: 'none'
             });
         }
     }

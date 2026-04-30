@@ -178,8 +178,8 @@ function handleDrop(e: Event) {
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded'
           },
-          target: '#index',
-          swap: 'outerHTML'
+          target: 'body',
+          swap: 'none'
         }
       )
     }
@@ -193,8 +193,8 @@ function handleDrop(e: Event) {
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded'
           },
-          target: '#index',
-          swap: 'outerHTML'
+          target: 'body',
+          swap: 'none'
         }
       )
     }

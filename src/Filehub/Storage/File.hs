@@ -159,7 +159,7 @@ get path = do
            cacheInsert cacheKey cacheDeps cacheTTL file
            pure file
           else do
-            logAttention_ (Text.pack ("invalid path " ++ show path))
+            logAttention_ (Text.pack ("[98zcsm] invalid path " ++ show path))
             throwIO (FilehubError InvalidPath "invalid path")
   where
     cacheKey  = createCacheKey @"file" @FileInfo (coerce Builder.string8 path)

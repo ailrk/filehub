@@ -44,7 +44,7 @@ import System.Random (randomRIO)
 import Target.Types (AnyTarget)
 import Text.Printf (printf)
 import Worker.Task (newTaskId)
-import UnliftIO (throwIO, tryIO)
+import UnliftIO (throwIO, try)
 import UnliftIO.STM (atomically, modifyTVar', readTVar, newTVarIO, writeTBQueue, newTQueueIO, writeTQueue)
 import Log (logAttention_)
 import UnliftIO.Async (async, forConcurrently_)
@@ -374,9 +374,10 @@ move sessionId _ _ (MoveFile src tgt) = do
       throwIO (FilehubError InvalidDir "Already in the current directory")
 
     let dstPath = tgtPath <./> coerce takeFileName srcPath
-    mFile <- tryIO $ storage.get dstPath
-    when (isLeft mFile) do
-      throwIO (FilehubError InvalidPath "The destination already exists")
+    eFile <- try @_ @FilehubError $ storage.get dstPath
+    case eFile of
+      Right _ -> throwIO (FilehubError InvalidPath "The destination already exists")
+      _       -> pure ()
 
   void $ async do
     atomically do
@@ -393,7 +394,10 @@ move sessionId _ _ (MoveFile src tgt) = do
     atomically do
       writeTBQueue notifications $ TaskCompleted
         { taskId       = taskId
-        , htmxResponse = Just $ view' `with` [ term "hx-swap-oob" "true" ]
+        , htmxResponse = Just $ view' `with` [ term "hx-swap-oob" "true"
+                                             , term "hx-on::load" "this.focus();"
+                                             , tabindex_ "-1"
+                                             ]
         }
 
   UI.clear sessionId
