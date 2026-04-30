@@ -376,10 +376,12 @@ move sessionId _ _ (MoveFile src tgt) = do
       throwIO (FilehubError InvalidDir "Already in the current directory")
 
     let dstPath = tgtPath <./> coerce takeFileName srcPath
+
     eFile <- try @_ @FilehubError $ storage.get dstPath
+
     case eFile of
-      Right _ -> throwIO (FilehubError InvalidPath "The destination already exists")
-      _       -> pure ()
+      Right _  -> throwIO (FilehubError InvalidPath "The destination already exists")
+      Left  _  -> pure ()
 
   void $ async do
     atomically do
@@ -397,7 +399,6 @@ move sessionId _ _ (MoveFile src tgt) = do
       writeTBQueue notifications $ TaskCompleted
         { taskId       = taskId
         , htmxResponse = Just $ view' `with` [ term "hx-swap-oob" "true"
-                                             , term "hx-on::load" "this.focus();"
                                              , tabindex_ "-1"
                                              ]
         }

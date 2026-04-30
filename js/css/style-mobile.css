@@ -200,6 +200,7 @@ tfoot td {
   overflow: hidden;
   border-left: 1px solid var(--background3);
   border-bottom: 1px solid var(--background3);
+  z-index: 1;
   touch-action: none;
 }
 
@@ -444,6 +445,28 @@ table {
 
 #selected-counter.show i {
   font-size: larger;
+}
+
+
+.entry-preview {
+  position: relative;
+}
+
+
+.symlink        .entry-preview::after,
+.broken-symlink .entry-preview::after {
+  font-family: 'boxicons' !important;
+  content: '\eb3e';
+  position: absolute;
+  pointer-events: none;
+  background: var(--background1);
+  border: 1px solid var(--background3);
+  top: 20;
+  left: 25;
+  border-radius: 4px;
+  padding: 1px;
+  font-size: 8px;
+  line-height: 1;
 }
 
 

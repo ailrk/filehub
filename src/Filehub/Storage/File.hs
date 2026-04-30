@@ -64,7 +64,7 @@ import System.IO.Temp qualified as Temp
 import Target.File (Target(..), FileSys)
 import Target.Storage (Storage(..))
 import Target.Types (handleTarget, targetHandler)
-import UnliftIO (MonadIO (..), tryIO, IOException, Handler (..), catch, withFile, IOMode (..), hClose, withTempFile)
+import UnliftIO (MonadIO (..), tryIO, IOException, Handler (..), catch, withFile, IOMode (..), hClose, withTempFile, SomeException)
 import UnliftIO (throwIO)
 import UnliftIO.Async (forConcurrently_)
 import UnliftIO.Directory (doesDirectoryExist, pathIsSymbolicLink)
@@ -140,7 +140,7 @@ get path = do
     Nothing -> do
       exists <- doesPathExist (coerce path)
       isDir  <- isDirectory path
-      isLink <- pathIsSymbolicLink (coerce path)
+      isLink <- pathIsSymbolicLink (coerce path) `catch` \(_ :: SomeException) -> pure False
       if
         | exists -> do
             size   <- getFileSize (coerce path)

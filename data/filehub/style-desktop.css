@@ -281,21 +281,42 @@ textarea:focus {
   color: var(--tertiary);
 }
 
+.entry-preview {
+  position: relative;
+}
 
-.symlink .thumbnail-preview::after,
-.broken-symlink .thumbnail-preview::after {
+.symlink        .thumbnail-preview::after,
+.broken-symlink .thumbnail-preview::after,
+.symlink        .entry-preview::after,
+.broken-symlink .entry-preview::after {
   font-family: 'boxicons' !important;
   content: '\eb3e';
   position: absolute;
-  bottom: 15;
-  right: 15;
-  font-size: 16px;
-  line-height: 1;
   pointer-events: none;
   background: var(--background1);
   border: 1px solid var(--background3);
+}
+
+
+.symlink        .thumbnail-preview::after,
+.broken-symlink .thumbnail-preview::after {
+  bottom: 15;
+  right: 15;
   border-radius: 4px;
   padding: 1px;
+  font-size: 16px;
+  line-height: 1;
+}
+
+
+.symlink        .entry-preview::after,
+.broken-symlink .entry-preview::after {
+  top: 15;
+  left: 25;
+  padding: 1px;
+  border-radius: 4px;
+  font-size: 8px;
+  line-height: 1;
 }
 
 

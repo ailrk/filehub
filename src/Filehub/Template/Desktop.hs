@@ -691,9 +691,10 @@ entry file = do
 
   pure do
     tr_ do
-      td_ $ fileNameElement file target True
-              `with` Template.open root file
-              `with`  [ class_ "field "]
+      td_ [ class_ "entry-preview " ] do
+        fileNameElement file target True
+          `with` Template.open root file
+          `with`  [ class_ "field "]
       td_ $ modifiedDateElement file
       td_ $ sizeElement file
       `with`
@@ -767,8 +768,13 @@ previewElement root file = do
 
 fileNameElement :: FileInfo -> AnyTarget -> Bool -> Html ()
 fileNameElement file target withIcon = do
-  span_ ((if withIcon then Template.icon file else mempty) >> name)
-    `with` [ title_ (Text.pack displayName) ]
+  span_ do
+    if withIcon
+       then Template.icon file
+       else mempty
+    name
+    `with` [ title_ (Text.pack displayName)
+           ]
   where
     name = span_ (toHtml displayName)
 

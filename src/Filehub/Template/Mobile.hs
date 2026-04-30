@@ -14,7 +14,7 @@ module Filehub.Template.Mobile
 import Control.Monad (join)
 import Data.ByteString (ByteString)
 import Data.ClientPath (ClientPath(..), AbsPath (..), Root (..))
-import Data.File (File(..), FileInfo)
+import Data.File (File(..), FileInfo, IsLink (..))
 import Data.Foldable (traverse_)
 import Data.Maybe (fromMaybe)
 import Data.String.Interpolate (iii, i)
@@ -216,16 +216,21 @@ entry file = do
         ]
       ClientPathView { clientPath, hashPath  } = asClientPathView root file.path
 
-
   pure do
     tr_ attrs do
-      td_ do
+      td_  do
         fileNameElement target file
         span_ [class_ "file-meta mobile "] do
           modifiedDateElement file
           i_ [ class_ "bx bx-wifi-0"] mempty
           sizeElement file
         `with` Template.open root file
+        `with` [ class_ "entry-preview " ]
+      `with` [ case file.isLink of
+                 Link       -> class_ "symlink "
+                 BrokenLink -> class_ "broken-symlink "
+                 NotLink    -> class_ ""
+             ]
 
 
 sizeElement :: FileInfo -> Html ()
