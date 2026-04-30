@@ -924,7 +924,7 @@ contextMenuMany clientPaths = do
         False -> do
           div_ [ class_ "dropdown-item"
                , hxDelete (apiLinks.delete clientPaths False)
-               , hxTarget "none"
+               , hxSwap None
                , hxConfirm (Text.replace "{}" (Text.pack (show (length clientPaths))) confirm_delete_local)
                ] do
             i_ [ class_ "bx bxs-trash" ] mempty
