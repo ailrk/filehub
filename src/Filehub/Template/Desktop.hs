@@ -8,6 +8,8 @@ module Filehub.Template.Desktop
   , controlPanel
   , view
   , toolBar
+  , entry
+  , thumbnail
   , renameModal
   , newFileModal
   , newFolderModal
@@ -39,7 +41,7 @@ import Filehub.Routes (Api(..))
 import Filehub.Selected qualified as Selected
 import Filehub.Session (TargetView(..))
 import Filehub.Size (toReadableSize)
-import Filehub.Template (Template, TemplateContext(..))
+import Filehub.Template (Template, TemplateContext(..), runTemplate)
 import Filehub.Template.Shared (bold, sideBarId, viewId, searchBar, tableId)
 import Filehub.Template.Shared qualified as Template
 import Filehub.Theme (Theme (..))
@@ -54,7 +56,7 @@ import Target.S3 (S3, Target (..))
 import Target.Types (targetHandler, AnyTarget, handleTarget)
 import Target.Types qualified as Target
 import Data.Coerce (coerce)
-import Control.Monad.Reader (asks)
+import Control.Monad.Reader (asks, MonadReader (..))
 import Data.Hashable (Hashable(..))
 
 
@@ -69,7 +71,7 @@ index :: Html ()
       -> Template (Html ())
 index sideBar' view' toolBar' = do
   controlPanel' <- controlPanel
-  sidebarCollapsed <- asks @TemplateContext (.sidebarCollapsed)
+  sidebarCollapsed <- asks (.sidebarCollapsed)
   pure do
     div_ [ id_ "index" ] do
       sideBar'
@@ -100,7 +102,7 @@ toolBar = do
 
 sideBar :: [(AnyTarget, Int)] -> TargetView -> Template (Html ())
 sideBar targets (TargetView currentTarget _) = do
-  p <- phrase <$> asks @TemplateContext (.locale)
+  p <- phrase <$> asks (.locale)
   pure do
     div_ [ id_ sideBarId ] do
       traverse_ (targetTab p) targets
@@ -160,7 +162,7 @@ controlPanel = join do
 
 newFolderBtn :: Template (Html ())
 newFolderBtn = do
-  Phrase { control_panel_new_folder } <- phrase <$> asks @TemplateContext (.locale)
+  Phrase { control_panel_new_folder } <- phrase <$> asks (.locale)
   pure do
     button_ [ class_ "btn btn-control "
             , type_ "submit"
@@ -175,7 +177,7 @@ newFolderBtn = do
 
 newFileBtn :: Template (Html ())
 newFileBtn = do
-  Phrase { control_panel_new_file } <- phrase <$> asks @TemplateContext (.locale)
+  Phrase { control_panel_new_file } <- phrase <$> asks (.locale)
   pure do
     button_ [ class_ "btn btn-control"
             , type_ "submit"
@@ -190,7 +192,7 @@ newFileBtn = do
 
 uploadBtn :: Template (Html ())
 uploadBtn = do
-  Phrase { control_panel_upload } <- phrase <$> asks @TemplateContext (.locale)
+  Phrase { control_panel_upload } <- phrase <$> asks (.locale)
   pure do
     let fileInputId = "file-input"
     input_ [ type_ "file"
@@ -215,7 +217,7 @@ uploadBtn = do
 
 copyBtn :: Template (Html ())
 copyBtn = do
-  Phrase { control_panel_copy } <- phrase <$> asks @TemplateContext (.locale)
+  Phrase { control_panel_copy } <- phrase <$> asks (.locale)
   pure do
     button_ [ class_ "btn btn-control"
             , type_ "submit"
@@ -230,7 +232,7 @@ copyBtn = do
 
 pasteBtn :: Template (Html ())
 pasteBtn = do
-  Phrase { control_panel_paste } <- phrase <$> asks @TemplateContext (.locale)
+  Phrase { control_panel_paste } <- phrase <$> asks (.locale)
   pure do
     button_ [ class_ "btn btn-control"
             , type_ "submit"
@@ -244,11 +246,11 @@ pasteBtn = do
 
 deleteBtn :: Template (Html ())
 deleteBtn = do
-  selected <- asks @TemplateContext (.selected)
+  selected <- asks (.selected)
   Phrase
     { control_panel_delete
     , confirm_delete_all
-    } <- phrase <$> asks @TemplateContext (.locale)
+    } <- phrase <$> asks (.locale)
   pure do
     button_ [ class_ "btn btn-control urgent"
             , type_ "submit"
@@ -263,7 +265,7 @@ deleteBtn = do
 
 cancelBtn :: Template (Html ())
 cancelBtn = do
-  Phrase { control_panel_cancel } <- phrase <$> asks @TemplateContext (.locale)
+  Phrase { control_panel_cancel } <- phrase <$> asks (.locale)
   pure do
     button_ [ class_ "btn btn-control"
             , type_ "submit"
@@ -278,7 +280,7 @@ cancelBtn = do
 
 toggleSidebarBtn :: Template (Html ())
 toggleSidebarBtn = do
-  Phrase { toggle_sidebar } <- phrase <$> asks @TemplateContext (.locale)
+  Phrase { toggle_sidebar } <- phrase <$> asks (.locale)
   pure do
     button_ [ class_ "btn btn-control"
             , type_ "submit"
@@ -292,7 +294,7 @@ toggleSidebarBtn = do
 
 logoutBtn :: Template (Html ())
 logoutBtn = do
-  Phrase { confirm_logout } <- phrase <$> asks @TemplateContext (.locale)
+  Phrase { confirm_logout } <- phrase <$> asks (.locale)
   pure do
     button_ [ class_ "btn btn-control urgent "
             , type_ "submit"
@@ -307,8 +309,8 @@ logoutBtn = do
 
 themeBtn :: Template (Html ())
 themeBtn = do
-  Phrase { control_panel_dark, control_panel_light } <- phrase <$> asks @TemplateContext (.locale)
-  theme <- asks @TemplateContext (.theme)
+  Phrase { control_panel_dark, control_panel_light } <- phrase <$> asks (.locale)
+  theme <- asks (.theme)
   pure do
     case theme of
       Light -> do
@@ -333,8 +335,8 @@ themeBtn = do
 
 layoutBtn :: Template (Html ())
 layoutBtn =  do
-  layout <- asks @TemplateContext (.layout)
-  Phrase { control_panel_grid, control_panel_list } <- phrase <$> asks @TemplateContext (.locale)
+  layout <- asks (.layout)
+  Phrase { control_panel_grid, control_panel_list } <- phrase <$> asks (.locale)
   pure do
     case layout of
       ListLayout -> do
@@ -390,7 +392,7 @@ newFileModal = do
     { modal_file
     , modal_create
     , placeholder_newfile
-    } <- phrase <$> asks @TemplateContext (.locale)
+    } <- phrase <$> asks (.locale)
   pure do
     modal [ id_ newFileModalId ] do
       span_ [ class_ "modal-title-bar " ] do
@@ -401,8 +403,7 @@ newFileModal = do
           i_ [ class_ "bx bx-x"] mempty
       br_ mempty
       form_ [ term "hx-post" (linkToText apiLinks.newFile)
-            , term "hx-target" "#view"
-            , term "hx-swap" "outerHTML"
+            , term "hx-swap" "none"
             ] do
         div_ [ style_ "display: flex" ] do
           input_ [ class_ "form-control "
@@ -422,7 +423,7 @@ newFolderModal = do
     { modal_create
     , modal_folder
     , placeholder_newfoler
-    } <- phrase <$> asks @TemplateContext (.locale)
+    } <- phrase <$> asks (.locale)
   pure do
     modal [ id_ newFolderModalId ] do
       span_ [ class_ "modal-title-bar " ] do
@@ -450,8 +451,8 @@ newFolderModal = do
 
 renameModal :: AbsPath -> Template (Html ())
 renameModal oldPath = do
-  root <- asks @TemplateContext (.root)
-  Phrase { modal_confirm } <- phrase <$> asks @TemplateContext (.locale)
+  root <- asks (.root)
+  Phrase { modal_confirm } <- phrase <$> asks (.locale)
 
   let c2t           = Text.pack . coerce
       fileName      = Text.pack (coerce takeFileName oldPath)
@@ -485,7 +486,7 @@ fileDetailModal file = do
     , detail_accessed
     , detail_size
     , detail_content_type
-    } <- phrase <$> asks @TemplateContext (.locale)
+    } <- phrase <$> asks (.locale)
 
   pure do
     modal [ id_ fileDetailModalId ] do
@@ -512,13 +513,13 @@ fileDetailModal file = do
 
 editorModal :: (ClientPath, String) -> ByteString -> Template (Html ())
 editorModal (ClientPath path, filename) content = do
-  readOnly <- asks @TemplateContext (.readOnly)
+  readOnly <- asks (.readOnly)
   Phrase
     { modal_edit
     , modal_readonly
     , placeholder_empty_file
     , confirm_save_edit
-    } <- phrase <$> asks @TemplateContext (.locale)
+    } <- phrase <$> asks (.locale)
 
   pure do
     modal [ id_ editorModalId ] do
@@ -612,7 +613,7 @@ modal attrs body = do
 
 table :: [FileInfo] ->  Template (Html ())
 table files = do
-  layout <- asks @TemplateContext (.layout)
+  layout <- asks (.layout)
   case layout of
     ListLayout      -> listLayout files
     ThumbnailLayout -> thumbnailLayout files
@@ -620,39 +621,15 @@ table files = do
 
 listLayout :: [FileInfo]  -> Template (Html ())
 listLayout files = do
-  root <- asks @TemplateContext (.root)
-  selected <- asks @TemplateContext (.selected)
-  order <- asks @TemplateContext (.sortedBy)
-  TargetView target _ <- asks @TemplateContext (.currentTarget)
   Phrase
     { detail_filename
     , detail_modified
     , detail_size
-    } <- phrase <$> asks @TemplateContext (.locale)
+    } <- phrase <$> asks (.locale)
+  order <- asks (.sortedBy)
+  ctx   <- ask
 
-  let record :: (Int, FileInfo) -> Html ()
-      record (_, file) = do
-        let clientPath@(ClientPath path) = ClientPath.toClientPath root file.path
-            pathHash                     = fromIntegral @_ @Word (hash clientPath)
-        tr_ do
-          td_ $ fileNameElement file target True
-                  `with` Template.open root file
-                  `with`  [ class_ "field "]
-          td_ $ modifiedDateElement file
-          td_ $ sizeElement file
-          `with`
-            mconcat
-              [ [ term "data-path" (Text.pack path) ]
-              , [ class_ "selected confirmed " | clientPath `Selected.elem` selected]
-              , [ id_ [i|tr-#{pathHash}|]
-                , class_ "table-item "
-                , draggable_ "true"
-                ]
-              , case file.content of
-                  Dir     -> [ class_ "dir "]
-                  Regular -> mempty
-              ]
-      sortIconName =
+  let sortIconName =
         case order of
           ByNameUp   -> i_ [ class_ "bx bxs-up-arrow"] mempty
           ByNameDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
@@ -682,6 +659,7 @@ listLayout files = do
           BySizeUp   -> sortControl BySizeDown
           BySizeDown -> sortControl BySizeUp
           _          -> sortControl BySizeUp
+
   pure do
     table_ [ id_ tableId, class_ "list-view " ] do
       thead_ do
@@ -701,37 +679,71 @@ listLayout files = do
               (toHtml detail_size)
               sortIconSize
               `with` sortControlSize
-      tbody_ $ traverse_ record ([0..] `zip` files)
+      tbody_ $ traverse_ (runTemplate ctx . entry) files
+
+
+entry :: FileInfo -> Template (Html ())
+entry file = do
+  root                <- asks (.root)
+  selected            <- asks (.selected)
+  TargetView target _ <- asks (.currentTarget)
+
+  let clientPath@(ClientPath path) = ClientPath.toClientPath root file.path
+      pathHash                     = fromIntegral @_ @Word (hash clientPath)
+  pure do
+    tr_ do
+      td_ $ fileNameElement file target True
+              `with` Template.open root file
+              `with`  [ class_ "field "]
+      td_ $ modifiedDateElement file
+      td_ $ sizeElement file
+      `with`
+        mconcat
+          [ [ term "data-path" (Text.pack path) ]
+          , [ class_ "selected confirmed " | clientPath `Selected.elem` selected]
+          , [ id_ [i|tr-#{pathHash}|]
+            , class_ "table-item "
+            , draggable_ "true"
+            ]
+          , case file.content of
+              Dir     -> [ class_ "dir "]
+              Regular -> mempty
+          ]
 
 
 thumbnailLayout :: [FileInfo] -> Template (Html ())
 thumbnailLayout files = do
-  root <- asks @TemplateContext (.root)
-  selected <- asks @TemplateContext (.selected)
-  TargetView target _ <- asks @TemplateContext (.currentTarget)
-  let thumbnail :: (Int, FileInfo) -> Html ()
-      thumbnail (_, file) = card `with` Template.open root file
-        where
-          card = div_ do
-            previewElement root file
-            fileNameElement file target False `with` [ class_ "thumbnail-name" ]
-            `with`
-              mconcat
-                [ [ term "data-path" (Text.pack path) ]
-                , [ class_ "selected confirmed " | clientPath `Selected.elem` selected ]
-                , [ id_ [i|tr-#{pathHash}|]
-                  , class_ "thumbnail table-item "
-                  , draggable_ "true"
-                  ]
-                , case file.content of
-                    Dir     -> [ class_ "dir "]
-                    Regular -> mempty
-                ]
-          clientPath@(ClientPath path) = ClientPath.toClientPath root file.path
-          pathHash                     = fromIntegral @_ @Word (hash clientPath)
+  ctx <- ask
   pure do
     div_ [ id_ tableId, class_ "thumbnail-view " ] do
-      tbody_ $ traverse_ thumbnail ([0..] `zip` files)
+      tbody_ $ traverse_ (runTemplate ctx . thumbnail) files
+
+
+thumbnail :: FileInfo -> Template (Html ())
+thumbnail file = do
+  TargetView target _ <- asks (.currentTarget)
+  root                <- asks (.root)
+  selected            <- asks (.selected)
+
+  let clientPath@(ClientPath path) = ClientPath.toClientPath root file.path
+      pathHash                     = fromIntegral @_ @Word (hash clientPath)
+
+  pure do
+    div_ do
+      previewElement root file
+      fileNameElement file target False `with` [ class_ "thumbnail-name" ]
+      `with` mconcat
+          [ [ term "data-path" (Text.pack path) ]
+          , [ class_ "selected confirmed " | clientPath `Selected.elem` selected ]
+          , [ id_ [i|tr-#{pathHash}|]
+                         , class_ "thumbnail table-item "
+                         , draggable_ "true"
+            ]
+          , case file.content of
+              Dir     -> [ class_ "dir "]
+              Regular -> mempty
+          ]
+        `with` Template.open root file
 
 
 previewElement :: Root -> FileInfo -> Html ()
@@ -797,8 +809,8 @@ sortControl o =
 
 contextMenu1 :: FileInfo -> Template (Html ())
 contextMenu1 file = do
-  root <- asks @TemplateContext (.root)
-  readOnly <- asks @TemplateContext (.readOnly)
+  root     <- asks (.root)
+  readOnly <- asks (.readOnly)
   Phrase
     { contextmenu_delete
     , contextmenu_details
@@ -810,7 +822,7 @@ contextMenu1 file = do
     , contextmenu_rename
     , contextmenu_download
     , confirm_delete1
-    } <- phrase <$> asks @TemplateContext (.locale)
+    } <- phrase <$> asks (.locale)
   pure do
     let clientPath@(ClientPath cp)  = ClientPath.toClientPath root file.path
     let textClientPath = Text.pack cp
@@ -869,7 +881,7 @@ contextMenu1 file = do
 
 contextMenuMany :: [ClientPath] -> Template (Html ())
 contextMenuMany clientPaths = do
-  readOnly <- asks @TemplateContext (.readOnly)
+  readOnly <- asks (.readOnly)
   Phrase
     { contextmenu_delete_local
     , contextmenu_selected
@@ -877,7 +889,7 @@ contextMenuMany clientPaths = do
     , contextmenu_cancel
     , contextmenu_download
     , confirm_delete_local
-    } <- phrase <$> asks @TemplateContext (.locale)
+    } <- phrase <$> asks (.locale)
 
   pure do
     div_ [ class_ "dropdown-content " , id_ contextMenuId ] do

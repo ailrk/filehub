@@ -23,11 +23,11 @@ new = do
 
 add :: ActiveUser -> Filehub ()
 add activeUser = do
-  ActiveUser.Pool pool <- asks @Env (.activeUsers)
+  ActiveUser.Pool pool <- asks (.activeUsers)
   liftIO $ HashTable.insert pool activeUser.authId activeUser
 
 
 delete :: AuthId -> Filehub ()
 delete authId = do
-  ActiveUser.Pool pool <- asks @Env (.activeUsers)
+  ActiveUser.Pool pool <- asks (.activeUsers)
   liftIO $ HashTable.delete pool authId

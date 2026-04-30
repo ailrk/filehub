@@ -76,10 +76,10 @@ makeTemplateContext sessionId = do
   locale            <- Session.get sessionId (.locale)
   currentDir        <- Session.get sessionId (.currentDir)
   currentTarget     <- Session.get sessionId (.currentTarget)
-  readOnly          <- asks @Env (.readOnly)
+  readOnly          <- asks (.readOnly)
   noLogin           <- Env.hasNoLogin <$> ask @Env
-  simpleAuthUserDB  <- asks @Env (.simpleAuthUserDB)
-  oidcAuthProviders <- asks @Env (.oidcAuthProviders)
+  simpleAuthUserDB  <- asks (.simpleAuthUserDB)
+  oidcAuthProviders <- asks (.oidcAuthProviders)
   pure TemplateContext
     { readOnly           = readOnly
     , noLogin            = noLogin

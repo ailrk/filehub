@@ -34,12 +34,12 @@ login = do
 
 login' :: Template (Html ())
 login' = do
-  OIDCAuthProviders providers <- asks @TemplateContext (.oidcAuthProviders)
+  OIDCAuthProviders providers <- asks (.oidcAuthProviders)
   Phrase
     { login_button
     , login_or
     , login_password
-    , login_username } <- phrase <$> asks @TemplateContext (.locale)
+    , login_username } <- phrase <$> asks (.locale)
   themeBtn' <- themeBtn
   pure do
     div_ [ id_ "login"  ] do
@@ -105,7 +105,7 @@ localeBtn =
 
 themeBtn :: Template (Html ())
 themeBtn = do
-  theme <- asks @TemplateContext (.theme)
+  theme <- asks (.theme)
   pure do
     case theme of
       Light -> do
@@ -129,7 +129,7 @@ themeBtn = do
 loginFailed :: Maybe Text -> Template (Html ())
 loginFailed mMsg = do
   Phrase
-    { login_error } <- phrase <$> asks @TemplateContext (.locale)
+    { login_error } <- phrase <$> asks (.locale)
   pure do
     div_ [ id_ "login-error"
          , class_ "show fade-in "

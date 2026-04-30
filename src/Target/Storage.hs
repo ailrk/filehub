@@ -12,7 +12,7 @@ import Servant.Multipart ( Mem, FileData )
 
 
 data Storage m = Storage
-  { get         :: AbsPath -> m (Maybe FileInfo)
+  { get         :: AbsPath -> m FileInfo
 
   , read        :: FileInfo -> m ByteString
 
@@ -26,7 +26,7 @@ data Storage m = Storage
 
   , delete      :: AbsPath -> m ()
 
-  , new         :: AbsPath -> m ()
+  , new         :: AbsPath -> m FileInfo
 
   , newFolder   :: AbsPath -> m ()
 

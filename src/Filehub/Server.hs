@@ -425,8 +425,8 @@ sharedAuth sessionId = undefined
 themeCss :: SessionId -> Filehub ByteString
 themeCss sessionId = do
   theme <- Session.get sessionId (.theme)
-  customThemeDark  <- (fmap . fmap) Theme.customTheme2Css (asks @Env (.customThemeDark))
-  customThemeLight <- (fmap . fmap) Theme.customTheme2Css (asks @Env (.customThemeLight))
+  customThemeDark  <- (fmap . fmap) Theme.customTheme2Css (asks (.customThemeDark))
+  customThemeLight <- (fmap . fmap) Theme.customTheme2Css (asks (.customThemeLight))
 #ifdef DEBUG
   dir <- liftIO $ Paths_filehub.getDataDir >>= makeAbsolute <&> (++ "/data/filehub")
   case theme of
@@ -451,18 +451,15 @@ thumbnail sessionId _ mFile = do
   root       <- Session.get sessionId (.root)
   storage    <- Session.get sessionId (.storage)
   clientPath <- withQueryParam mFile
-  let path   = ClientPath.fromClientPath root clientPath
+  let path   =  ClientPath.fromClientPath root clientPath
+  file       <- storage.get path
+  conduit    <- serveOriginal storage file
 
-  storage.get path >>= \case
-    Just file -> do
-      conduit <- serveOriginal storage file
-      pure
-        . addHeader (ByteString.unpack file.mimetype)
-        . addHeader (printf "inline; filename=%s" (coerce takeFileName path :: String))
-        . addHeader "public, max-age=31536000, immutable"
-        $ conduit
-    Nothing -> do
-      throwIO (FilehubError InvalidPath "thumbnail file path is invalid")
+  pure
+    . addHeader (ByteString.unpack file.mimetype)
+    . addHeader (printf "inline; filename=%s" (coerce takeFileName path :: String))
+    . addHeader "public, max-age=31536000, immutable"
+    $ conduit
 
   where
     serveOriginal storage file =

@@ -34,16 +34,16 @@ createSessionId = SessionId <$> liftIO UUID.nextRandom
 
 createExpireDate :: Filehub UTCTime
 createExpireDate = do
-  duration <- asks @Env (.sessionDuration)
+  duration <- asks (.sessionDuration)
   current  <- liftIO Time.getCurrentTime
   pure $ duration `addUTCTime` current
 
 
 createSession :: Filehub Session
 createSession = do
-  targets       <- asks @Env (.targets) >>= readTVarIO
-  theme         <- asks @Env (.theme)
-  locale        <- asks @Env (.locale)
+  targets       <- asks (.targets) >>= readTVarIO
+  theme         <- asks (.theme)
+  locale        <- asks (.locale)
   sessionId     <- createSessionId
   expireDate    <- createExpireDate
   notifications <- liftIO (newTBQueueIO 16)

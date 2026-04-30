@@ -209,7 +209,7 @@ newSessionGet sessionId =
       targetViews = do
         s <- Session.Pool.get sessionId
         let targetIds =  Map.keys s.targets
-        targets       <- filter ((`elem` targetIds) . fst) <$> (asks @Env (.targets) >>= readTVarIO)
+        targets       <- filter ((`elem` targetIds) . fst) <$> (asks (.targets) >>= readTVarIO)
         pure $
           flip mapMaybe targets \(targetId, target) ->
             case Map.lookup targetId s.targets of
@@ -245,7 +245,7 @@ newSessionGet sessionId =
       currentTarget :: Filehub TargetView
       currentTarget = do
         s <- Session.Pool.get sessionId
-        targets <- asks @Env (.targets) >>= readTVarIO
+        targets <- asks (.targets) >>= readTVarIO
         maybe (throwIO (FilehubError InvalidSession "Invalid session")) pure do
           let targetId      = s.currentTargetId
           targetSessionData <- Map.lookup targetId s.targets
@@ -310,7 +310,7 @@ newSessionSet sessionId =
 
       currentTarget tid = do
           TargetView target _ <- get sessionId (.currentTarget)
-          targets <- asks @Env (.targets) >>= readTVarIO
+          targets <- asks (.targets) >>= readTVarIO
           if getTargetId target == tid
              then pure ()
              else do

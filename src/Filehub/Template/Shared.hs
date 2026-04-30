@@ -117,8 +117,8 @@ withDefault display background html = do
 
 pathBreadcrumb :: Template (Html ())
 pathBreadcrumb = do
-  currentDir <- asks @TemplateContext (.currentDir)
-  root <- asks @TemplateContext (.root)
+  currentDir <- asks (.currentDir)
+  root       <- asks (.root)
   pure do
     let breadcrumbItems =
           coerce currentDir
@@ -159,13 +159,13 @@ search (SearchWord searchWord) files table = do
   let matched = files <&> coerce Text.pack . (.path) & simpleFilter searchWord
   let isMatched file = coerce Text.pack file.path `elem` matched
   let filteredFiles = files ^.. each . filtered isMatched
-  order <- asks @TemplateContext (.sortedBy)
+  order <- asks (.sortedBy)
   table (sortFiles order filteredFiles)
 
 
 searchBar :: Template (Html ())
 searchBar = do
-  Phrase { search_as_you_type } <- phrase <$> asks @TemplateContext (.locale)
+  Phrase { search_as_you_type } <- phrase <$> asks (.locale)
   pure do
     div_ [ id_ searchBarId ] do
       input_ [ class_ "form-control "
@@ -199,10 +199,10 @@ controlPanel
   mToggleSidebarBtn
   mLayoutBtn
   mScroll2TopBtn = do
-    readOnly <- asks @TemplateContext (.readOnly)
-    noLogin <- asks @TemplateContext (.noLogin)
-    state <- asks @TemplateContext (.state)
-    TargetView { target } <- asks  @TemplateContext (.currentTarget)
+    readOnly              <- asks (.readOnly)
+    noLogin               <- asks (.noLogin)
+    state                 <- asks (.state)
+    TargetView { target } <- asks  (.currentTarget)
     pure do
       case readOnly of
         True ->

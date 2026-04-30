@@ -4,6 +4,7 @@ module Filehub.Template.Mobile
   , sideBar
   , controlPanel
   , view
+  , entry
   , table
   , toolBar
   , editorModal
@@ -27,11 +28,11 @@ import Filehub.Locale (Phrase(..), phrase, Locale (..))
 import Filehub.Routes (Api(..))
 import Filehub.Selected qualified as Selected
 import Filehub.Size (toReadableSize)
-import Filehub.Template (Template, TemplateContext(..))
+import Filehub.Template (Template, TemplateContext(..), runTemplate)
 import Filehub.Template.Shared qualified as Template
 import Filehub.Template.Shared (sideBarId, controlPanelId, viewId, searchBar, toolBarId, tableId)
 import Filehub.Theme (Theme(..))
-import Filehub.Types ( SortFileBy(..), Selected )
+import Filehub.Types ( SortFileBy(..))
 import Lens.Micro.Platform ()
 import Lucid
 import System.FilePath (takeFileName)
@@ -42,7 +43,8 @@ import Target.Types qualified as Target
 import Filehub.Session (TargetView(..))
 import Target.Dummy (DummyTarget)
 import Data.Coerce (coerce)
-import Control.Monad.Reader (asks)
+import Control.Monad.Reader (asks, MonadReader (..))
+import Data.Hashable (Hashable(..))
 
 
 index :: Html ()
@@ -139,12 +141,12 @@ toolBar = do
 
 sortTool :: Template (Html ())
 sortTool = do
-  order <- asks @TemplateContext (.sortedBy)
+  order <- asks (.sortedBy)
   Phrase
     { detail_filename
     , detail_modified
     , detail_size
-    } <- phrase <$> asks @TemplateContext (.locale)
+    } <- phrase <$> asks (.locale)
 
 
   pure do
@@ -195,32 +197,36 @@ sortTool = do
 
 table :: [FileInfo] -> Template (Html ())
 table files = do
-  root <- asks @TemplateContext (.root)
-  TargetView { target } <- asks @TemplateContext (.currentTarget)
-  selected <- asks @TemplateContext (.selected)
+  ctx <- ask
   pure do
     table_ [ id_ tableId, class_ "list-view " ] do
-      tbody_ $ traverse_ (record root target selected) ([0..] `zip` files)
+      tbody_ $ traverse_ (runTemplate ctx . entry) files
 
 
-record :: Root -> AnyTarget -> Selected -> (Int, FileInfo) -> Html ()
-record root target selected (idx, file) =
-  tr_ attrs do
-    td_ do
-      fileNameElement target file
-      span_ [class_ "file-meta mobile "] do
-        modifiedDateElement file
-        i_ [ class_ "bx bx-wifi-0"] mempty
-        sizeElement file
-      `with` Template.open root file
-  where
-    attrs :: [Attribute]
-    attrs = mconcat
-      [ [ term "data-path" (Text.pack path) ]
-      , [class_ "selected " | clientPath `Selected.elem` selected]
-      , [id_ [i|tr-#{idx}|], class_ "table-item " ]
-      ]
-    clientPath@(ClientPath path) = ClientPath.toClientPath root file.path
+entry :: FileInfo -> Template (Html ())
+entry file = do
+  root                  <- asks (.root)
+  TargetView { target } <- asks (.currentTarget)
+  selected              <- asks (.selected)
+
+  let attrs :: [Attribute]
+      attrs = mconcat
+        [ [ term "data-path" (Text.pack path) ]
+        , [class_ "selected " | clientPath `Selected.elem` selected]
+        , [id_ [i|tr-#{pathHash}|], class_ "table-item " ]
+        ]
+      clientPath@(ClientPath path) = ClientPath.toClientPath root file.path
+      pathHash                     = fromIntegral @_ @Word (hash clientPath)
+
+  pure do
+    tr_ attrs do
+      td_ do
+        fileNameElement target file
+        span_ [class_ "file-meta mobile "] do
+          modifiedDateElement file
+          i_ [ class_ "bx bx-wifi-0"] mempty
+          sizeElement file
+        `with` Template.open root file
 
 
 sizeElement :: FileInfo -> Html ()
@@ -295,7 +301,7 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
   where
     localeBtn :: Template (Html ())
     localeBtn = do
-      Phrase { control_panel_language } <- phrase <$> asks @TemplateContext (.locale)
+      Phrase { control_panel_language } <- phrase <$> asks (.locale)
       pure do
         button_ [ class_ "action-btn"
                 , id_ "locale-langauge-btn"
@@ -308,7 +314,7 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
 
     newFolderBtn :: Template (Html ())
     newFolderBtn = do
-      Phrase { control_panel_new_folder } <- phrase <$> asks @TemplateContext (.locale)
+      Phrase { control_panel_new_folder } <- phrase <$> asks (.locale)
       pure do
         button_ [ class_ "action-btn"
                 , term "_"
@@ -332,7 +338,7 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
 
     newFileBtn :: Template (Html ())
     newFileBtn  = do
-      Phrase { control_panel_new_file } <- phrase <$> asks @TemplateContext (.locale)
+      Phrase { control_panel_new_file } <- phrase <$> asks (.locale)
       pure do
         button_ [ class_ "action-btn"
                 , term "_"
@@ -356,7 +362,7 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
 
     uploadBtn :: Template (Html ())
     uploadBtn = do
-      Phrase { control_panel_upload } <- phrase <$> asks @TemplateContext (.locale)
+      Phrase { control_panel_upload } <- phrase <$> asks (.locale)
       let fileInputId = "file-input"
       pure do
         input_ [ type_ "file"
@@ -380,7 +386,7 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
 
     copyBtn :: Template (Html ())
     copyBtn = do
-      Phrase { control_panel_copy } <- phrase <$> asks @TemplateContext (.locale)
+      Phrase { control_panel_copy } <- phrase <$> asks (.locale)
       pure do
         button_ [ class_ "action-btn"
                 , term "hx-get" (linkToText apiLinks.copy)
@@ -394,7 +400,7 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
 
     pasteBtn :: Template (Html ())
     pasteBtn = do
-      Phrase { control_panel_paste } <- phrase <$> asks @TemplateContext (.locale)
+      Phrase { control_panel_paste } <- phrase <$> asks (.locale)
       pure do
         button_ [ class_ "action-btn"
                 , term "hx-post" (linkToText apiLinks.paste)
@@ -407,8 +413,8 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
 
     deleteBtn :: Template (Html ())
     deleteBtn = do
-      selected <- asks @TemplateContext (.selected)
-      Phrase { control_panel_delete } <- phrase <$> asks @TemplateContext (.locale)
+      selected <- asks (.selected)
+      Phrase { control_panel_delete } <- phrase <$> asks (.locale)
       pure do
         button_ [ class_ "action-btn urgent "
                 , term "hx-delete" (linkToText (apiLinks.delete (Selected.toList selected) True))
@@ -422,7 +428,7 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
 
     cancelBtn :: Template (Html ())
     cancelBtn = do
-      Phrase { control_panel_cancel } <- phrase <$> asks @TemplateContext (.locale)
+      Phrase { control_panel_cancel } <- phrase <$> asks (.locale)
       pure do
         button_ [ class_ "action-btn"
                 , term "hx-post" (linkToText apiLinks.cancel)
@@ -436,7 +442,7 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
 
     logoutBtn :: Template (Html ())
     logoutBtn = do
-      Phrase { control_panel_logout } <- phrase <$> asks @TemplateContext (.locale)
+      Phrase { control_panel_logout } <- phrase <$> asks (.locale)
       pure do
         button_ [ class_ "action-btn urgent "
                 , type_ "submit"
@@ -452,10 +458,10 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
 
     themeBtn :: Template (Html ())
     themeBtn = do
-      theme <- asks @TemplateContext (.theme)
+      theme <- asks (.theme)
       Phrase
         { control_panel_light
-        , control_panel_dark } <- phrase <$> asks @TemplateContext (.locale)
+        , control_panel_dark } <- phrase <$> asks (.locale)
       pure do
         case theme of
           Light -> do
@@ -480,7 +486,7 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
 
     scroll2TopBtn :: Template (Html ())
     scroll2TopBtn = do
-      Phrase { control_panel_scroll2top } <- phrase <$> asks @TemplateContext (.locale)
+      Phrase { control_panel_scroll2top } <- phrase <$> asks (.locale)
       pure do
         button_ [ class_ "action-btn"
                 , term "_" "on click call window.scroll(0, 0)"
@@ -505,11 +511,11 @@ selectedCounter n = do
 
 editorModal :: (ClientPath, String) -> ByteString -> Template (Html ())
 editorModal (ClientPath path, filename) content = do
-  readOnly <- asks @TemplateContext (.readOnly)
+  readOnly <- asks (.readOnly)
   Phrase
     { modal_edit
     , confirm_save_edit
-    } <- phrase <$> asks @TemplateContext (.locale)
+    } <- phrase <$> asks (.locale)
 
 
   pure do

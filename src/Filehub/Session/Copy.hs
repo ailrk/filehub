@@ -14,7 +14,6 @@ import Control.Monad (forM_)
 import Data.ClientPath qualified as ClientPath
 import Data.Function (on)
 import Data.List (nub)
-import Data.Maybe (catMaybes)
 import Data.String.Interpolate (i)
 import Filehub.Error (FilehubError (..), Error' (..))
 import Filehub.Session (Storage(..), withTarget)
@@ -61,7 +60,7 @@ select sessionId = do
         Selected x xs -> do
           root <- Session.get sessionId (.root)
           let paths = (x:xs) & fmap (ClientPath.fromClientPath root)
-          files <- traverse storage.get paths <&> catMaybes
+          files <- traverse storage.get paths
           state <- getCopyState sessionId
           case onSelected (target, files) state of
             Right state' -> setCopyState sessionId state'

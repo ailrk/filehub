@@ -168,11 +168,11 @@ createCacheKey targetId identifier = Cache.mkCacheKey
   [cacheKeyPrefix, Target.targetIdBuilder targetId, toCacheKeyComponent @s @a, identifier]
 
 
-get :: Target S3 -> AbsPath -> Filehub (Maybe FileInfo)
+get :: Target S3 -> AbsPath -> Filehub FileInfo
 get (s3@S3Backend { targetId }) path = do
   mCached <- cacheLookup cacheKey
   case mCached of
-    Just cached -> pure (Just cached)
+    Just cached -> pure cached
     Nothing -> do
       let bucket  = BucketName s3.bucket
           key     = ObjectKey (coerce Text.pack path)
@@ -192,7 +192,7 @@ get (s3@S3Backend { targetId }) path = do
                 , content  = Regular
                 }
           cacheInsert cacheKey cacheDeps cacheTTL file
-          pure (Just file)
+          pure file
         else do
           throwIO (FilehubError InvalidPath "invalid path")
   where
@@ -267,14 +267,18 @@ readStream s3 file mOff mMax = do
     conduit
 
 
-new :: Target S3 -> AbsPath -> Filehub ()
+new :: Target S3 -> AbsPath -> Filehub FileInfo
 new s3@S3Backend { targetId } path = do
   write s3 $ defaultFileWithContent
     { path     = path
     , mimetype = "text/plain"
     , content  = FileContentRaw ""
     }
+
   cacheDelete (SomeCacheKey (createCacheKey @"dir" @[FileInfo] targetId ""))
+
+  file <- get s3 path
+  pure file
 
 
 write :: Target S3 -> FileWithContent -> Filehub ()
@@ -496,28 +500,25 @@ upload s3 file = do
 
 download :: Target S3 -> AbsPath -> Filehub (ConduitT () ByteString (ResourceT IO) ())
 download s3 path = do
-  mFile <- get s3 path
-  case mFile of
-    Just file -> do
-      case file.content of
-        Regular -> readStream s3 file Nothing Nothing
-        Dir     -> do
-          (zipPath, _) <- liftIO do
-            tempDir <- Temp.getCanonicalTemporaryDirectory
-            Temp.openTempFile tempDir "DXXXXXX.zip"
+  file <- get s3 path
+  case file.content of
+    Regular -> readStream s3 file Nothing Nothing
+    Dir     -> do
+      (zipPath, _) <- liftIO do
+        tempDir <- Temp.getCanonicalTemporaryDirectory
+        Temp.openTempFile tempDir "DXXXXXX.zip"
 
-          Zip.createArchive zipPath do
-            Zip.packDirRecur
-              Zip.Zstd
-              Zip.mkEntrySelector
-              (coerce path)
+      Zip.createArchive zipPath do
+        Zip.packDirRecur
+          Zip.Zstd
+          Zip.mkEntrySelector
+          (coerce path)
 
-          pure $
-            Conduit.bracketP
-              (pure ())
-              (\_ -> removeFile zipPath)
-              (\_ -> Conduit.sourceFile zipPath)
-    Nothing -> pure undefined
+      pure $
+        Conduit.bracketP
+          (pure ())
+          (\_ -> removeFile zipPath)
+          (\_ -> Conduit.sourceFile zipPath)
 
 
 --

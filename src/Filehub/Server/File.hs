@@ -15,7 +15,7 @@ import Data.File (FileType(..), File(..), FileContent (..), withContent, default
 import Data.Foldable (for_)
 import Data.Traversable (for)
 import Data.Function ((&))
-import Data.Maybe (catMaybes, isJust, fromMaybe)
+import Data.Maybe (fromMaybe)
 import Data.Ratio ((%))
 import Data.String.Interpolate (i)
 import Data.Text qualified as Text
@@ -32,7 +32,7 @@ import Filehub.Session (SessionGet(..))
 import Filehub.Session.Copy qualified as Copy
 import Filehub.Session.Selected qualified as Selected
 import Filehub.Types ( NewFile(..) , NewFolder(..)    , Selected (..)    , UpdatedFile(..) , UpdatedFile(..) , FilehubEvent (..), RenameFile (..), CopyState (..), TargetSessionData (..), Selected(..), MoveFile (..), Env)
-import Lens.Micro ((.~), (<&>))
+import Lens.Micro ((.~))
 import Lucid hiding (for_)
 import Prelude hiding (init, readFile)
 import Servant (Header , Headers  , addHeader, Tagged (..), Application, ServerError (..), FromHttpApiData (..), err404)
@@ -44,17 +44,19 @@ import System.Random (randomRIO)
 import Target.Types (AnyTarget)
 import Text.Printf (printf)
 import Worker.Task (newTaskId)
-import UnliftIO (throwIO)
+import UnliftIO (throwIO, tryIO)
 import UnliftIO.STM (atomically, modifyTVar', readTVar, newTVarIO, writeTBQueue, newTQueueIO, writeTQueue)
 import Log (logAttention_)
 import UnliftIO.Async (async, forConcurrently_)
-import Filehub.Server.UI ( clear, index, view, controlPanel, toolBar, sideBar )
+import Filehub.Server.UI qualified as UI
 import Network.Wai (Request(..), responseLBS, responseStream)
 import Network.HTTP.Types.Status (status404, status206, status200)
 import Data.Binary.Builder qualified as Builder
 import Network.HTTP.Types (ByteRange(..), parseByteRanges)
 import Data.ByteString.Char8 qualified as Char8
 import Data.Hashable (Hashable(..))
+import Filehub.Sort qualified as Sort
+import Data.Either (isLeft)
 
 
 cd :: SessionId -> ConfirmLogin -> Maybe ClientPath -> Filehub (Headers '[ Header "HX-Trigger-After-Swap" FilehubEvent ] (Html ()))
@@ -64,8 +66,8 @@ cd sessionId _ mClientPath = do
   clientPath <- withQueryParam mClientPath
   storage.cd (ClientPath.fromClientPath root clientPath)
   html <- do
-    toolBar' <- toolBar sessionId
-    view'    <- view sessionId
+    toolBar' <- UI.toolBar sessionId
+    view'    <- UI.view sessionId
     pure do
       toolBar' `with` [ term "hx-swap-oob" "true" ]
       view'
@@ -145,11 +147,11 @@ delete sessionId _ _ clientPaths deleteSelected = do
         , htmxResponse = Nothing
         }
 
-  clear sessionId
+  UI.clear sessionId
   newCount <- length <$> Selected.allSelecteds sessionId
   addHeader newCount . addHeader SSEStarted
-    <$> (do controlPanel' <- controlPanel sessionId
-            sideBar'      <- sideBar sessionId
+    <$> (do controlPanel' <- UI.controlPanel sessionId
+            sideBar'      <- UI.sideBar sessionId
             pure do
               controlPanel' `with` [ term "hx-swap-oob" "true" ]
               sideBar' `with` [ term "hx-swap-oob" "true" ])
@@ -163,17 +165,36 @@ rename sessionId _ _ (RenameFile old new) = do
   storage.rename
     (ClientPath.fromClientPath root old)
     new
-  html <- view sessionId
+  html <- UI.view sessionId
   pure $ addHeader FileRenamed html
 
 
 newFile :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> NewFile -> Filehub (Html ())
 newFile sessionId _ _ (NewFile name) = do
-  storage     <- Session.get sessionId (.storage)
-  AbsPath dir <- Session.get sessionId (.currentDir)
-  path        <- validateAbsPath (dir </> Text.unpack name) (FilehubError InvalidPath ("<redacted>/" <> show name))
-  storage.new path
-  view sessionId
+  storage <- Session.get sessionId (.storage)
+  dir     <- Session.get sessionId (.currentDir)
+  order   <- Session.get sessionId (.sortedFileBy)
+  root    <- Session.get sessionId (.root)
+  path    <- validateAbsPath (coerce dir </> Text.unpack name) (FilehubError InvalidPath ("<redacted>/" <> show name))
+  file    <- storage.new path
+  files   <- do fs <- storage.ls dir
+                pure $ Sort.sortFiles order (fs ++ [file])
+  entry'  <- UI.entry sessionId file
+
+  let target = case getPrev file files of
+                 Just prevFile -> let clientPath = ClientPath.toClientPath root prevFile.path
+                                      hashPath   = hash clientPath
+                                   in [i|afterbegin:\#tr-#{hashPath}|]
+                 Nothing       -> [i|afterbegin:\#view|]
+
+  pure do
+    div_  [ term "hx-swap-oob" target ] do
+      entry'
+  where
+    getPrev target list =
+      case break (== target) list of
+          (before, _) | not (null before) -> Just (last before)
+          _                               -> Nothing
 
 
 updateFile :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> UpdatedFile -> Filehub (Html ())
@@ -185,7 +206,7 @@ updateFile sessionId _ _ (UpdatedFile clientPath content) = do
     { path     = path
     , content  = FileContentRaw (Text.encodeUtf8 content)
     }
-  view sessionId
+  UI.view sessionId
 
 
 newFolder :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> NewFolder -> Filehub (Html ())
@@ -196,24 +217,24 @@ newFolder sessionId _ _ (NewFolder name) = do
             (dir </> Text.unpack name)
             (FilehubError InvalidPath ("<redacted>/" <> show name))
   storage.newFolder path
-  view sessionId
+  UI.view sessionId
 
 
 copy :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> Filehub (Html ())
 copy sessionId _ _ = do
   Copy.select sessionId
   Copy.copy sessionId
-  controlPanel sessionId
+  UI.controlPanel sessionId
 
 
 copy1 :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> Maybe ClientPath -> Filehub (Html ())
 copy1 sessionId _ _ mClientPath = do
   clientPath <- withQueryParam mClientPath
-  clear sessionId
+  UI.clear sessionId
   Selected.setSelected sessionId (Selected clientPath [])
   Copy.select sessionId
   Copy.copy sessionId
-  index sessionId
+  UI.index sessionId
 
 
 data PasteTask
@@ -281,7 +302,7 @@ paste sessionId _ _ = do
       Copy.setCopyState sessionId NoCopyPaste
       Selected.clearSelectedAllTargets sessionId
 
-      view' <- view sessionId
+      view' <- UI.view sessionId
       atomically do
         writeTBQueue notifications $ TaskCompleted
           { taskId       = taskId
@@ -292,12 +313,12 @@ paste sessionId _ _ = do
       logAttention_ [i|[v8dsaz] #{sessionId}, not in pastable state.|]
       throwIO (FilehubError SelectError "Not in a pastable state")
 
-  clear sessionId
+  UI.clear sessionId
   selectedCount <- length <$> Selected.allSelecteds sessionId
 
   addHeader selectedCount . addHeader SSEStarted
-    <$> (do controlPanel' <- controlPanel sessionId
-            sideBar'      <- sideBar sessionId
+    <$> (do controlPanel' <- UI.controlPanel sessionId
+            sideBar'      <- UI.sideBar sessionId
             pure do
               controlPanel' `with` [ term "hx-swap-oob" "true" ]
               sideBar' `with` [ term "hx-swap-oob" "true" ])
@@ -309,9 +330,10 @@ paste sessionId _ _ = do
         for files $
           flip fix fromDir \rec (AbsPath currentDir) file -> do
 
-          let name   = coerce takeFileName file.path
+          let name = coerce takeFileName file.path
+          let path = (currentDir </> takeFileName name)
 
-          dst <- validateAbsPath (currentDir </> takeFileName name) (FilehubError InvalidPath "Invalid path")
+          dst <- validateAbsPath path (FilehubError InvalidPath "Invalid path")
 
           case file.content of
             Regular -> pure [ PasteFile from to file dst ]
@@ -353,8 +375,8 @@ move sessionId _ _ (MoveFile src tgt) = do
       throwIO (FilehubError InvalidDir "Already in the current directory")
 
     let dstPath = tgtPath <./> coerce takeFileName srcPath
-    mFile <- storage.get dstPath
-    when (isJust mFile) do
+    mFile <- tryIO $ storage.get dstPath
+    when (isLeft mFile) do
       throwIO (FilehubError InvalidPath "The destination already exists")
 
   void $ async do
@@ -374,8 +396,8 @@ move sessionId _ _ (MoveFile src tgt) = do
         , htmxResponse = Nothing
         }
 
-  clear sessionId
-  addHeader FileMoved . addHeader SSEStarted <$> index sessionId
+  UI.clear sessionId
+  addHeader FileMoved . addHeader SSEStarted <$> UI.index sessionId
 
 
 download :: SessionId -> ConfirmLogin -> [ClientPath]
@@ -385,23 +407,20 @@ download sessionId _ clientPaths = do
   storage <- Session.get sessionId (.storage)
   case clientPaths of
     [clientPath@(ClientPath path)] -> do
-      mFile   <- storage.get (ClientPath.fromClientPath root clientPath)
+      file    <- storage.get (ClientPath.fromClientPath root clientPath)
       conduit <- storage.download clientPath
-      case mFile of
-        Just file -> do
-          let filename =
-                case file.content of
-                  Regular -> printf "attachement; filename=%s" (takeFileName path)
-                  Dir     -> printf "attachement; filename=%s.zip" (takeFileName path)
-          pure $ addHeader filename conduit
-        Nothing -> do
-          throwIO (FilehubError InvalidPath "can't download, invalid file path")
+      let filename =
+            case file.content of
+              Regular -> printf "attachement; filename=%s" (takeFileName path)
+              Dir     -> printf "attachement; filename=%s.zip" (takeFileName path)
+      pure $ addHeader filename conduit
+
     _ -> do
       (zipPath, _) <- liftIO do
         tempDir <- Temp.getCanonicalTemporaryDirectory
         Temp.openTempFile tempDir "DXXXXXX.zip"
 
-      files <- traverse (storage.get . ClientPath.fromClientPath root) clientPaths <&> catMaybes
+      files <- traverse (storage.get . ClientPath.fromClientPath root) clientPaths
 
       tasks <- for files \file -> do
         conduit <- storage.readStream file Nothing Nothing
@@ -411,7 +430,9 @@ download sessionId _ clientPaths = do
         for_ tasks \(path, conduit) -> do
           m <- Zip.mkEntrySelector (coerce makeRelative root path)
           Zip.sinkEntry Zip.Zstd conduit m
+
       tag <- Text.pack <$> replicateM 8 (randomRIO ('a', 'z'))
+
       let conduit =
             Conduit.bracketP
               (pure ())
@@ -459,7 +480,7 @@ upload sessionId _ _ multipart = do
         , htmxResponse = Nothing
         }
 
-  addHeader SSEStarted <$> index sessionId
+  addHeader SSEStarted <$> UI.index sessionId
 
 
 serve :: Env -> SessionId -> ConfirmLogin -> Tagged Filehub Application
@@ -479,9 +500,8 @@ serve env sessionId _ = Tagged $ \req respond -> do
 
     let path = ClientPath.fromClientPath root clientPath
 
-    storage.get path >>= \case
-      Just file -> do pure (Just (file, storage))
-      Nothing   -> pure Nothing
+    file <- storage.get path
+    pure (Just (file, storage))
 
   case res of
     Left err                         -> throwIO err

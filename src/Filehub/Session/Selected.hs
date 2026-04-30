@@ -36,7 +36,7 @@ anySelected sessionId = go <$> Session.Pool.get sessionId
 allSelecteds :: SessionId -> Filehub [(AnyTarget, Selected)]
 allSelecteds sessionId = do
   session <- Session.Pool.get sessionId
-  targets <- asks @Env (.targets) >>= readTVarIO
+  targets <- asks (.targets) >>= readTVarIO
   session ^. #targets
     & Map.toList
     & filter hasSelection

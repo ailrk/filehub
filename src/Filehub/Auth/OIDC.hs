@@ -246,7 +246,7 @@ verifyWellKnownConfig _ = Nothing
 
 initialize :: Text -> Filehub (OIDCFlow Inited)
 initialize providerName = do
-  OIDCAuthProviders providers <- asks @Env (.oidcAuthProviders)
+  OIDCAuthProviders providers <- asks (.oidcAuthProviders)
   provider <- maybe
     (throwIO (FilehubError InternalError "Invalid provider"))
     pure
@@ -325,7 +325,7 @@ exchangeToken
     provider
     (wellknownConfig@WellKnownConfig { token_endpoint = Identity token_endpoint })
     (CodeVerifier codeVerifier) (OIDCCode code)) = do
-  manager <- asks @Env (.httpManager)
+  manager <- asks (.httpManager)
   let form =
         TokenForm
           { grant_type    = "authorization_code"
@@ -366,7 +366,7 @@ verifyToken
   (TokenExchanged
     (WellKnownConfig { jwks_uri = Identity jwks_uri })
     TokenUnverified { id_token, access_token, refresh_token, expires_in, token_type }) = do
-  manager           <- asks @Env (.httpManager)
+  manager           <- asks (.httpManager)
   idTokenUnverified <- JWT.decode id_token & maybe (throwIO (FilehubError LoginFailed "invalid id token: not a JWT")) pure
 
   let JOSEHeader { kid } = JWT.header idTokenUnverified
@@ -432,7 +432,7 @@ authenticateSession sessionId (TokenVerified token) = do
 -- | Query the standard /.well-known/openid-configuration endpoint from IdP.
 getWellknownOpenIdConfigration :: Provider -> Filehub (WellKnownConfig Identity)
 getWellknownOpenIdConfigration (Provider { issuer }) = do
-  manager          <- asks @Env (.httpManager)
+  manager          <- asks (.httpManager)
   baseUri          <- uriToBaseUrl issuer & either (\err -> throwIO (FilehubError InternalError (Text.unpack err))) pure
   result           <- runClientM wellKnownConfigClient (mkClientEnv manager baseUri) & liftIO . tryIO
   eWellKnownConfig <- result & either (\(e :: IOError) -> throwIO (FilehubError InternalError (displayException e))) pure

@@ -41,7 +41,7 @@ new = do
 
 newSession :: Filehub Session
 newSession = do
-  Session.Pool pool _ <- asks @Env (.sessionPool)
+  Session.Pool pool _ <- asks (.sessionPool)
   session             <- Session.createSession
   liftIO $ HashTable.insert pool session.sessionId session
   pure session
@@ -49,8 +49,8 @@ newSession = do
 
 extendSession :: SessionId -> Filehub ()
 extendSession sessionId = do
-  duration            <- asks @Env (.sessionDuration)
-  Session.Pool pool _ <- asks @Env (.sessionPool)
+  duration            <- asks (.sessionDuration)
+  Session.Pool pool _ <- asks (.sessionPool)
   now                 <- liftIO Time.getCurrentTime
   liftIO
     $ HashTable.mutate pool sessionId
@@ -61,7 +61,7 @@ extendSession sessionId = do
 
 delete :: SessionId -> Filehub ()
 delete sessionId = do
-  Session.Pool pool _ <- asks @Env (.sessionPool)
+  Session.Pool pool _ <- asks (.sessionPool)
   liftIO $ HashTable.delete pool sessionId
 
 
@@ -76,7 +76,7 @@ delete sessionId = do
 -- unrecoverable exception and there's not much to do about it.
 get :: SessionId -> Filehub Session
 get sessionId = do
-  Session.Pool pool _ <- asks @Env (.sessionPool)
+  Session.Pool pool _ <- asks (.sessionPool)
   mResult <- liftIO $ HashTable.lookup pool sessionId
   case mResult of
     Just session -> pure session
@@ -87,7 +87,7 @@ get sessionId = do
 
 update :: SessionId -> (Session -> Session) -> Filehub ()
 update sessionId f = do
-  Session.Pool pool _ <- asks @Env (.sessionPool)
+  Session.Pool pool _ <- asks (.sessionPool)
   liftIO
     $ HashTable.mutate pool sessionId
     $ maybe

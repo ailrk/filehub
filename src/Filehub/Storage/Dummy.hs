@@ -12,7 +12,10 @@ import Filehub.Monad (Filehub)
 storage :: [(AbsPath, FileWithContent)] -> Storage Filehub
 storage mockFS =
   Storage
-    { get = \path -> pure do fmap extractFileInfo (lookup path mockFS)
+    { get = \path -> let mRes = lookup path mockFS
+                      in case mRes of
+                           Just res -> pure do extractFileInfo res
+                           Nothing  -> error "storge dummy: get"
 
     , read = \file ->
         case lookup file.path mockFS of

@@ -40,7 +40,6 @@ import Data.File (File (..), FileInfo, FileType (..), FileWithContent, FileConte
 import Data.Generics.Labels ()
 import Data.Kind (Type)
 import Data.List (sort)
-import Data.Maybe (maybeToList)
 import Data.String.Interpolate (i)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
@@ -53,7 +52,7 @@ import Filehub.Types (SessionId)
 import GHC.TypeLits (Symbol)
 import Lens.Micro.Platform ()
 import Lens.Micro.Platform ()
-import Log (logAttention)
+import Log (logAttention, logAttention_)
 import Log (logTrace_, logInfo)
 import Network.Mime (defaultMimeLookup)
 import Prelude hiding (read, readFile, writeFile)
@@ -134,12 +133,12 @@ createCacheKey :: forall (s :: Symbol) (a :: Type) . CacheKeyComponent s a => Bu
 createCacheKey identifier = Cache.mkCacheKey [cacheKeyPrefix, toCacheKeyComponent @s @a, identifier]
 
 
-get :: AbsPath -> Filehub (Maybe FileInfo)
+get :: AbsPath -> Filehub FileInfo
 get path = do
   mCached <- cacheLookup cacheKey
   case mCached of
     Just cached -> do
-      pure (Just cached)
+      pure cached
     Nothing -> do
       exists <- doesPathExist (coerce path)
       if exists
@@ -158,8 +157,10 @@ get path = do
                  , content  = if isDir then Dir else Regular
                  }
            cacheInsert cacheKey cacheDeps cacheTTL file
-           pure (Just file)
-          else pure Nothing
+           pure file
+          else do
+            logAttention_ (Text.pack ("invalid path " ++ show path))
+            throwIO (FilehubError InvalidPath "invalid path")
   where
     cacheKey  = createCacheKey @"file" @FileInfo (coerce Builder.string8 path)
     cacheDeps = [ SomeCacheKey (createCacheKey @"dir" @[FileInfo] (Builder.string8 (coerce takeDirectory path))) ]
@@ -212,7 +213,7 @@ newFolder path = do
   cacheDelete (SomeCacheKey (createCacheKey @"dir" @[FileInfo] (Builder.string8 dir)))
 
 
-new :: AbsPath -> Filehub ()
+new :: AbsPath -> Filehub FileInfo
 new path = do
   let dir = coerce takeDirectory path
   exists   <- doesFileExist (coerce path)
@@ -220,7 +221,12 @@ new path = do
     logAttention "[9sc453] path doesn't exists:" path
     throwIO (FilehubError FileExists "File already exists")
   withFile (coerce path) ReadWriteMode (\_ -> pure ())
+
   cacheDelete (SomeCacheKey (createCacheKey @"dir" @[FileInfo] (Builder.string8 dir)))
+
+  file <- get path
+
+  pure file
 
 
 write :: FileWithContent -> Filehub ()
@@ -357,8 +363,6 @@ ls path = do
           listDirectory (coerce path)
             >>= traverse makeAbsolute
             >>= traverse (get . coerce)
-            >>= pure . fmap maybeToList
-            >>= pure . mconcat
             >>= traverse \file -> do
               let depKey = SomeCacheKey (createCacheKey @"file" @FileInfo (coerce Builder.string8 file.path))
               pure (file, depKey)
@@ -394,29 +398,25 @@ upload currentDir file = do
 download :: Target FileSys -> ClientPath -> Filehub (ConduitT () ByteString (ResourceT IO) ())
 download fileSys clientPath = do
   let path =  ClientPath.fromClientPath fileSys.root clientPath
-  mFile <- get path
-  case mFile of
-    Just file -> do
-      case file.content of
-        Regular -> readStream file Nothing Nothing
-        Dir     -> do
-          (zipPath, _) <- liftIO do
-            tempDir <- Temp.getCanonicalTemporaryDirectory
-            Temp.openTempFile tempDir "DXXXXXX.zip"
+  file <- get path
+  case file.content of
+    Regular -> readStream file Nothing Nothing
+    Dir     -> do
+      (zipPath, _) <- liftIO do
+        tempDir <- Temp.getCanonicalTemporaryDirectory
+        Temp.openTempFile tempDir "DXXXXXX.zip"
 
-          Zip.createArchive zipPath do
-            Zip.packDirRecur
-              Zip.Zstd
-              Zip.mkEntrySelector
-              (coerce path)
+      Zip.createArchive zipPath do
+        Zip.packDirRecur
+          Zip.Zstd
+          Zip.mkEntrySelector
+          (coerce path)
 
-          pure $
-            Conduit.bracketP
-              (pure ())
-              (\_ -> removeFile zipPath)
-              (\_ -> Conduit.sourceFile zipPath)
-    Nothing ->
-      pure undefined
+      pure $
+        Conduit.bracketP
+          (pure ())
+          (\_ -> removeFile zipPath)
+          (\_ -> Conduit.sourceFile zipPath)
 
 
 --

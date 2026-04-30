@@ -90,7 +90,7 @@ createSimpleAuthUserDB loginInfo =
 -- | Handle the simple authetication login.
 authenticateSession :: SessionId -> LoginForm -> Filehub (Maybe Session)
 authenticateSession sessionId (LoginForm username password) = do
-  db <- asks @Env (.simpleAuthUserDB)
+  db <- asks (.simpleAuthUserDB)
   let username' =  Username username
   if (validate username' (Text.encodeUtf8 password) db) then do
     authId <- createAuthId

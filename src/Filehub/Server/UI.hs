@@ -23,6 +23,7 @@ module Filehub.Server.UI
   , renameModal
   , selectRows
   , contextMenu
+  , entry
   , initViewer
   , open
   )
@@ -73,6 +74,20 @@ clear sessionId = do
   Selected.clearSelectedAllTargets sessionId
   Copy.clearCopyState sessionId
 
+
+entry :: SessionId -> FileInfo -> Filehub (Html ())
+entry sessionId file = do
+  display <- Session.get sessionId (.display)
+  layout  <- Session.get sessionId (.layout)
+  ctx     <- makeTemplateContext sessionId
+
+  pure $ runTemplate ctx
+    case display of
+      NoDisplay -> Template.Mobile.entry file
+      Mobile    -> Template.Mobile.entry file
+      Desktop   -> case layout of
+                     ListLayout      -> Template.Desktop.entry file
+                     ThumbnailLayout -> Template.Desktop.thumbnail file
 
 
 index :: SessionId -> Filehub (Html ())
