@@ -434,8 +434,7 @@ newFolderModal = do
           i_ [ class_ "bx bx-x"] mempty
       br_ mempty
       form_ [ term "hx-post" (linkToText (apiLinks.newFolder))
-            , term "hx-target" "#view"
-            , term "hx-swap" "outerHTML"
+            , term "hx-swap" "none"
             ] do
         div_ [ style_ "display: flex" ] do
           input_ [ class_ "form-control "

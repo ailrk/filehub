@@ -115,7 +115,7 @@ storage sessionId =
         s3 <- getS3 sessionId
         new s3 filePath
 
-    , newFolder = \_ -> pure ()
+    , newFolder = error "impossible"
 
     , ls = \filePath -> do
         s3 <- getS3 sessionId

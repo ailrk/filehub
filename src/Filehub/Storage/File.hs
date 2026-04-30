@@ -202,15 +202,21 @@ readStream :: FileInfo -> Maybe Integer -> Maybe Integer -> Filehub (ConduitT ()
 readStream File{ path = AbsPath path } mOffset mCount = pure $ Conduit.sourceFileRange path mOffset mCount
 
 
-newFolder :: AbsPath -> Filehub ()
+newFolder :: AbsPath -> Filehub FileInfo
 newFolder path = do
   let dir = coerce takeDirectory path
   exists <- doesFileExist (coerce path)
   when exists do
     logAttention "[vd9fdz] path doesn't exists:" path
     throwIO (FilehubError FileExists "Folder already exists")
+
   createDirectoryIfMissing True (coerce path)
+
   cacheDelete (SomeCacheKey (createCacheKey @"dir" @[FileInfo] (Builder.string8 dir)))
+
+  file <- get path
+
+  pure file
 
 
 new :: AbsPath -> Filehub FileInfo

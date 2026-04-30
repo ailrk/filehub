@@ -28,7 +28,7 @@ data Storage m = Storage
 
   , new         :: AbsPath -> m FileInfo
 
-  , newFolder   :: AbsPath -> m ()
+  , newFolder   :: AbsPath -> m FileInfo
 
   , ls          :: AbsPath -> m [FileInfo]
 

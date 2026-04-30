@@ -41,11 +41,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.addEventListener('ThemeChanged', reloadTheme);
     document.addEventListener('SSEStarted', listenSSE);
     document.addEventListener('UIComponentReloaded', reloadUIComponent);
-    /* Preserve scroll positions */
     document.body.addEventListener('htmx:responseError', handleError);
-    document.addEventListener('htmx:afterOnLoad', restoreViewScrollTop);
-    document.addEventListener('htmx:afterOnLoad', restoreViewScrollTop);
-    document.addEventListener('htmx:beforeRequest', saveViewScrollTop);
     document.addEventListener('htmx:afterSettle', closeDropdowns);
     removeClassOnIndex();
 });
@@ -111,38 +107,6 @@ function handleError(e) {
         msg: `${message} ${status}`,
         duration: ballonWaitTime
     });
-}
-function pathStartsWith(e, paths) {
-    let result = false;
-    for (let i = 0; i < paths.length; ++i) {
-        let path = paths[i];
-        let b = e.detail.pathInfo.finalRequestPath.startsWith(path);
-        result = result && b;
-    }
-    return result;
-}
-function saveViewScrollTop(e) {
-    // We only save the scroll on mutations.
-    let verb = e.detail.requestConfig.verb;
-    if (verb == 'post' || verb == 'delete' || verb == 'put') {
-        const scrollTop = document.querySelector('#view').scrollTop;
-        localStorage.setItem("#view-scrollTop", `${scrollTop}`);
-    }
-}
-function restoreViewScrollTop(e) {
-    // Changing target or directory should not also preserve the scroll from the previous directory.
-    const paths = ['/target/change',
-        '/cd'
-    ];
-    if (pathStartsWith(e, paths)) {
-        localStorage.removeItem("#view-scrollTop");
-        return;
-    }
-    const saved = localStorage.getItem("#view-scrollTop");
-    localStorage.removeItem("#view-scrollTop");
-    if (saved !== null) {
-        document.querySelector('#view').scrollTop = parseInt(saved, 10);
-    }
 }
 function initViewer(e) {
     const o = e.detail;

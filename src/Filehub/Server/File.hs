@@ -57,6 +57,7 @@ import Data.ByteString.Char8 qualified as Char8
 import Filehub.Sort qualified as Sort
 import Data.Either (isLeft)
 import Data.ClientPath.View (ClientPathView(..), asClientPathView)
+import Data.Text (Text)
 
 
 cd :: SessionId -> ConfirmLogin -> Maybe ClientPath -> Filehub (Headers '[ Header "HX-Trigger-After-Swap" FilehubEvent ] (Html ()))
@@ -166,31 +167,6 @@ rename sessionId _ _ (RenameFile old new) = do
   pure $ addHeader FileRenamed html
 
 
-newFile :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> NewFile -> Filehub (Html ())
-newFile sessionId _ _ (NewFile name) = do
-  storage <- Session.get sessionId (.storage)
-  dir     <- Session.get sessionId (.currentDir)
-  order   <- Session.get sessionId (.sortedFileBy)
-  root    <- Session.get sessionId (.root)
-  path    <- validateAbsPath (coerce dir </> Text.unpack name) (FilehubError InvalidPath ("<redacted>/" <> show name))
-  file    <- storage.new path
-  files   <- Sort.sortFiles order <$> storage.ls dir
-  entry'  <- UI.entry sessionId file
-
-  let target = case getPrev file files of
-                 Just prevFile -> let ClientPathView { hashPath } = asClientPathView root prevFile.path
-                                   in [i|afterend:\#tr-#{hashPath}|]
-                 Nothing       -> [i|afterbegin:\#table|]
-  pure do
-    div_  [ term "hx-swap-oob" target ] do
-      entry'
-  where
-    getPrev target list =
-      case break (== target) list of
-          (before, _) | not (null before) -> Just (last before)
-          _                               -> Nothing
-
-
 updateFile :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> UpdatedFile -> Filehub (Html ())
 updateFile sessionId _ _ (UpdatedFile clientPath content) = do
   storage <- Session.get sessionId (.storage)
@@ -203,15 +179,44 @@ updateFile sessionId _ _ (UpdatedFile clientPath content) = do
   UI.view sessionId
 
 
+newFile' :: SessionId -> Text -> (AbsPath -> Filehub FileInfo) -> Filehub (Html ())
+newFile' sessionId name create = do
+  storage <- Session.get sessionId (.storage)
+  dir     <- Session.get sessionId (.currentDir)
+  order   <- Session.get sessionId (.sortedFileBy)
+  root    <- Session.get sessionId (.root)
+  path    <- validateAbsPath (coerce dir </> Text.unpack name) (FilehubError InvalidPath ("<redacted>/" <> show name))
+  file    <- create path
+  files   <- Sort.sortFiles order <$> storage.ls dir
+  entry'  <- UI.entry sessionId file
+
+  let target = case getPrev file files of
+                 Just prevFile -> let ClientPathView { hashPath } = asClientPathView root prevFile.path
+                                   in [i|afterend:\#tr-#{hashPath}|]
+                 Nothing       -> [i|afterbegin:\#table|]
+
+  pure do
+    div_  [ term "hx-swap-oob" target ] do
+      entry' `with` [ term "hx-on::load" "this.focus();"
+                    , tabindex_ "-1" ]
+
+  where
+    getPrev target list =
+      case break (== target) list of
+          (before, _) | not (null before) -> Just (last before)
+          _                               -> Nothing
+
+
+newFile :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> NewFile -> Filehub (Html ())
+newFile sessionId _ _ (NewFile name) = do
+  storage <- Session.get sessionId (.storage)
+  newFile' sessionId name storage.new
+
+
 newFolder :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> NewFolder -> Filehub (Html ())
 newFolder sessionId _ _ (NewFolder name) = do
-  AbsPath dir <- Session.get sessionId (.currentDir)
-  storage     <- Session.get sessionId (.storage)
-  path <- validateAbsPath
-            (dir </> Text.unpack name)
-            (FilehubError InvalidPath ("<redacted>/" <> show name))
-  storage.newFolder path
-  UI.view sessionId
+  storage <- Session.get sessionId (.storage)
+  newFile' sessionId name storage.newFolder
 
 
 copy :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> Filehub (Html ())
@@ -291,7 +296,7 @@ paste sessionId _ _ = do
           CreateDir to dst -> do
             withTarget sessionId to do
               storage <- Session.get sessionId (.storage)
-              storage.newFolder dst
+              void $ storage.newFolder dst
 
       Copy.setCopyState sessionId NoCopyPaste
       Selected.clearSelectedAllTargets sessionId
@@ -384,14 +389,21 @@ move sessionId _ _ (MoveFile src tgt) = do
     storage.mv do
       fmap (\srcPath -> (srcPath, tgtPath <./> coerce takeFileName srcPath)) srcPaths
 
+    view' <- UI.view sessionId
     atomically do
       writeTBQueue notifications $ TaskCompleted
         { taskId       = taskId
-        , htmxResponse = Nothing
+        , htmxResponse = Just $ view' `with` [ term "hx-swap-oob" "true" ]
         }
 
   UI.clear sessionId
-  addHeader FileMoved . addHeader SSEStarted <$> UI.index sessionId
+  addHeader FileMoved . addHeader SSEStarted <$>
+    (do controlPanel' <- UI.controlPanel sessionId
+        sideBar'      <- UI.sideBar sessionId
+        pure do
+          controlPanel' `with` [ term "hx-swap-oob" "true" ]
+          sideBar' `with` [ term "hx-swap-oob" "true" ])
+
 
 
 download :: SessionId -> ConfirmLogin -> [ClientPath]
