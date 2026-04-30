@@ -57,7 +57,7 @@ import Target.Types (targetHandler, AnyTarget, handleTarget)
 import Target.Types qualified as Target
 import Data.Coerce (coerce)
 import Control.Monad.Reader (asks, MonadReader (..))
-import Data.Hashable (Hashable(..))
+import Data.ClientPath.View (ClientPathView(..), AsClientPathView (..))
 
 
 ------------------------------------
@@ -688,8 +688,8 @@ entry file = do
   selected            <- asks (.selected)
   TargetView target _ <- asks (.currentTarget)
 
-  let clientPath@(ClientPath path) = ClientPath.toClientPath root file.path
-      pathHash                     = fromIntegral @_ @Word (hash clientPath)
+  let ClientPathView { clientPath, hashPath } = asClientPathView root file.path
+
   pure do
     tr_ do
       td_ $ fileNameElement file target True
@@ -699,9 +699,9 @@ entry file = do
       td_ $ sizeElement file
       `with`
         mconcat
-          [ [ term "data-path" (Text.pack path) ]
+          [ [ term "data-path" (Text.pack (coerce clientPath)) ]
           , [ class_ "selected confirmed " | clientPath `Selected.elem` selected]
-          , [ id_ [i|tr-#{pathHash}|]
+          , [ id_ [i|tr-#{hashPath}|]
             , class_ "table-item "
             , draggable_ "true"
             ]
@@ -725,17 +725,16 @@ thumbnail file = do
   root                <- asks (.root)
   selected            <- asks (.selected)
 
-  let clientPath@(ClientPath path) = ClientPath.toClientPath root file.path
-      pathHash                     = fromIntegral @_ @Word (hash clientPath)
+  let ClientPathView { clientPath, hashPath } = asClientPathView root file.path
 
   pure do
     div_ do
       previewElement root file
       fileNameElement file target False `with` [ class_ "thumbnail-name" ]
       `with` mconcat
-          [ [ term "data-path" (Text.pack path) ]
+          [ [ term "data-path" (Text.pack (coerce clientPath)) ]
           , [ class_ "selected confirmed " | clientPath `Selected.elem` selected ]
-          , [ id_ [i|tr-#{pathHash}|]
+          , [ id_ [i|tr-#{hashPath}|]
                          , class_ "thumbnail table-item "
                          , draggable_ "true"
             ]

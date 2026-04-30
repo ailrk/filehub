@@ -14,7 +14,6 @@ module Filehub.Template.Mobile
 import Control.Monad (join)
 import Data.ByteString (ByteString)
 import Data.ClientPath (ClientPath(..), AbsPath (..), Root (..))
-import Data.ClientPath qualified as ClientPath
 import Data.File (File(..), FileInfo)
 import Data.Foldable (traverse_)
 import Data.Maybe (fromMaybe)
@@ -44,7 +43,7 @@ import Filehub.Session (TargetView(..))
 import Target.Dummy (DummyTarget)
 import Data.Coerce (coerce)
 import Control.Monad.Reader (asks, MonadReader (..))
-import Data.Hashable (Hashable(..))
+import Data.ClientPath.View (ClientPathView(..), AsClientPathView (..))
 
 
 index :: Html ()
@@ -211,12 +210,12 @@ entry file = do
 
   let attrs :: [Attribute]
       attrs = mconcat
-        [ [ term "data-path" (Text.pack path) ]
+        [ [ term "data-path" (Text.pack (coerce clientPath)) ]
         , [class_ "selected " | clientPath `Selected.elem` selected]
-        , [id_ [i|tr-#{pathHash}|], class_ "table-item " ]
+        , [id_ [i|tr-#{hashPath}|], class_ "table-item " ]
         ]
-      clientPath@(ClientPath path) = ClientPath.toClientPath root file.path
-      pathHash                     = fromIntegral @_ @Word (hash clientPath)
+      ClientPathView { clientPath, hashPath  } = asClientPathView root file.path
+
 
   pure do
     tr_ attrs do

@@ -54,9 +54,9 @@ import Network.HTTP.Types.Status (status404, status206, status200)
 import Data.Binary.Builder qualified as Builder
 import Network.HTTP.Types (ByteRange(..), parseByteRanges)
 import Data.ByteString.Char8 qualified as Char8
-import Data.Hashable (Hashable(..))
 import Filehub.Sort qualified as Sort
 import Data.Either (isLeft)
+import Data.ClientPath.View (ClientPathView(..), asClientPathView)
 
 
 cd :: SessionId -> ConfirmLogin -> Maybe ClientPath -> Filehub (Headers '[ Header "HX-Trigger-After-Swap" FilehubEvent ] (Html ()))
@@ -110,18 +110,16 @@ delete sessionId _ _ clientPaths deleteSelected = do
 
     -- Delete from parameters
     forConcurrently_ clientPaths \clientPath -> do
-      let path = ClientPath.fromClientPath root clientPath
+      let ClientPathView { path, hashPath } = asClientPathView root clientPath
       storage.delete path
       atomically do
         n <- jot clientPath
         writeTBQueue notifications $ DeleteProgressed
           { taskId       = taskId
           , progress     = n % max 1 (fromIntegral count)
-          , htmxResponse = Just let pathHash = fromIntegral (hash clientPath) :: Word
-                                 in div_ [ id_ [i|tr-#{pathHash}|], term "hx-swap-oob" "delete" ] mempty
+          , htmxResponse = Just $ div_ [ id_ [i|tr-#{hashPath}|], term "hx-swap-oob" "delete" ] mempty
           }
 
-    -- Delete selected
     when deleteSelected do
       allSelecteds <- Selected.allSelecteds sessionId
       for_ allSelecteds \(target, selected) -> do
@@ -129,16 +127,15 @@ delete sessionId _ _ clientPaths deleteSelected = do
           case selected of
             NoSelection -> pure ()
             Selected x xs -> do
-              let ps = fmap (\p -> (ClientPath.fromClientPath root p, p)) (x:xs)
-              forConcurrently_  ps \(path, clientPath) -> do
+              let ps = fmap (asClientPathView root) (x:xs)
+              forConcurrently_  ps \(ClientPathView { path, clientPath, hashPath }) -> do
                 storage.delete path
                 atomically do
                   n <- jot clientPath
                   writeTBQueue notifications $ DeleteProgressed
                     { taskId       = taskId
                     , progress     = n % max 1 (fromIntegral count)
-                    , htmxResponse = Just let pathHash = fromIntegral (hash clientPath) :: Word
-                                           in div_ [ id_ [i|tr-#{pathHash}|], term "hx-swap-oob" "delete" ] mempty
+                    , htmxResponse = Just $ div_ [ id_ [i|tr-#{hashPath}|], term "hx-swap-oob" "delete" ] mempty
                     }
 
     atomically do
@@ -177,16 +174,13 @@ newFile sessionId _ _ (NewFile name) = do
   root    <- Session.get sessionId (.root)
   path    <- validateAbsPath (coerce dir </> Text.unpack name) (FilehubError InvalidPath ("<redacted>/" <> show name))
   file    <- storage.new path
-  files   <- do fs <- storage.ls dir
-                pure $ Sort.sortFiles order (fs ++ [file])
+  files   <- Sort.sortFiles order <$> storage.ls dir
   entry'  <- UI.entry sessionId file
 
   let target = case getPrev file files of
-                 Just prevFile -> let clientPath = ClientPath.toClientPath root prevFile.path
-                                      hashPath   = hash clientPath
-                                   in [i|afterbegin:\#tr-#{hashPath}|]
-                 Nothing       -> [i|afterbegin:\#view|]
-
+                 Just prevFile -> let ClientPathView { hashPath } = asClientPathView root prevFile.path
+                                   in [i|afterend:\#tr-#{hashPath}|]
+                 Nothing       -> [i|afterbegin:\#table|]
   pure do
     div_  [ term "hx-swap-oob" target ] do
       entry'

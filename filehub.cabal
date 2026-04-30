@@ -158,6 +158,7 @@ library
     Control.Service.LockManager
     Data.ClientPath
     Data.ClientPath.IO
+    Data.ClientPath.View
     Data.File
     Data.Queue
     EvtLog
