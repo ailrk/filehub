@@ -58,6 +58,7 @@ import Target.Types qualified as Target
 import Data.Coerce (coerce)
 import Control.Monad.Reader (asks, MonadReader (..))
 import Data.ClientPath.View (ClientPathView(..), AsClientPathView (..))
+import Lucid.Htmx (hxGet, hxTarget, hxSwap, Swap (..), hxEncoding, hxPost, hxTrigger, Trigger (..), hxDelete, hxConfirm)
 
 
 ------------------------------------
@@ -110,9 +111,9 @@ sideBar targets (TargetView currentTarget _) = do
     targetTab :: Phrase -> (AnyTarget, Int) -> Html ()
     targetTab Phrase { target_filesystem, target_s3 } (target, selectedCount) = do
       div_ [ class_ "target-tab"
-           , term "hx-get" (linkToText (apiLinks.changeTarget (Just (Target.getTargetId target))))
-           , term "hx-target" "#index"
-           , term "hx-swap" "outerHTML"
+           , hxGet (apiLinks.changeTarget (Just (Target.getTargetId target)))
+           , hxTarget "#index"
+           , hxSwap OuterHTML
            ] do
         span_ [ class_ "field "] do
           fromMaybe "unknown" $ handleTarget target
@@ -166,9 +167,9 @@ newFolderBtn = do
   pure do
     button_ [ class_ "btn btn-control "
             , type_ "submit"
-            , term "hx-get" (linkToText apiLinks.newFolderModal)
-            , term "hx-target" "#index"
-            , term "hx-swap" "beforeend"
+            , hxGet apiLinks.newFolderModal
+            , hxTarget "#index"
+            , hxSwap BeforeEnd
             , term "data-btn-title" control_panel_new_folder
             ] do
       span_ [ class_ "field " ] do
@@ -181,9 +182,9 @@ newFileBtn = do
   pure do
     button_ [ class_ "btn btn-control"
             , type_ "submit"
-            , term "hx-get" (linkToText apiLinks.newFileModal)
-            , term "hx-target" "#index"
-            , term "hx-swap" "beforeend"
+            , hxGet apiLinks.newFileModal
+            , hxTarget "#index"
+            , hxSwap BeforeEnd
             , term "data-btn-title" control_panel_new_file
             ] do
       span_ [ class_ "field " ] do
@@ -200,11 +201,11 @@ uploadBtn = do
            , id_ fileInputId
            , style_ "display:none"
            , multiple_ ""
-           , term "hx-encoding" "multipart/form-data"
-           , term "hx-post" (linkToText apiLinks.upload)
-           , term "hx-target" "#index"
-           , term "hx-swap" "outerHTML"
-           , term "hx-trigger" "change"
+           , hxEncoding "multipart/form-data"
+           , hxPost apiLinks.upload
+           , hxTarget "#index"
+           , hxSwap OuterHTML
+           , hxTrigger Change
            ]
 
     button_ [ class_ "btn btn-control"
@@ -221,9 +222,9 @@ copyBtn = do
   pure do
     button_ [ class_ "btn btn-control"
             , type_ "submit"
-            , term "hx-get" (linkToText apiLinks.copy)
-            , term "hx-target" "#control-panel"
-            , term "hx-swap" "outerHTML"
+            , hxGet apiLinks.copy
+            , hxTarget "#control-panel"
+            , hxSwap OuterHTML
             , term "data-btn-title" control_panel_copy
             ] do
       span_ [ class_ "field " ] do
@@ -236,8 +237,8 @@ pasteBtn = do
   pure do
     button_ [ class_ "btn btn-control"
             , type_ "submit"
-            , term "hx-post" (linkToText apiLinks.paste)
-            , term "hx-swap" "none"
+            , hxPost apiLinks.paste
+            , hxSwap None
             , term "data-btn-title" control_panel_paste
             ] do
       span_ [ class_ "field " ] do
@@ -254,9 +255,9 @@ deleteBtn = do
   pure do
     button_ [ class_ "btn btn-control urgent"
             , type_ "submit"
-            , term "hx-delete" (linkToText (apiLinks.delete (Selected.toList selected) True))
-            , term "hx-swap" "none"
-            , term "hx-confirm" confirm_delete_all
+            , hxDelete (apiLinks.delete (Selected.toList selected) True)
+            , hxSwap None
+            , hxConfirm confirm_delete_all
             , term "data-btn-title" control_panel_delete
             ] do
       span_ [ class_ "field " ] do
@@ -269,9 +270,9 @@ cancelBtn = do
   pure do
     button_ [ class_ "btn btn-control"
             , type_ "submit"
-            , term "hx-post" (linkToText apiLinks.cancel)
-            , term "hx-target" "#index"
-            , term "hx-swap" "outerHTML"
+            , hxPost apiLinks.cancel
+            , hxTarget "#index"
+            , hxSwap OuterHTML
             , term "data-btn-title" control_panel_cancel
             ] do
       span_ [ class_ "field " ] do
@@ -284,9 +285,9 @@ toggleSidebarBtn = do
   pure do
     button_ [ class_ "btn btn-control"
             , type_ "submit"
-            , term "hx-get" (linkToText apiLinks.toggleSidebar)
-            , term "hx-target" "#index"
-            , term "hx-swap" "outerHTML"
+            , hxGet apiLinks.toggleSidebar
+            , hxTarget "#index"
+            , hxSwap OuterHTML
             , term "data-btn-title" toggle_sidebar
             ] do
       i_ [ class_ "bx bx-sidebar" ] mempty
@@ -298,10 +299,10 @@ logoutBtn = do
   pure do
     button_ [ class_ "btn btn-control urgent "
             , type_ "submit"
-            , term "hx-post" (linkToText apiLinks.logout)
-            , term "hx-target" "#index"
-            , term "hx-swap" "outerHTML"
-            , term "hx-confirm" confirm_logout
+            , hxPost apiLinks.logout
+            , hxTarget "#index"
+            , hxSwap OuterHTML
+            , hxConfirm confirm_logout
             ] do
       span_ [ class_ "field " ] do
         i_ [ class_ "bx bx-power-off" ] mempty
@@ -316,18 +317,18 @@ themeBtn = do
       Light -> do
         button_ [ class_ "btn btn-control"
                 , type_ "submit"
-                , term "hx-get" (linkToText apiLinks.toggleTheme)
-                , term "hx-target" "#index"
-                , term "hx-swap" "outerHTML"
+                , hxGet apiLinks.toggleTheme
+                , hxTarget "#index"
+                , hxSwap OuterHTML
                 , term "data-btn-title" control_panel_dark
                 ] do
           i_ [ class_ "bx bxs-moon" ] mempty
       Dark -> do
         button_ [ class_ "btn btn-control"
                 , type_ "submit"
-                , term "hx-get" (linkToText apiLinks.toggleTheme)
-                , term "hx-target" "#index"
-                , term "hx-swap" "outerHTML"
+                , hxGet apiLinks.toggleTheme
+                , hxTarget "#index"
+                , hxSwap OuterHTML
                 , term "data-btn-title" control_panel_light
                 ] do
           i_ [ class_ "bx bxs-sun" ] mempty
@@ -342,43 +343,49 @@ layoutBtn =  do
       ListLayout -> do
         button_ [ class_ "btn btn-control"
                 , type_ "submit"
-                , term "hx-get" (linkToText (apiLinks.selectLayout (Just ThumbnailLayout)))
-                , term "hx-target" "#index"
-                , term "hx-swap" "outerHTML"
+                , hxGet (apiLinks.selectLayout (Just ThumbnailLayout))
+                , hxTarget "#index"
+                , hxSwap OuterHTML
                 , term "data-btn-title" control_panel_grid
                 ] do
           i_ [ class_ "bx bxs-grid-alt" ] mempty
       ThumbnailLayout -> do
         button_ [ class_ "btn btn-control"
                 , type_ "submit"
-                , term "hx-get" (linkToText (apiLinks.selectLayout (Just ListLayout)))
-                , term "hx-target" "#index"
-                , term "hx-swap" "outerHTML"
+                , hxGet (apiLinks.selectLayout (Just ListLayout))
+                , hxTarget "#index"
+                , hxSwap OuterHTML
                 , term "data-btn-title" control_panel_list
                 ] do
           i_ [ class_ "bx bx-menu" ] mempty
 
 
+
 localeBtn :: Html ()
 localeBtn =
   div_ [ id_ "locale" ] do
-    button_ [ class_ "btn btn-control "
-            ] do
+    button_ [ class_ "btn btn-control " ] do
       span_ [ class_ "field " ] do
         i_ [ class_ "bx bx-world" ] mempty
     div_ [ class_ "dropdown-content " ] do
-      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just EN)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] do span_ "English"
-      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ZH_CN)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] do span_ "简体中文"
-      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ZH_TW)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] do span_ "繁體中文"
-      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ZH_HK)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] do span_ "繁體中文"
-      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just JA)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] do span_ "日本語"
-      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ES)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] do span_ "Español"
-      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just FR)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] do span_ "Français"
-      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just DE)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] do span_ "Deutsch"
-      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just KO)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] do span_ "한국어"
-      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just RU)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] do span_ "Русский"
-      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just PT)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] do span_ "Português"
-      div_ [ class_ "dropdown-item", term "hx-get" $ linkToText (apiLinks.changeLocale (Just IT)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] do span_ "Italiano"
+      let item :: Locale -> Html () -> Html ()
+          item loc label = div_ [ class_ "dropdown-item"
+                                , hxGet (apiLinks.changeLocale (Just loc))
+                                , hxTarget "#index"
+                                , hxSwap OuterHTML
+                                ] do span_ label
+      item EN    "English"
+      item ZH_CN "简体中文"
+      item ZH_TW "繁體中文"
+      item ZH_HK "繁體中文"
+      item JA    "日本語"
+      item ES    "Español"
+      item FR    "Français"
+      item DE    "Deutsch"
+      item KO    "한국어"
+      item RU    "Русский"
+      item PT    "Português"
+      item IT    "Italiano"
 
 
 ------------------------------------
@@ -402,8 +409,8 @@ newFileModal = do
              ] do
           i_ [ class_ "bx bx-x"] mempty
       br_ mempty
-      form_ [ term "hx-post" (linkToText apiLinks.newFile)
-            , term "hx-swap" "none"
+      form_ [ hxPost apiLinks.newFile
+            , hxSwap None
             ] do
         div_ [ style_ "display: flex" ] do
           input_ [ class_ "form-control "
@@ -415,6 +422,8 @@ newFileModal = do
                   , type_ "submit"
                   , term "_" "on click trigger Close"
                   ] (toHtml modal_create)
+
+
 
 
 newFolderModal :: Template (Html ())
@@ -433,8 +442,8 @@ newFolderModal = do
              ] do
           i_ [ class_ "bx bx-x"] mempty
       br_ mempty
-      form_ [ term "hx-post" (linkToText (apiLinks.newFolder))
-            , term "hx-swap" "none"
+      form_ [ hxPost (apiLinks.newFolder)
+            , hxSwap None
             ] do
         div_ [ style_ "display: flex" ] do
           input_ [ class_ "form-control "
@@ -459,9 +468,9 @@ renameModal oldPath = do
 
   pure do
     modal [ id_ renameModalId ] do
-      form_ [ term "hx-post" (linkToText apiLinks.rename)
-            , term "hx-target" "#view"
-            , term "hx-swap" "outerHTML"
+      form_ [ hxPost apiLinks.rename
+            , hxTarget "#view"
+            , hxSwap OuterHTML
             ] do
         input_ [ type_ "hidden", name_ "old", value_ (c2t oldClientPath) ]
         div_ [ style_ "display: flex" ] do
@@ -536,8 +545,8 @@ editorModal (ClientPath path, filename) content = do
 
       br_ mempty
 
-      form_ [ term "hx-post" (linkToText (apiLinks.updateFile))
-            , term "hx-confirm" (Text.replace "{}" (Text.pack filename) confirm_save_edit)
+      form_ [ hxPost (apiLinks.updateFile)
+            , hxConfirm (Text.replace "{}" (Text.pack filename) confirm_save_edit)
             ] do
         input_ [ class_ "form-control ", type_ "hidden", name_ "path", value_ (Text.pack path) ]
 
@@ -808,9 +817,9 @@ modifiedDateElement file =
 
 sortControl :: SortFileBy -> [Attribute]
 sortControl o =
-    [ term "hx-get" (linkToText (apiLinks.sortTable (Just o)))
-    , term "hx-swap" "outerHTML"
-    , term "hx-target" "#view"
+    [ hxGet (apiLinks.sortTable (Just o))
+    , hxSwap OuterHTML
+    , hxTarget "#view"
     ]
 
 
@@ -840,22 +849,22 @@ contextMenu1 file = do
     let textClientPath = Text.pack cp
 
     div_ [ class_ "dropdown-content " , id_ contextMenuId ] do
-
+      let dropDownItem = div_ [ class_ "dropdown-item" ]
       case file.content of
         Regular
-          | file.mimetype `isMime` "application/pdf" -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bx-show" ] mempty >> span_ (toHtml contextmenu_view)
-          | file.mimetype `isMime` "audio"           -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bx-play" ] mempty >> span_ (toHtml contextmenu_play)
-          | file.mimetype `isMime` "video"           -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bx-play" ] mempty >> span_ (toHtml contextmenu_play)
-          | file.mimetype `isMime` "image"           -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bx-show" ] mempty >> span_ (toHtml contextmenu_view)
-          | file.mimetype `isMime` "text"            -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bxs-edit" ] mempty >> span_ (toHtml contextmenu_edit)
+          | file.mimetype `isMime` "application/pdf" -> dropDownItem do i_ [ class_ "bx bx-show" ] mempty >> span_ (toHtml contextmenu_view)
+          | file.mimetype `isMime` "audio"           -> dropDownItem do i_ [ class_ "bx bx-play" ] mempty >> span_ (toHtml contextmenu_play)
+          | file.mimetype `isMime` "video"           -> dropDownItem do i_ [ class_ "bx bx-play" ] mempty >> span_ (toHtml contextmenu_play)
+          | file.mimetype `isMime` "image"           -> dropDownItem do i_ [ class_ "bx bx-show" ] mempty >> span_ (toHtml contextmenu_view)
+          | file.mimetype `isMime` "text"            -> dropDownItem do i_ [ class_ "bx bxs-edit" ] mempty >> span_ (toHtml contextmenu_edit)
           | otherwise -> mempty
         Dir        -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bxs-folder-open" ] mempty >> span_ (toHtml contextmenu_open)
         `with` Template.open root file
 
       div_ [ class_ "dropdown-item"
-           , term "hx-get" (linkToText (apiLinks.copy1 (Just clientPath)))
-           , term "hx-target" "#index"
-           , term "hx-swap" "outerHTML"
+           , hxGet (apiLinks.copy1 (Just clientPath))
+           , hxTarget "#index"
+           , hxSwap OuterHTML
            ] do
         i_ [ class_ "bx bx-detail" ] mempty
         span_ (toHtml contextmenu_copy)
@@ -868,25 +877,25 @@ contextMenu1 file = do
         True -> mempty
         False -> do
           div_ [ class_ "dropdown-item"
-               , term "hx-get" (linkToText (apiLinks.renameModal (Just clientPath)))
-               , term "hx-target" "#index"
-               , term "hx-swap" "beforeend"
+               , hxGet (apiLinks.renameModal (Just clientPath))
+               , hxTarget "#index"
+               , hxSwap BeforeEnd
                ] do
             i_ [ class_ "bx bxs-rename" ] mempty
             span_ (toHtml contextmenu_rename)
 
           div_ [ class_ "dropdown-item"
-               , term "hx-delete" (linkToText (apiLinks.delete [clientPath] False))
-               , term "hx-swap" "none"
-               , term "hx-confirm" (Text.replace "{}" textClientPath confirm_delete1)
+               , hxDelete (apiLinks.delete [clientPath] False)
+               , hxSwap None
+               , hxConfirm (Text.replace "{}" textClientPath confirm_delete1)
                ] do
             i_ [ class_ "bx bxs-trash" ] mempty
             span_ (toHtml contextmenu_delete)
 
       div_ [ class_ "dropdown-item"
-           , term "hx-get" (linkToText (apiLinks.fileDetailModal (Just clientPath)))
-           , term "hx-target" "#index"
-           , term "hx-swap" "beforeend"
+           , hxGet (apiLinks.fileDetailModal (Just clientPath))
+           , hxTarget "#index"
+           , hxSwap BeforeEnd
            ] do
         i_ [ class_ "bx bx-detail" ] mempty
         span_ (toHtml contextmenu_details)
@@ -914,17 +923,17 @@ contextMenuMany clientPaths = do
         True -> mempty
         False -> do
           div_ [ class_ "dropdown-item"
-               , term "hx-delete" (linkToText (apiLinks.delete clientPaths False))
-               , term "hx-target" "none"
-               , term "hx-confirm" (Text.replace "{}" (Text.pack (show (length clientPaths))) confirm_delete_local)
+               , hxDelete (apiLinks.delete clientPaths False)
+               , hxTarget "none"
+               , hxConfirm (Text.replace "{}" (Text.pack (show (length clientPaths))) confirm_delete_local)
                ] do
             i_ [ class_ "bx bxs-trash" ] mempty
             span_ (toHtml contextmenu_delete_local)
 
           div_ [ class_ "dropdown-item"
-               , term "hx-get" (linkToText apiLinks.copy)
-               , term "hx-target" "#control-panel"
-               , term "hx-swap" "outerHTML"
+               , hxGet apiLinks.copy
+               , hxTarget "#control-panel"
+               , hxSwap OuterHTML
                ] do
             i_ [ class_ "bx bx-detail" ] mempty
             span_ (toHtml contextmenu_copy)
@@ -934,13 +943,12 @@ contextMenuMany clientPaths = do
         span_ (toHtml contextmenu_download)
 
       div_ [ class_ "dropdown-item"
-           , term "hx-post" (linkToText apiLinks.cancel)
-           , term "hx-target" "#index"
-           , term "hx-swap" "outerHTML"
+           , hxPost apiLinks.cancel
+           , hxTarget "#index"
+           , hxSwap OuterHTML
            ] do
         i_ [ class_ "bx bx-message-alt-x" ] mempty
         span_ (toHtml contextmenu_cancel)
-
 
 
 ------------------------------------

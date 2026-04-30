@@ -57,6 +57,7 @@ import Data.ByteString.Char8 qualified as Char8
 import Filehub.Sort qualified as Sort
 import Data.ClientPath.View (ClientPathView(..), asClientPathView)
 import Data.Text (Text)
+import Lucid.Htmx (HxSwapOOB(..), Swap (..), hxOn, Trigger (..))
 
 
 cd :: SessionId -> ConfirmLogin -> Maybe ClientPath -> Filehub (Headers '[ Header "HX-Trigger-After-Swap" FilehubEvent ] (Html ()))
@@ -69,7 +70,7 @@ cd sessionId _ mClientPath = do
     toolBar' <- UI.toolBar sessionId
     view'    <- UI.view sessionId
     pure do
-      toolBar' `with` [ term "hx-swap-oob" "true" ]
+      toolBar' `with` [ hxSwapOOB True ]
       view'
   pure $ addHeader DirChanged html
 
@@ -117,7 +118,7 @@ delete sessionId _ _ clientPaths deleteSelected = do
         writeTBQueue notifications $ DeleteProgressed
           { taskId       = taskId
           , progress     = n % max 1 (fromIntegral count)
-          , htmxResponse = Just $ div_ [ id_ [i|tr-#{hashPath}|], term "hx-swap-oob" "delete" ] mempty
+          , htmxResponse = Just $ div_ [ id_ [i|tr-#{hashPath}|], hxSwapOOB Delete ] mempty
           }
 
     when deleteSelected do
@@ -135,7 +136,7 @@ delete sessionId _ _ clientPaths deleteSelected = do
                   writeTBQueue notifications $ DeleteProgressed
                     { taskId       = taskId
                     , progress     = n % max 1 (fromIntegral count)
-                    , htmxResponse = Just $ div_ [ id_ [i|tr-#{hashPath}|], term "hx-swap-oob" "delete" ] mempty
+                    , htmxResponse = Just $ div_ [ id_ [i|tr-#{hashPath}|], hxSwapOOB Delete ] mempty
                     }
 
     atomically do
@@ -150,8 +151,8 @@ delete sessionId _ _ clientPaths deleteSelected = do
     <$> (do controlPanel' <- UI.controlPanel sessionId
             sideBar'      <- UI.sideBar sessionId
             pure do
-              controlPanel' `with` [ term "hx-swap-oob" "true" ]
-              sideBar' `with` [ term "hx-swap-oob" "true" ])
+              controlPanel' `with` [ hxSwapOOB True ]
+              sideBar' `with` [ hxSwapOOB True ])
 
 
 rename :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> RenameFile
@@ -189,14 +190,15 @@ newFile' sessionId name create = do
   files   <- Sort.sortFiles order <$> storage.ls dir
   entry'  <- UI.entry sessionId file
 
-  let target = case getPrev file files of
+  let target :: Text
+      target = case getPrev file files of
                  Just prevFile -> let ClientPathView { hashPath } = asClientPathView root prevFile.path
                                    in [i|afterend:\#tr-#{hashPath}|]
                  Nothing       -> [i|afterbegin:\#table|]
 
   pure do
-    div_  [ term "hx-swap-oob" target ] do
-      entry' `with` [ term "hx-on::load" "this.focus();"
+    div_  [ hxSwapOOB target ] do
+      entry' `with` [ hxOn Load "this.focus();"
                     , tabindex_ "-1" ]
 
   where
@@ -304,7 +306,7 @@ paste sessionId _ _ = do
       atomically do
         writeTBQueue notifications $ TaskCompleted
           { taskId       = taskId
-          , htmxResponse = Just $ view' `with` [ term "hx-swap-oob" "true" ]
+          , htmxResponse = Just $ view' `with` [ hxSwapOOB True ]
           }
 
     _ -> do
@@ -318,8 +320,8 @@ paste sessionId _ _ = do
     <$> (do controlPanel' <- UI.controlPanel sessionId
             sideBar'      <- UI.sideBar sessionId
             pure do
-              controlPanel' `with` [ term "hx-swap-oob" "true" ]
-              sideBar' `with` [ term "hx-swap-oob" "true" ])
+              controlPanel' `with` [ hxSwapOOB True ]
+              sideBar' `with` [ hxSwapOOB True ])
 
 
   where
@@ -398,7 +400,7 @@ move sessionId _ _ (MoveFile src tgt) = do
     atomically do
       writeTBQueue notifications $ TaskCompleted
         { taskId       = taskId
-        , htmxResponse = Just $ view' `with` [ term "hx-swap-oob" "true"
+        , htmxResponse = Just $ view' `with` [ hxSwapOOB True
                                              , tabindex_ "-1"
                                              ]
         }
@@ -408,8 +410,8 @@ move sessionId _ _ (MoveFile src tgt) = do
     (do controlPanel' <- UI.controlPanel sessionId
         sideBar'      <- UI.sideBar sessionId
         pure do
-          controlPanel' `with` [ term "hx-swap-oob" "true" ]
-          sideBar' `with` [ term "hx-swap-oob" "true" ])
+          controlPanel' `with` [ hxSwapOOB True ]
+          sideBar' `with` [ hxSwapOOB True ])
 
 
 
@@ -497,7 +499,7 @@ upload sessionId _ _ multipart = do
         }
       writeTBQueue notifications $ TaskCompleted
         { taskId       = taskId
-        , htmxResponse = Just $ view' `with` [ term "hx-swap-oob" "true" ]
+        , htmxResponse = Just $ view' `with` [ hxSwapOOB True ]
         }
 
   addHeader SSEStarted <$> UI.index sessionId

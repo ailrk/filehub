@@ -44,6 +44,7 @@ import Target.Dummy (DummyTarget)
 import Data.Coerce (coerce)
 import Control.Monad.Reader (asks, MonadReader (..))
 import Data.ClientPath.View (ClientPathView(..), AsClientPathView (..))
+import Lucid.Htmx (Swap(..), HxSwap (..), hxTarget, hxGet, HxTrigger (..), HxPost (..), hxEncoding, Trigger (..), hxConfirm, hxDelete, HtmxEvent (..), HxOn (..))
 
 
 index :: Html ()
@@ -80,9 +81,9 @@ sideBar targets (TargetView currentTarget _) = do
     targetIcon :: AnyTarget -> Html ()
     targetIcon target = do
       div_ [ class_ "target-icon"
-           , term "hx-get" (linkToText (apiLinks.changeTarget (Just (Target.getTargetId target))))
-           , term "hx-target" "#index"
-           , term "hx-swap" "outerHTML"
+           , hxGet (apiLinks.changeTarget (Just (Target.getTargetId target)))
+           , hxTarget "#index"
+           , hxSwap OuterHTML
            ] do
         fromMaybe "unknown" $ handleTarget target
           [ targetHandler @FileSys \(FileBackend { root = Root (AbsPath root) }) -> do
@@ -164,9 +165,9 @@ sortTool = do
         `with` sortControlSize order
   where
     sortControl o =
-      [ term "hx-get" $ linkToText (apiLinks.sortTable (Just o))
-      , term "hx-swap" "outerHTML"
-      , term "hx-target" "#view"
+      [ hxGet (apiLinks.sortTable (Just o))
+      , hxSwap OuterHTML
+      , hxTarget "#view"
       ]
     sortControlName = \case
         ByNameUp   -> sortControl ByNameDown
@@ -269,21 +270,28 @@ fileNameElement target file = do
         ]
 
 
-languagePanel :: (Html ())
+languagePanel :: Html ()
 languagePanel =
   div_ [ id_ "locale", class_ "panel " ] do
-    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just EN)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] do span_ "English"
-    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ZH_CN)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] do span_ "简体中文"
-    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ZH_TW)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] do span_ "繁體中文"
-    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ZH_HK)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] do span_ "繁體中文"
-    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just JA)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] do span_ "日本語"
-    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just ES)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] do span_ "Español"
-    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just FR)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] do span_ "Français"
-    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just DE)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] do span_ "Deutsch"
-    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just KO)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] do span_ "한국어"
-    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just RU)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] do span_ "Русский"
-    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just PT)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] do span_ "Português"
-    div_ [ class_ "action-btn", term "hx-get" $ linkToText (apiLinks.changeLocale (Just IT)), term "hx-target" "#index", term "hx-swap" "outerHTML" ] do span_ "Italiano"
+    let item :: Locale -> Html () -> Html ()
+        item loc label = div_ [ class_ "dropdown-item"
+                              , hxGet (apiLinks.loginChangeLocale (Just loc))
+                              , hxTarget "#login"
+                              , hxSwap OuterHTML
+                              ] do span_ label
+    item EN "English"
+    item ZH_CN "简体中文"
+    item ZH_TW "繁體中文"
+    item ZH_HK "繁體中文"
+    item JA "日本語"
+    item ES "Español"
+    item FR "Français"
+    item DE "Deutsch"
+    item KO "한국어"
+    item RU "Русский"
+    item PT "Português"
+    item IT "Italiano"
+
 
 
 controlPanel :: Template (Html ())
@@ -373,11 +381,11 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
                , name_ "file"
                , id_ fileInputId
                , style_ "display:none"
-               , term "hx-encoding" "multipart/form-data"
-               , term "hx-post" (linkToText apiLinks.upload)
-               , term "hx-target" "#index"
-               , term "hx-swap" "outerHTML"
-               , term "hx-trigger" "change"
+               , hxEncoding "multipart/form-data"
+               , hxPost apiLinks.upload
+               , hxTarget "#index"
+               , hxSwap OuterHTML
+               , hxTrigger Change
                ]
 
         button_ [ class_ "action-btn"
@@ -393,9 +401,9 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
       Phrase { control_panel_copy } <- phrase <$> asks (.locale)
       pure do
         button_ [ class_ "action-btn"
-                , term "hx-get" (linkToText apiLinks.copy)
-                , term "hx-target" "#control-panel"
-                , term "hx-swap" "outerHTML"
+                , hxGet apiLinks.copy
+                , hxTarget "#control-panel"
+                , hxSwap OuterHTML
                 ] do
           span_ [ class_ "field " ] do
             i_ [ class_ "bx bxs-copy-alt" ] mempty
@@ -407,8 +415,8 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
       Phrase { control_panel_paste } <- phrase <$> asks (.locale)
       pure do
         button_ [ class_ "action-btn"
-                , term "hx-post" (linkToText apiLinks.paste)
-                , term "hx-swap" "none"
+                , hxPost apiLinks.paste
+                , hxSwap None
                 ] do
           span_ [ class_ "field " ] do
             i_ [ class_ "bx bxs-paste" ] mempty
@@ -421,9 +429,9 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
       Phrase { control_panel_delete } <- phrase <$> asks (.locale)
       pure do
         button_ [ class_ "action-btn urgent "
-                , term "hx-delete" (linkToText (apiLinks.delete (Selected.toList selected) True))
-                , term "hx-swap" "none"
-                , term "hx-confirm" ("Are you sure about deleting selected files?")
+                , hxDelete (apiLinks.delete (Selected.toList selected) True)
+                , hxSwap None
+                , hxConfirm ("Are you sure about deleting selected files?")
                 ] do
           span_ [ class_ "field " ] do
             i_ [ class_ "bx bxs-trash" ] mempty
@@ -435,9 +443,9 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
       Phrase { control_panel_cancel } <- phrase <$> asks (.locale)
       pure do
         button_ [ class_ "action-btn"
-                , term "hx-post" (linkToText apiLinks.cancel)
-                , term "hx-target" "#index"
-                , term "hx-swap" "outerHTML"
+                , hxPost apiLinks.cancel
+                , hxTarget "#index"
+                , hxSwap OuterHTML
                 ] do
           span_ [ class_ "field " ] do
             i_ [ class_ "bx bxs-message-alt-x" ] mempty
@@ -450,10 +458,10 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
       pure do
         button_ [ class_ "action-btn urgent "
                 , type_ "submit"
-                , term "hx-post" (linkToText apiLinks.logout)
-                , term "hx-target" "#index"
-                , term "hx-swap" "outerHTML"
-                , term "hx-confirm" "Logout?"
+                , hxPost (linkToText apiLinks.logout)
+                , hxTarget "#index"
+                , hxSwap OuterHTML
+                , hxConfirm "Logout?"
                 ] do
           span_ [ class_ "field " ] do
             i_ [ class_ "bx bx-power-off" ] mempty
@@ -471,18 +479,18 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
           Light -> do
             button_ [ class_ "action-btn"
                     , type_ "submit"
-                    , term "hx-get" (linkToText apiLinks.toggleTheme)
-                    , term "hx-target" "#index"
-                    , term "hx-swap" "outerHTML"
+                    , hxGet apiLinks.toggleTheme
+                    , hxTarget "#index"
+                    , hxSwap OuterHTML
                     ] do
               i_ [ class_ "bx bxs-moon" ] mempty
               span_ (toHtml control_panel_dark )
           Dark -> do
             button_ [ class_ "action-btn"
                     , type_ "submit"
-                    , term "hx-get" (linkToText apiLinks.toggleTheme)
-                    , term "hx-target" "#index"
-                    , term "hx-swap" "outerHTML"
+                    , hxGet apiLinks.toggleTheme
+                    , hxTarget "#index"
+                    , hxSwap OuterHTML
                     ] do
               i_ [ class_ "bx bxs-sun" ] mempty
               span_ (toHtml control_panel_light )
@@ -503,9 +511,9 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
 selectedCounter :: Int -> Html ()
 selectedCounter n = do
   div_ [ id_ selectedCounterId
-       , term "hx-post" (linkToText apiLinks.cancel)
-       , term "hx-target" "#index"
-       , term "hx-swap" "outerHTML"
+       , hxPost (linkToText apiLinks.cancel)
+       , hxTarget "#index"
+       , hxSwap OuterHTML
        , class_ "field "
        ] do
     span_ [i|#{n}|]
@@ -525,9 +533,9 @@ editorModal (ClientPath path, filename) content = do
   pure do
     div_ [ id_ editorModalId, closeEditorScript ] do
 
-      form_ [ term "hx-post" (linkToText (apiLinks.updateFile))
-            , term "hx-confirm" (Text.replace "{}" (Text.pack filename) confirm_save_edit)
-            , term "hx-on::after-request" [i|document.querySelector('\##{editorModalId}').dispatchEvent(new Event('Close'))|]
+      form_ [ hxPost (apiLinks.updateFile)
+            , hxConfirm (Text.replace "{}" (Text.pack filename) confirm_save_edit)
+            , hxOn AfterRequest [i|document.querySelector('\##{editorModalId}').dispatchEvent(new Event('Close'))|]
             ] do
 
         div_ do

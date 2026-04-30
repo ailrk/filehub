@@ -66,6 +66,7 @@ import System.FilePath (takeDirectory)
 import Filehub.Sort qualified as Sort
 import Data.List qualified as List
 import Data.Text.Encoding qualified as Text
+import Lucid.Htmx (HxSwapOOB(..))
 
 
 -- | Completely reset all state machines. This should be the only place to reset state.
@@ -185,7 +186,7 @@ sortTable sessionId _ order = do
       Mobile -> do
         toolBar' <- Server.Mobile.toolBar sessionId
         pure do
-          toolBar' `with` [ term "hx-swap-oob" "true" ]
+          toolBar' `with` [ hxSwapOOB True ]
           view'
       Desktop   -> pure view'
       NoDisplay -> pure view'
@@ -228,7 +229,7 @@ selectRows sessionId _ selected = do
       sideBar'      <- sideBar sessionId
       controlPanel' <- controlPanel sessionId
       pure $ addHeader 0 do
-        sideBar' `with` [ term "hx-swap-oob" "true" ]
+        sideBar' `with` [ hxSwapOOB True ]
         controlPanel'
     _ -> do
       Selected.setSelected sessionId selected
@@ -236,7 +237,7 @@ selectRows sessionId _ selected = do
       sideBar'      <- sideBar sessionId
       controlPanel' <- controlPanel sessionId
       pure $ addHeader count do
-        sideBar' `with` [ term "hx-swap-oob" "true" ]
+        sideBar' `with` [ hxSwapOOB True ]
         controlPanel'
 
 

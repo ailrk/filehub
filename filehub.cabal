@@ -216,6 +216,7 @@ library
     Filehub.UserAgent
     LockManager.Key
     LockManager.Local
+    Lucid.Htmx
     Network.Mime.Extended
     Network.Wai.Middleware.Extended
     Network.Wai.Middleware.Filehub

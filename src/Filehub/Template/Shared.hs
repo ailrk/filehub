@@ -31,7 +31,7 @@ import Data.Maybe (fromMaybe, catMaybes)
 import Data.Sequence (Seq(..))
 import Data.Sequence qualified as Seq
 import Data.Text qualified as Text
-import Filehub.Links (linkToText, apiLinks)
+import Filehub.Links (apiLinks)
 import Filehub.Locale ( Phrase(..), phrase )
 import Filehub.Routes (Api (..))
 import Filehub.Sort ( sortFiles )
@@ -53,6 +53,7 @@ import Target.Dummy (DummyTarget)
 import Filehub.Template (Template, TemplateContext(..))
 import Data.Coerce (coerce)
 import Control.Monad.Reader (asks)
+import Lucid.Htmx (Swap(..), HxSwap (..), hxTarget, hxGet, HxTrigger (..), HxPost (..))
 
 
 -- | The bootstrap page is used to detect the client's device  information.
@@ -131,9 +132,9 @@ pathBreadcrumb = do
           & filter (\(AbsPath path) -> length (splitPath path) >= length (splitPath (coerce root)))
           & fmap (\path ->
             let clientPath@(ClientPath cp) = (ClientPath.toClientPath root path)
-                mkLi                       = li_ [ term "hx-get" (linkToText (apiLinks.cd (Just clientPath)))
-                                                 , term "hx-target" ("#" <> viewId)
-                                                 , term "hx-swap" "outerHTML"
+                mkLi                       = li_ [ hxGet (apiLinks.cd (Just clientPath))
+                                                 , hxTarget ("#" <> viewId)
+                                                 , hxSwap OuterHTML
                                                  , term "data-path" (Text.pack cp)
                                                  , class_ "dir "
                                                  ]
@@ -173,10 +174,10 @@ searchBar = do
              , type_ "input"
              , name_ "search"
              , placeholder_ search_as_you_type
-             , term "hx-post" (linkToText apiLinks.search)
-             , term "hx-trigger" "input changed delay:200ms, search"
-             , term "hx-target" "#table"
-             , term "hx-swap" "outerHTML"
+             , hxPost apiLinks.search
+             , hxTrigger @Text "input changed delay:200ms, search"
+             , hxTarget "#table"
+             , hxSwap OuterHTML
              ]
 
 
@@ -304,40 +305,40 @@ open root file = do
     BrokenLink -> []
     _          ->
       case file.content of
-        Dir        -> [ term "hx-get" (linkToText (apiLinks.cd (Just clientPath)))
-                      , term "hx-target" ("#" <> viewId)
-                      , term "hx-swap" "outerHTML"
+        Dir        -> [ hxGet (apiLinks.cd (Just clientPath))
+                      , hxTarget ("#" <> viewId)
+                      , hxSwap OuterHTML
                       ]
         Regular
           | file.mimetype `isMime` "application/pdf" ->
-               [ term "hx-get" (linkToText (apiLinks.open (Just OpenDOMBlank) (Just clientPath)))
-               , term "hx-target" "this"
-               , term "hx-swap" "none"
+               [ hxGet (apiLinks.open (Just OpenDOMBlank) (Just clientPath))
+               , hxTarget "this"
+               , hxSwap None
                ]
            | file.mimetype `isMime` "audio" ->
-               [ term "hx-get" (linkToText (apiLinks.open (Just OpenViewer) (Just clientPath)))
-               , term "hx-target" "this"
-               , term "hx-swap" "none"
+               [ hxGet (apiLinks.open (Just OpenViewer) (Just clientPath))
+               , hxTarget "this"
+               , hxSwap None
                ]
            | file.mimetype `isMime` "video" ->
-               [ term "hx-get" (linkToText (apiLinks.open (Just OpenViewer) (Just clientPath)))
-               , term "hx-target" "this"
-               , term "hx-swap" "none"
+               [ hxGet (apiLinks.open (Just OpenViewer) (Just clientPath))
+               , hxTarget "this"
+               , hxSwap None
                ]
            | file.mimetype `isMime` "image" ->
-               [ term "hx-get" (linkToText (apiLinks.open (Just OpenViewer) (Just clientPath)))
-               , term "hx-target" "this"
-               , term "hx-swap" "none"
+               [ hxGet (apiLinks.open (Just OpenViewer) (Just clientPath))
+               , hxTarget "this"
+               , hxSwap None
                ]
            | file.mimetype `isMime` "text" ->
-               [ term "hx-get" (linkToText (apiLinks.editorModal (Just clientPath)))
-               , term "hx-target" "#index"
-               , term "hx-swap" "beforeend"
+               [ hxGet (apiLinks.editorModal (Just clientPath))
+               , hxTarget "#index"
+               , hxSwap BeforeEnd
                ]
            | otherwise ->
-               [ term "hx-get" (linkToText (apiLinks.editorModal (Just clientPath)))
-               , term "hx-target" "#index"
-               , term "hx-swap" "beforeend"
+               [ hxGet (apiLinks.editorModal (Just clientPath))
+               , hxTarget "#index"
+               , hxSwap BeforeEnd
                ]
   where
     clientPath = ClientPath.toClientPath root file.path
