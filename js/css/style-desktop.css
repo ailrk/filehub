@@ -203,6 +203,7 @@ textarea:focus {
   height: 100px;
   margin: auto;
   display: flex;
+  position: relative;
   justify-content: center;
   pointer-events: none;
 }
@@ -278,6 +279,42 @@ textarea:focus {
 .dir {
   cursor: pointer;
   color: var(--tertiary);
+}
+
+
+.symlink .thumbnail-preview::after,
+.broken-symlink .thumbnail-preview::after {
+  font-family: 'boxicons' !important;
+  content: '\eb3e';
+  position: absolute;
+  bottom: 15;
+  right: 15;
+  font-size: 16px;
+  line-height: 1;
+  pointer-events: none;
+  background: var(--background1);
+  border: 1px solid var(--background3);
+  border-radius: 4px;
+  padding: 1px;
+}
+
+
+.broken-symlink .thumbnail-preview::after {
+  filter: grayscale(1) contrast(0.5); /* Makes the link look 'dead' */
+  opacity: 0.7;
+}
+
+
+.broken-symlink .thumbnail-preview::before {
+  content: '✕';
+  position: absolute;
+  bottom: 13px;
+  right: 13px;
+  color: #ff4d4d;
+  font-size: 12px;
+  font-weight: bold;
+  z-index: 1;
+  text-shadow: 1px 1px 0px var(--background1);
 }
 
 

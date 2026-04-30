@@ -5,6 +5,7 @@ module Data.File
   , File(..)
   , FileInfo
   , FileWithContent
+  , IsLink(..)
   , defaultFileInfo
   , defaultFileWithContent
   , withContent
@@ -26,6 +27,12 @@ data FileType
   | Dir
   deriving (Show, Eq, Ord, Generic)
 
+
+data IsLink
+  = Link
+  | BrokenLink
+  | NotLink
+  deriving (Eq, Show, Generic, Debug)
 
 instance Debug FileType
 
@@ -54,6 +61,7 @@ data File a = File
   , mtime    :: Maybe UTCTime
   , size     :: Maybe Integer
   , mimetype :: MimeType
+  , isLink   :: IsLink
   , content  :: a
   }
   deriving (Eq, Show, Generic, Debug)
@@ -71,6 +79,7 @@ defaultFileInfo =
     , mtime     = Nothing
     , size      = Nothing
     , mimetype  = "application/octet-stream"
+    , isLink    = NotLink
     , content   = Regular
     }
 
@@ -83,6 +92,7 @@ defaultFileWithContent =
     , mtime     = Nothing
     , size      = Nothing
     , mimetype  = "application/octet-stream"
+    , isLink    = NotLink
     , content   = FileContentNull
     }
 
@@ -95,6 +105,7 @@ withContent file content =
     , mtime     = file.mtime
     , size      = file.size
     , mimetype  = file.mimetype
+    , isLink    = NotLink
     , content   = content
     }
 
@@ -107,6 +118,7 @@ extractFileInfo file =
     , mtime    = file.mtime
     , size     = file.size
     , mimetype = file.mimetype
+    , isLink    = NotLink
     , content  = case file.content of
                    FileContentDir _ -> Dir
                    _ -> Regular

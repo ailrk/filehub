@@ -27,7 +27,7 @@ import Control.Monad (when, join)
 import Data.ByteString (ByteString)
 import Data.ClientPath (ClientPath(..), AbsPath (..), Root (..))
 import Data.ClientPath qualified as ClientPath
-import Data.File (File(..), FileType(..), FileInfo)
+import Data.File (File(..), FileType(..), FileInfo, IsLink (..))
 import Data.Foldable (traverse_)
 import Data.Maybe (fromMaybe)
 import Data.String.Interpolate (iii, i)
@@ -705,8 +705,12 @@ entry file = do
             , draggable_ "true"
             ]
           , case file.content of
-              Dir     -> [ class_ "dir "]
-              Regular -> mempty
+              Dir        -> [ class_ "dir "]
+              Regular    -> mempty
+          , case file.isLink of
+              Link       -> [ class_ "symlink " ]
+              BrokenLink -> [ class_ "broken-symlink "]
+              NotLink    -> []
           ]
 
 
@@ -738,8 +742,12 @@ thumbnail file = do
                          , draggable_ "true"
             ]
           , case file.content of
-              Dir     -> [ class_ "dir "]
-              Regular -> mempty
+              Dir        -> [ class_ "dir "]
+              Regular    -> mempty
+          , case file.isLink of
+              Link       -> [ class_ "symlink " ]
+              BrokenLink -> [ class_ "broken-symlink "]
+              NotLink    -> []
           ]
         `with` Template.open root file
 
@@ -826,8 +834,8 @@ contextMenu1 file = do
     let textClientPath = Text.pack cp
 
     div_ [ class_ "dropdown-content " , id_ contextMenuId ] do
+
       case file.content of
-        Dir -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bxs-folder-open" ] mempty >> span_ (toHtml contextmenu_open)
         Regular
           | file.mimetype `isMime` "application/pdf" -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bx-show" ] mempty >> span_ (toHtml contextmenu_view)
           | file.mimetype `isMime` "audio"           -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bx-play" ] mempty >> span_ (toHtml contextmenu_play)
@@ -835,6 +843,7 @@ contextMenu1 file = do
           | file.mimetype `isMime` "image"           -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bx-show" ] mempty >> span_ (toHtml contextmenu_view)
           | file.mimetype `isMime` "text"            -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bxs-edit" ] mempty >> span_ (toHtml contextmenu_edit)
           | otherwise -> mempty
+        Dir        -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bxs-folder-open" ] mempty >> span_ (toHtml contextmenu_open)
         `with` Template.open root file
 
       div_ [ class_ "dropdown-item"

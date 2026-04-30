@@ -42,7 +42,7 @@ import Data.ClientPath (AbsPath (..))
 import Data.ClientPath (fromClientPath)
 import Data.Coerce (coerce)
 import Data.Conduit
-import Data.File (File (..), FileType (..), FileInfo, FileWithContent, FileContent (..), defaultFileWithContent)
+import Data.File (File (..), FileType (..), FileInfo, FileWithContent, FileContent (..), defaultFileWithContent, IsLink (..))
 import Data.Function (fix)
 import Data.Generics.Labels ()
 import Data.Kind (Type)
@@ -189,6 +189,7 @@ get (s3@S3Backend { targetId }) path = do
                 , mtime    = mtime
                 , size     = size
                 , mimetype = maybe "application/octet-stream" Text.encodeUtf8 contentType
+                , isLink   = NotLink
                 , content  = Regular
                 }
           cacheInsert cacheKey cacheDeps cacheTTL file
@@ -207,8 +208,8 @@ isDirectory :: Target S3 -> AbsPath -> Filehub Bool
 isDirectory s3@S3Backend { targetId } filePath = do
   mCached <- cacheLookup cacheKey
   case mCached of
-    Just (File { content = Regular }) -> pure False
-    Just (File { content = Dir })     -> pure True
+    Just (File { content = Dir }) -> pure True
+    Just _                        -> pure False
     Nothing -> do
       let bucket  = BucketName s3.bucket
           request = Amazonka.newListObjectsV2 bucket
@@ -467,6 +468,7 @@ ls s3@S3Backend { targetId } _ = do
          , mtime    = Nothing
          , size     = Nothing
          , mimetype = "" -- content type can be unreliable because it's derived from the extension.
+         , isLink   = NotLink
          , content  = Dir
          }
 
@@ -478,6 +480,7 @@ ls s3@S3Backend { targetId } _ = do
          , mtime    = Just (object ^. Amazonka.object_lastModified)
          , size     = Just (object ^. Amazonka.object_size)
          , mimetype = defaultMimeLookup filePath -- content type can be unreliable because it's derived from the extension.
+         , isLink   = NotLink
          , content  = Regular
          }
 
@@ -501,9 +504,14 @@ upload s3 file = do
 download :: Target S3 -> AbsPath -> Filehub (ConduitT () ByteString (ResourceT IO) ())
 download s3 path = do
   file <- get s3 path
+
+  case file.isLink of
+    BrokenLink -> throwIO (FilehubError InvalidPath "broken link")
+    _ -> pure ()
+
   case file.content of
-    Regular -> readStream s3 file Nothing Nothing
-    Dir     -> do
+    Regular    -> readStream s3 file Nothing Nothing
+    Dir        -> do
       (zipPath, _) <- liftIO do
         tempDir <- Temp.getCanonicalTemporaryDirectory
         Temp.openTempFile tempDir "DXXXXXX.zip"

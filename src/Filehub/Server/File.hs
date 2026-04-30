@@ -11,7 +11,7 @@ import Data.ClientPath (ClientPath (..), AbsPath (..), (<./>), Root (..))
 import Data.ClientPath qualified as ClientPath
 import Data.ClientPath.IO (validateAbsPath)
 import Data.Coerce (coerce)
-import Data.File (FileType(..), File(..), FileContent (..), withContent, defaultFileWithContent, FileInfo)
+import Data.File (FileType(..), File(..), FileContent (..), withContent, defaultFileWithContent, FileInfo, IsLink (..))
 import Data.Foldable (for_)
 import Data.Traversable (for)
 import Data.Function ((&))
@@ -55,7 +55,6 @@ import Data.Binary.Builder qualified as Builder
 import Network.HTTP.Types (ByteRange(..), parseByteRanges)
 import Data.ByteString.Char8 qualified as Char8
 import Filehub.Sort qualified as Sort
-import Data.Either (isLeft)
 import Data.ClientPath.View (ClientPathView(..), asClientPathView)
 import Data.Text (Text)
 
@@ -334,18 +333,21 @@ paste sessionId _ _ = do
 
           dst <- validateAbsPath path (FilehubError InvalidPath "Invalid path")
 
-          case file.content of
-            Regular -> pure [ PasteFile from to file dst ]
-            Dir -> do
-              withTarget sessionId from do
-                storage <- Session.get sessionId (.storage)
-                (TargetView _ (TargetSessionData { currentDir = savedDir })) <- Session.get sessionId (.currentTarget)
-                storage.cd file.path
-                result <- do
-                  dirFiles <- storage.lsCwd
-                  for dirFiles \dfile -> rec dst dfile
-                storage.cd savedDir -- go back
-                pure $ ([CreateDir to dst] ++ mconcat result)
+          case file.isLink of
+            BrokenLink -> pure []
+            _          ->
+              case file.content of
+                Regular    -> pure [ PasteFile from to file dst ]
+                Dir -> do
+                  withTarget sessionId from do
+                    storage <- Session.get sessionId (.storage)
+                    (TargetView _ (TargetSessionData { currentDir = savedDir })) <- Session.get sessionId (.currentTarget)
+                    storage.cd file.path
+                    result <- do
+                      dirFiles <- storage.lsCwd
+                      for dirFiles \dfile -> rec dst dfile
+                    storage.cd savedDir -- go back
+                    pure $ ([CreateDir to dst] ++ mconcat result)
 
 
 
@@ -418,11 +420,17 @@ download sessionId _ clientPaths = do
   case clientPaths of
     [clientPath@(ClientPath path)] -> do
       file    <- storage.get (ClientPath.fromClientPath root clientPath)
+
+      case file.isLink of
+        BrokenLink -> throwIO (FilehubError undefined "Can't download a broken link")
+        _          -> pure ()
+
       conduit <- storage.download clientPath
-      let filename =
-            case file.content of
-              Regular -> printf "attachement; filename=%s" (takeFileName path)
-              Dir     -> printf "attachement; filename=%s.zip" (takeFileName path)
+
+      let filename = case file.content of
+                       Dir -> printf "attachement; filename=%s.zip" (takeFileName path)
+                       _   -> printf "attachement; filename=%s" (takeFileName path)
+
       pure $ addHeader filename conduit
 
     _ -> do

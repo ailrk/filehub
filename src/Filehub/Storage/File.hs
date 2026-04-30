@@ -36,7 +36,7 @@ import Data.ClientPath qualified as ClientPath
 import Data.ClientPath.IO (validateAbsPath)
 import Data.Coerce (coerce)
 import Data.Conduit.Binary qualified as Conduit
-import Data.File (File (..), FileInfo, FileType (..), FileWithContent, FileContent (..), defaultFileWithContent)
+import Data.File (File (..), FileInfo, FileType (..), FileWithContent, FileContent (..), defaultFileWithContent, IsLink (..))
 import Data.Generics.Labels ()
 import Data.Kind (Type)
 import Data.List (sort)
@@ -67,7 +67,7 @@ import Target.Types (handleTarget, targetHandler)
 import UnliftIO (MonadIO (..), tryIO, IOException, Handler (..), catch, withFile, IOMode (..), hClose, withTempFile)
 import UnliftIO (throwIO)
 import UnliftIO.Async (forConcurrently_)
-import UnliftIO.Directory (doesDirectoryExist)
+import UnliftIO.Directory (doesDirectoryExist, pathIsSymbolicLink)
 import UnliftIO.Directory (removeFile, makeAbsolute, getFileSize, getAccessTime, getModificationTime, doesPathExist, doesFileExist, createDirectoryIfMissing, renameFile, copyFile, listDirectory, removeDirectoryRecursive, withCurrentDirectory)
 import UnliftIO.Retry (recovering, limitRetries, exponentialBackoff)
 
@@ -117,8 +117,6 @@ getFileSys sessionId = do
     ]
 
 
-
-
 class CacheKeyComponent (s :: Symbol) a              where toCacheKeyComponent :: Builder
 instance CacheKeyComponent "file"         FileInfo   where toCacheKeyComponent = "f"
 instance CacheKeyComponent "dir"          [FileInfo] where toCacheKeyComponent = "d"
@@ -141,26 +139,44 @@ get path = do
       pure cached
     Nothing -> do
       exists <- doesPathExist (coerce path)
-      if exists
-         then do
-           size  <- getFileSize (coerce path)
-           mtime <- getModificationTime (coerce path)
-           atime <- getAccessTime (coerce path)
-           isDir <- isDirectory path
-           let mimetype = defaultMimeLookup (coerce Text.pack path)
-           let file = File
-                 { path     = path
-                 , size     = Just size
-                 , mtime    = Just mtime
-                 , atime    = Just atime
-                 , mimetype = mimetype
-                 , content  = if isDir then Dir else Regular
-                 }
-           cacheInsert cacheKey cacheDeps cacheTTL file
-           pure file
-          else do
-            logAttention_ (Text.pack ("[98zcsm] invalid path " ++ show path))
-            throwIO (FilehubError InvalidPath "invalid path")
+      isDir  <- isDirectory path
+      isLink <- pathIsSymbolicLink (coerce path)
+      if
+        | exists -> do
+            size   <- getFileSize (coerce path)
+            mtime  <- getModificationTime (coerce path)
+            atime  <- getAccessTime (coerce path)
+            let mimetype = defaultMimeLookup (coerce Text.pack path)
+            let file = File
+                  { path     = path
+                  , size     = Just size
+                  , mtime    = Just mtime
+                  , atime    = Just atime
+                  , mimetype = mimetype
+                  , isLink   = if isLink then Link else NotLink
+                  , content  = if
+                                  | isDir     -> Dir
+                                  | otherwise -> Regular
+                  }
+            cacheInsert cacheKey cacheDeps cacheTTL file
+            pure file
+
+        | isLink -> do -- Broken Link
+            let file = File
+                  { path     = path
+                  , size     = Nothing
+                  , mtime    = Nothing
+                  , atime    = Nothing
+                  , mimetype = "inode/symlink"
+                  , isLink   = BrokenLink
+                  , content  = Regular
+                  }
+            cacheInsert cacheKey cacheDeps cacheTTL file
+            pure file
+
+        | otherwise -> do
+            logAttention_ (Text.pack ("[97zcsm] broken link" ++ show path))
+            throwIO (FilehubError InvalidPath "broken linke")
   where
     cacheKey  = createCacheKey @"file" @FileInfo (coerce Builder.string8 path)
     cacheDeps = [ SomeCacheKey (createCacheKey @"dir" @[FileInfo] (Builder.string8 (coerce takeDirectory path))) ]
@@ -171,8 +187,8 @@ isDirectory :: AbsPath -> Filehub Bool
 isDirectory filePath = do
   mCached <- cacheLookup cacheKey
   case mCached of
-    Just (File { content = Regular }) -> pure False
-    Just (File { content = Dir })     -> pure True
+    Just (File { content = Dir }) -> pure True
+    Just _                        -> pure False
     Nothing -> do
       pathExists <- doesPathExist (coerce filePath)
       dirExists  <- doesDirectoryExist (coerce filePath)
@@ -405,8 +421,13 @@ download :: Target FileSys -> ClientPath -> Filehub (ConduitT () ByteString (Res
 download fileSys clientPath = do
   let path =  ClientPath.fromClientPath fileSys.root clientPath
   file <- get path
+
+  case file.isLink of
+    BrokenLink -> throwIO (FilehubError InvalidPath "broken link")
+    _          -> pure ()
+
   case file.content of
-    Regular -> readStream file Nothing Nothing
+    Regular    -> readStream file Nothing Nothing
     Dir     -> do
       (zipPath, _) <- liftIO do
         tempDir <- Temp.getCanonicalTemporaryDirectory

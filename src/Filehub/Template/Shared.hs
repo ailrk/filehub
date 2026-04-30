@@ -1,4 +1,5 @@
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE MultiWayIf #-}
 module Filehub.Template.Shared
   ( bootstrap
   , offline
@@ -24,7 +25,7 @@ import Data.String.Interpolate (iii)
 import Control.Monad (when)
 import Data.ClientPath (ClientPath(..), AbsPath (..), newAbsPath, Root)
 import Data.ClientPath qualified as ClientPath
-import Data.File (File(..), FileType(..), FileInfo)
+import Data.File (File(..), FileType(..), FileInfo, IsLink (..))
 import Data.Foldable (Foldable(..))
 import Data.Maybe (fromMaybe, catMaybes)
 import Data.Sequence (Seq(..))
@@ -271,74 +272,79 @@ controlPanel
 
 icon :: FileInfo -> Html ()
 icon file =
-  case file.content of
-    Dir -> i_ [ class_ "bx bxs-folder "] mempty
-    Regular
-      | file.mimetype `isMime` "application/pdf"                       -> i_ [ class_ "bx bxs-file-pdf"] mempty
-      | file.mimetype `isMime` "video" || file.mimetype `isMime` "mp4" -> i_ [ class_ "bx bxs-videos"] mempty
-      | file.mimetype `isMime` "audio" || file.mimetype `isMime` "mp3" -> i_ [ class_ "bx bxs-music"] mempty
-      | file.mimetype `isMime` "image"                                 -> i_ [ class_ "bx bx-image"] mempty
-      | file.mimetype `isMime` "application/x-tar"
-      || file.mimetype `isMime` "application/x-bzip-compressed-tar"
-      || file.mimetype `isMime` "application/x-tgz"
-      || file.mimetype `isMime` "application/x-bzip2"
-      || file.mimetype `isMime` "application/x-zstd"
-      || file.mimetype `isMime` "application/x-7z-compressed"
-      || file.mimetype `isMime` "application/x-lzma"
-      || file.mimetype `isMime` "application/x-lz"
-      || file.mimetype `isMime` "application/zip"
-      || file.mimetype `isMime` "application/gzip"
-      || file.mimetype `isMime` "application/zstd"
-      || file.mimetype `isMime` "application/vnd.rar"                  -> i_ [ class_ "bx bxs-file-archive"] mempty
-      | file.mimetype `isMime` "text"                                  -> i_ [ class_ "bx bxs-file"] mempty
-      | otherwise                                                      -> i_ [ class_ "bx bxs-file-blank "] mempty
+  case file.isLink of
+    BrokenLink -> i_ [ class_ "bx bx-link-external .urgent "] mempty
+    _          ->
+      case file.content of
+        Dir -> i_ [ class_ "bx bxs-folder "] mempty
+        Regular
+         | file.mimetype `isMime` "application/pdf"                       -> i_ [ class_ "bx bxs-file-pdf"] mempty
+         | file.mimetype `isMime` "video" || file.mimetype `isMime` "mp4" -> i_ [ class_ "bx bxs-videos"] mempty
+         | file.mimetype `isMime` "audio" || file.mimetype `isMime` "mp3" -> i_ [ class_ "bx bxs-music"] mempty
+         | file.mimetype `isMime` "image"                                 -> i_ [ class_ "bx bx-image"] mempty
+         | file.mimetype `isMime` "application/x-tar"
+            || file.mimetype `isMime` "application/x-bzip-compressed-tar"
+            || file.mimetype `isMime` "application/x-tgz"
+            || file.mimetype `isMime` "application/x-bzip2"
+            || file.mimetype `isMime` "application/x-zstd"
+            || file.mimetype `isMime` "application/x-7z-compressed"
+            || file.mimetype `isMime` "application/x-lzma"
+            || file.mimetype `isMime` "application/x-lz"
+            || file.mimetype `isMime` "application/zip"
+            || file.mimetype `isMime` "application/gzip"
+            || file.mimetype `isMime` "application/zstd"
+            || file.mimetype `isMime` "application/vnd.rar"                -> i_ [ class_ "bx bxs-file-archive"] mempty
+          | file.mimetype `isMime` "text"                                  -> i_ [ class_ "bx bxs-file"] mempty
+          | otherwise                                                      -> i_ [ class_ "bx bxs-file-blank "] mempty
 
 
 open :: Root -> FileInfo -> [Attribute]
 open root file = do
-  let clientPath = ClientPath.toClientPath root file.path
-  case file.content of
-    Dir ->
-        [ term "hx-get" (linkToText (apiLinks.cd (Just clientPath)))
-        , term "hx-target" ("#" <> viewId)
-        , term "hx-swap" "outerHTML"
-        ]
-    Regular
-      | file.mimetype `isMime` "application/pdf" ->
-          [ term "hx-get" (linkToText (apiLinks.open (Just OpenDOMBlank) (Just clientPath)))
-          , term "hx-target" "this"
-          , term "hx-swap" "none"
-          ]
-      | file.mimetype `isMime` "audio" ->
-          [ term "hx-get" (linkToText (apiLinks.open (Just OpenViewer) (Just clientPath)))
-          , term "hx-target" "this"
-          , term "hx-swap" "none"
-          ]
-      | file.mimetype `isMime` "video" ->
-          [ term "hx-get" (linkToText (apiLinks.open (Just OpenViewer) (Just clientPath)))
-          , term "hx-target" "this"
-          , term "hx-swap" "none"
-          ]
-      | file.mimetype `isMime` "image" ->
-          [ term "hx-get" (linkToText (apiLinks.open (Just OpenViewer) (Just clientPath)))
-          , term "hx-target" "this"
-          , term "hx-swap" "none"
-          ]
-      | file.mimetype `isMime` "text" ->
-          [ term "hx-get" (linkToText (apiLinks.editorModal (Just clientPath)))
-          , term "hx-target" "#index"
-          , term "hx-swap" "beforeend"
-          ]
-      | otherwise ->
-          [ term "hx-get" (linkToText (apiLinks.editorModal (Just clientPath)))
-          , term "hx-target" "#index"
-          , term "hx-swap" "beforeend"
-          ]
+  case file.isLink of
+    BrokenLink -> []
+    _          ->
+      case file.content of
+        Dir        -> [ term "hx-get" (linkToText (apiLinks.cd (Just clientPath)))
+                      , term "hx-target" ("#" <> viewId)
+                      , term "hx-swap" "outerHTML"
+                      ]
+        Regular
+          | file.mimetype `isMime` "application/pdf" ->
+               [ term "hx-get" (linkToText (apiLinks.open (Just OpenDOMBlank) (Just clientPath)))
+               , term "hx-target" "this"
+               , term "hx-swap" "none"
+               ]
+           | file.mimetype `isMime` "audio" ->
+               [ term "hx-get" (linkToText (apiLinks.open (Just OpenViewer) (Just clientPath)))
+               , term "hx-target" "this"
+               , term "hx-swap" "none"
+               ]
+           | file.mimetype `isMime` "video" ->
+               [ term "hx-get" (linkToText (apiLinks.open (Just OpenViewer) (Just clientPath)))
+               , term "hx-target" "this"
+               , term "hx-swap" "none"
+               ]
+           | file.mimetype `isMime` "image" ->
+               [ term "hx-get" (linkToText (apiLinks.open (Just OpenViewer) (Just clientPath)))
+               , term "hx-target" "this"
+               , term "hx-swap" "none"
+               ]
+           | file.mimetype `isMime` "text" ->
+               [ term "hx-get" (linkToText (apiLinks.editorModal (Just clientPath)))
+               , term "hx-target" "#index"
+               , term "hx-swap" "beforeend"
+               ]
+           | otherwise ->
+               [ term "hx-get" (linkToText (apiLinks.editorModal (Just clientPath)))
+               , term "hx-target" "#index"
+               , term "hx-swap" "beforeend"
+               ]
+  where
+    clientPath = ClientPath.toClientPath root file.path
 
 
 bold :: Html () -> Html ()
 bold t = span_ [ class_ "bold" ] t
-
 
 
 ------------------------------------
