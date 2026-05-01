@@ -22,3 +22,4 @@ makeLocalLockManager lkm =
         withRunInIO \run -> do
           Local.withLocks lkm keys (run action)
     }
+{-# INLINABLE makeLocalLockManager #-}

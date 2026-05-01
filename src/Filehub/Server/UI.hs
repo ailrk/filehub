@@ -1,4 +1,5 @@
 {-# LANGUAGE PartialTypeSignatures #-}
+{-# LANGUAGE NamedFieldPuns #-}
 -- |
 -- Maintainer  :  jimmy@ailrk.com
 -- Copyright   :  (c) 2025-present Jinyang yao
@@ -24,6 +25,7 @@ module Filehub.Server.UI
   , selectRows
   , contextMenu
   , entry
+  , entries
   , initViewer
   , open
   , cancel
@@ -39,7 +41,7 @@ import Filehub.Orphan ()
 import Filehub.Server.UI.Desktop qualified as Server.Desktop
 import Filehub.Server.UI.Mobile qualified as Server.Mobile
 import Filehub.Server.Util (withQueryParam)
-import Filehub.Session (SessionGet(..))
+import Filehub.Session (SessionGet(..), TargetView (..))
 import Filehub.Session qualified as Session
 import Filehub.Session.Copy qualified as Copy
 import Filehub.Session.Selected qualified as Selected
@@ -59,7 +61,7 @@ import Filehub.Error (FilehubError(..), Error' (..))
 import UnliftIO (throwIO)
 import Network.Mime (MimeType)
 import Data.File (FileInfo, File(..))
-import Data.ClientPath (Root)
+import Data.ClientPath (Root, toClientPath)
 import Data.String.Interpolate (i)
 import Network.Mime.Extended (isMime)
 import Data.Coerce (coerce)
@@ -69,6 +71,7 @@ import Data.List qualified as List
 import Data.Text.Encoding qualified as Text
 import Lucid.Htmx (HxSwapOOB(..))
 import Filehub.Session.Types (Selected (..), Layout (..))
+import Data.Set qualified as Set
 
 
 -- | Completely reset all state machines. This should be the only place to reset state.
@@ -91,6 +94,21 @@ entry sessionId file = do
       Desktop   -> case layout of
                      ListLayout      -> Template.Desktop.entry file
                      ThumbnailLayout -> Template.Desktop.thumbnail file
+
+
+entries :: SessionId -> [FileInfo] -> Filehub (Html ())
+entries sessionId files = do
+  display <- Session.get sessionId (.display)
+  layout  <- Session.get sessionId (.layout)
+  ctx     <- makeTemplateContext sessionId
+
+  pure $ runTemplate ctx
+    case display of
+      NoDisplay -> Template.Mobile.entries files
+      Mobile    -> Template.Mobile.entries files
+      Desktop   -> case layout of
+                     ListLayout      -> Template.Desktop.entries files
+                     ThumbnailLayout -> Template.Desktop.entries  files
 
 
 index :: SessionId -> Filehub (Html ())
@@ -276,9 +294,31 @@ open _ _ mTarget mClientPath = do
   pure $ addHeader (Opened target clientPath) NoContent
 
 
-
 cancel :: SessionId -> ConfirmLogin -> Filehub (Headers '[Header "X-Filehub-Selected-Count" Int] (Html ()))
 cancel sessionId _ = do
+  allSelected           <- Selected.allSelecteds sessionId
+  TargetView { target } <- Session.get sessionId (.currentTarget)
+  storage               <- Session.get sessionId (.storage)
+  root                  <- Session.get sessionId (.root)
+
+  let count    = length allSelected
+  let selected = Set.fromList case lookup target allSelected of
+                                Just s  -> Selected.toList s
+                                Nothing -> []
+
   clear sessionId
-  count <- length <$> Selected.allSelecteds sessionId
-  addHeader count <$> (pure do mempty)
+
+  selectedFiles <- do
+    files <- storage.lsCwd
+    let predicate f = (toClientPath root f.path) `Set.member` selected
+    pure $ filter predicate files
+
+  addHeader count
+    <$> (do controlPanel' <- controlPanel sessionId
+            sideBar'      <- sideBar sessionId
+            entries'      <- entries sessionId selectedFiles
+            pure do
+              controlPanel' `with` [ hxSwapOOB True ]
+              sideBar' `with` [ hxSwapOOB True ]
+              entries' `with` [ hxSwapOOB True ]
+        )

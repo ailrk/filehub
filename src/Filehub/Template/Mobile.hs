@@ -5,6 +5,7 @@ module Filehub.Template.Mobile
   , controlPanel
   , view
   , entry
+  , entries
   , table
   , toolBar
   , editorModal
@@ -199,7 +200,11 @@ table files = do
   ctx <- ask
   pure do
     table_ [ id_ tableId, class_ "list-view " ] do
-      tbody_ $ traverse_ (runTemplate ctx . entry) files
+      tbody_ $ runTemplate ctx (entries files)
+
+
+entries :: [FileInfo] -> Template (Html ())
+entries files = mconcat <$> traverse entry files
 
 
 entry :: FileInfo -> Template (Html ())

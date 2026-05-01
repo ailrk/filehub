@@ -112,9 +112,10 @@ library
     , mtl
     , network-uri
     , optparse-applicative
-    , psqueues
     , pretty-simple
+    , psqueues
     , random
+    , resourcet
     , retry
     , servant
     , servant-client

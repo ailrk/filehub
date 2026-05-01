@@ -1,8 +1,12 @@
-module System.FilePath.Extended (expandVars) where
+module System.FilePath.Extended (expandVars, timeIt) where
 
 import System.Environment (lookupEnv)
 import Data.Char (isAlphaNum)
 import Data.Maybe (fromMaybe)
+import Data.Time.Clock (getCurrentTime, diffUTCTime)
+import Control.Monad.IO.Class (liftIO)
+import UnliftIO (MonadIO)
+
 
 
 -- |  A simple util to expand environment variables embeded in a filepath.
@@ -30,3 +34,12 @@ expandVars [] = pure []
 
 isVarChar :: Char -> Bool
 isVarChar x = isAlphaNum x || x == '_'
+
+
+timeIt :: MonadIO m => String -> m a -> m a
+timeIt label action = do
+    start <- liftIO getCurrentTime
+    val   <- action
+    end   <- liftIO getCurrentTime
+    liftIO $ putStrLn $ label ++ " took: " ++ show (diffUTCTime end start)
+    pure val

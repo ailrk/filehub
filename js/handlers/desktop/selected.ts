@@ -54,7 +54,7 @@ function cancel(e: Event) {
   if ((e.target as Element).closest('.dir')) return;
   if ((e.target as Element).closest('.dropdown-item')) return;
   if (selectedIds.size > 0 && !dragging) {
-    htmx.ajax('POST', '/cancel', { target: '#index', swap: 'outerHTML'});
+    htmx.ajax('POST', '/cancel', { target: 'body', swap: 'none'});
   }
 }
 

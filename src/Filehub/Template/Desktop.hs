@@ -9,6 +9,7 @@ module Filehub.Template.Desktop
   , view
   , toolBar
   , entry
+  , entries
   , thumbnail
   , renameModal
   , newFileModal
@@ -657,7 +658,16 @@ listLayout files = do
               (toHtml detail_size)
               sortIconSize order
               `with` sortControlSize order
-      tbody_ $ traverse_ (runTemplate ctx . entry) files
+      tbody_ $ (runTemplate ctx (entries files))
+
+
+entries :: [FileInfo] -> Template (Html ())
+entries files = do
+  layout <- asks (.layout)
+  let et = case layout of
+             ListLayout      -> entry
+             ThumbnailLayout -> thumbnail
+  mconcat <$> traverse et files
 
 
 entry :: FileInfo -> Template (Html ())
@@ -699,7 +709,7 @@ thumbnailLayout files = do
   ctx <- ask
   pure do
     div_ [ id_ tableId, class_ "thumbnail-view " ] do
-      tbody_ $ traverse_ (runTemplate ctx . thumbnail) files
+      tbody_ $ (runTemplate ctx (entries files))
 
 
 thumbnail :: FileInfo -> Template (Html ())

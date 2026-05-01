@@ -25,6 +25,7 @@ instance AsClientPathView AbsPath where
           , hashPath   = fromIntegral @_ @Word (hash clientPath)
           , path       = path
           }
+  {-# INLINE asClientPathView #-}
 
 
 instance AsClientPathView ClientPath where
@@ -35,3 +36,4 @@ instance AsClientPathView ClientPath where
           , hashPath   = fromIntegral @_ @Word (hash cp)
           , path       = path
           }
+  {-# INLINE asClientPathView #-}

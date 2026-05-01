@@ -45,7 +45,7 @@ function cancel(e) {
     if (e.target.closest('.dropdown-item'))
         return;
     if (selectedIds.size > 0 && !dragging) {
-        htmx.ajax('POST', '/cancel', { target: '#index', swap: 'outerHTML' });
+        htmx.ajax('POST', '/cancel', { target: 'body', swap: 'none' });
     }
 }
 // Collect selected rows to the set `selectedIds`

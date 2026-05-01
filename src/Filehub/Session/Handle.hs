@@ -306,7 +306,6 @@ makeStorageFileSys sessionId =
         ]
 
 
-
 makeStorageS3 :: SessionId -> Storage Filehub
 makeStorageS3 sessionId =
   Storage

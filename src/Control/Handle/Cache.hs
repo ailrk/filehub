@@ -44,3 +44,4 @@ makeInMemoryCache (InMemoryCache ref) =
           atomicModifyIORef' ref
             \cache -> (InMemory.empty cache.capacity, ())
     }
+{-# INLINABLE makeInMemoryCache #-}

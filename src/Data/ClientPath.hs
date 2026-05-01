@@ -58,13 +58,13 @@ newAbsPath path
 
 -- | Filepath without the prefix part. The path is percent encoded safe to show in the frontend.
 newtype ClientPath = ClientPath { unClientPath :: FilePath }
-  deriving (Show, Eq)
+  deriving (Show, Ord, Eq)
   deriving newtype (Semigroup, Monoid, Hashable, Debug)
 
 
 -- | ClientPath but not percent encoded
 newtype RawClientPath = RawClientPath { unRawClientPath :: FilePath }
-  deriving (Show, Eq)
+  deriving (Show, Ord, Eq)
   deriving newtype (Semigroup, Monoid, Hashable, Debug)
 
 
@@ -85,12 +85,14 @@ toClientPath :: Root -> AbsPath -> ClientPath
 toClientPath (Root (AbsPath prefix)) (AbsPath path) =
   let RawClientPath rcp = toRawClientPath prefix path
    in ClientPath (URI.Encode.encode rcp)
+{-# INLINE toClientPath #-}
 
 
 fromClientPath :: Root -> ClientPath -> AbsPath
 fromClientPath prefix (ClientPath cp) =
   let decoded = URI.Encode.decode cp
    in AbsPath (fromRawClientPath (coerce prefix) (RawClientPath decoded))
+{-# INLINE fromClientPath #-}
 
 
 -- | Remove the prefix part from the path, don't encode any characters.

@@ -100,7 +100,7 @@ get (s3@S3Backend { targetId }) path = do
       let bucket  = BucketName s3.bucket
           key     = ObjectKey (coerce Text.pack path)
           request = Amazonka.newHeadObject bucket key
-      resp <- runResourceT $ send s3.env request
+      resp <- send s3.env request
       if resp ^. Amazonka.headObjectResponse_httpStatus == 200
          then do
           let mtime       = resp ^. Amazonka.headObjectResponse_lastModified
@@ -138,7 +138,7 @@ isDirectory s3@S3Backend { targetId } filePath = do
           request = Amazonka.newListObjectsV2 bucket
                   & Amazonka.listObjectsV2_prefix ?~ Text.pack (coerce normalizeDirPath filePath)
                   & Amazonka.listObjectsV2_maxKeys ?~ 1
-      resp <- runResourceT $ send s3.env request
+      resp <- send s3.env request
       let result = maybe False (> 0) (resp ^. Amazonka.listObjectsV2Response_keyCount)
       pure result
   where
@@ -233,7 +233,7 @@ write s3@S3Backend { targetId } File { content, mimetype, size = mSize, path } =
       let bucket  = BucketName s3.bucket
           key     = ObjectKey (coerce Text.pack filePath)
           request = (Amazonka.newPutObject bucket key body) { contentType = Just (Text.decodeUtf8 mimetype) } :: PutObject
-       in void . runResourceT $ send s3.env request
+       in void $ send s3.env request
 
     writeMultipart :: ConduitT () ByteString (ResourceT IO) () -> Filehub ()
     writeMultipart conduit = do
@@ -241,7 +241,7 @@ write s3@S3Backend { targetId } File { content, mimetype, size = mSize, path } =
           key      = ObjectKey (coerce Text.pack path)
           partSize = 5 * 1024 * 1024
           request  = (Amazonka.newCreateMultipartUpload bucket key) { contentType = Just (Text.decodeUtf8 mimetype) } :: CreateMultipartUpload
-      createMultipartUploadResp <- runResourceT $ send s3.env request
+      createMultipartUploadResp <- send s3.env request
       let uploadId = createMultipartUploadResp.uploadId
       let mkCompletedPart = \loop -> do
             mRes <- await
@@ -261,7 +261,7 @@ write s3@S3Backend { targetId } File { content, mimetype, size = mSize, path } =
         .| chunking partSize
         .| fix mkCompletedPart
         .| Conduit.sinkList
-      void . runResourceT $ send s3.env
+      void $ send s3.env
             (Amazonka.newCompleteMultipartUpload bucket key uploadId)
               { multipartUpload = Just (CompletedMultipartUpload' (Just (NonEmpty.fromList completedParts)))
               }
@@ -328,7 +328,7 @@ mv s3@S3Backend { targetId } cpPairs = do
       let bucket  = BucketName s3.bucket
           destKey = ObjectKey (coerce Text.pack dst)
           request = Amazonka.newCopyObject bucket (coerce Text.pack src) destKey
-      resp <- runResourceT $ send s3.env request
+      resp <- send s3.env request
       case resp.copyObjectResult of
         Just _ -> do
           cacheDelete (SomeCacheKey (createCacheKey @"dir" @[FileInfo] targetId (Builder.string8 (coerce takeDirectory src))))
@@ -354,7 +354,7 @@ delete' :: Target S3 -> AbsPath -> Filehub ()
 delete' s3@S3Backend { targetId } filePath = do
   let bucket = BucketName s3.bucket
       key    = ObjectKey (coerce Text.pack filePath)
-  void . runResourceT $ send s3.env (Amazonka.newDeleteObject bucket key)
+  void $ send s3.env (Amazonka.newDeleteObject bucket key)
   cacheDelete (SomeCacheKey (createCacheKey @"file" @FileInfo targetId (coerce Builder.string8 filePath)))
   cacheDelete (SomeCacheKey (createCacheKey @"dir" @[FileInfo] targetId ""))
 
@@ -369,7 +369,7 @@ ls s3@S3Backend { targetId } _ = do
         let bucket  = BucketName s3.bucket
             request = Amazonka.newListObjectsV2 bucket
                     & Amazonka.listObjectsV2_prefix ?~ Text.pack "" -- root
-        resp <- runResourceT $ send s3.env request
+        resp <- send s3.env request
         let files  = maybe [] (fmap toFile) $ resp ^. Amazonka.listObjectsV2Response_contents
             dirs   = maybe [] (fmap toDir)  $ resp ^. Amazonka.listObjectsV2Response_commonPrefixes
             result = files <> dirs
