@@ -154,6 +154,7 @@ library
     Control.Handle.Cache
     Control.Handle.EvtLog
     Control.Handle.LockManager
+    Control.Handle.Storage
     Control.Service.Cache
     Control.Service.LockManager
     Data.ClientPath
@@ -185,7 +186,6 @@ library
     Filehub.Orphan
     Filehub.QQ
     Filehub.Routes
-    Filehub.Selected
     Filehub.Server
     Filehub.Server.File
     Filehub.Server.Login
@@ -194,18 +194,17 @@ library
     Filehub.Server.UI.Mobile
     Filehub.Server.Util
     Filehub.Session
+    Filehub.Session.Handle
     Filehub.Session.Copy
     Filehub.Session.Internal
     Filehub.Session.Pool
+    Filehub.Session.Target
     Filehub.Session.Selected
     Filehub.Session.Types
     Filehub.Session.Types.SessionId
     Filehub.SharedLink
     Filehub.Size
     Filehub.Sort
-    Filehub.Storage.Dummy
-    Filehub.Storage.File
-    Filehub.Storage.S3
     Filehub.Template
     Filehub.Template.Desktop
     Filehub.Template.Login
@@ -222,10 +221,11 @@ library
     Network.Wai.Middleware.Filehub
     Paths_filehub
     System.FilePath.Extended
+    Storage.S3
+    Storage.File
     Target.Dummy
     Target.File
     Target.S3
-    Target.Storage
     Target.Types
     Text.Debug
     Worker.Pool

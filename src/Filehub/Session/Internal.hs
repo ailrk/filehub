@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -Wno-deferred-out-of-scope-variables #-}
 module Filehub.Session.Internal
   ( createSession
   , extendSession
@@ -6,26 +5,28 @@ module Filehub.Session.Internal
   )
   where
 
+import Control.Monad.Reader (asks)
+import Data.ClientPath (AbsPath(..), Root(..))
 import Data.Coerce (coerce)
 import Data.Functor ((<&>))
+import Data.Map.Strict qualified as Map
 import Data.Maybe (fromMaybe)
 import Data.Set qualified as Set
 import Data.Time (UTCTime, addUTCTime, NominalDiffTime)
 import Data.Time qualified as Time
 import Data.Typeable (cast)
 import Data.UUID.V4 qualified as UUID
-import Filehub.Types (Session(..), SessionId(..), Env(..), TargetSessionData (..), CopyState (..), Selected (..), SortFileBy(..), Layout(..))
+import Filehub.Monad (Filehub)
+import Filehub.Session.Types (Session(..), TargetSessionData(..), Selected (..), CopyState (..), Layout (..))
+import Filehub.Session.Types.SessionId (SessionId(..))
+import Filehub.Types (SortFileBy (..), Env(..))
 import Filehub.UserAgent qualified as UserAgent
 import Options.Applicative (asum)
 import Target.File (FileSys, Target(..))
 import Target.S3 (S3)
 import Target.Types (AnyTarget (..))
-import Control.Monad.Reader (asks)
 import UnliftIO (MonadIO(..))
 import UnliftIO.STM (newTBQueueIO, newTVarIO, readTVarIO)
-import Data.Map.Strict qualified as Map
-import Data.ClientPath (AbsPath(..), Root(..))
-import Filehub.Monad (Filehub)
 
 
 createSessionId :: Filehub SessionId

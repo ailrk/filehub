@@ -7,14 +7,9 @@ module Filehub.Template
   )
   where
 
-import Filehub.Locale ( Locale )
-import Filehub.Sort ( SortFileBy )
-import Filehub.Types
-    ( Display(..),
-      ControlPanelState(..),
-      Env,
-      Layout,
-      Selected )
+import Filehub.Locale (Locale)
+import Filehub.Sort (SortFileBy)
+import Filehub.Types (Display(..), Env)
 import Lens.Micro.Platform ()
 import Filehub.Session (TargetView(..), SessionId)
 import Filehub.Theme (Theme)
@@ -27,6 +22,7 @@ import Filehub.Session qualified as Session
 import Data.Functor.Identity (Identity)
 import Control.Monad.Reader (ReaderT, runReader, asks, MonadReader (..))
 import Filehub.Monad (Filehub)
+import Filehub.Session.Types (Selected, Layout, ControlPanelState)
 
 
 -- | A Template context type that capture all useful information to render

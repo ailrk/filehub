@@ -38,14 +38,14 @@ import Data.Time.Format (formatTime, defaultTimeLocale)
 import Filehub.Links ( apiLinks, linkToText )
 import Filehub.Locale (Locale(..), Phrase (..), phrase)
 import Filehub.Routes (Api(..))
-import Filehub.Selected qualified as Selected
+import Filehub.Session.Selected qualified as Selected
 import Filehub.Session (TargetView(..))
 import Filehub.Size (toReadableSize)
 import Filehub.Template (Template, TemplateContext(..), runTemplate)
 import Filehub.Template.Shared (bold, sideBarId, viewId, searchBar, tableId)
 import Filehub.Template.Shared qualified as Template
 import Filehub.Theme (Theme (..))
-import Filehub.Types (Layout(..), SortFileBy(..))
+import Filehub.Types (SortFileBy(..))
 import Lens.Micro.Platform ()
 import Lucid
 import Network.Mime.Extended (isMime)
@@ -59,6 +59,7 @@ import Data.Coerce (coerce)
 import Control.Monad.Reader (asks, MonadReader (..))
 import Data.ClientPath.View (ClientPathView(..), AsClientPathView (..))
 import Lucid.Htmx (hxGet, hxTarget, hxSwap, Swap (..), hxEncoding, hxPost, hxTrigger, Trigger (..), hxDelete, hxConfirm)
+import Filehub.Session.Types (Layout(..))
 
 
 ------------------------------------

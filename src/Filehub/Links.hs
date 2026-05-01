@@ -17,11 +17,12 @@ import Data.Text qualified as Text
 import Data.UUID qualified as UUID
 import Filehub.Locale (Locale(..))
 import Filehub.Routes (Api(..))
-import Filehub.Types (ClientPath (..), SortFileBy (..), OpenTarget (..), Layout(..))
+import Filehub.Types (ClientPath (..), SortFileBy (..), OpenTarget (..))
 import Network.URI qualified as URI
 import Servant (Link)
 import Servant.Links ( AsLink, allFieldLinks, linkURI )
 import Target.Types (TargetId(..))
+import Filehub.Session.Types (Layout(..))
 
 
 apiLinks :: Api (AsLink Link)

@@ -1,6 +1,9 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Filehub.Session.Selected
-  ( setSelected
+  ( elem
+  , toList
+  , fromList
+  , setSelected
   , anySelected
   , clearSelected
   , clearSelectedAllTargets
@@ -8,17 +11,47 @@ module Filehub.Session.Selected
   )
   where
 
+import Control.Monad.Reader (asks)
+import Data.ClientPath (ClientPath)
+import Data.Map.Strict qualified as Map
+import Data.Maybe (catMaybes)
+import Filehub.Monad (Filehub)
 import Filehub.Session.Pool qualified as Session.Pool
-import Filehub.Types (Env(..), SessionId, Session(..), Selected(..), TargetSessionData (..))
+import Filehub.Types (Env(..), SessionId, Session(..), TargetSessionData (..))
 import Lens.Micro hiding (to)
 import Lens.Micro.Platform ()
 import Prelude hiding (elem)
 import Target.Types (AnyTarget)
-import Filehub.Monad (Filehub)
-import Data.Map.Strict qualified as Map
-import Data.Maybe (catMaybes)
 import UnliftIO.STM (readTVarIO)
-import Control.Monad.Reader (asks)
+import Filehub.Session.Types (Selected(..))
+import Prelude qualified
+import Data.List (union)
+
+
+toList :: Selected -> [ClientPath]
+toList NoSelection = mempty
+toList (Selected x xs) = x:xs
+
+
+fromList :: [ClientPath] -> Selected
+fromList (x:xs) = Selected x xs
+fromList []     = NoSelection
+
+
+elem :: ClientPath -> Selected -> Bool
+elem _ NoSelection        = False
+elem path (Selected x xs) = path == x || path `Prelude.elem` xs
+
+
+newtype AsSet = AsSet Selected
+
+
+instance Semigroup AsSet where
+  (AsSet a) <> (AsSet b) = AsSet (fromList (toList a `union` toList b))
+
+
+instance Monoid AsSet where
+  mempty = AsSet NoSelection
 
 
 setSelected :: SessionId -> Selected -> Filehub ()

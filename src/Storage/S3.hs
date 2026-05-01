@@ -13,7 +13,7 @@
 -- when reading data, we first try to read from the cache. if it's a miss, we then
 -- perform the full read, then cache the result.
 -- When updating, we first delete the cache, then write the full update.
-module Filehub.Storage.S3 (storage) where
+module Storage.S3 where
 
 import Amazonka (send, runResourceT, toBody, ResponseBody (..), RequestBody)
 import Amazonka.Data qualified as Amazonka
@@ -39,7 +39,6 @@ import Data.ByteString.Builder (Builder)
 import Data.ByteString.Builder qualified as Builder
 import Data.ByteString.Lazy qualified as LBS
 import Data.ClientPath (AbsPath (..))
-import Data.ClientPath (fromClientPath)
 import Data.Coerce (coerce)
 import Data.Conduit
 import Data.File (File (..), FileType (..), FileInfo, FileWithContent, FileContent (..), defaultFileWithContent, IsLink (..))
@@ -55,9 +54,6 @@ import Data.Text.Encoding qualified as Text
 import Data.Time (secondsToNominalDiffTime)
 import Filehub.Error
 import Filehub.Monad (Filehub)
-import Filehub.Session qualified as Session
-import Filehub.Session.Types (TargetView(..))
-import Filehub.Types (SessionId)
 import GHC.TypeLits (Symbol)
 import Lens.Micro
 import Lens.Micro.Platform ()
@@ -70,86 +66,13 @@ import Servant.Multipart (Mem, FileData (..))
 import System.FilePath (takeDirectory, (</>))
 import System.IO.Temp qualified as Temp
 import Target.S3 (Target(..), S3)
-import Target.Storage (Storage(..))
-import Target.Types (TargetId, handleTarget, targetHandler)
+import Target.Types (TargetId)
 import Target.Types qualified as Target
 import UnliftIO (MonadIO (..), throwIO)
 import UnliftIO.Async (forConcurrently_)
 import UnliftIO.Directory (removeFile)
 import Amazonka.S3.GetObject (GetObject(..))
 import Data.ByteString.Char8 qualified as Char8
-
-
-storage :: SessionId -> Storage Filehub
-storage sessionId =
-  Storage
-    { get = \path -> do
-        s3 <- getS3 sessionId
-        get s3 path
-
-    , read = \file -> do
-        s3 <- getS3 sessionId
-        read s3 file
-
-    , readStream = \file mOff mMax -> do
-        s3 <- getS3 sessionId
-        readStream s3 file mOff mMax
-
-    , write = \fileWithContent -> do
-        s3 <- getS3 sessionId
-        write s3 fileWithContent
-
-    , mv = \mvPairs -> do
-        s3 <- getS3 sessionId
-        mv s3 mvPairs
-
-    , rename = \o n -> do
-        s3 <- getS3 sessionId
-        rename s3 o n
-
-    , delete = \filePath -> do
-        s3 <- getS3 sessionId
-        delete s3 filePath
-
-    , new = \filePath -> do
-        s3 <- getS3 sessionId
-        new s3 filePath
-
-    , newFolder = \_ -> pure (error "not supported")
-
-    , ls = \filePath -> do
-        s3 <- getS3 sessionId
-        ls s3 filePath
-
-    , cd = \_ -> pure ()
-
-    , lsCwd = do
-        s3 <- getS3 sessionId
-        lsCwd s3
-
-    , upload = \filedata -> do
-        s3 <- getS3 sessionId
-        upload s3 filedata
-
-    , download = \clientPath -> do
-        root     <- Session.get sessionId (.root)
-        s3       <- getS3 sessionId
-        let path =  fromClientPath root clientPath
-        download s3 path
-    , isDirectory = \filePath -> do
-        s3 <- getS3 sessionId
-        isDirectory s3 filePath
-    }
-
-
-getS3 :: SessionId -> Filehub (Target S3)
-getS3 sessionId = do
-  TargetView target _ <- Session.get sessionId (.currentTarget)
-  maybe (throwIO (FilehubError TargetError "Target is not valid S3 bucket")) pure $ handleTarget target
-    [ targetHandler @S3 id
-    ]
-
-
 
 
 class CacheKeyComponent (s :: Symbol) a              where toCacheKeyComponent :: Builder

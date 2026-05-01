@@ -67,6 +67,7 @@ import Filehub.Sort qualified as Sort
 import Data.List qualified as List
 import Data.Text.Encoding qualified as Text
 import Lucid.Htmx (HxSwapOOB(..))
+import Filehub.Session.Types (Selected (..), Layout (..))
 
 
 -- | Completely reset all state machines. This should be the only place to reset state.

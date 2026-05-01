@@ -16,17 +16,16 @@ import Data.Function (on)
 import Data.List (nub)
 import Data.String.Interpolate (i)
 import Filehub.Error (FilehubError (..), Error' (..))
-import Filehub.Session (Storage(..), withTarget)
-import Filehub.Session (SessionGet(..))
-import Filehub.Session qualified as Session
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Session.Selected qualified as Selected
-import Filehub.Types (CopyState(..), SessionId, Selected (..))
 import Lens.Micro hiding (to)
 import Target.Types qualified as Target
 import Filehub.Monad (Filehub)
 import Log (logAttention_)
 import UnliftIO (throwIO)
+import Filehub.Session.Types (Selected(..), SessionId, CopyState (..), SessionGet(..), Storage(..))
+import Filehub.Session.Target (withTarget)
+import {-# SOURCE #-} Filehub.Session.Handle (get)
 
 
 getCopyState :: SessionId -> Filehub CopyState
@@ -47,7 +46,7 @@ select sessionId = do
   allSelecteds <- Selected.allSelecteds sessionId
   forM_ allSelecteds \(target, selected) -> do
     withTarget sessionId target do
-      storage <- Session.get sessionId (.storage)
+      storage <- get sessionId (.storage)
       case selected of
         NoSelection -> do
           state <- getCopyState sessionId
@@ -58,7 +57,7 @@ select sessionId = do
               logAttention_ [i|[asckkk] #{err}|]
               throwIO err
         Selected x xs -> do
-          root <- Session.get sessionId (.root)
+          root <- get sessionId (.root)
           let paths = (x:xs) & fmap (ClientPath.fromClientPath root)
           files <- traverse storage.get paths
           state <- getCopyState sessionId

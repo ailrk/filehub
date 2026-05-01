@@ -83,7 +83,7 @@ import Filehub.Template.Login qualified as Template.Login
 import Filehub.Template.Mobile qualified as Template.Mobile
 import Filehub.Template.Shared qualified as Template
 import Filehub.Theme qualified as Theme
-import Filehub.Types ( ControlPanelState (..) , Display (..) , Layout (..) , LoginForm(..) , NewFile(..) , NewFolder(..) , OpenTarget , Resolution , SearchWord , Selected (..) , SortFileBy(..) , Theme(..) , UIComponent (..) , UpdatedFile(..) , UpdatedFile(..) , FilehubEvent (..), RenameFile (..), CopyState (..), TargetSessionData (..), Selected(..), MoveFile (..), Resource (..))
+import Filehub.Types (Display (..), LoginForm(..), NewFile(..), NewFolder(..), OpenTarget, Resolution, SearchWord, SortFileBy(..), Theme(..), UIComponent (..), UpdatedFile(..), FilehubEvent (..), RenameFile (..), TargetSessionData (..), MoveFile (..), Resource (..))
 import Lens.Micro ((&), (.~), (?~), (<&>))
 import Lucid hiding (for_)
 import Lucid (Html)

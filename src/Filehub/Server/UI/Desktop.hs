@@ -12,13 +12,13 @@ module Filehub.Server.UI.Desktop
   where
 
 import Data.ClientPath qualified as ClientPath
-import Filehub.Session.Types (TargetSessionData(..))
+import Filehub.Session.Types (TargetSessionData(..), Selected (..))
 import Filehub.Session qualified as Session
 import Filehub.Sort (sortFiles)
 import Filehub.Template.Desktop qualified as Template.Desktop
 import Filehub.Server.Util (withQueryParam)
 import Filehub.Template (TemplateContext(..), runTemplate, makeTemplateContext)
-import Filehub.Types ( SessionId(..), ClientPath, Selected(..))
+import Filehub.Types ( SessionId(..), ClientPath)
 import Lucid
 import Prelude hiding (readFile)
 import System.FilePath (takeFileName)

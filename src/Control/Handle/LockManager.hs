@@ -11,7 +11,6 @@ data LockManager m = LockManager
   }
 
 
-
 makeLocalLockManager :: MonadUnliftIO m => Local.LockManager -> LockManager m
 makeLocalLockManager lkm =
   LockManager

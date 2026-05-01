@@ -1,4 +1,5 @@
-module Target.Storage where
+module Control.Handle.Storage where
+
 
 import Conduit (ResourceT)
 import Data.File (FileInfo, FileWithContent)

@@ -31,7 +31,7 @@ import Filehub.Session qualified as Session
 import Filehub.Session (SessionGet(..))
 import Filehub.Session.Copy qualified as Copy
 import Filehub.Session.Selected qualified as Selected
-import Filehub.Types ( NewFile(..) , NewFolder(..)    , Selected (..)    , UpdatedFile(..) , UpdatedFile(..) , FilehubEvent (..), RenameFile (..), CopyState (..), TargetSessionData (..), Selected(..), MoveFile (..), Env)
+import Filehub.Types ( NewFile(..) , NewFolder(..), UpdatedFile(..) , UpdatedFile(..) , FilehubEvent (..), RenameFile (..), TargetSessionData (..), MoveFile (..), Env)
 import Lens.Micro ((.~))
 import Lucid hiding (for_)
 import Prelude hiding (init, readFile)
@@ -58,6 +58,7 @@ import Filehub.Sort qualified as Sort
 import Data.ClientPath.View (ClientPathView(..), asClientPathView)
 import Data.Text (Text)
 import Lucid.Htmx (HxSwapOOB(..), Swap (..), hxOn, Trigger (..))
+import Filehub.Session.Types (Selected(..), CopyState (..))
 
 
 cd :: SessionId -> ConfirmLogin -> Maybe ClientPath -> Filehub (Headers '[ Header "HX-Trigger-After-Swap" FilehubEvent ] (Html ()))

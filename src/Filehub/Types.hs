@@ -11,10 +11,6 @@ module Filehub.Types
   ( LoginForm(..)
   , Session(..)
   , TargetSessionData(..)
-  , Selected(..)
-  , CopyState(..)
-  , ControlPanelState(..)
-  , Layout(..)
   , SessionId(..)
   , Env(..)
   , Resolution(..)
@@ -40,7 +36,6 @@ module Filehub.Types
 import Data.Aeson (ToJSON (..), (.=), Value)
 import Data.Aeson qualified as Aeson
 import Data.ClientPath (ClientPath(..), RawClientPath(..))
-import Data.File (FileInfo)
 import Data.Text (Text)
 import Data.Text.Lazy.Encoding qualified as LText
 import Filehub.Display (Display(..), Resolution(..))
@@ -54,9 +49,7 @@ import Lens.Micro
 import Lens.Micro.Platform ()
 import Servant ( ToHttpApiData(..), FromHttpApiData(..), Accept (..), MimeRender )
 import Servant.API (MimeRender(..))
-import Target.Types (AnyTarget (..))
 import Web.FormUrlEncoded (FromForm (..), parseUnique, ToForm (..), parseAll)
-import Text.Debug (Debug(..))
 
 
 -- | Simple Auth login form
@@ -78,57 +71,6 @@ instance ToForm LoginForm where
         [ ("username", toQueryParam username)
         , ("password", toQueryParam password)
         ]
-
-
--- | The state of the control panel.
-data ControlPanelState
-  = ControlPanelDefault
-  | ControlPanelSelecting
-  | ControlPanelCopied
-  deriving (Show, Eq)
-
-
--- | The table layout of a session
-data Layout
-  = ThumbnailLayout
-  | ListLayout
-  deriving (Show, Eq)
-
-
-instance ToHttpApiData Layout where
-  toUrlPiece ThumbnailLayout = "ThumbnailLayout"
-  toUrlPiece ListLayout      = "ListLayout"
-
-
-instance FromHttpApiData Layout where
-  parseUrlPiece "ThumbnailLayout" = pure ThumbnailLayout
-  parseUrlPiece "ListLayout"      = pure ListLayout
-  parseUrlPiece _                 = Left "Unknown layout"
-
-
--- | State machine reprents the copy and paste process.
-data CopyState
- -- | Ready to paste
-  = CopySelected [(AnyTarget, [FileInfo])]
-  -- | Start pasting files to target path
-  | Paste [(AnyTarget, [FileInfo])]
-  -- | No copy paste action being performed at the moment.
-  | NoCopyPaste
-  deriving (Generic, Debug)
-
-
-data Selected
-  = Selected ClientPath [ClientPath] -- non empty list
-  | NoSelection
-  deriving (Show, Eq, Generic, Debug)
-
-
-instance FromForm Selected where
-  fromForm f = do
-    selected <- parseAll "selected" f
-    case selected of
-      []   -> pure NoSelection
-      x:xs -> pure $ Selected x xs
 
 
 newtype SearchWord = SearchWord Text deriving (Show, Eq, Generic)

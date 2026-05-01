@@ -25,7 +25,7 @@ import Data.Time.Format (formatTime, defaultTimeLocale)
 import Filehub.Links ( apiLinks, linkToText )
 import Filehub.Locale (Phrase(..), phrase, Locale (..))
 import Filehub.Routes (Api(..))
-import Filehub.Selected qualified as Selected
+import Filehub.Session.Selected qualified as Selected
 import Filehub.Size (toReadableSize)
 import Filehub.Template (Template, TemplateContext(..), runTemplate)
 import Filehub.Template.Shared qualified as Template

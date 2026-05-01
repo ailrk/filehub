@@ -14,7 +14,7 @@
 -- when reading data, we first try to read from the cache. if it's a miss, we then
 -- perform the full read, then cache the result.
 -- When updating, we first delete the cache, then write the full update.
-module Filehub.Storage.File (storage) where
+module Storage.File where
 
 import Cache.Key (CacheKey, SomeCacheKey (..))
 import Codec.Archive.Zip qualified as Zip
@@ -46,9 +46,6 @@ import Data.Text.Encoding qualified as Text
 import Data.Time (secondsToNominalDiffTime)
 import Filehub.Error (FilehubError(..), Error' (..))
 import Filehub.Monad (Filehub)
-import Filehub.Session qualified as Session
-import Filehub.Session.Types (TargetView(..))
-import Filehub.Types (SessionId)
 import GHC.TypeLits (Symbol)
 import Lens.Micro.Platform ()
 import Lens.Micro.Platform ()
@@ -62,59 +59,11 @@ import System.FilePath ((</>), takeDirectory, takeFileName)
 import System.IO.Error (isDoesNotExistError)
 import System.IO.Temp qualified as Temp
 import Target.File (Target(..), FileSys)
-import Target.Storage (Storage(..))
-import Target.Types (handleTarget, targetHandler)
 import UnliftIO (MonadIO (..), tryIO, IOException, Handler (..), catch, withFile, IOMode (..), hClose, withTempFile, SomeException)
 import UnliftIO (throwIO)
 import UnliftIO.Async (forConcurrently_)
-import UnliftIO.Directory (doesDirectoryExist, pathIsSymbolicLink)
-import UnliftIO.Directory (removeFile, makeAbsolute, getFileSize, getAccessTime, getModificationTime, doesPathExist, doesFileExist, createDirectoryIfMissing, renameFile, copyFile, listDirectory, removeDirectoryRecursive, withCurrentDirectory)
+import UnliftIO.Directory (doesDirectoryExist, pathIsSymbolicLink, removeFile, makeAbsolute, getFileSize, getAccessTime, getModificationTime, doesPathExist, doesFileExist, createDirectoryIfMissing, renameFile, copyFile, listDirectory, removeDirectoryRecursive, withCurrentDirectory)
 import UnliftIO.Retry (recovering, limitRetries, exponentialBackoff)
-
-
-cd :: SessionId -> AbsPath -> Filehub ()
-cd sessionId dir = do
-  exists <- doesDirectoryExist (coerce dir)
-  unless exists do
-    logAttention "[nmb224] dir doesn't exists:" dir
-    throwIO (FilehubError InvalidDir "Can't enter, not a directory")
-  Session.set sessionId (.currentDir) dir
-
-
-storage :: SessionId -> Storage Filehub
-storage sessionId =
-  Storage
-    { get         = get
-    , read        = read
-    , readStream  = readStream
-    , ls          = ls
-    , cd          = cd sessionId
-    , isDirectory = isDirectory
-    , write       = write
-    , mv          = mv
-    , rename      = rename
-    , delete      = delete
-    , new         = new
-    , newFolder   = newFolder
-    , lsCwd       = do
-                      currentDir <- Session.get sessionId (.currentDir)
-                      lsCwd currentDir
-    , upload      = \filedata -> do
-                      currentDir <- Session.get sessionId (.currentDir)
-                      upload currentDir filedata
-    , download    = \clientPath -> do
-                      fileSys <- getFileSys sessionId
-                      download fileSys clientPath
-    }
-
-
-
-getFileSys :: SessionId -> Filehub (Target FileSys)
-getFileSys sessionId = do
-  TargetView target _ <- Session.get sessionId (.currentTarget)
-  maybe (throwIO (FilehubError TargetError "Target is not valid file system direcotry")) pure $ handleTarget target
-    [ targetHandler @FileSys id
-    ]
 
 
 class CacheKeyComponent (s :: Symbol) a              where toCacheKeyComponent :: Builder

@@ -62,13 +62,11 @@ import Servant.Server.Experimental.Auth (AuthServerData)
 import Prelude hiding (readFile)
 import Filehub.Types
     ( ClientPath(..)
-    , Layout(..)
     , NewFile(..)
     , NewFolder(..)
     , SearchWord(..)
     , SortFileBy(..)
     , UpdatedFile(..)
-    , Selected(..)
     , FilehubEvent(..)
     , SessionId
     , Resolution(..)
@@ -89,6 +87,7 @@ import Filehub.Locale (Locale)
 import Target.Types (TargetId)
 import Filehub.Notification.Types (Notification)
 import Filehub.SharedLink (SharedLinkHash, SharedLinkPermit)
+import Filehub.Session.Types (Selected, Layout)
 
 
 type instance AuthServerData (AuthProtect "session")      = SessionId

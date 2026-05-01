@@ -37,7 +37,6 @@ import Filehub.Routes (Api (..))
 import Filehub.Sort ( sortFiles )
 import Filehub.Types
     ( Display(..),
-      ControlPanelState(..),
       OpenTarget(..),
       SearchWord(..) )
 import Lens.Micro
@@ -54,6 +53,7 @@ import Filehub.Template (Template, TemplateContext(..))
 import Data.Coerce (coerce)
 import Control.Monad.Reader (asks)
 import Lucid.Htmx (Swap(..), HxSwap (..), hxTarget, hxGet, HxTrigger (..), HxPost (..))
+import Filehub.Session.Types (ControlPanelState(..))
 
 
 -- | The bootstrap page is used to detect the client's device  information.
