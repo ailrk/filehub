@@ -7,22 +7,22 @@ module Filehub.Template
   )
   where
 
+import Control.Monad.Reader (ReaderT, runReader, asks, MonadReader (..))
+import Data.ClientPath (AbsPath, Root)
+import Data.Functor.Identity (Identity)
+import Filehub.Auth.Types.OIDC (OIDCAuthProviders)
+import Filehub.Auth.Types.Simple (SimpleAuthUserDB)
+import Filehub.Env qualified as Env
 import Filehub.Locale (Locale)
+import Filehub.Monad (Filehub)
+import Filehub.Session (SessionGet(..))
+import Filehub.Session (TargetView(..), SessionId)
+import Filehub.Session qualified as Session
+import Filehub.Session.Types (Selected, Layout, ControlPanelState)
 import Filehub.Sort (SortFileBy)
+import Filehub.Theme (Theme)
 import Filehub.Types (Display(..), Env)
 import Lens.Micro.Platform ()
-import Filehub.Session (TargetView(..), SessionId)
-import Filehub.Theme (Theme)
-import Filehub.Auth.Simple (SimpleAuthUserDB)
-import Filehub.Auth.OIDC (OIDCAuthProviders)
-import Filehub.Env qualified as Env
-import Data.ClientPath (AbsPath, Root)
-import Filehub.Session (SessionGet(..))
-import Filehub.Session qualified as Session
-import Data.Functor.Identity (Identity)
-import Control.Monad.Reader (ReaderT, runReader, asks, MonadReader (..))
-import Filehub.Monad (Filehub)
-import Filehub.Session.Types (Selected, Layout, ControlPanelState)
 
 
 -- | A Template context type that capture all useful information to render

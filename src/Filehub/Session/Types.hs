@@ -24,10 +24,12 @@ import Data.Map.Strict (Map)
 import Data.Set (Set)
 import Data.Time (UTCTime)
 import Filehub.Auth.Types (AuthId)
+import Filehub.Auth.Types.OIDC (SomeOIDCFlow)
 import Filehub.Display (Resolution, Display)
 import Filehub.Locale (Locale)
 import Filehub.Notification.Types (Notification(..))
 import Filehub.Session.Types.SessionId (SessionId(..))
+import Filehub.SharedLink (SharedLinkPermitSet)
 import Filehub.Sort (SortFileBy)
 import Filehub.Theme (Theme)
 import Filehub.UserAgent (DeviceType)
@@ -39,8 +41,6 @@ import UnliftIO (TBQueue, TVar)
 import Web.FormUrlEncoded (FromForm, parseAll)
 import Web.Internal.FormUrlEncoded (FromForm(..))
 import Worker.Task (TaskId)
-import {-# SOURCE #-} Filehub.Auth.OIDC (SomeOIDCFlow)
-import {-# SOURCE #-} Filehub.SharedLink (SharedLinkPermitSet)
 
 
 data Session = Session
@@ -107,6 +107,21 @@ data SessionSet m = SessionSet
   }
 
 
+------------------------------
+-- Session Pool
+
+
+data Pool = Pool
+  { pool :: BasicHashTable SessionId Session
+  , gc   :: Timer.TimerIO
+  -- ^ garbage collector, periodically clean up expired sessions.
+  }
+
+
+------------------------------
+-- UI State
+
+
 data Selected
   = Selected ClientPath [ClientPath] -- non empty list
   | NoSelection
@@ -158,6 +173,10 @@ data ControlPanelState
   deriving (Show, Eq)
 
 
+------------------------------
+-- Target View
+
+
 data TargetView = TargetView
   { target      :: AnyTarget
   , sessionData :: TargetSessionData
@@ -173,8 +192,4 @@ data TargetSessionData = TargetSessionData
   deriving (Generic, Debug)
 
 
-data Pool = Pool
-  { pool :: BasicHashTable SessionId Session
-  , gc   :: Timer.TimerIO
-  -- ^ garbage collector, periodically clean up expired sessions.
-  }
+

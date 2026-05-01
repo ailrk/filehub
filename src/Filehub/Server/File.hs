@@ -1,5 +1,21 @@
 {-# LANGUAGE NamedFieldPuns #-}
-module Filehub.Server.File (cd, delete, rename, newFile, updateFile, newFolder, copy, copy1, paste, move, download, upload, serve) where
+{-# LANGUAGE MultiWayIf #-}
+module Filehub.Server.File
+  ( cd
+  , delete
+  , rename
+  , newFile
+  , updateFile
+  , newFolder
+  , copy
+  , copy1
+  , paste
+  , move
+  , download
+  , upload
+  , serve
+  , thumbnail
+  ) where
 
 import Codec.Archive.Zip qualified as Zip
 import Conduit (ConduitT, ResourceT, MonadIO (..), runResourceT, runConduit, (.|))
@@ -59,6 +75,8 @@ import Data.ClientPath.View (ClientPathView(..), asClientPathView)
 import Data.Text (Text)
 import Lucid.Htmx (HxSwapOOB(..), Swap (..), hxOn, Trigger (..))
 import Filehub.Session.Types (Selected(..), CopyState (..))
+import Network.Mime.Extended (isMime)
+import Data.ByteString.Char8 qualified as ByteString
 
 
 cd :: SessionId -> ConfirmLogin -> Maybe ClientPath -> Filehub (Headers '[ Header "HX-Trigger-After-Swap" FilehubEvent ] (Html ()))
@@ -567,3 +585,30 @@ serve env sessionId _ = Tagged $ \req respond -> do
               runResourceT . runConduit
                 $ stream
                 .| Conduit.mapM_C \chunk -> liftIO do send (Builder.fromByteString chunk); flush
+
+
+thumbnail :: SessionId -> ConfirmLogin -> Maybe ClientPath
+          -> Filehub (Headers '[ Header "Content-Type" String
+                               , Header "Content-Disposition" String
+                               , Header "Cache-Control" String
+                               ]
+                               (ConduitT () ByteString (ResourceT IO) ()))
+thumbnail sessionId _ mFile = do
+  root       <- Session.get sessionId (.root)
+  storage    <- Session.get sessionId (.storage)
+  clientPath <- withQueryParam mFile
+  let path   =  ClientPath.fromClientPath root clientPath
+  file       <- storage.get path
+  conduit    <- serveOriginal storage file
+
+  pure
+    . addHeader (ByteString.unpack file.mimetype)
+    . addHeader (printf "inline; filename=%s" (coerce takeFileName path :: String))
+    . addHeader "public, max-age=31536000, immutable"
+    $ conduit
+
+  where
+    serveOriginal storage file =
+      if
+        | file.mimetype `isMime` "image" -> storage.readStream file Nothing Nothing
+        | otherwise                      -> throwIO (FilehubError FormatError "Invalid mime type for thumbnail")

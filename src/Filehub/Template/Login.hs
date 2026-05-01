@@ -1,20 +1,20 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Filehub.Template.Login (login, login', loginFailed) where
 
-import Lucid
-import Data.Text (Text)
-import Filehub.Auth.OIDC (OIDCAuthProviders(..))
-import Filehub.Auth.OIDC qualified as Auth.OIDC
-import Filehub.Template (Template, TemplateContext(..))
 import Control.Monad (when)
-import Data.Foldable (forM_)
-import Filehub.Locale (Phrase(..), phrase, Locale (..))
-import Filehub.Links (linkToText, apiLinks)
-import Filehub.Routes (Api(..))
-import Filehub.Theme (Theme(..))
-import Data.Maybe (fromMaybe)
 import Control.Monad.Reader (asks)
+import Data.Foldable (forM_)
+import Data.Maybe (fromMaybe)
+import Data.Text (Text)
+import Filehub.Auth.Types.OIDC (OIDCAuthProviders(..), Provider(..))
+import Filehub.Links (apiLinks)
+import Filehub.Locale (Phrase(..), phrase, Locale (..))
+import Filehub.Routes (Api(..))
+import Filehub.Template (Template, TemplateContext(..))
+import Filehub.Theme (Theme(..))
+import Lucid
 import Lucid.Htmx (HxPost(..), hxTarget, HxSwap (..), Swap (..), hxGet)
+import Servant.Extended (linkToText)
 
 
 login :: Template (Html ())

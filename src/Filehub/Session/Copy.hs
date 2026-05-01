@@ -9,23 +9,23 @@ module Filehub.Session.Copy
   )
   where
 
-
+import Control.Handle.Storage (Storage(..))
 import Control.Monad (forM_)
 import Data.ClientPath qualified as ClientPath
 import Data.Function (on)
 import Data.List (nub)
 import Data.String.Interpolate (i)
 import Filehub.Error (FilehubError (..), Error' (..))
+import Filehub.Monad (Filehub)
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Session.Selected qualified as Selected
+import Filehub.Session.Types (Selected(..), SessionId, CopyState (..))
+import Filehub.Session.Types (SessionGet(..))
 import Lens.Micro hiding (to)
-import Target.Types qualified as Target
-import Filehub.Monad (Filehub)
 import Log (logAttention_)
+import Target.Types qualified as Target
 import UnliftIO (throwIO)
-import Filehub.Session.Types (Selected(..), SessionId, CopyState (..), SessionGet(..), Storage(..))
-import Filehub.Session.Target (withTarget)
-import {-# SOURCE #-} Filehub.Session.Handle (get)
+import {-# SOURCE #-} Filehub.Session.Handle (withTarget, get)
 
 
 getCopyState :: SessionId -> Filehub CopyState

@@ -14,7 +14,7 @@ import Data.Functor.Identity (Identity(..))
 import Data.String.Interpolate (i)
 import Data.Time (secondsToNominalDiffTime)
 import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
-import Filehub.Auth.OIDC (OIDCAuthProviders(..))
+import Filehub.Auth.Types.OIDC (OIDCAuthProviders(..))
 import Filehub.Auth.Simple qualified as Auth.Simple
 import Filehub.Config (Config(..), TargetConfig (..))
 import Filehub.Config qualified as Config

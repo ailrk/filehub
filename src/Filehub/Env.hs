@@ -17,15 +17,14 @@ import Data.Time (NominalDiffTime)
 import Filehub.ActiveUser.Types qualified as ActiveUser
 import Filehub.Locale (Locale)
 import Filehub.Session.Types qualified as Session
-import {-# SOURCE #-} Filehub.SharedLink (SharedLinkPool)
+import Filehub.SharedLink (SharedLinkPool)
 import Filehub.Theme (Theme, CustomTheme)
 import Lens.Micro.Platform ()
 import Log (Logger, LogLevel)
 import Network.HTTP.Client qualified as HTTP
 import Target.Types (AnyTarget, TargetId)
-import {-# SOURCE #-} Filehub.Auth.OIDC (OIDCAuthProviders(..))
-import {-# SOURCE #-} Filehub.Auth.Simple (SimpleAuthUserDB(..))
--- import EvtLog qualified
+import Filehub.Auth.Types.OIDC (OIDCAuthProviders(..))
+import Filehub.Auth.Types.Simple (SimpleAuthUserDB(..))
 import Control.Concurrent.STM (TVar)
 import Control.Handle.Cache (Cache)
 import Control.Handle.LockManager (LockManager)

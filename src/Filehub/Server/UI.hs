@@ -26,6 +26,7 @@ module Filehub.Server.UI
   , entry
   , initViewer
   , open
+  , cancel
   )
   where
 
@@ -273,3 +274,11 @@ open _ _ mTarget mClientPath = do
   clientPath <- withQueryParam mClientPath
   target     <- withQueryParam mTarget
   pure $ addHeader (Opened target clientPath) NoContent
+
+
+
+cancel :: SessionId -> ConfirmLogin -> Filehub (Headers '[Header "X-Filehub-Selected-Count" Int] (Html ()))
+cancel sessionId _ = do
+  clear sessionId
+  count <- length <$> Selected.allSelecteds sessionId
+  addHeader count <$> (pure do mempty)

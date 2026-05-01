@@ -5,15 +5,11 @@ module Filehub.Links
   ( sitemapLinks
   , sitemap
   , apiLinks
-  , linkToText
-  , linkToString
   )
   where
 
 import Data.Function ((&))
 import Data.Maybe (fromJust)
-import Data.Text (Text)
-import Data.Text qualified as Text
 import Data.UUID qualified as UUID
 import Filehub.Locale (Locale(..))
 import Filehub.Routes (Api(..))
@@ -65,11 +61,3 @@ sitemap = sitemapLinks
         & fmap linkURI
         & fmap (URI.uriToString id)
         & fmap (\s -> s "")
-
-
-linkToString :: Link -> String
-linkToString = ('/':) . (\s -> s "") . URI.uriToString id . linkURI
-
-
-linkToText :: Link -> Text
-linkToText = Text.pack . linkToString

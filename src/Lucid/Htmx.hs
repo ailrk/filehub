@@ -5,9 +5,9 @@ module Lucid.Htmx where
 import Data.Text (Text)
 import Lucid
 import Lucid.Base (makeAttribute)
-import Filehub.Links (linkToText)
 import Servant (Link)
 import Data.Text qualified as Text
+import Servant.Extended (linkToText)
 
 
 data Swap

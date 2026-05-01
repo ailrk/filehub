@@ -170,6 +170,8 @@ library
     Filehub.Auth.Simple
     Filehub.Auth.Types
     Filehub.Auth.Types.AuthId
+    Filehub.Auth.Types.OIDC
+    Filehub.Auth.Types.Simple
     Filehub.Config
     Filehub.Config.Options
     Filehub.Config.Toml
@@ -189,22 +191,28 @@ library
     Filehub.Server
     Filehub.Server.File
     Filehub.Server.Login
+    Filehub.Server.Notification
+    Filehub.Server.Search
+    Filehub.Server.SharedLink
+    Filehub.Server.Static
+    Filehub.Server.Static.QQ
     Filehub.Server.UI
     Filehub.Server.UI.Desktop
     Filehub.Server.UI.Mobile
     Filehub.Server.Util
     Filehub.Session
-    Filehub.Session.Handle
     Filehub.Session.Copy
+    Filehub.Session.Handle
     Filehub.Session.Internal
     Filehub.Session.Pool
-    Filehub.Session.Target
     Filehub.Session.Selected
     Filehub.Session.Types
     Filehub.Session.Types.SessionId
     Filehub.SharedLink
     Filehub.Size
     Filehub.Sort
+    Filehub.Storage.File
+    Filehub.Storage.S3
     Filehub.Template
     Filehub.Template.Desktop
     Filehub.Template.Login
@@ -218,11 +226,9 @@ library
     Lucid.Htmx
     Network.Mime.Extended
     Network.Wai.Middleware.Extended
-    Network.Wai.Middleware.Filehub
     Paths_filehub
+    Servant.Extended
     System.FilePath.Extended
-    Storage.S3
-    Storage.File
     Target.Dummy
     Target.File
     Target.S3

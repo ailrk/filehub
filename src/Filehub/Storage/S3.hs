@@ -13,7 +13,7 @@
 -- when reading data, we first try to read from the cache. if it's a miss, we then
 -- perform the full read, then cache the result.
 -- When updating, we first delete the cache, then write the full update.
-module Storage.S3 where
+module Filehub.Storage.S3 where
 
 import Amazonka (send, runResourceT, toBody, ResponseBody (..), RequestBody)
 import Amazonka.Data qualified as Amazonka

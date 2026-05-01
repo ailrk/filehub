@@ -50,6 +50,5 @@ module Filehub.Session
   where
 
 import Control.Handle.Storage (Storage(..))
-import Filehub.Session.Handle (set, get)
+import Filehub.Session.Handle (set, get, attachTarget, detachTarget, withTarget)
 import Filehub.Session.Types (SessionSet(..), SessionGet(..), TargetView(..), Session(..), SessionId(..))
-import Filehub.Session.Target (attachTarget, detachTarget, withTarget)

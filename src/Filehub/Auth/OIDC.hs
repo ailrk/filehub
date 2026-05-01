@@ -7,14 +7,7 @@
 --
 -- This module implements a OIDC client for filehub.
 module Filehub.Auth.OIDC
-  ( SomeOIDCFlow(..)
-  , OIDCFlow(..)
-  , Provider(..)
-  , OIDCAuthProviders(..)
-  , User(..)
-  , Authorization(..)
-  , AuthUrl(..)
-  , initialize
+  ( initialize
   , authorize
   , callback
   , exchangeToken
@@ -26,6 +19,7 @@ module Filehub.Auth.OIDC
   where
 
 import Control.Monad (replicateM, when)
+import Control.Monad.Reader (asks)
 import Crypto.Hash.SHA256 qualified as SHA256
 import Crypto.Number.Serialize (os2ip)
 import Crypto.PubKey.RSA qualified as RSA
@@ -40,18 +34,19 @@ import Data.String.Interpolate (i)
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
-import Data.Time (UTCTime)
 import Data.Time.Clock.POSIX qualified as Time
 import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
 import Filehub.ActiveUser.Types (ActiveUser(..))
 import Filehub.Auth.Types (AuthId, Auth (..), createAuthId)
-import Filehub.Env
+import Filehub.Auth.Types.OIDC
+import Filehub.Env (Env(..))
 import Filehub.Error (FilehubError (..), Error' (..))
+import Filehub.Monad (Filehub)
 import Filehub.Orphan ()
+import Filehub.Session qualified as Session
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Session.Types.SessionId (SessionId)
 import GHC.Generics (Generic)
-import GHC.Records (HasField(..))
 import Lens.Micro ((?~))
 import Lens.Micro.Platform ((^.), (.~))
 import Network.URI (URI(..), URIAuth(..), relativeTo)
@@ -66,156 +61,9 @@ import Servant.Links (safeLink)
 import System.Random (randomRIO)
 import UnliftIO (Exception (..), MonadIO (..), throwIO, try)
 import Web.FormUrlEncoded (ToForm)
-import Web.JWT (JWT, VerifiedJWT, JWTClaimsSet (..), JOSEHeader (..))
+import Web.JWT (JOSEHeader (..))
 import Web.JWT qualified as JWT
-import Text.Debug (Debug)
-import Filehub.Session qualified as Session
-import Filehub.Monad (Filehub)
-import Control.Monad.Reader (asks)
 
-
-newtype OIDCState    = OIDCState Text
-newtype CodeVerifier = CodeVerifier Text
-newtype AuthUrl      = AuthUrl URI
-newtype OIDCCode     = OIDCCode Text
-
-
-data Inited
-data AuthRequestPrepared
-data CallbackCalled
-data TokenExchanged
-data TokenVerified
-data SessionAuthenticated
-
-
--- | The OIDC stages
-data OIDCFlow s where
-  Inited               :: Provider -> OIDCFlow Inited
-  AuthRequestPrepared  :: Provider -> WellKnownConfig Identity -> OIDCState -> CodeVerifier -> AuthUrl -> OIDCFlow AuthRequestPrepared
-  CallbackCalled       :: Provider -> WellKnownConfig Identity -> CodeVerifier -> OIDCCode -> OIDCFlow CallbackCalled
-  TokenExchanged       :: WellKnownConfig Identity -> TokenUnverified -> OIDCFlow TokenExchanged
-  TokenVerified        :: Token -> OIDCFlow TokenVerified
-  SessionAuthenticated :: OIDCFlow SessionAuthenticated
-
-
-data SomeOIDCFlow = forall s . SomeOIDCFlow (OIDCFlow s)
-
-
--- | Unveried token from the IdP
-data TokenUnverified = TokenUnverified
-  { id_token      :: Text
-  , access_token  :: Maybe Text
-  , refresh_token :: Maybe Text
-  , expires_in    :: Int
-  , token_type    :: Text
-  }
-  deriving (Show, Eq, Generic)
-instance FromJSON TokenUnverified
-
-
--- | Verified Token from the IdP
-data Token = Token
-  { idToken      :: JWT VerifiedJWT
-  , accessToken  :: Maybe Text
-  , refreshToken :: Maybe Text
-  , expiresIn    :: Int
-  , tokenType    :: Text
-  }
-  deriving (Show, Generic, Debug)
-
-
--- | User is a newtype wrapper over the token, which provies all necessary user information through
--- the JWT claim set. User has a set of virtual record fields that simplifies the access of the JWT claims
--- of `.idToken` of `Token`.
-newtype User = User Token
-  deriving (Show, Generic)
-
-
-instance Debug User
-
-
-instance HasField "iss" User (Maybe Text) where
-  getField (User (Token { idToken })) = JWT.stringOrURIToText <$> (JWT.claims idToken).iss
-
-instance HasField "sub" User (Maybe Text) where
-  getField (User (Token { idToken })) = JWT.stringOrURIToText <$> (JWT.claims idToken).sub
-
-instance HasField "exp" User (Maybe UTCTime) where
-  getField (User (Token { idToken })) = Time.posixSecondsToUTCTime . JWT.secondsSinceEpoch <$> (JWT.claims idToken).exp
-
-instance HasField "iat" User (Maybe UTCTime) where
-  getField (User (Token { idToken })) = Time.posixSecondsToUTCTime . JWT.secondsSinceEpoch <$> (JWT.claims idToken).iat
-
-instance HasField "accessToken"  User (Maybe Text) where
-  getField (User (Token { accessToken })) = accessToken
-
-instance HasField "refreshToken" User (Maybe Text) where
-  getField (User (Token { refreshToken })) = refreshToken
-
-
-data TokenForm = TokenForm
-  { grant_type     :: Text
-  , code           :: Text
-  , redirect_uri   :: Text
-  , client_id      :: Text
-  , client_secret  :: Text
-  , code_verifier  :: Text
-  }
-  deriving (Generic, Show)
-instance ToForm TokenForm
-
-
--- | A subset of the OIDC authorization endpoint query parameters.
--- https://openid.net/specs/openid-connect-core-1_0.html#AuthorizationEndpoint
-data Authorization = Authorization
-  { responseType        :: Text
-  , clientId            :: Text
-  , redirectUri         :: Text
-  , scope               :: Text
-  , state               :: Text
-  , nonce               :: Text
-  , codeChallenge       :: Maybe Text
-  , codeChallengeMethod :: Maybe Text
-  }
-
-
--- | OIDC Provider
-data Provider = Provider
-  { name         :: Text
-  , issuer       :: URI
-  , clientId     :: Text
-  , clientSecret :: Text
-  , grantType    :: Text
-  , allowedUsers :: [Text]
-  , redirectURI  :: URI
-  }
-  deriving (Show, Eq)
-
-
-newtype OIDCAuthProviders = OIDCAuthProviders [Provider]
-  deriving (Show, Eq)
-
-
--- | Servant API type
-type WellKnownAPI = ".well-known" Servant.:> "openid-configuration" Servant.:> Get '[JSON] (WellKnownConfig Maybe)
-
-
--- | Return value of Wellknown URI registry
--- https://openid.net/specs/openid-connect-discovery-1_0.html#IANA
-data WellKnownConfig f = WellKnownConfig
-  { issuer                                :: f URI
-  , authorization_endpoint                :: f URI
-  , token_endpoint                        :: f URI
-  , jwks_uri                              :: f URI
-  , response_types_supported              :: f [Text]
-  , subject_types_supported               :: f [Text]
-  , id_token_signing_alg_values_supported :: f [Text]
-  , userinfo_endpoint                     :: (Maybe Text)
-  , end_session_endpoint                  :: (Maybe Text)
-  } deriving (Generic)
-deriving instance Show (WellKnownConfig Maybe)
-deriving instance Show (WellKnownConfig Identity)
-instance FromJSON (WellKnownConfig Maybe)
 
 
 verifyWellKnownConfig :: WellKnownConfig Maybe -> Maybe (WellKnownConfig Identity)
@@ -313,6 +161,18 @@ callback (AuthRequestPrepared provider wellknownOpenIdConfigration (OIDCState st
   when (state' /= state) do
     throwIO (FilehubError LoginFailed "OIDC callback state mismatch")
   pure $ CallbackCalled provider wellknownOpenIdConfigration codeVerifier (OIDCCode code)
+
+
+data TokenForm = TokenForm
+  { grant_type     :: Text
+  , code           :: Text
+  , redirect_uri   :: Text
+  , client_id      :: Text
+  , client_secret  :: Text
+  , code_verifier  :: Text
+  }
+  deriving (Generic, Show)
+instance ToForm TokenForm
 
 
 -- | The servant type for token exchange endpoint. We only support client_secret_post as the token_endpoint_auth_method.
@@ -429,17 +289,30 @@ authenticateSession sessionId (TokenVerified token) = do
   pure SessionAuthenticated
 
 
+-- | Servant API type
+type WellKnownAPI = ".well-known" Servant.:> "openid-configuration" Servant.:> Get '[JSON] (WellKnownConfig Maybe)
+
+
 -- | Query the standard /.well-known/openid-configuration endpoint from IdP.
 getWellknownOpenIdConfigration :: Provider -> Filehub (WellKnownConfig Identity)
 getWellknownOpenIdConfigration (Provider { issuer }) = do
   manager          <- asks (.httpManager)
-  baseUri          <- uriToBaseUrl issuer & either (\err -> throwIO (FilehubError InternalError (Text.unpack err))) pure
-  result           <- runClientM wellKnownConfigClient (mkClientEnv manager baseUri) & liftIO . try
-  eWellKnownConfig <- result & either (\(e :: IOError) -> throwIO (FilehubError InternalError (displayException e))) pure
+
+  baseUri          <- case uriToBaseUrl issuer of
+                        Left err -> throwIO (FilehubError InternalError (Text.unpack err))
+                        Right r  -> pure r
+
+  eWellKnownConfig <- do result <- liftIO . try $ do
+                           runClientM wellKnownConfigClient (mkClientEnv manager baseUri)
+                         case result of
+                           Left (err :: IOError) -> throwIO (FilehubError InternalError (displayException err))
+                           Right r               -> pure r
+
   case verifyWellKnownConfig <$> eWellKnownConfig of
     Right (Just config) -> pure config
     Right Nothing       -> throwIO (FilehubError InternalError "Invalid .well-known/openid-configuration")
     Left err            -> throwIO (FilehubError InternalError (show err))
+
   where
     wellKnownConfigClient :: ClientM (WellKnownConfig Maybe)
     wellKnownConfigClient = client (Proxy :: Proxy WellKnownAPI)
@@ -447,15 +320,17 @@ getWellknownOpenIdConfigration (Provider { issuer }) = do
 
 uriToBaseUrl :: URI -> Either Text BaseUrl
 uriToBaseUrl uri = do
-    auth <- maybe (Left "URI has no authority") Right (uriAuthority uri)
+    auth   <- maybe (Left "URI has no authority") Right (uriAuthority uri)
     scheme <- case uriScheme uri of
                    "https:" -> pure Https
                    "http:"  -> pure Http
                    _        -> Left "Unsupported scheme"
+
     let port = if null (uriPort auth)
                  then if scheme == Https then 443 else 80
                  else read (tail (uriPort auth)) -- drop leading ':'
         path = uriPath uri
+
     pure $ BaseUrl scheme (uriRegName auth) port path
 
 

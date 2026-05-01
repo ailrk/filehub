@@ -9,7 +9,7 @@ import Data.Text.Encoding qualified as Text
 import Data.Time (UTCTime (..), fromGregorian)
 import Data.UUID qualified as UUID
 import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
-import Filehub.Auth.OIDC (AuthUrl (..), SomeOIDCFlow (..))
+import Filehub.Auth.Types.OIDC (AuthUrl (..), SomeOIDCFlow (..), OIDCFlow (..))
 import Filehub.Auth.OIDC qualified as Auth.OIDC
 import Filehub.Auth.Simple qualified as Auth.Simple
 import Filehub.Auth.Types (AuthId(..))
@@ -114,7 +114,7 @@ loginAuthOIDCRedirect sessionId providerName = do
   stage <- Auth.OIDC.initialize providerName >>= Auth.OIDC.authorize
   Auth.OIDC.setSessionOIDCFlow sessionId (Just stage)
   case stage of
-    Auth.OIDC.AuthRequestPrepared _ _ _ _ (AuthUrl url) ->
+    AuthRequestPrepared _ _ _ _ (AuthUrl url) ->
       throwIO do
         HTTPError err303
           { errHeaders =
@@ -134,7 +134,7 @@ loginAuthOIDCCallback :: SessionId
                       -> Filehub NoContent
 loginAuthOIDCCallback sessionId (Just code) (Just state) _ _ _ _ = do
   Auth.OIDC.getSessionOIDCFlow sessionId >>= \case
-    Just (SomeOIDCFlow (stage@Auth.OIDC.AuthRequestPrepared {})) -> do
+    Just (SomeOIDCFlow (stage@AuthRequestPrepared {})) -> do
         Auth.OIDC.callback stage code state
           >>= Auth.OIDC.exchangeToken
           >>= Auth.OIDC.verifyToken

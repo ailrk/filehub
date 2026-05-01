@@ -14,7 +14,7 @@
 -- when reading data, we first try to read from the cache. if it's a miss, we then
 -- perform the full read, then cache the result.
 -- When updating, we first delete the cache, then write the full update.
-module Storage.File where
+module Filehub.Storage.File where
 
 import Cache.Key (CacheKey, SomeCacheKey (..))
 import Codec.Archive.Zip qualified as Zip

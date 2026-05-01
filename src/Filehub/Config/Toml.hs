@@ -15,8 +15,8 @@ import Control.Monad (when)
 import Data.Coerce (coerce)
 import Data.Text (Text)
 import Data.Text qualified as Text
-import Filehub.Auth.OIDC qualified as Auth.OIDC
-import Filehub.Auth.Simple qualified as Auth.Simple
+import Filehub.Auth.Types.OIDC qualified as Auth.OIDC
+import Filehub.Auth.Types.Simple qualified as Auth.Simple
 import Filehub.Config
 import Filehub.Locale (Locale(..))
 import Filehub.Theme (Theme (..), CustomTheme(..))

@@ -1,10 +1,10 @@
 module Filehub.Session.Handle where
 
-import Filehub.Session.Types (SessionId, SessionGet, SessionSet)
+import Target.Types (HasTargetId)
+import Filehub.Session.Types.SessionId (SessionId)
 import Filehub.Monad (Filehub)
+import Filehub.Session.Types (SessionGet)
 
 
+withTarget :: HasTargetId t => SessionId -> t -> Filehub a -> Filehub a
 get :: SessionId -> (SessionGet Filehub -> Filehub a) -> Filehub a
-set :: SessionId -> (SessionSet Filehub -> val -> Filehub ()) -> val -> Filehub ()
-newSessionGet :: SessionId -> SessionGet Filehub
-newSessionSet :: SessionId -> SessionSet Filehub

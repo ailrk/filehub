@@ -22,9 +22,12 @@ module Filehub.Template.Desktop
   where
 
 import Control.Monad (when, join)
+import Control.Monad.Reader (asks, MonadReader (..))
 import Data.ByteString (ByteString)
 import Data.ClientPath (ClientPath(..), AbsPath (..), Root (..))
 import Data.ClientPath qualified as ClientPath
+import Data.ClientPath.View (ClientPathView(..), AsClientPathView (..))
+import Data.Coerce (coerce)
 import Data.File (File(..), FileType(..), FileInfo, IsLink (..))
 import Data.Foldable (traverse_)
 import Data.Maybe (fromMaybe)
@@ -33,11 +36,12 @@ import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.Time.Format (formatTime, defaultTimeLocale)
-import Filehub.Links ( apiLinks, linkToText )
+import Filehub.Links ( apiLinks )
 import Filehub.Locale (Locale(..), Phrase (..), phrase)
 import Filehub.Routes (Api(..))
-import Filehub.Session.Selected qualified as Selected
 import Filehub.Session (TargetView(..))
+import Filehub.Session.Selected qualified as Selected
+import Filehub.Session.Types (Layout(..))
 import Filehub.Size (toReadableSize)
 import Filehub.Template (Template, TemplateContext(..), runTemplate)
 import Filehub.Template.Shared (bold, sideBarId, viewId, searchBar, tableId)
@@ -46,18 +50,15 @@ import Filehub.Theme (Theme (..))
 import Filehub.Types (SortFileBy(..))
 import Lens.Micro.Platform ()
 import Lucid
+import Lucid.Htmx (hxGet, hxTarget, hxSwap, Swap (..), hxEncoding, hxPost, hxTrigger, Trigger (..), hxDelete, hxConfirm)
 import Network.Mime.Extended (isMime)
+import Servant.Extended (linkToText)
 import System.FilePath (takeFileName)
 import Target.Dummy (DummyTarget)
 import Target.File (FileSys, Target (..))
 import Target.S3 (S3, Target (..))
 import Target.Types (targetHandler, AnyTarget, handleTarget)
 import Target.Types qualified as Target
-import Data.Coerce (coerce)
-import Control.Monad.Reader (asks, MonadReader (..))
-import Data.ClientPath.View (ClientPathView(..), AsClientPathView (..))
-import Lucid.Htmx (hxGet, hxTarget, hxSwap, Swap (..), hxEncoding, hxPost, hxTrigger, Trigger (..), hxDelete, hxConfirm)
-import Filehub.Session.Types (Layout(..))
 
 
 ------------------------------------

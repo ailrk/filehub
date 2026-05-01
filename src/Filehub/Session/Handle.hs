@@ -19,23 +19,24 @@ import Filehub.Display qualified as Display
 import Filehub.Error (Error' (..))
 import Filehub.Error (FilehubError(..))
 import Filehub.Monad (Filehub)
+import Filehub.Session.Copy qualified as Copy
+import Filehub.Session.Internal (targetToSessionData)
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Session.Selected qualified as Selected
 import Filehub.Session.Types (TargetView(..), SessionGet (..), SessionSet (..), SessionId, Session, TargetSessionData(..), Session(..), CopyState (..), ControlPanelState (..))
+import Filehub.Storage.File qualified as File
+import Filehub.Storage.S3 qualified as S3
+import Filehub.Types (Display (..), Env(..))
 import Filehub.UserAgent qualified as UserAgent
 import Lens.Micro.Platform ()
 import Log (logAttention_, logTrace, logAttention)
 import Prelude hiding (read, readFile, writeFile)
-import Storage.File qualified as File
-import Storage.S3 qualified as S3
 import Target.File (Target(..), FileSys)
 import Target.S3 (S3)
 import Target.Types (handleTarget, targetHandler, AnyTarget (..), HasTargetId (..))
-import UnliftIO (throwIO)
+import UnliftIO (throwIO, finally)
 import UnliftIO.Directory (doesDirectoryExist)
 import UnliftIO.STM (readTVarIO)
-import Filehub.Types (Display (..), Env(..))
-import Filehub.Session.Copy qualified as Copy
 
 
 get :: SessionId -> (SessionGet Filehub -> Filehub a) -> Filehub a
@@ -373,3 +374,31 @@ makeStorageS3 sessionId =
       maybe (throwIO (FilehubError TargetError "Target is not valid S3 bucket")) pure $ handleTarget target
         [ targetHandler @S3 id
         ]
+
+
+
+attachTarget :: SessionId -> AnyTarget -> Filehub ()
+attachTarget sessionId target = do
+  TargetView current _ <- get sessionId (.currentTarget)
+  if current == target
+     then pure ()
+     else do
+       Session.Pool.update sessionId \session -> do
+         session { targets = Map.insert (getTargetId target) (targetToSessionData target) session.targets
+                 }
+
+
+detachTarget :: HasTargetId t => SessionId -> t -> Filehub ()
+detachTarget sessionId target = do
+  let tid = getTargetId target
+  Session.Pool.update sessionId \session -> do
+    session { targets = Map.delete tid session.targets
+            }
+
+
+withTarget :: HasTargetId t => SessionId -> t -> Filehub a -> Filehub a
+withTarget sid t action = do
+  oldS <- Session.Pool.get sid
+  let oldTid = oldS.currentTargetId
+  (newSessionSet sid).currentTarget (getTargetId t)
+  action `finally` (newSessionSet sid).currentTarget oldTid

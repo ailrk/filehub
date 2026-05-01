@@ -8,7 +8,7 @@
 module Filehub.Config.Options (parseOptions , Options(..)) where
 
 import Filehub.Config
-import Filehub.Auth.Simple qualified as Auth.Simple
+import Filehub.Auth.Types.Simple qualified as Auth.Simple
 import Options.Applicative
   ( Parser
   , ReadM

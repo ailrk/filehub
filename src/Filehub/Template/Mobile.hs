@@ -22,7 +22,7 @@ import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.Time.Format (formatTime, defaultTimeLocale)
-import Filehub.Links ( apiLinks, linkToText )
+import Filehub.Links (apiLinks)
 import Filehub.Locale (Phrase(..), phrase, Locale (..))
 import Filehub.Routes (Api(..))
 import Filehub.Session.Selected qualified as Selected
@@ -458,7 +458,7 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
       pure do
         button_ [ class_ "action-btn urgent "
                 , type_ "submit"
-                , hxPost (linkToText apiLinks.logout)
+                , hxPost (apiLinks.logout)
                 , hxTarget "#index"
                 , hxSwap OuterHTML
                 , hxConfirm "Logout?"
@@ -511,7 +511,7 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
 selectedCounter :: Int -> Html ()
 selectedCounter n = do
   div_ [ id_ selectedCounterId
-       , hxPost (linkToText apiLinks.cancel)
+       , hxPost apiLinks.cancel
        , hxTarget "#index"
        , hxSwap OuterHTML
        , class_ "field "

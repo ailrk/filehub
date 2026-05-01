@@ -1,47 +1,26 @@
-{- HLINT ignore "Avoid restricted function" -}
 {-# LANGUAGE NamedFieldPuns #-}
+module Filehub.SharedLink where
 
-module Filehub.SharedLink
-  ( SharedLink(..)
-  , SharedLinkType(..)
-  , SharedLinkHash
-  , SharedLinkPool(..)
-  , SharedLinkPermit(..)
-  , SharedLinkPermitSet(..)
-  , createSharedLink
-  , revokeSharedLink
-  , newShareLinkPool
-  , lookupSharedLink
-  , newSharedLinkPermit
-  )
-  where
-
-import Data.File (File(..), FileInfo)
-import Data.Time (UTCTime, getCurrentTime)
-import Data.Text (Text)
-import Data.Map.Strict (Map)
-import Data.Map.Strict qualified as Map
 import Crypto.Hash.SHA256 qualified as SHA256
-import Data.Vector qualified as Vector
-import Data.Vector (Vector)
-import Data.Text qualified as Text
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as ByteString
 import Data.ByteString.Char8 qualified as Char8
+import Data.ClientPath (AbsPath(..))
+import Data.Coerce (coerce)
+import Data.File (File(..), FileInfo)
+import Data.Map (Map)
+import Data.Map.Strict qualified as Map
+import Data.Set (Set)
+import Data.Text (Text)
+import Data.Text qualified as Text
+import Data.Time (getCurrentTime, UTCTime)
 import Data.UUID (UUID)
 import Data.UUID.V4 qualified as UUID
-import Servant (FromHttpApiData (..), ToHttpApiData (..))
-import Data.Set (Set)
-import Data.Coerce (coerce)
-import Data.ClientPath (AbsPath(..))
-import UnliftIO.STM (TVar)
-import Filehub.Monad (Filehub)
+import Data.Vector (Vector)
+import Data.Vector qualified as Vector
+import Servant (FromHttpApiData(..), ToHttpApiData(..))
 import UnliftIO (MonadIO(..))
-import UnliftIO.STM (newTVarIO)
-import UnliftIO.STM (writeTVar)
-import UnliftIO.STM (atomically)
-import UnliftIO.STM (readTVar)
-import UnliftIO.STM (modifyTVar')
+import UnliftIO.STM (newTVarIO, writeTVar, atomically, readTVar, modifyTVar', TVar)
 
 
 data SharedLinkType
@@ -122,7 +101,7 @@ mkSharedLinkHash :: ByteString -> SharedLinkHash
 mkSharedLinkHash input = SharedLinkHash (shortHash input)
 
 
-createSharedLink :: FileInfo -> SharedLinkType -> Bool -> Maybe SharedLinkPasscode -> Filehub SharedLink
+createSharedLink :: MonadIO m => FileInfo -> SharedLinkType -> Bool -> Maybe SharedLinkPasscode -> m SharedLink
 createSharedLink file linkType readonly mPasscode = do
   now <- liftIO getCurrentTime
   let hash = mkSharedLinkHash (coerce Char8.pack file.path)
@@ -138,13 +117,13 @@ createSharedLink file linkType readonly mPasscode = do
     }
 
 
-revokeSharedLink :: SharedLinkHash -> SharedLinkPool -> Filehub ()
+revokeSharedLink :: MonadIO m => SharedLinkHash -> SharedLinkPool -> m ()
 revokeSharedLink hash (SharedLinkPool pool) = atomically do
   modifyTVar' pool \m -> do
     Map.update (\link -> Just (link { revoked = True })) hash m
 
 
-lookupSharedLink :: SharedLinkHash -> SharedLinkPool -> Filehub (Maybe SharedLink)
+lookupSharedLink :: MonadIO m => SharedLinkHash -> SharedLinkPool -> m (Maybe SharedLink)
 lookupSharedLink hash (SharedLinkPool pool) = do
   now <- liftIO getCurrentTime
   atomically do
@@ -177,7 +156,7 @@ newShareLinkPool = do
   pure $ SharedLinkPool tvar
 
 
-newSharedLinkPermit :: Filehub SharedLinkPermit
+newSharedLinkPermit :: MonadIO m => m SharedLinkPermit
 newSharedLinkPermit = do
   uuid <- liftIO UUID.nextRandom
   pure (SharedLinkPermit uuid)
