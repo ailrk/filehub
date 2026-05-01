@@ -673,12 +673,12 @@ textarea:focus {
 }
 
 
-#locale {
+.control-panel-dropdown-btn {
   display: inline-block;
 }
 
 
-#locale .dropdown-content {
+.control-panel-dropdown-btn .dropdown-content {
   display: none;
 }
 

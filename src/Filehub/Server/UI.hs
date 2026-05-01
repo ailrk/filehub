@@ -179,18 +179,8 @@ selectLayout sessionId _ layout = do
 
 sortTable :: SessionId -> ConfirmLogin -> Maybe SortFileBy -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
 sortTable sessionId _ order = do
-  display <- Session.get sessionId (.display)
   Session.set sessionId (.sortedFileBy) (fromMaybe ByNameUp order)
-  html <- do
-    view' <- view sessionId
-    case display of
-      Mobile -> do
-        toolBar' <- Server.Mobile.toolBar sessionId
-        pure do
-          toolBar' `with` [ hxSwapOOB True ]
-          view'
-      Desktop   -> pure view'
-      NoDisplay -> pure view'
+  html <- do index sessionId
   pure $ addHeader TableSorted html
 
 

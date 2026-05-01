@@ -3,7 +3,7 @@ import * as Balloon from './balloon.js';
 import * as Cookie from './cookie.js';
 import * as DesktopContextmenu from './handlers/desktop/contextmenu.js';
 import * as DesktopDrag from './handlers/desktop/drag.js';
-import * as DesktopLocale from './handlers/desktop/locale.js';
+import * as DesktopControlPanel from './handlers/desktop/controlpanel.js';
 import * as DesktopScroll from './handlers/desktop/scroll.js';
 import * as DesktopSelected from './handlers/desktop/selected.js';
 import * as MobileCloseSidebar from './handlers/mobile/closeSidebar.js';
@@ -23,7 +23,7 @@ document.addEventListener("DOMContentLoaded", () => {
         DesktopSelected.register();
         DesktopDrag.register();
         DesktopScroll.register();
-        DesktopLocale.register();
+        DesktopControlPanel.register();
     }
     if (display === 'Mobile') {
         document.addEventListener('click', closePanel);

@@ -185,7 +185,8 @@ controlPanel
   :: Html () -> Html () -> Html () -> Html () ->
      Html () -> Html () -> Html () -> Html () ->
      Html () -> Html () ->
-     Maybe (Html()) -> Maybe (Html ()) -> Maybe (Html ())
+     Maybe (Html()) -> Maybe (Html ()) -> Maybe (Html ()) ->
+     Maybe (Html ())
   -> Template (Html ())
 controlPanel
   localeBtn
@@ -198,6 +199,7 @@ controlPanel
   cancelBtn
   themeBtn
   logoutBtn
+  mSortBtn
   mToggleSidebarBtn
   mLayoutBtn
   mScroll2TopBtn = do
@@ -211,6 +213,7 @@ controlPanel
           div_ [ id_ controlPanelId ] do
             fromMaybe mempty mToggleSidebarBtn
             fromMaybe mempty mLayoutBtn
+            fromMaybe mempty mSortBtn
             themeBtn
             localeBtn
             when (not noLogin) logoutBtn
@@ -222,6 +225,7 @@ controlPanel
               div_ [ id_ controlPanelId ] do
                 fromMaybe mempty mToggleSidebarBtn
                 fromMaybe mempty mLayoutBtn
+                fromMaybe mempty mSortBtn
                 themeBtn
                 localeBtn
                 when (not noLogin) logoutBtn
@@ -233,6 +237,7 @@ controlPanel
               div_ [ id_ controlPanelId ] do
                 fromMaybe mempty mToggleSidebarBtn
                 fromMaybe mempty mLayoutBtn
+                fromMaybe mempty mSortBtn
                 themeBtn
                 localeBtn
                 when (not noLogin) logoutBtn
@@ -247,6 +252,7 @@ controlPanel
               div_ [ id_ controlPanelId ] do
                 fromMaybe mempty mToggleSidebarBtn
                 fromMaybe mempty mLayoutBtn
+                fromMaybe mempty mSortBtn
                 themeBtn
                 localeBtn
                 when (not noLogin) logoutBtn

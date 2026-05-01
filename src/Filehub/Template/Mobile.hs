@@ -148,7 +148,6 @@ sortTool = do
     , detail_size
     } <- phrase <$> asks (.locale)
 
-
   pure do
     div_ [ id_ sortControlId ] do
       span_ [ class_ "field " ] do
@@ -167,7 +166,7 @@ sortTool = do
     sortControl o =
       [ hxGet (apiLinks.sortTable (Just o))
       , hxSwap OuterHTML
-      , hxTarget "#view"
+      , hxTarget "#index"
       ]
     sortControlName = \case
         ByNameUp   -> sortControl ByNameDown
@@ -307,6 +306,7 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
     <*> cancelBtn
     <*> themeBtn
     <*> logoutBtn
+    <*> pure Nothing
     <*> pure Nothing
     <*> pure Nothing
     <*> (Just <$> scroll2TopBtn)

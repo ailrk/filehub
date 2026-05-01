@@ -18,8 +18,6 @@ module Filehub.Template.Desktop
   , contextMenu1
   , contextMenuMany
   , table
-  , themeBtn
-  , localeBtn
   )
   where
 
@@ -157,6 +155,7 @@ controlPanel = join do
     <*> cancelBtn
     <*> themeBtn
     <*> logoutBtn
+    <*> (Just <$> sortBtn)
     <*> (Just <$> toggleSidebarBtn)
     <*> (Just <$> layoutBtn)
     <*> pure Nothing
@@ -364,7 +363,7 @@ layoutBtn =  do
 
 localeBtn :: Html ()
 localeBtn =
-  div_ [ id_ "locale" ] do
+  div_ [ class_ "control-panel-dropdown-btn" ] do
     button_ [ class_ "btn btn-control " ] do
       span_ [ class_ "field " ] do
         i_ [ class_ "bx bx-world" ] mempty
@@ -638,37 +637,6 @@ listLayout files = do
   order <- asks (.sortedBy)
   ctx   <- ask
 
-  let sortIconName =
-        case order of
-          ByNameUp   -> i_ [ class_ "bx bxs-up-arrow"] mempty
-          ByNameDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
-          _          -> i_ [ class_ "bx bx-sort"] mempty
-      sortIconMTime =
-        case order of
-          ByModifiedUp   -> i_ [ class_ "bx bxs-up-arrow"] mempty
-          ByModifiedDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
-          _              -> i_ [ class_ "bx bx-sort"] mempty
-      sortIconSize =
-        case order of
-          BySizeUp   -> i_ [ class_ "bx bxs-up-arrow"] mempty
-          BySizeDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
-          _          -> i_ [ class_ "bx bx-sort"] mempty
-      sortControlName =
-        case order of
-          ByNameUp   -> sortControl ByNameDown
-          ByNameDown -> sortControl ByNameUp
-          _          -> sortControl ByNameUp
-      sortControlMTime =
-        case order of
-          ByModifiedUp   -> sortControl ByModifiedDown
-          ByModifiedDown -> sortControl ByModifiedUp
-          _              -> sortControl ByModifiedUp
-      sortControlSize =
-        case order of
-          BySizeUp   -> sortControl BySizeDown
-          BySizeDown -> sortControl BySizeUp
-          _          -> sortControl BySizeUp
-
   pure do
     table_ [ id_ tableId, class_ "list-view " ] do
       thead_ do
@@ -676,18 +644,18 @@ listLayout files = do
           th_ do
             span_ [ class_ "field " ] do
               (toHtml detail_filename)
-              sortIconName
-            `with` sortControlName
+              sortIconName order
+            `with` sortControlName order
           th_ do
             span_ [ class_ "field " ] do
               (toHtml detail_modified)
-              sortIconMTime
-              `with` sortControlMTime
+              sortIconMTime order
+              `with` sortControlMTime order
           th_ do
             span_ [ class_ "field " ] do
               (toHtml detail_size)
-              sortIconSize
-              `with` sortControlSize
+              sortIconSize order
+              `with` sortControlSize order
       tbody_ $ traverse_ (runTemplate ctx . entry) files
 
 
@@ -820,7 +788,7 @@ sortControl :: SortFileBy -> [Attribute]
 sortControl o =
     [ hxGet (apiLinks.sortTable (Just o))
     , hxSwap OuterHTML
-    , hxTarget "#view"
+    , hxTarget "#index"
     ]
 
 
@@ -950,6 +918,71 @@ contextMenuMany clientPaths = do
            ] do
         i_ [ class_ "bx bx-message-alt-x" ] mempty
         span_ (toHtml contextmenu_cancel)
+
+
+sortBtn :: Template (Html ())
+sortBtn = do
+  order <- asks (.sortedBy)
+  Phrase
+    { detail_filename
+    , detail_modified
+    , detail_size
+    } <- phrase <$> asks (.locale)
+  pure do
+    div_ [ class_ "control-panel-dropdown-btn" ] do
+      button_ [ class_ "btn btn-control " ] do
+        span_ [ class_ "field " ] do
+          i_ [ class_ "bx bx-sort-alt-2" ] mempty
+      div_ [ class_ "dropdown-content " ] do
+        let item :: Html () -> Html () -> Html ()
+            item label ico = div_ [ class_ "dropdown-item" ] do
+              ico
+              span_ label
+        item (toHtml detail_filename) (sortIconName order)  `with` sortControlName order
+        item (toHtml detail_modified) (sortIconMTime order) `with` sortControlMTime order
+        item (toHtml detail_size)     (sortIconSize order)  `with` sortControlSize order
+
+
+sortIconName :: SortFileBy -> Html ()
+sortIconName = \case
+  ByNameUp   -> i_ [ class_ "bx bxs-up-arrow"] mempty
+  ByNameDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
+  _          -> i_ [ class_ "bx bx-sort"] mempty
+
+
+sortIconMTime :: SortFileBy -> Html ()
+sortIconMTime = \case
+  ByModifiedUp   -> i_ [ class_ "bx bxs-up-arrow"] mempty
+  ByModifiedDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
+  _              -> i_ [ class_ "bx bx-sort"] mempty
+
+
+sortIconSize :: SortFileBy -> Html ()
+sortIconSize = \case
+  BySizeUp   -> i_ [ class_ "bx bxs-up-arrow"] mempty
+  BySizeDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
+  _          -> i_ [ class_ "bx bx-sort"] mempty
+
+
+sortControlName :: SortFileBy -> [Attribute]
+sortControlName = \case
+  ByNameUp   -> sortControl ByNameDown
+  ByNameDown -> sortControl ByNameUp
+  _          -> sortControl ByNameUp
+
+
+sortControlMTime :: SortFileBy -> [Attribute]
+sortControlMTime = \case
+  ByModifiedUp   -> sortControl ByModifiedDown
+  ByModifiedDown -> sortControl ByModifiedUp
+  _              -> sortControl ByModifiedUp
+
+
+sortControlSize :: SortFileBy -> [Attribute]
+sortControlSize = \case
+  BySizeUp   -> sortControl BySizeDown
+  BySizeDown -> sortControl BySizeUp
+  _          -> sortControl BySizeUp
 
 
 ------------------------------------
