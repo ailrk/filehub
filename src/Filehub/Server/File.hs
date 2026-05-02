@@ -33,7 +33,7 @@ import Data.ClientPath.View (ClientPathView(..), asClientPathView)
 import Data.Coerce (coerce)
 import Data.File (FileType(..), File(..), FileContent (..), defaultFileWithContent, FileInfo, IsLink (..))
 import Data.Foldable (for_)
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, catMaybes)
 import Data.Ratio ((%))
 import Data.String.Interpolate (i)
 import Data.Text (Text)
@@ -188,7 +188,7 @@ move sessionId _ _ (MoveFile src tgt) = do
   let tgtPath   =  ClientPath.fromClientPath root tgt
 
   -- check before take action
-  checkedSrcPaths <- for srcPaths \srcPath -> do
+  checkedSrcPaths <- catMaybes <$> for srcPaths \srcPath -> do
     isTgtDir <- storage.isDirectory tgtPath
     when (not isTgtDir) do
       throwIO (FilehubError InvalidDir "Target is not a directory")
@@ -196,16 +196,15 @@ move sessionId _ _ (MoveFile src tgt) = do
     when (srcPath == tgtPath)  do
       throwIO (FilehubError InvalidDir "Can't move to the same directory")
 
-    when (coerce takeDirectory srcPath == tgtPath) do
-      pure Nothing
+    if | coerce takeDirectory srcPath == tgtPath -> do pure Nothing
+       | otherwise -> do
+           let dstPath = tgtPath <./> coerce takeFileName srcPath
 
-    let dstPath = tgtPath <./> coerce takeFileName srcPath
+           eFile <- try @_ @FilehubError $ storage.get dstPath
 
-    eFile <- try @_ @FilehubError $ storage.get dstPath
-
-    case eFile of
-      Right _  -> throwIO (FilehubError InvalidPath "The destination already exists")
-      Left  _  -> pure $ Just srcPath
+           case eFile of
+             Right _  -> pure Nothing
+             Left  _  -> pure $ Just srcPath
 
   void . async . liftIO . runFilehub env $ do
     atomically do
@@ -216,7 +215,7 @@ move sessionId _ _ (MoveFile src tgt) = do
         }
 
     storage.mv do
-      fmap (\srcPath -> (srcPath, tgtPath <./> coerce takeFileName srcPath)) srcPaths
+      fmap (\srcPath -> (srcPath, tgtPath <./> coerce takeFileName srcPath)) checkedSrcPaths
 
     view' <- UI.view sessionId
     atomically do
