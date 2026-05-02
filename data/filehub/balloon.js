@@ -10,6 +10,9 @@ export function pushBalloon(message) {
                 pushProgressBarBalloon(msg, taskId, progress);
                 break;
             }
+        case "InfoMsg":
+            pushInfoMsgBalloon(message.msg, message.duration);
+            break;
     }
 }
 function pushErrorMsgBalloon(message, duration = 3000) {
@@ -17,6 +20,19 @@ function pushErrorMsgBalloon(message, duration = 3000) {
     const balloon = document.createElement('div');
     balloon.classList.add('balloon');
     balloon.classList.add('balloon-err-msg');
+    balloon.textContent = message;
+    container.appendChild(balloon);
+    setTimeout(() => {
+        balloon.style.opacity = '0';
+        balloon.style.transition = 'opacity 0.5s';
+        setTimeout(() => balloon.remove(), 500);
+    }, duration);
+}
+function pushInfoMsgBalloon(message, duration = 3000) {
+    const container = document.getElementById('balloon-container');
+    const balloon = document.createElement('div');
+    balloon.classList.add('balloon');
+    balloon.classList.add('balloon-info-msg');
     balloon.textContent = message;
     container.appendChild(balloon);
     setTimeout(() => {

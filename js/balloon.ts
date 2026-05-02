@@ -3,6 +3,7 @@ import { Rational } from "./def";
 export type MessageKind
   = "ErrorMsg"
   | "ProgressedMsg"
+  | "InfoMsg"
 
 
 export type Message
@@ -15,6 +16,11 @@ export type Message
     taskId: number;
     msg: string;
     progress: Rational;
+  }
+  | {
+    kind: "InfoMsg";
+    msg: string;
+    duration: number;
   }
 
 
@@ -32,6 +38,9 @@ export function pushBalloon(message: Message) {
         pushProgressBarBalloon(msg, taskId, progress)
         break;
       }
+    case "InfoMsg":
+        pushInfoMsgBalloon(message.msg, message.duration);
+        break;
   }
 }
 
@@ -41,6 +50,21 @@ function pushErrorMsgBalloon(message: string, duration = 3000) {
   const balloon = document.createElement('div')
   balloon.classList.add('balloon')
   balloon.classList.add('balloon-err-msg')
+  balloon.textContent = message
+  container.appendChild(balloon)
+  setTimeout(() => {
+    balloon.style.opacity = '0'
+    balloon.style.transition = 'opacity 0.5s'
+    setTimeout(() => balloon.remove(), 500)
+  }, duration)
+}
+
+
+function pushInfoMsgBalloon(message: string, duration = 3000) {
+  const container = document.getElementById('balloon-container')!
+  const balloon = document.createElement('div')
+  balloon.classList.add('balloon')
+  balloon.classList.add('balloon-info-msg')
   balloon.textContent = message
   container.appendChild(balloon)
   setTimeout(() => {

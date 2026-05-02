@@ -207,13 +207,6 @@ move sessionId _ _ (MoveFile src tgt) = do
              Left  _  -> pure $ Just srcPath
 
   void . async . liftIO . runFilehub env $ do
-    atomically do
-      writeTBQueue notifications $ MoveProgressed
-        { taskId       = taskId
-        , progress     = 0
-        , htmxResponse = Nothing
-        }
-
     storage.mv do
       fmap (\srcPath -> (srcPath, tgtPath <./> coerce takeFileName srcPath)) checkedSrcPaths
 

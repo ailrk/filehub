@@ -237,6 +237,11 @@ function listenSSE(_) {
             evtSource.close();
             evtSource = null;
         }
+        Balloon.pushBalloon({
+            kind: "InfoMsg",
+            msg: `Task Completed`,
+            duration: 3000
+        });
     });
     evtSource.addEventListener('DeleteProgressed', e => {
         let data = JSON.parse(e.data);

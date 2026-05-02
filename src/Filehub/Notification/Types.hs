@@ -5,10 +5,14 @@ import Worker.Task (TaskId)
 import Data.Aeson ((.=), ToJSON(..))
 import Data.Aeson qualified as Aeson
 import Lucid (Html, renderText)
+import Data.Text (Text)
 
 
 data Notification
   = Pong
+  | SimpleMessage
+      { content     :: Text
+      }
   | TaskCompleted
       { taskId :: TaskId
       , htmxResponse :: Maybe (Html ())
@@ -42,6 +46,11 @@ instance ToServerEvent Notification where
     { eventType = Nothing
     , eventId   = Nothing
     , eventData = "Pong"
+    }
+  toServerEvent (SimpleMessage content) = ServerEvent
+    { eventType = Nothing
+    , eventId   = Nothing
+    , eventData = Aeson.encode content
     }
   toServerEvent (TaskCompleted taskId htmxResponse) = ServerEvent
     { eventType = Just "TaskCompleted"
