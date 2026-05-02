@@ -1,20 +1,21 @@
 module Filehub.Server.Notification (listen) where
 
-
 import Conduit (ConduitT, yield, MonadIO (..), MonadUnliftIO (..))
 import Control.Monad (when, join)
 import Control.Monad.Fix (fix)
 import Data.Set qualified as Set
 import Filehub.Handler (ConfirmLogin)
-import Filehub.Monad
+import Filehub.Monad (Filehub)
 import Filehub.Notification.Types (Notification(..))
-import Filehub.Orphan ()
+import Filehub.Session (SessionGet(..))
 import Filehub.Session (SessionId(..))
 import Filehub.Session qualified as Session
-import Filehub.Session (SessionGet(..))
 import Prelude hiding (init, readFile)
 import Servant.API.EventStream (RecommendedEventSourceHeaders, recommendedEventSourceHeaders)
-import UnliftIO.STM (readTBQueue, atomically, isEmptyTBQueue, modifyTVar', readTVar)
+import UnliftIO.STM (readTBQueue, atomically, isEmptyTBQueue, modifyTVar', readTVar, STM, TBQueue)
+
+
+type NotificationStream = ConduitT () Notification IO ()
 
 
 -- | Creating a notification conduit. The conduit tries to read notifications
@@ -33,7 +34,7 @@ import UnliftIO.STM (readTBQueue, atomically, isEmptyTBQueue, modifyTVar', readT
 -- we have a task running in the back ground. When there are multiple tasks, they share the
 -- same conduit; when there are no pending task, the conduit finshes; when there is not task,
 -- no conduit.
-listen :: SessionId -> ConfirmLogin -> Filehub (RecommendedEventSourceHeaders (ConduitT () Notification IO ()))
+listen :: SessionId -> ConfirmLogin -> Filehub (RecommendedEventSourceHeaders NotificationStream)
 listen sessionId _ = recommendedEventSourceHeaders <$> do
   notifications <- Session.get sessionId (.notifications)
   pendingTasks  <- Session.get sessionId (.pendingTasks)
@@ -53,16 +54,20 @@ listen sessionId _ = recommendedEventSourceHeaders <$> do
       MoveProgressed _ _ _   -> pure do yield n; loop
       UploadProgressed _ _ _ -> pure do yield n; loop
       Pong                   -> pure do yield n; loop
-  where
-    streamAtomically action =
-      withRunInIO \runInIO -> do
-        pure do
-          fix \loop -> join . liftIO . runInIO $ atomically do
-            action loop
 
-    clearQueue notifications =
-      fix \popMore -> do
-        empty <- isEmptyTBQueue notifications
-        when (not empty) do
-          _ <- readTBQueue notifications
-          popMore
+
+clearQueue :: TBQueue a -> STM ()
+clearQueue notifications =
+  fix \popMore -> do
+    empty <- isEmptyTBQueue notifications
+    when (not empty) do
+      _ <- readTBQueue notifications
+      popMore
+
+
+streamAtomically :: (NotificationStream -> STM NotificationStream) -> Filehub NotificationStream
+streamAtomically action =
+  withRunInIO \runInIO -> do
+    pure do
+      fix \loop -> join . liftIO . runInIO $ atomically do
+        action loop

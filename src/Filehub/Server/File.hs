@@ -77,6 +77,7 @@ import Lucid.Htmx (HxSwapOOB(..), Swap (..), hxOn, Trigger (..))
 import Filehub.Session.Types (Selected(..), CopyState (..))
 import Network.Mime.Extended (isMime)
 import Data.ByteString.Char8 qualified as ByteString
+import Control.Monad.Reader (MonadReader(..))
 
 
 cd :: SessionId -> ConfirmLogin -> Maybe ClientPath -> Filehub (Headers '[ Header "HX-Trigger-After-Swap" FilehubEvent ] (Html ()))
@@ -112,6 +113,7 @@ delete sessionId _ _ clientPaths deleteSelected = do
   taskId        <- newTaskId
   deleteCounter <- newTVarIO @_ @Integer 0
   deleted       <- newTQueueIO @_ @ClientPath
+  env           <- ask
 
   -- Record on each successful delete.
   let jot clientPath = do
@@ -119,7 +121,7 @@ delete sessionId _ _ clientPaths deleteSelected = do
         writeTQueue deleted clientPath
         readTVar deleteCounter
 
-  void $ async do
+  void . async . liftIO . runFilehub env $ do
     -- Make sure the frontend opens a /listen connection otherwise this will block.
     atomically do
       writeTBQueue notifications $ DeleteProgressed
@@ -277,6 +279,7 @@ paste sessionId _ _ = do
   taskId        <- newTaskId
   state         <- Copy.getCopyState sessionId
   pasted        <- newTQueueIO @_ @PasteTask
+  env           <- ask
 
   let jot clientPath = do
         modifyTVar' pasteCounter (+ 1)
@@ -284,7 +287,7 @@ paste sessionId _ _ = do
         readTVar pasteCounter
 
   case state of
-    Paste selections -> void $ async do
+    Paste selections -> void . async . liftIO . runFilehub env $ do
       tasks <- do
         TargetView to sdata <- Session.get sessionId (.currentTarget)
         createPasteTasks sdata.currentDir to selections
@@ -380,6 +383,7 @@ move sessionId _ _ (MoveFile src tgt) = do
   storage       <- Session.get sessionId (.storage)
   root          <- Session.get sessionId (.root)
   notifications <- Session.get sessionId (.notifications)
+  env           <- ask
   taskId        <- newTaskId
   let srcPaths  =  fmap (ClientPath.fromClientPath root) src
   let tgtPath   =  ClientPath.fromClientPath root tgt
@@ -404,7 +408,7 @@ move sessionId _ _ (MoveFile src tgt) = do
       Right _  -> throwIO (FilehubError InvalidPath "The destination already exists")
       Left  _  -> pure ()
 
-  void $ async do
+  void . async . liftIO . runFilehub env $ do
     atomically do
       writeTBQueue notifications $ MoveProgressed
         { taskId       = taskId
@@ -487,9 +491,10 @@ upload sessionId _ _ multipart = do
   notifications <- Session.get sessionId (.notifications)
   taskId        <- newTaskId
   uploadCounter <- newTVarIO @_ @Integer 0
+  env           <- ask
   let taskCount =  fromIntegral $ length multipart.files
 
-  void $ async do
+  void . async . liftIO . runFilehub env $ do
     atomically do
       writeTBQueue notifications $ UploadProgressed
         { taskId       = taskId
@@ -530,7 +535,7 @@ serve env sessionId _ = Tagged $ \req respond -> do
   let mFile = join $ lookup "file" query
 
   -- Lookup the file
-  res <- runFilehub env $ do
+  res <- runFilehub env do
     root       <- Session.get sessionId (.root)
     storage    <- Session.get sessionId (.storage)
     clientPath <- do
