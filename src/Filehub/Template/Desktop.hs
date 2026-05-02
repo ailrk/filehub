@@ -249,7 +249,6 @@ pasteBtn = do
 
 deleteBtn :: Template (Html ())
 deleteBtn = do
-  selected <- asks (.selected)
   Phrase
     { control_panel_delete
     , confirm_delete_all
@@ -257,7 +256,7 @@ deleteBtn = do
   pure do
     button_ [ class_ "btn btn-control urgent"
             , type_ "submit"
-            , hxDelete (apiLinks.delete (Selected.toList selected) True)
+            , hxDelete (apiLinks.delete [] True)
             , hxSwap None
             , hxConfirm confirm_delete_all
             , term "data-btn-title" control_panel_delete
