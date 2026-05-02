@@ -191,6 +191,8 @@ library
     Filehub.Routes
     Filehub.Server
     Filehub.Server.File
+    Filehub.Server.File.Paste
+    Filehub.Server.File.Delete
     Filehub.Server.Login
     Filehub.Server.Notification
     Filehub.Server.Search
