@@ -1,6 +1,6 @@
 *.aux
 *.eventlog
-*.eventlog.html
+*.eventlog.*html
 *.hp
 *.pdf
 *.prof
@@ -18,3 +18,4 @@ profile*
 release/
 result
 result/
+cabal.project.local
