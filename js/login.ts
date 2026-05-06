@@ -1,12 +1,12 @@
 'use strict';
 declare var htmx: any;
 
-import * as Locale from './handlers/desktop/locale.js';
+import * as ControlPanel from './handlers/desktop/controlpanel.js';
 
 
 document.addEventListener("DOMContentLoaded", () => {
   document.addEventListener('ThemeChanged', reloadTheme);
-  Locale.register();
+  ControlPanel.register();
 });
 
 

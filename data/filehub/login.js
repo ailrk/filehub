@@ -1,8 +1,8 @@
 'use strict';
-import * as Locale from './handlers/desktop/locale.js';
+import * as ControlPanel from './handlers/desktop/controlpanel.js';
 document.addEventListener("DOMContentLoaded", () => {
     document.addEventListener('ThemeChanged', reloadTheme);
-    Locale.register();
+    ControlPanel.register();
 });
 function reloadTheme() {
     const oldLink = document.querySelector('link[rel="stylesheet"][href*="/theme.css"]');

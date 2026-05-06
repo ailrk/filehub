@@ -14,20 +14,6 @@ buildjs:
     mv -fT js/dist/ data/filehub
 
 
-dev:
-    just buildjs
-    cabal build
-
-
-repl:
-    cabal repl
-
-
-profile:
-    cabal clean
-    cabal build --enable-profiling --disable-shared
-    # run with +RTS -hc -p -RTS to get heap dump and prof file
-
 
 vis:
     hp2ps -c -M filehub.hp
@@ -45,6 +31,11 @@ clean:
 
 watch:
   ghcid -c "cabal --flags=DEBUG repl filehub" -T "Filehub.mainDev \"--config-file _cache/config.toml\"" -W
+
+
+run:
+  just buildjs
+  cabal run --flags=DEBUG -- filehub --config-file _cache/config.toml +RTS -s -RTS
 
 
 test_integration:
