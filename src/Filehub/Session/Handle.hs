@@ -143,6 +143,8 @@ newSessionGet sessionId =
       , display           = display
       , sortedFileBy      = sortedFileBy
       , selected          = selected
+      , resolution        = g <&> (.resolution)
+      , deviceType        = g <&> (.deviceType)
       , authId            = g <&> (.authId)
       , sidebarCollapsed  = g <&> (.sidebarCollapsed)
       , layout            = g <&> (.layout)
@@ -183,6 +185,10 @@ newSessionSet sessionId =
 
       locale a = upS (\s -> s { locale = a })
 
+      resolution a = upS (\s -> s { resolution = a})
+
+      deviceType a = upS (\s -> s { deviceType = a})
+
       sharedLinkPermit a = upS (\s -> s { sharedLinkPermit = a })
 
       notifications a = upS (\s -> s { notifications = a })
@@ -210,6 +216,8 @@ newSessionSet sessionId =
       , selected          = selected
       , authId            = authId
       , sidebarCollapsed  = sidebarCollapsed
+      , resolution        = resolution
+      , deviceType        = deviceType
       , layout            = layout
       , theme             = theme
       , locale            = locale

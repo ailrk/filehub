@@ -19,41 +19,38 @@ module Filehub.Template.Shared
   )
   where
 
-import Lucid
-import Data.Text (Text)
-import Data.String.Interpolate (iii)
 import Control.Monad (when)
+import Control.Monad.Reader (asks)
 import Data.ClientPath (ClientPath(..), AbsPath (..), newAbsPath, Root)
 import Data.ClientPath qualified as ClientPath
+import Data.Coerce (coerce)
 import Data.File (File(..), FileType(..), FileInfo, IsLink (..))
 import Data.Foldable (Foldable(..))
+import Data.Function ((&))
+import Data.Functor ((<&>))
 import Data.Maybe (fromMaybe, catMaybes)
 import Data.Sequence (Seq(..))
 import Data.Sequence qualified as Seq
+import Data.String.Interpolate (iii)
+import Data.Text (Text)
 import Data.Text qualified as Text
 import Filehub.Links (apiLinks)
 import Filehub.Locale ( Phrase(..), phrase )
 import Filehub.Routes (Api (..))
+import Filehub.Session (TargetView(..))
+import Filehub.Session.Types (ControlPanelState(..))
 import Filehub.Sort ( sortFiles )
-import Filehub.Types
-    ( Display(..),
-      OpenTarget(..),
-      SearchWord(..) )
-import Lens.Micro
-import Lens.Micro.Platform ()
+import Filehub.Template (Template, TemplateContext(..))
+import Filehub.Types (Display(..), OpenTarget(..), SearchWord(..))
+import Lucid
+import Lucid.Htmx (Swap(..), HxSwap (..), hxTarget, hxGet, HxTrigger (..), HxPost (..))
 import Network.Mime.Extended (isMime)
 import System.FilePath (splitPath)
+import Target.Dummy (DummyTarget)
 import Target.File (FileSys)
 import Target.S3 (S3)
 import Target.Types (targetHandler, handleTarget)
 import Text.Fuzzy (simpleFilter)
-import Filehub.Session (TargetView(..))
-import Target.Dummy (DummyTarget)
-import Filehub.Template (Template, TemplateContext(..))
-import Data.Coerce (coerce)
-import Control.Monad.Reader (asks)
-import Lucid.Htmx (Swap(..), HxSwap (..), hxTarget, hxGet, HxTrigger (..), HxPost (..))
-import Filehub.Session.Types (ControlPanelState(..))
 
 
 -- | The bootstrap page is used to detect the client's device  information.
@@ -157,10 +154,10 @@ pathBreadcrumb = do
 search :: SearchWord -> [FileInfo] -> ([FileInfo] -> Template (Html ())) -> Template (Html ())
 search (SearchWord searchWord) files table = do
   let matched = files <&> coerce Text.pack . (.path) & simpleFilter searchWord
-  let isMatched file = coerce Text.pack file.path `elem` matched
-  let filteredFiles = files ^.. each . filtered isMatched
+      isMatched file = coerce Text.pack file.path `elem` matched
+
   order <- asks (.sortedBy)
-  table (sortFiles order filteredFiles)
+  table (sortFiles order (filter isMatched files))
 
 
 searchBar :: Template (Html ())

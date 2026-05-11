@@ -75,6 +75,8 @@ data SessionGet m = SessionGet
   , sortedFileBy      :: m SortFileBy
   , selected          :: m Selected
   , authId            :: m (Maybe AuthId)
+  , resolution        :: m (Maybe Resolution)
+  , deviceType        :: m DeviceType
   , sidebarCollapsed  :: m Bool
   , layout            :: m Layout
   , theme             :: m Theme
@@ -97,6 +99,8 @@ data SessionSet m = SessionSet
   , authId            :: Maybe AuthId -> m ()
   , sidebarCollapsed  :: Bool -> m ()
   , layout            :: Layout -> m ()
+  , resolution        :: Maybe Resolution -> m ()
+  , deviceType        :: DeviceType -> m ()
   , theme             :: Theme -> m ()
   , locale            :: Locale -> m ()
   , sharedLinkPermit  :: Maybe SharedLinkPermitSet -> m ()

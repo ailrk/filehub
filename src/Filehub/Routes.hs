@@ -53,7 +53,6 @@ import Servant
       Raw,
     )
 import Lucid
-import Lens.Micro.Platform ()
 import Servant.Multipart (Mem, MultipartForm, MultipartData(..))
 import Servant.HTML.Lucid (HTML)
 import Servant.API.Experimental.Auth (AuthProtect)

@@ -37,6 +37,7 @@ import Data.Aeson (ToJSON (..), (.=), Value)
 import Data.Aeson qualified as Aeson
 import Data.ClientPath (ClientPath(..), RawClientPath(..))
 import Data.Text (Text)
+import Data.Text.Lazy qualified as LText
 import Data.Text.Lazy.Encoding qualified as LText
 import Filehub.Display (Display(..), Resolution(..))
 import Filehub.Env (Env(..))
@@ -45,8 +46,6 @@ import Filehub.Sort (SortFileBy(..))
 import Filehub.Theme (Theme(..))
 import GHC.Generics (Generic)
 import GHC.IsList (fromList)
-import Lens.Micro
-import Lens.Micro.Platform ()
 import Servant ( ToHttpApiData(..), FromHttpApiData(..), Accept (..), MimeRender )
 import Servant.API (MimeRender(..))
 import Web.FormUrlEncoded (FromForm (..), parseUnique, ToForm (..), parseAll)
@@ -129,7 +128,7 @@ instance ToJSON UIComponent where
 
 
 instance ToHttpApiData UIComponent where
-  toUrlPiece v = (v & Aeson.encode & LText.decodeUtf8) ^. strict
+  toUrlPiece v = (LText.toStrict $ LText.decodeUtf8 $ Aeson.encode $ v)
 
 
 instance FromHttpApiData UIComponent where
@@ -195,7 +194,7 @@ instance ToJSON FilehubEvent where
 
 
 instance ToHttpApiData FilehubEvent where
-  toUrlPiece v = (v & Aeson.encode & LText.decodeUtf8) ^. strict
+  toUrlPiece v = (LText.toStrict $ LText.decodeUtf8 $ Aeson.encode $ v)
 
 
 -- | The target for windows.open().

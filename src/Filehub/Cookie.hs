@@ -6,16 +6,16 @@ module Filehub.Cookie
   , renderSetCookie
   ) where
 
-import Web.Cookie (Cookies, SetCookie(..))
-import Web.Cookie qualified as Cookie
-import Servant (FromHttpApiData (..))
+import Data.ByteString (ByteString)
+import Data.Functor ((<&>))
 import Data.Text.Encoding qualified as Text
 import Data.UUID qualified as UUID
-import Filehub.Types (SessionId (..), Display)
-import Lens.Micro ((<&>))
-import Data.ByteString (ByteString)
 import Filehub.Auth.Types (AuthId (..))
 import Filehub.SharedLink (SharedLinkPermit(..))
+import Filehub.Types (SessionId (..), Display)
+import Servant (FromHttpApiData (..))
+import Web.Cookie (Cookies, SetCookie(..))
+import Web.Cookie qualified as Cookie
 
 
 newtype Cookies' = Cookies' Cookies

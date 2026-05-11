@@ -22,6 +22,7 @@ import Amazonka.S3 qualified as Amazonka
 import Amazonka.S3.CompleteMultipartUpload (CompleteMultipartUpload(..))
 import Amazonka.S3.CopyObject (CopyObjectResponse(..))
 import Amazonka.S3.CreateMultipartUpload (CreateMultipartUpload(..), CreateMultipartUploadResponse(..))
+import Amazonka.S3.GetObject (GetObject(..))
 import Amazonka.S3.Lens qualified as Amazonka
 import Amazonka.S3.PutObject (PutObject(..))
 import Amazonka.S3.UploadPart (UploadPartResponse(..))
@@ -37,10 +38,11 @@ import Data.ByteString (ByteString)
 import Data.ByteString qualified as ByteString
 import Data.ByteString.Builder (Builder)
 import Data.ByteString.Builder qualified as Builder
+import Data.ByteString.Char8 qualified as Char8
 import Data.ByteString.Lazy qualified as LBS
 import Data.ClientPath (AbsPath (..))
 import Data.Coerce (coerce)
-import Data.Conduit
+import Data.Conduit ( ConduitT, (.|), await, runConduit, yield )
 import Data.File (File (..), FileType (..), FileInfo, FileWithContent, FileContent (..), defaultFileWithContent, IsLink (..))
 import Data.Function (fix)
 import Data.Generics.Labels ()
@@ -52,12 +54,10 @@ import Data.Maybe (fromMaybe)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.Time (secondsToNominalDiffTime)
-import Filehub.Error
+import Filehub.Error (Error'(InvalidPath, CopyError), FilehubError(FilehubError))
 import Filehub.Monad (Filehub)
 import GHC.TypeLits (Symbol)
-import Lens.Micro
-import Lens.Micro.Platform ()
-import Lens.Micro.Platform ()
+import Lens.Micro ( (&), (?~), (^.) )
 import Log (logAttention_)
 import Network.Mime (defaultMimeLookup)
 import Prelude hiding (read, readFile, writeFile)
@@ -71,8 +71,6 @@ import Target.Types qualified as Target
 import UnliftIO (MonadIO (..), throwIO)
 import UnliftIO.Async (forConcurrently_)
 import UnliftIO.Directory (removeFile)
-import Amazonka.S3.GetObject (GetObject(..))
-import Data.ByteString.Char8 qualified as Char8
 
 
 class CacheKeyComponent (s :: Symbol) a              where toCacheKeyComponent :: Builder

@@ -105,7 +105,6 @@ import Filehub.Template.Shared qualified as Template
 import Filehub.Theme qualified as Theme
 import Filehub.Types (Display (..), LoginForm(..), NewFile(..), NewFolder(..), OpenTarget, Resolution, SearchWord, SortFileBy(..), Theme(..), UIComponent (..), UpdatedFile(..), FilehubEvent (..), RenameFile (..), TargetSessionData (..), MoveFile (..), Resource (..))
 import Foreign.C (CTime(..))
-import Lens.Micro ((&), (.~), (?~), (<&>))
 import Log (logInfo_, logAttention_, logAttention)
 import Lucid (Html)
 import Lucid hiding (for_)
@@ -150,8 +149,6 @@ import Filehub.Server.Util (parseHeader')
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Types (Session(..), SessionId(..))
 import Filehub.UserAgent qualified as UserAgent
-import Lens.Micro
-import Lens.Micro.Platform ()
 import Log (logTrace_)
 import Network.HTTP.Types (hUserAgent, status500)
 import Network.HTTP.Types.Header (hSetCookie)
@@ -236,7 +233,7 @@ healthz _ = do
 
 initialize :: SessionId -> Resolution -> Filehub (Html ())
 initialize sessionId res = do
-  Session.Pool.update sessionId \s -> s & #resolution ?~ res
+  Session.set sessionId (.resolution) (Just res)
   clear sessionId
   index sessionId
 
@@ -329,17 +326,20 @@ displayMiddleware  env app req respond = toIO onErr env do
                  Just sessionId -> pure sessionId
                  Nothing        -> throwIO (HTTPError (err400 { errBody = [i|Invalid session id|]}))
 
-  session <- Session.Pool.get sessionId
+  -- session <- Session.Pool.get sessionId
 
   -- set device type
   do
     let mUserAgent = lookup hUserAgent (requestHeaders req)
-    let deviceType =
+        deviceType =
           case mUserAgent of
             Just userAgent -> UserAgent.detectDeviceType userAgent
             Nothing        -> UserAgent.Unknown
-    when (session ^. #deviceType /= deviceType) do
-      Session.Pool.update sessionId (#deviceType .~ deviceType)
+
+    deviceType' <- Session.get sessionId (.deviceType)
+    when (deviceType' /= deviceType) do
+      Session.set sessionId (.deviceType) deviceType
+      -- Session.Pool.update sessionId (#deviceType .~ deviceType)
 
   -- set display cookie
   -- Note only the server set the cookie.
