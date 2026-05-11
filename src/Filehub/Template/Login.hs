@@ -27,7 +27,6 @@ login = do
     link_   [ rel_ "stylesheet", href_ "/static/login.css" ]
     link_   [ rel_ "stylesheet", href_ "/static/boxicons2.1.4.css" ]
     link_   [ rel_ "icon", type_ "image/png", href_ "/favicon-96x96.png", sizes_ "96x96"]
-    link_   [ rel_ "icon", type_ "image/svg+xml", href_ "/favicon.svg"]
     link_   [ rel_ "shortcut icon", href_ "/favicon.ico"]
     link_   [ rel_ "stylesheet", href_ "/theme.css" ]
     html

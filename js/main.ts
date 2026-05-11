@@ -59,10 +59,6 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 
-/* Start /listen */
-startListenSSE();
-
-
 /* Register service worker, required for PWA support. Only run this */
 if ('serviceWorker' in navigator && window.top === window.self) {
   window.addEventListener('load', () => {
@@ -84,6 +80,10 @@ window.addEventListener("beforeunload", async (_) => {
       body: new URLSearchParams({ res: window.innerWidth + 'x' + window.innerHeight })
     })
 })
+
+
+/* Start /listen */
+startListenSSE();
 
 
 function reloadTheme() {
@@ -268,7 +268,7 @@ function htmxProcessOOB(data: { htmxResponse: string | null }) {
 
 
 function startListenSSE() {
-  console.log('listenSSE')
+  console.log('startListenSSE')
   if (!evtSource) {
     evtSource = new EventSource("/listen")
   }

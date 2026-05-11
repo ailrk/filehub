@@ -93,9 +93,8 @@ withDefault display background html = do
   meta_ [ name_ "viewport", content_ "width=device-width, initial-scale=1.0, viewport-fit=cover" ]
   link_ [ rel_ "manifest", href_ "/manifest.json" ]
   link_ [ rel_ "icon", type_ "image/png", href_ "/favicon-96x96.png", sizes_ "96x96"]
-  link_ [ rel_ "icon", type_ "image/svg+xml", href_ "/favicon.svg"]
   link_ [ rel_ "shortcut icon", href_ "/favicon.ico"]
-  link_ [ rel_ "apple-touch-icon", sizes_ "180x180", href_ "/apple-touch-icon.png"]
+  link_ [ rel_ "apple-touch-icon", sizes_ "180x180", href_ "/static/apple-touch-icon.png"]
 
   meta_ [ name_ "mobile-web-app-capable", content_ "yes" ]
   meta_ [ name_ "apple-mobile-web-app-title", content_ "FileHub"]
@@ -105,7 +104,6 @@ withDefault display background html = do
   link_ [ rel_ "stylesheet", href_ "/static/boxicons2.1.4.css" ]
   link_ [ rel_ "stylesheet", href_ "/static/viewer.css" ]
   link_ [ rel_ "stylesheet", href_ "/static/reset.css" ]
-  link_ [ rel_ "stylesheet", href_ "/static/pdf.css" ]
 
   link_ [ rel_ "stylesheet", href_ "/theme.css" ]
 
