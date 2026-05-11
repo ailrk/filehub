@@ -235,9 +235,7 @@ data Api mode = Api
                           :> AuthProtect "readonly"
                           :> QueryParams "file" ClientPath
                           :> QueryFlag "selected"
-                          :> Delete '[HTML] (Headers '[ Header "X-Filehub-Selected-Count" Int
-                                                      , Header "HX-Trigger" FilehubEvent
-                                                      ] (Html ()))
+                          :> Delete '[HTML] (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))
 
 
   , copy                  :: mode
@@ -262,9 +260,7 @@ data Api mode = Api
                           :> AuthProtect "session"
                           :> AuthProtect "login"
                           :> AuthProtect "readonly"
-                          :> Post '[HTML] (Headers '[ Header "X-Filehub-Selected-Count" Int
-                                                    , Header "HX-Trigger" FilehubEvent
-                                                    ] (Html ()))
+                          :> Post '[HTML] (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))
 
 
   , move                  :: mode
@@ -273,9 +269,7 @@ data Api mode = Api
                           :> AuthProtect "login"
                           :> AuthProtect "readonly"
                           :> ReqBody '[FormUrlEncoded] MoveFile
-                          :> Post '[HTML] (Headers '[ Header "HX-Trigger" FilehubEvent
-                                                    , Header "HX-Trigger" FilehubEvent
-                                                    ] (Html ()))
+                          :> Post '[HTML] (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
 
 
   , renameModal           :: mode
@@ -370,7 +364,7 @@ data Api mode = Api
                           :> AuthProtect "login"
                           :> AuthProtect "readonly"
                           :> MultipartForm Mem (MultipartData Mem)
-                          :> Post '[HTML] (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
+                          :> Post '[HTML] (Html ())
 
 
   , download              :: mode

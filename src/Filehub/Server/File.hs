@@ -175,9 +175,7 @@ copy1 sessionId _ _ mClientPath = do
 
 
 move :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> MoveFile
-     -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent
-                          , Header "HX-Trigger" FilehubEvent
-                          ] (Html ()))
+     -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
 move sessionId _ _ (MoveFile src tgt) = do
   storage       <- Session.get sessionId (.storage)
   root          <- Session.get sessionId (.root)
@@ -220,7 +218,7 @@ move sessionId _ _ (MoveFile src tgt) = do
         }
 
   UI.clear sessionId
-  addHeader FileMoved . addHeader SSEStarted <$>
+  addHeader FileMoved <$>
     (do controlPanel' <- UI.controlPanel sessionId
         sideBar'      <- UI.sideBar sessionId
         pure do
@@ -277,7 +275,7 @@ download sessionId _ clientPaths = do
 
 
 upload :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> MultipartData Mem
-       -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
+       -> Filehub (Html ())
 upload sessionId _ _ multipart = do
   notifications <- Session.get sessionId (.notifications)
   taskId        <- newTaskId
@@ -317,7 +315,7 @@ upload sessionId _ _ multipart = do
         , htmxResponse = Just $ view' `with` [ hxSwapOOB True ]
         }
 
-  addHeader SSEStarted <$> UI.index sessionId
+  UI.index sessionId
 
 
 serve :: Env -> SessionId -> ConfirmLogin -> Tagged Filehub Application

@@ -23,7 +23,7 @@ import Filehub.Session qualified as Session
 import Filehub.Session.Copy qualified as Copy
 import Filehub.Session.Selected qualified as Selected
 import Filehub.Session.Types (CopyState (..))
-import Filehub.Types ( FilehubEvent (..), TargetSessionData (..))
+import Filehub.Types (TargetSessionData (..))
 import Lens.Micro ((.~))
 import Log (logAttention_)
 import Lucid hiding (for_)
@@ -77,9 +77,7 @@ createPasteTasks sessionId fromDir to selections = fmap (mconcat . mconcat) do
                 pure $ ([CreateDir to dst] ++ mconcat result)
 
 
-paste :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> Filehub (Headers '[ Header "X-Filehub-Selected-Count" Int
-                                                                           , Header "HX-Trigger" FilehubEvent
-                                                                           ] (Html ()))
+paste :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> Filehub (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))
 paste sessionId _ _ = do
   notifications   <- Session.get sessionId (.notifications)
   targetViewSaved <- Session.get sessionId (.currentTarget)
@@ -156,7 +154,7 @@ paste sessionId _ _ = do
   UI.clear sessionId
   selectedCount <- length <$> Selected.allSelecteds sessionId
 
-  addHeader selectedCount . addHeader SSEStarted
+  addHeader selectedCount
     <$> (do controlPanel' <- UI.controlPanel sessionId
             sideBar'      <- UI.sideBar sessionId
             pure do

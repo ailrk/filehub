@@ -19,7 +19,6 @@ import Filehub.Session (SessionId(..), withTarget)
 import Filehub.Session qualified as Session
 import Filehub.Session.Selected qualified as Selected
 import Filehub.Session.Types (Selected(..))
-import Filehub.Types ( FilehubEvent (..))
 import Lucid hiding (for_)
 import Lucid.Htmx (HxSwapOOB(..), Swap (..))
 import Prelude hiding (init, readFile)
@@ -36,9 +35,7 @@ import Worker.Task (newTaskId)
 -- /listen, and on complete it will send a htmx response that the frontend can
 -- use to update the UI.
 delete :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> [ClientPath] -> Bool
-       -> Filehub (Headers '[ Header "X-Filehub-Selected-Count" Int
-                            , Header "HX-Trigger" FilehubEvent
-                            ] (Html ()))
+       -> Filehub (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))
 delete sessionId _ _ clientPaths deleteSelected = do
   root            <- Session.get sessionId (.root)
   storage         <- Session.get sessionId (.storage)
@@ -103,7 +100,7 @@ delete sessionId _ _ clientPaths deleteSelected = do
 
   UI.clear sessionId
   newCount <- length <$> Selected.allSelecteds sessionId
-  addHeader newCount . addHeader SSEStarted
+  addHeader newCount
     <$> (do controlPanel' <- UI.controlPanel sessionId
             sideBar'      <- UI.sideBar sessionId
             pure do

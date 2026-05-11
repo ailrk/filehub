@@ -39,12 +39,13 @@ document.addEventListener("DOMContentLoaded", () => {
     document.addEventListener('ViewerInited', initViewer);
     document.addEventListener('Opened', open);
     document.addEventListener('ThemeChanged', reloadTheme);
-    document.addEventListener('SSEStarted', listenSSE);
     document.addEventListener('UIComponentReloaded', reloadUIComponent);
     document.body.addEventListener('htmx:responseError', handleError);
     document.addEventListener('htmx:afterSettle', closeDropdowns);
     removeClassOnIndex();
 });
+/* Start /listen */
+startListenSSE();
 /* Register service worker, required for PWA support. Only run this */
 if ('serviceWorker' in navigator && window.top === window.self) {
     window.addEventListener('load', () => {
@@ -222,7 +223,7 @@ function htmxProcessOOB(data) {
         });
     }
 }
-function listenSSE(_) {
+function startListenSSE() {
     console.log('listenSSE');
     if (!evtSource) {
         evtSource = new EventSource("/listen");
@@ -232,11 +233,7 @@ function listenSSE(_) {
         console.log('Task completed');
         let data = JSON.parse(e.data);
         htmxProcessOOB(data);
-        let remaining = Balloon.deleteLongLivedBalloon(data.taskId);
-        if (remaining === 0 && evtSource) {
-            evtSource.close();
-            evtSource = null;
-        }
+        let _remaining = Balloon.deleteLongLivedBalloon(data.taskId);
         Balloon.pushBalloon({
             kind: "InfoMsg",
             msg: `Task Completed`,

@@ -50,7 +50,6 @@ document.addEventListener("DOMContentLoaded", () => {
   document.addEventListener('ViewerInited', initViewer);
   document.addEventListener('Opened', open);
   document.addEventListener('ThemeChanged', reloadTheme);
-  document.addEventListener('SSEStarted', listenSSE);
   document.addEventListener('UIComponentReloaded', reloadUIComponent);
 
   document.body.addEventListener('htmx:responseError', handleError);
@@ -58,6 +57,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   removeClassOnIndex();
 });
+
+
+/* Start /listen */
+startListenSSE();
 
 
 /* Register service worker, required for PWA support. Only run this */
@@ -264,7 +267,7 @@ function htmxProcessOOB(data: { htmxResponse: string | null }) {
 }
 
 
-function listenSSE(_: Event) {
+function startListenSSE() {
   console.log('listenSSE')
   if (!evtSource) {
     evtSource = new EventSource("/listen")
@@ -278,11 +281,7 @@ function listenSSE(_: Event) {
 
     htmxProcessOOB (data);
 
-    let remaining = Balloon.deleteLongLivedBalloon(data.taskId)
-    if (remaining === 0 && evtSource) {
-      evtSource.close()
-      evtSource = null
-    }
+    let _remaining = Balloon.deleteLongLivedBalloon(data.taskId)
 
     Balloon.pushBalloon({
       kind: "InfoMsg",

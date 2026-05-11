@@ -10,11 +10,8 @@ import Control.Monad (forM)
 import Crypto.BCrypt qualified as BCrypt
 import Data.ByteString (ByteString)
 import Data.ByteString.Char8 qualified as Char8
-import Data.Hashable (Hashable)
-import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (maybeToList)
-import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.Time qualified as Time
@@ -26,7 +23,6 @@ import Filehub.Session (SessionId, Session)
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Types (LoginForm (..))
 import Prelude hiding (readFile)
-import Text.Debug (Debug(..))
 import Filehub.Session qualified as Session
 import Filehub.Monad (Filehub)
 import Control.Monad.Reader (asks)
