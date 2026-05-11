@@ -191,7 +191,7 @@ instance ToJSON FilehubEvent where
           [ "component" .= toJSON comp
           ]
       ]
-  toJSON (Dummy t)  = Aeson.object [ "Dummy"      .= Aeson.object [ "msg" .= t ] ]
+  toJSON (Dummy t)  = Aeson.object [ "Dummy" .= Aeson.object [ "msg" .= t ] ]
 
 
 instance ToHttpApiData FilehubEvent where

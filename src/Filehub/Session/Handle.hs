@@ -29,7 +29,7 @@ import Filehub.Storage.S3 qualified as S3
 import Filehub.Types (Display (..), Env(..))
 import Filehub.UserAgent qualified as UserAgent
 import Lens.Micro.Platform ()
-import Log (logAttention_, logTrace, logAttention)
+import Log (logAttention_, logAttention)
 import Prelude hiding (read, readFile, writeFile)
 import Target.File (Target(..), FileSys)
 import Target.S3 (S3)
@@ -199,10 +199,8 @@ newSessionSet sessionId =
              else do
                case lookup tid targets of
                  Just _ -> do
-                   logTrace "[vccxxa] Changing target" (show tid)
                    upS (\s -> s { currentTargetId = tid })
                  Nothing -> do
-                   logAttention "[vccxxa] Can't change to target" (show tid)
                    throwIO (FilehubError InvalidSession "Invalid session")
 
    in
