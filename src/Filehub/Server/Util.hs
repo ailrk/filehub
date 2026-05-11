@@ -7,7 +7,6 @@ module Filehub.Server.Util
 
 import Data.ByteString (ByteString)
 import Filehub.Error (FilehubError (..))
-import Lens.Micro.Platform ()
 import Prelude hiding (elem)
 import Prelude hiding (readFile)
 import Servant ( FromHttpApiData (..) )

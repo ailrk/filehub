@@ -9,10 +9,10 @@ import Data.Text.Encoding qualified as Text
 import Data.Time (UTCTime (..), fromGregorian)
 import Data.UUID qualified as UUID
 import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
-import Filehub.Auth.Types.OIDC (AuthUrl (..), SomeOIDCFlow (..), OIDCFlow (..))
 import Filehub.Auth.OIDC qualified as Auth.OIDC
 import Filehub.Auth.Simple qualified as Auth.Simple
 import Filehub.Auth.Types (AuthId(..))
+import Filehub.Auth.Types.OIDC (AuthUrl (..), SomeOIDCFlow (..), OIDCFlow (..))
 import Filehub.Cookie qualified as Cookies
 import Filehub.Error ( FilehubError(..), Error' (..) )
 import Filehub.Handler (ConfirmLogin)
@@ -20,22 +20,22 @@ import Filehub.Locale (Locale (..))
 import Filehub.Monad
 import Filehub.Orphan ()
 import Filehub.Server.Util (parseHeader')
-import Filehub.Session (SessionId(..))
+import Filehub.Session (SessionGet(..), SessionId(..))
 import Filehub.Session qualified as Session
-import Filehub.Session (SessionGet(..))
 import Filehub.Session.Pool qualified as Session.Pool
+import Filehub.Session.Types (SessionSet(..))
 import Filehub.Template (runTemplate, TemplateContext(..), makeTemplateContext)
 import Filehub.Template.Login qualified as Template.Login
 import Filehub.Theme qualified as Theme
-import Filehub.Types ( LoginForm(..)            , FilehubEvent (..))
+import Filehub.Types (LoginForm(..) , FilehubEvent (..))
+import Log (logInfo_, logAttention_)
 import Lucid hiding (for_)
 import Network.HTTP.Types.Header (hLocation)
 import Network.URI qualified as URI
 import Prelude hiding (init, readFile)
 import Servant (Header , Headers , NoContent (..) , addHeader , err301 , err303    , errHeaders , noHeader  )
-import Web.Cookie (SetCookie (..), defaultSetCookie)
 import UnliftIO (throwIO)
-import Log (logInfo_, logAttention_)
+import Web.Cookie (SetCookie (..), defaultSetCookie)
 
 
 -- | Return the login page
@@ -112,7 +112,7 @@ loginAuthSimple sessionId form@(LoginForm username _) =  do
 loginAuthOIDCRedirect :: SessionId -> Text -> Filehub NoContent
 loginAuthOIDCRedirect sessionId providerName = do
   stage <- Auth.OIDC.initialize providerName >>= Auth.OIDC.authorize
-  Auth.OIDC.setSessionOIDCFlow sessionId (Just stage)
+  Session.set sessionId (.oidcFlow) (Just (SomeOIDCFlow stage))
   case stage of
     AuthRequestPrepared _ _ _ _ (AuthUrl url) ->
       throwIO do
@@ -133,13 +133,13 @@ loginAuthOIDCCallback :: SessionId
                       -> Maybe Text
                       -> Filehub NoContent
 loginAuthOIDCCallback sessionId (Just code) (Just state) _ _ _ _ = do
-  Auth.OIDC.getSessionOIDCFlow sessionId >>= \case
+  Session.get sessionId (.oidcFlow) >>= \case
     Just (SomeOIDCFlow (stage@AuthRequestPrepared {})) -> do
         Auth.OIDC.callback stage code state
           >>= Auth.OIDC.exchangeToken
           >>= Auth.OIDC.verifyToken
           >>= Auth.OIDC.authenticateSession sessionId
-          >>= Auth.OIDC.setSessionOIDCFlow sessionId . Just
+          >>= Session.set sessionId (.oidcFlow) . Just . SomeOIDCFlow
     _ -> do
       logAttention_ "[s9vf9d] OIDC Error: invalid stage"
       pure ()

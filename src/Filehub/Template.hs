@@ -22,7 +22,6 @@ import Filehub.Session.Types (Selected, Layout, ControlPanelState)
 import Filehub.Sort (SortFileBy)
 import Filehub.Theme (Theme)
 import Filehub.Types (Display(..), Env)
-import Lens.Micro.Platform ()
 
 
 -- | A Template context type that capture all useful information to render

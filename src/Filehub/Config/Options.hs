@@ -50,13 +50,13 @@ targetConfig :: Parser TargetConfig
 targetConfig = (S3TargetConfig <$> s3TargetConfig) <|> (FSTargetConfig <$> fsTargetConfig)
   where
     s3TargetConfig =
-        Target.S3.Config
-            <$> option str
-                  (mconcat
-                    [ long "s3"
-                    , metavar "BUCKET"
-                    , help "S3 bucket"
-                    ])
+      Target.S3.Config
+        <$> option str
+              (mconcat
+                [ long "s3"
+                , metavar "BUCKET"
+                , help "S3 bucket"
+                ])
 
     fsTargetConfig =
       Target.File.Config

@@ -19,7 +19,6 @@ import Filehub.Session.Selected qualified as Selected
 import Filehub.Sort (sortFiles)
 import Filehub.Template.Mobile qualified as Template.Mobile
 import Filehub.Types (ClientPath)
-import Lens.Micro.Platform ()
 import Lucid
 import Prelude hiding (readFile)
 import System.FilePath (takeFileName)

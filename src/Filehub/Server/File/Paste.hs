@@ -9,7 +9,6 @@ import Data.ClientPath (AbsPath (..))
 import Data.ClientPath.IO (validateAbsPath)
 import Data.Coerce (coerce)
 import Data.File (FileType(..), File(..), FileContent (..), withContent, FileInfo, IsLink (..))
-import Data.Function ((&))
 import Data.Ratio ((%))
 import Data.String.Interpolate (i)
 import Data.Traversable (for)
@@ -20,11 +19,9 @@ import Filehub.Notification.Types (Notification(..))
 import Filehub.Server.UI qualified as UI
 import Filehub.Session (SessionId(..), TargetView (..), SessionGet(..), withTarget)
 import Filehub.Session qualified as Session
-import Filehub.Session.Copy qualified as Copy
 import Filehub.Session.Selected qualified as Selected
 import Filehub.Session.Types (CopyState (..))
 import Filehub.Types (TargetSessionData (..))
-import Lens.Micro ((.~))
 import Log (logAttention_)
 import Lucid hiding (for_)
 import Lucid.Htmx (HxSwapOOB(..))
@@ -83,7 +80,7 @@ paste sessionId _ _ = do
   targetViewSaved <- Session.get sessionId (.currentTarget)
   pasteCounter    <- newTVarIO @_ @Integer 0
   taskId          <- newTaskId
-  state           <- Copy.getCopyState sessionId
+  state           <- Session.get sessionId (.copyState)
   pasted          <- newTQueueIO @_ @PasteTask
   env             <- ask
 
@@ -110,9 +107,7 @@ paste sessionId _ _ = do
 
             withTarget sessionId to do
               storage <- Session.get sessionId (.storage)
-              storage.write $ file
-                & flip withContent (FileContentConduit conduit)
-                & #path .~ dst
+              storage.write (withContent file (FileContentConduit conduit)) { path = dst }
 
             atomically do
               n <- jot task
@@ -127,7 +122,7 @@ paste sessionId _ _ = do
               storage <- Session.get sessionId (.storage)
               void $ storage.newFolder dst
 
-      Copy.setCopyState sessionId NoCopyPaste
+      Session.set sessionId (.copyState) NoCopyPaste
       Selected.clearSelectedAllTargets sessionId
 
       targetView <- Session.get sessionId (.currentTarget)

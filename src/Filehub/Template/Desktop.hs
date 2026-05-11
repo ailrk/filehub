@@ -49,7 +49,6 @@ import Filehub.Template.Shared (bold, sideBarId, viewId, searchBar, tableId)
 import Filehub.Template.Shared qualified as Template
 import Filehub.Theme (Theme (..))
 import Filehub.Types (SortFileBy(..))
-import Lens.Micro.Platform ()
 import Lucid
 import Lucid.Htmx (hxGet, hxTarget, hxSwap, Swap (..), hxEncoding, hxPost, hxTrigger, Trigger (..), hxDelete, hxConfirm)
 import Network.Mime.Extended (isMime)

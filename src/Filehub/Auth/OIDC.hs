@@ -13,8 +13,6 @@ module Filehub.Auth.OIDC
   , exchangeToken
   , verifyToken
   , authenticateSession
-  , getSessionOIDCFlow
-  , setSessionOIDCFlow
   )
   where
 
@@ -44,11 +42,8 @@ import Filehub.Error (FilehubError (..), Error' (..))
 import Filehub.Monad (Filehub)
 import Filehub.Orphan ()
 import Filehub.Session qualified as Session
-import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Session.Types.SessionId (SessionId)
 import GHC.Generics (Generic)
-import Lens.Micro ((?~))
-import Lens.Micro.Platform ((^.), (.~))
 import Network.URI (URI(..), URIAuth(..), relativeTo)
 import Network.URI qualified as URI
 import Prelude hiding (init, readFile)
@@ -343,16 +338,3 @@ createActiveUser authId sessionId user = do
     , sessions = [sessionId]
     , auth     = OIDC user
     }
-
-
--- | Get the current oidc flow.
-getSessionOIDCFlow :: SessionId -> Filehub (Maybe SomeOIDCFlow)
-getSessionOIDCFlow sessionId = (^. #oidcFlow) <$> Session.Pool.get sessionId
-
-
--- | Set the current oidc flow.
-setSessionOIDCFlow :: SessionId -> Maybe (OIDCFlow s) -> Filehub ()
-setSessionOIDCFlow sessionId (Just flow) = do
-  Session.Pool.update sessionId \s -> s & #oidcFlow ?~ (SomeOIDCFlow flow)
-setSessionOIDCFlow sessionId Nothing = do
-  Session.Pool.update sessionId \s -> s & #oidcFlow .~ Nothing

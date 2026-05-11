@@ -50,7 +50,6 @@ import Filehub.Template.Desktop qualified as Template.Desktop
 import Filehub.Template.Mobile qualified as Template.Mobile
 import Filehub.Template.Shared qualified as Template
 import Filehub.Types
-import Lens.Micro.Platform ()
 import Lucid hiding ()
 import Prelude hiding (elem, readFile, init)
 import Prelude hiding (init, readFile)

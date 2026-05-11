@@ -19,7 +19,6 @@ import Filehub.Display qualified as Display
 import Filehub.Error (Error' (..))
 import Filehub.Error (FilehubError(..))
 import Filehub.Monad (Filehub)
-import Filehub.Session.Copy qualified as Copy
 import Filehub.Session.Internal (targetToSessionData)
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Session.Selected qualified as Selected
@@ -28,7 +27,6 @@ import Filehub.Storage.File qualified as File
 import Filehub.Storage.S3 qualified as S3
 import Filehub.Types (Display (..), Env(..))
 import Filehub.UserAgent qualified as UserAgent
-import Lens.Micro.Platform ()
 import Log (logAttention_, logAttention)
 import Prelude hiding (read, readFile, writeFile)
 import Target.File (Target(..), FileSys)
@@ -102,7 +100,7 @@ newSessionGet sessionId =
 
       controlPanelState = do
         isAnySelected <- Selected.anySelected sessionId
-        copyState     <- Copy.getCopyState sessionId
+        copyState     <- get sessionId (.copyState)
         case (isAnySelected, copyState) of
           (_, Paste {})           -> pure ControlPanelCopied
           (True, CopySelected {}) -> pure ControlPanelSelecting
@@ -151,6 +149,7 @@ newSessionGet sessionId =
       , theme             = g <&> (.theme)
       , locale            = g <&> (.locale)
       , targetViews       = targetViews
+      , copyState         = g <&> (.copyState)
       , controlPanelState = controlPanelState
       , sharedLinkPermit  = g <&> (.sharedLinkPermit)
       , currentTarget     = currentTarget
@@ -197,6 +196,8 @@ newSessionSet sessionId =
 
       pendingTasks a = upS (\s -> s { pendingTasks = a })
 
+      copyState a = upS (\s -> s { copyState = a })
+
       currentTarget tid = do
           TargetView target _ <- get sessionId (.currentTarget)
           targets <- asks (.targets) >>= readTVarIO
@@ -210,23 +211,24 @@ newSessionSet sessionId =
                    throwIO (FilehubError InvalidSession "Invalid session")
 
    in
-    SessionSet
-      { currentDir        = currentDir
-      , sortedFileBy      = sortedFileBy
-      , selected          = selected
-      , authId            = authId
-      , sidebarCollapsed  = sidebarCollapsed
-      , resolution        = resolution
-      , deviceType        = deviceType
-      , layout            = layout
-      , theme             = theme
-      , locale            = locale
-      , sharedLinkPermit  = sharedLinkPermit
-      , notifications     = notifications
-      , oidcFlow          = oidcFlow
-      , pendingTasks      = pendingTasks
-      , currentTarget     = currentTarget
-      }
+      SessionSet
+        { currentDir        = currentDir
+        , sortedFileBy      = sortedFileBy
+        , selected          = selected
+        , authId            = authId
+        , sidebarCollapsed  = sidebarCollapsed
+        , resolution        = resolution
+        , deviceType        = deviceType
+        , copyState         = copyState
+        , layout            = layout
+        , theme             = theme
+        , locale            = locale
+        , sharedLinkPermit  = sharedLinkPermit
+        , notifications     = notifications
+        , oidcFlow          = oidcFlow
+        , pendingTasks      = pendingTasks
+        , currentTarget     = currentTarget
+        }
 
 
 

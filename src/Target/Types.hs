@@ -20,7 +20,6 @@ import Data.Hashable (Hashable)
 import Data.Typeable (Typeable, cast)
 import Data.UUID (UUID)
 import Data.UUID qualified as UUID
-import Lens.Micro.Platform ()
 import Network.URI.Encode qualified as URI.Encode
 import Prelude hiding (readFile, writeFile)
 import Servant (ToHttpApiData (..), FromHttpApiData (..))

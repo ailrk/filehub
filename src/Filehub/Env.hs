@@ -19,7 +19,6 @@ import Filehub.Locale (Locale)
 import Filehub.Session.Types qualified as Session
 import Filehub.SharedLink (SharedLinkPool)
 import Filehub.Theme (Theme, CustomTheme)
-import Lens.Micro.Platform ()
 import Log (Logger, LogLevel)
 import Network.HTTP.Client qualified as HTTP
 import Target.Types (AnyTarget, TargetId)

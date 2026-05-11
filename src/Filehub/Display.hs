@@ -1,6 +1,5 @@
 module Filehub.Display (Resolution(..), Display(..), classify) where
 
-import Lens.Micro.Platform ()
 import Data.Generics.Labels ()
 import Servant (ToHttpApiData(..), FromHttpApiData(..))
 import Web.FormUrlEncoded (FromForm(..), parseUnique)

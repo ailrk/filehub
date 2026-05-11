@@ -81,6 +81,7 @@ data SessionGet m = SessionGet
   , layout            :: m Layout
   , theme             :: m Theme
   , locale            :: m Locale
+  , copyState         :: m CopyState
   , targetViews       :: m [TargetView]
   , controlPanelState :: m (ControlPanelState)
   , sharedLinkPermit  :: m (Maybe SharedLinkPermitSet)
@@ -103,6 +104,7 @@ data SessionSet m = SessionSet
   , deviceType        :: DeviceType -> m ()
   , theme             :: Theme -> m ()
   , locale            :: Locale -> m ()
+  , copyState         :: CopyState -> m ()
   , sharedLinkPermit  :: Maybe SharedLinkPermitSet -> m ()
   , currentTarget     :: TargetId -> m ()
   , oidcFlow          :: Maybe SomeOIDCFlow -> m ()
@@ -194,6 +196,3 @@ data TargetSessionData = TargetSessionData
   , selected     :: Selected
   }
   deriving (Generic, Debug)
-
-
-

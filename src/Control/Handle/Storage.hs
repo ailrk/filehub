@@ -6,8 +6,6 @@ import Data.File (FileInfo, FileWithContent)
 import Data.ByteString (ByteString)
 import Data.ClientPath (ClientPath, AbsPath)
 import Data.Conduit (ConduitT)
-import Data.Generics.Labels ()
-import Lens.Micro.Platform ()
 import Prelude hiding (readFile, writeFile)
 import Servant.Multipart ( Mem, FileData )
 

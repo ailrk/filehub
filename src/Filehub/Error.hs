@@ -14,7 +14,6 @@ module Filehub.Error
 
 import Servant
     ( ServerError(errBody))
-import Lens.Micro.Platform ()
 import Data.String (IsString(..))
 import Servant.Server (err500, err400)
 import UnliftIO.Exception (Exception)

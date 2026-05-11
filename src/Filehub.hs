@@ -27,7 +27,6 @@ import Filehub.Orphan ()
 import Filehub.Server (application)
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.SharedLink qualified as SharedLink
-import Lens.Micro.Platform ()
 import LockManager.Local qualified
 import Network.HTTP.Client.TLS (newTlsManager)
 import Network.Wai.Handler.Warp (setPort, defaultSettings, runSettings)

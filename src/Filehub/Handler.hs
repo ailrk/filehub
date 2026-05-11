@@ -26,7 +26,6 @@ import Filehub.Session (Session(..))
 import Filehub.Error (toServerError)
 import Network.Wai
 import Prelude hiding (readFile)
-import Lens.Micro.Platform ()
 import Servant
 import Filehub.Cookie qualified as Cookies
 import Filehub.Server.Util (parseHeader')

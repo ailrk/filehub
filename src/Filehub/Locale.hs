@@ -17,7 +17,6 @@ import Data.Either (fromRight)
 import Data.FileEmbed qualified as FileEmbed
 import Data.Text (Text)
 import Data.Text.Encoding qualified as Text
-import Lens.Micro.Platform ()
 import Toml.Codec (TomlCodec, (.=))
 import Toml.Codec qualified as Toml
 import Web.HttpApiData (ToHttpApiData(..), FromHttpApiData(..))

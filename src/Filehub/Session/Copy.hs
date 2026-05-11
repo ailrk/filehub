@@ -2,8 +2,6 @@
 module Filehub.Session.Copy
   ( select
   , copy
-  , getCopyState
-  , setCopyState
   , clearCopyState
   , CopyState
   )
@@ -12,32 +10,21 @@ module Filehub.Session.Copy
 import Control.Handle.Storage (Storage(..))
 import Control.Monad (forM_)
 import Data.ClientPath qualified as ClientPath
-import Data.Function (on)
+import Data.Function (on, (&))
 import Data.List (nub)
 import Data.String.Interpolate (i)
 import Filehub.Error (FilehubError (..), Error' (..))
 import Filehub.Monad (Filehub)
-import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Session.Selected qualified as Selected
-import Filehub.Session.Types (Selected(..), SessionId, CopyState (..))
-import Filehub.Session.Types (SessionGet(..))
-import Lens.Micro hiding (to)
+import Filehub.Session.Types (Selected(..), SessionId, CopyState (..), SessionGet(..), SessionSet(..))
 import Log (logAttention_)
 import Target.Types qualified as Target
 import UnliftIO (throwIO)
-import {-# SOURCE #-} Filehub.Session.Handle (withTarget, get)
-
-
-getCopyState :: SessionId -> Filehub CopyState
-getCopyState sessionId = (^. #copyState) <$> Session.Pool.get sessionId
-
-
-setCopyState :: SessionId -> CopyState -> Filehub ()
-setCopyState sessionId copyState = Session.Pool.update sessionId \s -> s & #copyState .~ copyState
+import {-# SOURCE #-} Filehub.Session.Handle (withTarget, get, set)
 
 
 clearCopyState :: SessionId -> Filehub ()
-clearCopyState sessionId = setCopyState sessionId NoCopyPaste
+clearCopyState sessionId = set sessionId (.copyState) NoCopyPaste
 
 
 -- | Add selected to copy state.
@@ -49,9 +36,9 @@ select sessionId = do
       storage <- get sessionId (.storage)
       case selected of
         NoSelection -> do
-          state <- getCopyState sessionId
+          state <- get sessionId (.copyState)
           case onNoSelection state of
-            Right (Just state') -> setCopyState sessionId state'
+            Right (Just state') -> set sessionId (.copyState) state'
             Right Nothing       -> pure ()
             Left err -> do
               logAttention_ [i|[asckkk] #{err}|]
@@ -60,9 +47,9 @@ select sessionId = do
           root <- get sessionId (.root)
           let paths = (x:xs) & fmap (ClientPath.fromClientPath root)
           files <- traverse storage.get paths
-          state <- getCopyState sessionId
+          state <- get sessionId (.copyState)
           case onSelected (target, files) state of
-            Right state' -> setCopyState sessionId state'
+            Right state' -> set sessionId (.copyState) state'
             Left err -> do
               logAttention_ [i|[ascks1] #{err}|]
               throwIO err
@@ -86,10 +73,10 @@ select sessionId = do
 -- | Confirm selection
 copy :: SessionId -> Filehub ()
 copy sessionId = do
-  state <- getCopyState sessionId
+  state <- get sessionId (.copyState)
   case step state of
     Right state' -> do
-      setCopyState sessionId state'
+      set sessionId (.copyState) state'
     Left err -> do
       logAttention_ [i|[tyy33d] #{err}|]
       throwIO err

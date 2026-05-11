@@ -33,7 +33,6 @@ import Filehub.Template.Shared qualified as Template
 import Filehub.Template.Shared (sideBarId, controlPanelId, viewId, searchBar, toolBarId, tableId)
 import Filehub.Theme (Theme(..))
 import Filehub.Types ( SortFileBy(..))
-import Lens.Micro.Platform ()
 import Lucid
 import System.FilePath (takeFileName)
 import Target.File (Target (..), FileSys)
