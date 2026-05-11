@@ -1,329 +1,311 @@
-cabal-version:      3.0
-name:               filehub
-version:            0.1.3.0
+cabal-version:            3.0
+name:                     filehub
+version:                  0.1.3.0
 author: Ailrk
-maintainer:         jimmy@ailrk.com
-build-type:         Simple
-data-files:         data/**/*.css
-                    data/**/*.js
-                    data/**/*.png
-                    data/**/*.ico
-
-
-common extensions
-    default-extensions:
-      BlockArguments
-      DataKinds
-      DerivingStrategies
-      DerivingVia
-      DeriveGeneric
-      DeriveAnyClass
-      GeneralizedNewtypeDeriving
-      DuplicateRecordFields
-      FlexibleContexts
-      GADTs
-      ImportQualifiedPost
-      KindSignatures
-      LambdaCase
-      NoFieldSelectors
-      OverloadedLabels
-      OverloadedRecordDot
-      OverloadedStrings
-      QuasiQuotes
-      RankNTypes
-      RecordWildCards
-      ScopedTypeVariables
-      StandaloneDeriving
-      StrictData
-      TypeApplications
-      TypeOperators
-      TypeFamilies
-      FlexibleInstances
-
-
-common options
-    ghc-options:
-      -- force all warnings to be on and selectively disable some
-      -Weverything
-      -Wno-all-missed-specialisations
-      -Wno-ambiguous-fields
-      -Wno-implicit-prelude
-      -Wno-missing-deriving-strategies
-      -Wno-missing-export-lists
-      -Wno-missing-import-lists
-      -Wno-missing-kind-signatures
-      -Wno-missing-local-signatures
-      -Wno-missing-safe-haskell-mode
-      -Wno-missing-role-annotations
-      -Wno-partial-fields
-      -Wno-monomorphism-restriction
-      -Wno-safe
-      -Wno-unsafe
-      -Wno-unticked-promoted-constructors
-      -threaded
+maintainer:               jimmy@ailrk.com
+build-type:               Simple
+data-files:               data/**/*.css
+                          data/**/*.js
+                          data/**/*.png
+                          data/**/*.ico
 
 
 flag debug
-  description: Enable debug mode
-  default: False
-  manual: True
+  description:            Enable debug mode
+  default:                False
+  manual:                 True
+
+
+common shared
+  default-extensions:     BlockArguments
+                          DataKinds
+                          DerivingStrategies
+                          DerivingVia
+                          DeriveGeneric
+                          DeriveAnyClass
+                          GeneralizedNewtypeDeriving
+                          DuplicateRecordFields
+                          FlexibleContexts
+                          GADTs
+                          ImportQualifiedPost
+                          KindSignatures
+                          LambdaCase
+                          NoFieldSelectors
+                          OverloadedLabels
+                          OverloadedRecordDot
+                          OverloadedStrings
+                          QuasiQuotes
+                          RankNTypes
+                          RecordWildCards
+                          ScopedTypeVariables
+                          StandaloneDeriving
+                          StrictData
+                          TypeApplications
+                          TypeOperators
+                          TypeFamilies
+                          FlexibleInstances
+
+  -- Force all warnings to be on and selectively disable some
+  ghc-options:            -Weverything
+                          -Wno-all-missed-specialisations
+                          -Wno-ambiguous-fields
+                          -Wno-implicit-prelude
+                          -Wno-missing-deriving-strategies
+                          -Wno-missing-export-lists
+                          -Wno-missing-import-lists
+                          -Wno-missing-kind-signatures
+                          -Wno-missing-local-signatures
+                          -Wno-missing-safe-haskell-mode
+                          -Wno-missing-role-annotations
+                          -Wno-partial-fields
+                          -Wno-monomorphism-restriction
+                          -Wno-safe
+                          -Wno-unsafe
+                          -Wno-unticked-promoted-constructors
+                          -threaded
+
+  build-depends:          base >=4.16.1.0
+
+  default-language:       Haskell2010
+
+  if flag(debug)
+    cpp-options:          -DDEBUG
 
 
 library
-  import: extensions, options
-  if flag(debug)
-    cpp-options: -DDEBUG
-  hs-source-dirs: src
-  build-depends:
-      base >=4.16.1.0
-    , aeson
-    , aeson-pretty
-    , amazonka
-    , amazonka-s3
-    , base64-bytestring
-    , bcrypt
-    , binary
-    , bytestring
-    , case-insensitive
-    , conduit
-    , conduit-extra
-    , containers
-    , cookie
-    , cryptohash-sha256
-    , cryptonite
-    , data-default
-    , directory
-    , file-embed
-    , filepath
-    , fuzzy
-    , generic-lens
-    , hashable
-    , hashtables
-    , http-api-data
-    , http-client
-    , http-client-tls
-    , http-types
-    , jwt
-    , log-base
-    , lucid
-    , microlens
-    , microlens-platform
-    , mime-types
-    , mtl
-    , network-uri
-    , optparse-applicative
-    , pretty-simple
-    , psqueues
-    , random
-    , resourcet
-    , retry
-    , servant
-    , servant-client
-    , servant-conduit
-    , servant-event-stream
-    , servant-lucid
-    , servant-multipart
-    , servant-server
-    , split
-    , sqlite-simple
-    , stm
-    , string-interpolate
-    , suspend
-    , template-haskell
-    , temporary
-    , text
-    , time
-    , timers
-    , tomland
-    , transformers
-    , transformers-base
-    , unliftio
-    , unordered-containers
-    , uri-encode
-    , uuid
-    , vault
-    , vector
-    , wai
-    , wai-app-static
-    , wai-extra
-    , warp
-    , zip
+  import:                 shared
+  hs-source-dirs:         src
+  build-depends:          aeson
+                        , aeson-pretty
+                        , amazonka
+                        , amazonka-s3
+                        , base64-bytestring
+                        , bcrypt
+                        , binary
+                        , breakpoint
+                        , bytestring
+                        , case-insensitive
+                        , conduit
+                        , conduit-extra
+                        , containers
+                        , cookie
+                        , cryptohash-sha256
+                        , cryptonite
+                        , data-default
+                        , directory
+                        , file-embed
+                        , filepath
+                        , fuzzy
+                        , generic-lens
+                        , hashable
+                        , hashtables
+                        , http-api-data
+                        , http-client
+                        , http-client-tls
+                        , http-types
+                        , jwt
+                        , log-base
+                        , lucid
+                        , microlens
+                        , microlens-platform
+                        , mime-types
+                        , mtl
+                        , network-uri
+                        , optparse-applicative
+                        , pretty-simple
+                        , psqueues
+                        , random
+                        , resourcet
+                        , retry
+                        , servant
+                        , servant-client
+                        , servant-conduit
+                        , servant-event-stream
+                        , servant-lucid
+                        , servant-multipart
+                        , servant-server
+                        , split
+                        , sqlite-simple
+                        , stm
+                        , string-interpolate
+                        , suspend
+                        , template-haskell
+                        , temporary
+                        , text
+                        , time
+                        , timers
+                        , tomland
+                        , transformers
+                        , transformers-base
+                        , unliftio
+                        , unordered-containers
+                        , uri-encode
+                        , uuid
+                        , vault
+                        , vector
+                        , wai
+                        , wai-app-static
+                        , wai-extra
+                        , warp
+                        , zip
 
-  exposed-modules:
-    Cache.InMemory
-    Cache.Key
-    Control.Handle.Cache
-    Control.Handle.EvtLog
-    Control.Handle.LockManager
-    Control.Handle.Storage
-    Control.Service.Cache
-    Control.Service.LockManager
-    Data.ClientPath
-    Data.ClientPath.IO
-    Data.ClientPath.View
-    Data.File
-    Data.Queue
-    EvtLog
-    Filehub
-    Filehub.ActiveUser.Pool
-    Filehub.ActiveUser.Types
-    Filehub.Auth.OIDC
-    Filehub.Auth.Simple
-    Filehub.Auth.Types
-    Filehub.Auth.Types.AuthId
-    Filehub.Auth.Types.OIDC
-    Filehub.Auth.Types.Simple
-    Filehub.Config
-    Filehub.Config.Options
-    Filehub.Config.Toml
-    Filehub.Cookie
-    Filehub.Display
-    Filehub.Env
-    Filehub.Error
-    Filehub.Handler
-    Filehub.Links
-    Filehub.Locale
-    Filehub.Log
-    Filehub.Monad
-    Filehub.Notification.Types
-    Filehub.Orphan
-    Filehub.QQ
-    Filehub.Routes
-    Filehub.Server
-    Filehub.Server.File
-    Filehub.Server.File.Paste
-    Filehub.Server.File.Delete
-    Filehub.Server.Login
-    Filehub.Server.Notification
-    Filehub.Server.Search
-    Filehub.Server.SharedLink
-    Filehub.Server.Static
-    Filehub.Server.Static.QQ
-    Filehub.Server.UI
-    Filehub.Server.UI.Desktop
-    Filehub.Server.UI.Mobile
-    Filehub.Server.Util
-    Filehub.Session
-    Filehub.Session.Copy
-    Filehub.Session.Handle
-    Filehub.Session.Internal
-    Filehub.Session.Pool
-    Filehub.Session.Selected
-    Filehub.Session.Types
-    Filehub.Session.Types.SessionId
-    Filehub.SharedLink
-    Filehub.Size
-    Filehub.Sort
-    Filehub.Storage.File
-    Filehub.Storage.S3
-    Filehub.Template
-    Filehub.Template.Desktop
-    Filehub.Template.Login
-    Filehub.Template.Mobile
-    Filehub.Template.Shared
-    Filehub.Theme
-    Filehub.Types
-    Filehub.UserAgent
-    LockManager.Key
-    LockManager.Local
-    Lucid.Htmx
-    Network.Mime.Extended
-    Network.Wai.Middleware.Extended
-    Paths_filehub
-    Servant.Extended
-    System.FilePath.Extended
-    Target.Dummy
-    Target.File
-    Target.S3
-    Target.Types
-    Text.Debug
-    Worker.Pool
-    Worker.Task
-  default-language: Haskell2010
+  exposed-modules:        Cache.InMemory
+                          Cache.Key
+                          Control.Handle.Cache
+                          Control.Handle.EvtLog
+                          Control.Handle.LockManager
+                          Control.Handle.Storage
+                          Control.Service.Cache
+                          Control.Service.LockManager
+                          Data.ClientPath
+                          Data.ClientPath.IO
+                          Data.ClientPath.View
+                          Data.File
+                          Data.Queue
+                          EvtLog
+                          Filehub
+                          Filehub.ActiveUser.Pool
+                          Filehub.ActiveUser.Types
+                          Filehub.Auth.OIDC
+                          Filehub.Auth.Simple
+                          Filehub.Auth.Types
+                          Filehub.Auth.Types.AuthId
+                          Filehub.Auth.Types.OIDC
+                          Filehub.Auth.Types.Simple
+                          Filehub.Config
+                          Filehub.Config.Options
+                          Filehub.Config.Toml
+                          Filehub.Cookie
+                          Filehub.Display
+                          Filehub.Env
+                          Filehub.Error
+                          Filehub.Handler
+                          Filehub.Links
+                          Filehub.Locale
+                          Filehub.Log
+                          Filehub.Monad
+                          Filehub.Notification.Types
+                          Filehub.Orphan
+                          Filehub.QQ
+                          Filehub.Routes
+                          Filehub.Server
+                          Filehub.Server.File
+                          Filehub.Server.File.Paste
+                          Filehub.Server.File.Delete
+                          Filehub.Server.Login
+                          Filehub.Server.Notification
+                          Filehub.Server.Search
+                          Filehub.Server.SharedLink
+                          Filehub.Server.Static
+                          Filehub.Server.Static.QQ
+                          Filehub.Server.UI
+                          Filehub.Server.UI.Desktop
+                          Filehub.Server.UI.Mobile
+                          Filehub.Server.Util
+                          Filehub.Session
+                          Filehub.Session.Copy
+                          Filehub.Session.Handle
+                          Filehub.Session.Internal
+                          Filehub.Session.Pool
+                          Filehub.Session.Selected
+                          Filehub.Session.Types
+                          Filehub.Session.Types.SessionId
+                          Filehub.SharedLink
+                          Filehub.Size
+                          Filehub.Sort
+                          Filehub.Storage.File
+                          Filehub.Storage.S3
+                          Filehub.Template
+                          Filehub.Template.Desktop
+                          Filehub.Template.Login
+                          Filehub.Template.Mobile
+                          Filehub.Template.Shared
+                          Filehub.Theme
+                          Filehub.Types
+                          Filehub.UserAgent
+                          LockManager.Key
+                          LockManager.Local
+                          Lucid.Htmx
+                          Network.Mime.Extended
+                          Network.Wai.Middleware.Extended
+                          Paths_filehub
+                          Servant.Extended
+                          System.FilePath.Extended
+                          Target.Dummy
+                          Target.File
+                          Target.S3
+                          Target.Types
+                          Text.Debug
+                          Worker.Pool
+                          Worker.Task
 
 
 executable filehub
-  import: extensions, options
-  if flag(debug)
-    cpp-options: -DDEBUG
-  main-is: Main.hs
-  hs-source-dirs: app
-  build-depends:
-      base >=4.16.1.0
-    , filehub
-  default-language: Haskell2010
+  import:                 shared
+  main-is:                Main.hs
+  hs-source-dirs:         app
+  build-depends:          filehub
 
 
 test-suite filehub_test_integration
-  import: extensions, options
-  type:              exitcode-stdio-1.0
-  hs-source-dirs:    test_integration
-  main-is:           Main.hs
-  other-modules:
-    Test.Middleware
-    Test.Cache
-    Test.Api.Login
-    Test.Api.File
-    Util.Env
-  build-depends:
-      base >=4.16.1.0
-    , QuickCheck
-    , bcrypt
-    , bytestring
-    , containers
-    , cookie
-    , directory
-    , filehub
-    , filepath
-    , hspec
-    , hspec-wai
-    , text
-    , http-api-data
-    , http-types
-    , http-client
-    , http-client-tls
-    , log-base
-    , servant-server
-    , time
-    , uri-encode
-    , uuid
-    , unliftio
-    , wai
-    , wai-extra
-  default-language:   Haskell2010
+  import:                 shared
+  type:                   exitcode-stdio-1.0
+  hs-source-dirs:         test_integration
+  main-is:                Main.hs
+  other-modules:          Test.Middleware
+                          Test.Cache
+                          Test.Api.Login
+                          Test.Api.File
+                          Util.Env
+  build-depends:          QuickCheck
+                        , bcrypt
+                        , bytestring
+                        , containers
+                        , cookie
+                        , directory
+                        , filehub
+                        , filepath
+                        , hspec
+                        , hspec-wai
+                        , text
+                        , http-api-data
+                        , http-types
+                        , http-client
+                        , http-client-tls
+                        , log-base
+                        , servant-server
+                        , time
+                        , uri-encode
+                        , uuid
+                        , unliftio
+                        , wai
+                        , wai-extra
 
 
 test-suite filehub_test_unit
-  import: extensions, options
-  type:              exitcode-stdio-1.0
-  hs-source-dirs:    test_unit
-  main-is:           Spec.hs
-  other-modules:
-    Data.ClientPathSpec
-    EvtLogSpec
-  build-depends:
-      base >=4.16.1.0
-    , QuickCheck
-    , bytestring
-    , filehub
-    , filepath
-    , hspec
-    , time
-    , uri-encode
-  default-language:   Haskell2010
+  import:                 shared
+  type:                   exitcode-stdio-1.0
+  hs-source-dirs:         test_unit
+  main-is:                Spec.hs
+  other-modules:          Data.ClientPathSpec
+                          EvtLogSpec
+  build-depends:          QuickCheck
+                        , bytestring
+                        , filehub
+                        , filepath
+                        , hspec
+                        , time
+                        , uri-encode
 
 
 benchmark filehub_bench
-  import: extensions, options
-  type:                exitcode-stdio-1.0
-  hs-source-dirs:      benchmark
-  main-is:             Main.hs
-  build-depends:
-      base >=4.16 && <5
-    , filehub
-    , criterion >=1.6
-    , unliftio
-    , req
-    , time
-    , http-types
-  default-language: Haskell2010
+  import:                 shared
+  type:                   exitcode-stdio-1.0
+  hs-source-dirs:         benchmark
+  main-is:                Main.hs
+  build-depends:          filehub
+                        , criterion >=1.6
+                        , unliftio
+                        , req
+                        , time
+                        , http-types
