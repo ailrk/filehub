@@ -1,5 +1,4 @@
 {-# LANGUAGE NamedFieldPuns #-}
-
 module Filehub.Server.File.Delete (delete) where
 
 import Conduit (MonadIO (..))
@@ -46,7 +45,6 @@ delete sessionId _ _ clientPaths deleteSelected = do
   deleteCounter   <- newTVarIO @_ @Integer 0
   deleted         <- newTQueueIO @_ @ClientPath
   env             <- ask
-
 
   -- Record on each successful delete.
   let jot clientPath = do

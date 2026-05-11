@@ -235,14 +235,14 @@ selectRows :: SessionId -> ConfirmLogin -> Selected -> Filehub (Headers '[ Heade
 selectRows sessionId _ selected = do
   case selected of
     NoSelection -> do
-      Selected.setSelected sessionId NoSelection
+      Session.set sessionId (.selected) NoSelection
       sideBar'      <- sideBar sessionId
       controlPanel' <- controlPanel sessionId
       pure $ addHeader 0 do
         sideBar' `with` [ hxSwapOOB True ]
         controlPanel'
     _ -> do
-      Selected.setSelected sessionId selected
+      Session.set sessionId (.selected) selected
       count         <- length <$> Selected.allSelecteds sessionId
       sideBar'      <- sideBar sessionId
       controlPanel' <- controlPanel sessionId

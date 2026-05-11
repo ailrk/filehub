@@ -53,7 +53,6 @@ import Filehub.Session (SessionGet(..))
 import Filehub.Session (SessionId(..))
 import Filehub.Session qualified as Session
 import Filehub.Session.Copy qualified as Copy
-import Filehub.Session.Selected qualified as Selected
 import Filehub.Session.Types (Selected(..))
 import Filehub.Sort qualified as Sort
 import Filehub.Types ( NewFile(..) , NewFolder(..), UpdatedFile(..) , UpdatedFile(..) , FilehubEvent (..), RenameFile (..), MoveFile (..), Env)
@@ -168,7 +167,7 @@ copy1 :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> Maybe ClientPath -> Fil
 copy1 sessionId _ _ mClientPath = do
   clientPath <- withQueryParam mClientPath
   UI.clear sessionId
-  Selected.setSelected sessionId (Selected clientPath [])
+  Session.set sessionId (.selected) (Selected clientPath [])
   Copy.select sessionId
   Copy.copy sessionId
   UI.index sessionId

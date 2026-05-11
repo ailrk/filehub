@@ -3,7 +3,6 @@ module Filehub.Session.Selected
   ( elem
   , toList
   , fromList
-  , setSelected
   , anySelected
   , clearSelected
   , clearSelectedAllTargets
@@ -11,21 +10,18 @@ module Filehub.Session.Selected
   )
   where
 
-import Control.Monad.Reader (asks)
 import Data.ClientPath (ClientPath)
+import Data.List (union)
 import Data.Map.Strict qualified as Map
-import Data.Maybe (catMaybes)
 import Filehub.Monad (Filehub)
 import Filehub.Session.Pool qualified as Session.Pool
-import Filehub.Types (Env(..), SessionId, Session(..), TargetSessionData (..))
-import Lens.Micro hiding (to)
-import Lens.Micro.Platform ()
+import Filehub.Session.Types (Selected(..), SessionGet(..), SessionSet(..), TargetView (..), TargetSessionData (..))
+import Filehub.Session.Types (Session(..))
+import Filehub.Types (SessionId)
 import Prelude hiding (elem)
-import Target.Types (AnyTarget)
-import UnliftIO.STM (readTVarIO)
-import Filehub.Session.Types (Selected(..))
 import Prelude qualified
-import Data.List (union)
+import Target.Types (AnyTarget)
+import {-# SOURCE #-} Filehub.Session.Handle qualified as Session
 
 
 toList :: Selected -> [ClientPath]
@@ -54,43 +50,40 @@ instance Monoid AsSet where
   mempty = AsSet NoSelection
 
 
-setSelected :: SessionId -> Selected -> Filehub ()
-setSelected sessionId selected = Session.Pool.update sessionId \s -> s & #targets . ix s.currentTargetId . #selected .~ selected
-
-
 anySelected :: SessionId -> Filehub Bool
-anySelected sessionId = go <$> Session.Pool.get sessionId
-  where
-    go :: Session -> Bool
-    go session = session ^. #targets & fmap (^. #selected) & any (\case { Selected _ _ -> True; NoSelection -> False })
+anySelected sessionId = do
+  targetViews <- Session.get sessionId (.targetViews)
+
+  pure $ or (fmap hasSelection targetViews)
 
 
 -- | Get all selected files grouped by targets
 allSelecteds :: SessionId -> Filehub [(AnyTarget, Selected)]
 allSelecteds sessionId = do
-  session <- Session.Pool.get sessionId
-  targets <- asks (.targets) >>= readTVarIO
-  session ^. #targets
-    & Map.toList
-    & filter hasSelection
-    & mapM (go targets)
-    <&> catMaybes
-  where
-    hasSelection (_, TargetSessionData { selected })
-      | NoSelection <- selected = False
-      | otherwise               = True
+  targetViews <- Session.get sessionId (.targetViews)
 
-    go targets (targetId, TargetSessionData { selected }) = do
-      case lookup targetId targets of
-        Just target -> pure $ Just (target, selected)
-        Nothing -> pure Nothing
+  pure
+    [ (target, selected)
+    | tv@(TargetView target (TargetSessionData { selected })) <- targetViews
+    , hasSelection tv
+    ]
+
+
+hasSelection :: TargetView -> Bool
+hasSelection TargetView { sessionData = TargetSessionData { selected } }
+  | NoSelection <- selected = False
+  | otherwise               = True
 
 
 clearSelected :: SessionId -> Filehub ()
-clearSelected sessionId = setSelected sessionId NoSelection
+clearSelected sessionId = Session.set sessionId (.selected) NoSelection
 
 
 clearSelectedAllTargets :: SessionId -> Filehub ()
 clearSelectedAllTargets sessionId = do
-  let update sessionData = sessionData & #selected .~ NoSelection
-  Session.Pool.update sessionId \s -> s &  #targets . mapped %~ update
+  Session.Pool.update sessionId \s ->
+    let
+        targets = s.targets
+        newTargets = Map.map (\t -> t { selected = NoSelection } :: TargetSessionData) targets
+     in
+        s { targets = newTargets }

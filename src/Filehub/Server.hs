@@ -4,6 +4,15 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE MultiWayIf #-}
 {-# OPTIONS_GHC -Wno-unused-imports #-}
+
+-- [Debug Note]
+-- When using Debug.Breakpoint we need to compile with the plugin on all
+-- modules that spawns threads. It's too slow to add it to every modules.
+-- Luckily, most threads are created here by servant handlers.
+#ifdef DEBUG
+{-# OPTIONS_GHC -fplugin Debug.Breakpoint #-}
+#endif
+
 -- |
 -- Maintainer  :  jimmy@ailrk.com
 -- Copyright   :  (c) 2025-present Jinyang yao
@@ -153,7 +162,6 @@ import Data.ByteString.Char8 qualified as Char8
 import Filehub.Session qualified as Session
 import UnliftIO (MonadIO(..), try, throwIO)
 import Filehub.Error (FilehubError (..), Error' (..))
-
 
 
 ------------------------------------
