@@ -9,6 +9,8 @@
 -- The effect of filehub.
 module Filehub.Monad
   ( runFilehub
+  , forkFilehub
+  , forkFilehub_
   , toIO
   , Filehub
   )
@@ -17,7 +19,7 @@ module Filehub.Monad
 import Control.Monad.Reader
 import Filehub.Env (Env(..))
 import Filehub.Error (FilehubError, toServerError)
-import UnliftIO (try, MonadUnliftIO (..))
+import UnliftIO (try, MonadUnliftIO (..), async, Async)
 import Servant (ServerError)
 import Log (MonadLog(..), LogT, runLogT)
 import Control.Service.Cache (MonadCache (..))
@@ -27,6 +29,7 @@ import Control.Handle.LockManager (LockManager(..))
 import Prelude hiding (lookup)
 import Control.Monad.Trans.Resource (MonadResource (..), ResourceT, runResourceT)
 import Control.Monad.Base (MonadBase (..))
+import Control.Monad (void)
 
 
 -- | The core Application monad.
@@ -106,6 +109,20 @@ runFilehub env action = try
                       . (.unFilehub)
                       $ action
 {-# INLINE runFilehub #-}
+
+
+
+-- | Fork a new threads runs the filehub
+-- forkFilehub :: Env -> Filehub a -> IO (Async (Either FilehubError a))
+forkFilehub :: MonadUnliftIO m => Env -> Filehub a -> m (Async (Either FilehubError a))
+forkFilehub env = async . liftIO . runFilehub env
+{-# INLINE forkFilehub #-}
+
+
+forkFilehub_ :: MonadUnliftIO m => Env -> Filehub a -> m ()
+forkFilehub_ env = void . forkFilehub env
+{-# INLINE forkFilehub_ #-}
+
 
 -- | Convenient helper to run Filehub in IO, mapping errors to Servant ServerError.
 toIO :: (ServerError -> IO a) -> Env -> Filehub a -> IO a

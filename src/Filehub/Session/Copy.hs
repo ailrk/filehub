@@ -15,6 +15,7 @@ import Data.List (nub)
 import Data.String.Interpolate (i)
 import Filehub.Error (FilehubError (..), Error' (..))
 import Filehub.Monad (Filehub)
+import Filehub.Session.Selected (AllSelected(..))
 import Filehub.Session.Selected qualified as Selected
 import Filehub.Session.Types (Selected(..), SessionId, CopyState (..), SessionGet(..), SessionSet(..))
 import Log (logAttention_)
@@ -30,8 +31,8 @@ clearCopyState sessionId = set sessionId (.copyState) NoCopyPaste
 -- | Add selected to copy state.
 select :: SessionId -> Filehub ()
 select sessionId = do
-  allSelecteds <- Selected.allSelecteds sessionId
-  forM_ allSelecteds \(target, selected) -> do
+  AllSelected { allSelected } <- Selected.getAllSelected sessionId
+  forM_ allSelected \(target, selected) -> do
     withTarget sessionId target do
       storage <- get sessionId (.storage)
       case selected of

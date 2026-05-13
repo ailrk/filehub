@@ -20,7 +20,7 @@ import Filehub.Locale (Locale (..))
 import Filehub.Monad
 import Filehub.Orphan ()
 import Filehub.Server.Util (parseHeader')
-import Filehub.Session (SessionGet(..), SessionId(..))
+import Filehub.Session (SessionGet(..), SessionId(..), get)
 import Filehub.Session qualified as Session
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Session.Types (SessionSet(..))
@@ -47,7 +47,7 @@ loginPage sessionId cookie Nothing = do
      else do
        case fmap T.encodeUtf8 cookie >>= parseHeader' >>= Cookies.fromCookies of
          Just authId' -> do
-           authId <- Session.get sessionId (.authId)
+           authId <- get sessionId (.authId)
            if authId == Just authId'
               then go
               else pure $ runTemplate ctx Template.Login.login
@@ -61,7 +61,7 @@ loginPage sessionId _ (Just _) = do
 
 loginToggleTheme :: SessionId -> Filehub (Headers '[ Header "HX-Trigger-After-Settle" FilehubEvent ] (Html ()))
 loginToggleTheme sessionId = do
-  theme <- Session.get sessionId (.theme)
+  theme <- get sessionId (.theme)
   case theme of
     Theme.Light -> Session.set sessionId (.theme) Theme.Dark
     Theme.Dark  -> Session.set sessionId (.theme) Theme.Light
@@ -133,7 +133,7 @@ loginAuthOIDCCallback :: SessionId
                       -> Maybe Text
                       -> Filehub NoContent
 loginAuthOIDCCallback sessionId (Just code) (Just state) _ _ _ _ = do
-  Session.get sessionId (.oidcFlow) >>= \case
+  get sessionId (.oidcFlow) >>= \case
     Just (SomeOIDCFlow (stage@AuthRequestPrepared {})) -> do
         Auth.OIDC.callback stage code state
           >>= Auth.OIDC.exchangeToken

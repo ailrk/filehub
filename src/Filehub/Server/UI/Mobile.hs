@@ -27,16 +27,17 @@ import Filehub.Session (SessionGet(..))
 import Filehub.Monad (Filehub)
 import Control.Monad.Reader (asks)
 import UnliftIO.STM (readTVarIO)
+import Filehub.Session.Selected (AllSelected(..))
 
 
 index :: SessionId -> Filehub (Html ())
 index sessionId = do
-  ctx           <- makeTemplateContext sessionId
-  sideBar'      <- sideBar sessionId
-  view'         <- view sessionId
-  selectedCount <- length <$> Selected.allSelecteds sessionId
-  toolBar'      <- toolBar sessionId
-  pure $ runTemplate ctx (Template.Mobile.index sideBar' toolBar' view' selectedCount)
+  ctx                 <- makeTemplateContext sessionId
+  sideBar'            <- sideBar sessionId
+  view'               <- view sessionId
+  toolBar'            <- toolBar sessionId
+  AllSelected {count} <- Selected.getAllSelected sessionId
+  pure $ runTemplate ctx (Template.Mobile.index sideBar' toolBar' view' count)
 
 
 sideBar :: SessionId -> Filehub (Html ())

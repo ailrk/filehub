@@ -30,7 +30,8 @@ import Log (logTrace_)
 new :: MonadIO m => m Session.Pool
 new = do
   table <- liftIO HashTable.new
-  let cleanUp = do
+  let
+      cleanUp = do
         flip HashTable.mapM_ table $ \(k, session) -> do
           now <- Time.getCurrentTime
           when (now > session.expireDate) do

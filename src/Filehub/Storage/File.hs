@@ -26,7 +26,7 @@ import Control.Service.Cache (MonadCache(..))
 import Control.Service.Cache qualified as Cache
 import Control.Service.LockManager qualified as LockManager
 import Data.ByteString (ByteString, readFile)
-import Data.ByteString qualified as ByteString
+import Data.ByteString qualified as B
 import Data.ByteString.Builder (Builder)
 import Data.ByteString.Builder qualified as BB
 import Data.ByteString.Lazy qualified as BL
@@ -199,7 +199,7 @@ new path = do
 write :: FileWithContent -> Filehub ()
 write File{ content, path = path } = do
   case content of
-    FileContentRaw bytes -> go \_ h -> do liftIO $ ByteString.hPut h bytes
+    FileContentRaw bytes -> go \_ h -> do liftIO $ B.hPut h bytes
     FileContentConduit conduit -> do
       go \p h -> do
         hClose h -- close the handle, sinkFile will create a handle for itself.

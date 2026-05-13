@@ -71,7 +71,7 @@ common shared
 
   if flag(debug)
     cpp-options:          -DDEBUG
-
+    ghc-options:          -fplugin Debug.Breakpoint
 
 
 library

@@ -20,7 +20,7 @@ module Filehub.Server.File
 import Codec.Archive.Zip qualified as Zip
 import Conduit (ConduitT, ResourceT, MonadIO (..), runResourceT, runConduit, (.|))
 import Conduit qualified
-import Control.Monad (void, when, replicateM, join)
+import Control.Monad (when, replicateM, join)
 import Control.Monad.Reader (MonadReader(..))
 import Data.Binary.Builder qualified as BB
 import Data.ByteString (ByteString)
@@ -48,7 +48,7 @@ import Filehub.Server.File.Paste (paste)
 import Filehub.Server.File.Delete (delete)
 import Filehub.Server.UI qualified as UI
 import Filehub.Server.Util (withQueryParam)
-import Filehub.Session (SessionGet(..))
+import Filehub.Session (SessionGet(..), get)
 import Filehub.Session (SessionId(..))
 import Filehub.Session qualified as Session
 import Filehub.Session.Copy qualified as Copy
@@ -70,15 +70,15 @@ import System.IO.Temp qualified as Temp
 import System.Random (randomRIO)
 import Text.Printf (printf)
 import UnliftIO (throwIO, try)
-import UnliftIO.Async (async, forConcurrently_)
+import UnliftIO.Async (forConcurrently_)
 import UnliftIO.STM (atomically, modifyTVar', readTVar, newTVarIO, writeTBQueue)
 import Worker.Task (newTaskId)
 
 
 cd :: SessionId -> ConfirmLogin -> Maybe ClientPath -> Filehub (Headers '[ Header "HX-Trigger-After-Swap" FilehubEvent ] (Html ()))
 cd sessionId _ mClientPath = do
-  root       <- Session.get sessionId (.root)
-  storage    <- Session.get sessionId (.storage)
+  root       <- get sessionId (.root)
+  storage    <- get sessionId (.storage)
   clientPath <- withQueryParam mClientPath
   storage.cd (ClientPath.fromClientPath root clientPath)
   html <- do
@@ -93,8 +93,8 @@ cd sessionId _ mClientPath = do
 rename :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> RenameFile
   -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
 rename sessionId _ _ (RenameFile old new) = do
-  storage <- Session.get sessionId (.storage)
-  root    <- Session.get sessionId (.root)
+  storage <- get sessionId (.storage)
+  root    <- get sessionId (.root)
   storage.rename
     (ClientPath.fromClientPath root old)
     new
@@ -104,8 +104,8 @@ rename sessionId _ _ (RenameFile old new) = do
 
 updateFile :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> UpdatedFile -> Filehub (Html ())
 updateFile sessionId _ _ (UpdatedFile clientPath content) = do
-  storage <- Session.get sessionId (.storage)
-  root    <- Session.get sessionId (.root)
+  storage <- get sessionId (.storage)
+  root    <- get sessionId (.root)
   let path  = ClientPath.fromClientPath root clientPath
   storage.write $ defaultFileWithContent
     { path     = path
@@ -116,10 +116,10 @@ updateFile sessionId _ _ (UpdatedFile clientPath content) = do
 
 newFile' :: SessionId -> Text -> (AbsPath -> Filehub FileInfo) -> Filehub (Html ())
 newFile' sessionId name create = do
-  storage <- Session.get sessionId (.storage)
-  dir     <- Session.get sessionId (.currentDir)
-  order   <- Session.get sessionId (.sortedFileBy)
-  root    <- Session.get sessionId (.root)
+  storage <- get sessionId (.storage)
+  dir     <- get sessionId (.currentDir)
+  order   <- get sessionId (.sortedFileBy)
+  root    <- get sessionId (.root)
   path    <- validateAbsPath (coerce dir </> T.unpack name) (FilehubError InvalidPath ("<redacted>/" <> show name))
   file    <- create path
   files   <- Sort.sortFiles order <$> storage.ls dir
@@ -145,13 +145,13 @@ newFile' sessionId name create = do
 
 newFile :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> NewFile -> Filehub (Html ())
 newFile sessionId _ _ (NewFile name) = do
-  storage <- Session.get sessionId (.storage)
+  storage <- get sessionId (.storage)
   newFile' sessionId name storage.new
 
 
 newFolder :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> NewFolder -> Filehub (Html ())
 newFolder sessionId _ _ (NewFolder name) = do
-  storage <- Session.get sessionId (.storage)
+  storage <- get sessionId (.storage)
   newFile' sessionId name storage.newFolder
 
 
@@ -175,9 +175,9 @@ copy1 sessionId _ _ mClientPath = do
 move :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> MoveFile
      -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
 move sessionId _ _ (MoveFile src tgt) = do
-  storage       <- Session.get sessionId (.storage)
-  root          <- Session.get sessionId (.root)
-  notifications <- Session.get sessionId (.notifications)
+  storage       <- get sessionId (.storage)
+  root          <- get sessionId (.root)
+  notifications <- get sessionId (.notifications)
   env           <- ask
   taskId        <- newTaskId
   let srcPaths  =  fmap (ClientPath.fromClientPath root) src
@@ -202,7 +202,7 @@ move sessionId _ _ (MoveFile src tgt) = do
              Right _  -> pure Nothing
              Left  _  -> pure $ Just srcPath
 
-  void . async . liftIO . runFilehub env $ do
+  forkFilehub_ env $ do
     storage.mv do
       fmap (\srcPath -> (srcPath, tgtPath <./> coerce takeFileName srcPath)) checkedSrcPaths
 
@@ -228,8 +228,8 @@ move sessionId _ _ (MoveFile src tgt) = do
 download :: SessionId -> ConfirmLogin -> [ClientPath]
          -> Filehub (Headers '[ Header "Content-Disposition" String ] (ConduitT () ByteString (ResourceT IO) ()))
 download sessionId _ clientPaths = do
-  root    <- Session.get sessionId (.root)
-  storage <- Session.get sessionId (.storage)
+  root    <- get sessionId (.root)
+  storage <- get sessionId (.storage)
   case clientPaths of
     [clientPath@(ClientPath path)] -> do
       file    <- storage.get (ClientPath.fromClientPath root clientPath)
@@ -275,13 +275,13 @@ download sessionId _ clientPaths = do
 upload :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> MultipartData Mem
        -> Filehub (Html ())
 upload sessionId _ _ multipart = do
-  notifications <- Session.get sessionId (.notifications)
+  notifications <- get sessionId (.notifications)
   taskId        <- newTaskId
   uploadCounter <- newTVarIO @_ @Integer 0
   env           <- ask
   let taskCount =  fromIntegral $ length multipart.files
 
-  void . async . liftIO . runFilehub env $ do
+  forkFilehub_ env $ do
     atomically do
       writeTBQueue notifications $ UploadProgressed
         { taskId       = taskId
@@ -289,7 +289,7 @@ upload sessionId _ _ multipart = do
         , htmxResponse = Nothing
         }
 
-    storage <- Session.get sessionId (.storage)
+    storage <- get sessionId (.storage)
     forConcurrently_ multipart.files \filedata -> do
       storage.upload filedata
       atomically do
@@ -323,8 +323,8 @@ serve env sessionId _ = Tagged $ \req respond -> do
 
   -- Lookup the file
   res <- runFilehub env do
-    root       <- Session.get sessionId (.root)
-    storage    <- Session.get sessionId (.storage)
+    root       <- get sessionId (.root)
+    storage    <- get sessionId (.storage)
     clientPath <- do
       text <- T.decodeUtf8 <$> withQueryParam mFile
       case parseUrlPiece @ClientPath text of
@@ -386,8 +386,8 @@ thumbnail :: SessionId -> ConfirmLogin -> Maybe ClientPath
                                ]
                                (ConduitT () ByteString (ResourceT IO) ()))
 thumbnail sessionId _ mFile = do
-  root       <- Session.get sessionId (.root)
-  storage    <- Session.get sessionId (.storage)
+  root       <- get sessionId (.root)
+  storage    <- get sessionId (.storage)
   clientPath <- withQueryParam mFile
   let path   =  ClientPath.fromClientPath root clientPath
   file       <- storage.get path

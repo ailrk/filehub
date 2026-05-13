@@ -1,3 +1,4 @@
+{-# LANGUAGE NamedFieldPuns #-}
 module Filehub.Session.Handle where
 
 import Conduit (yield)
@@ -35,6 +36,7 @@ import Target.Types (handleTarget, targetHandler, AnyTarget (..), HasTargetId (.
 import UnliftIO (throwIO, finally)
 import UnliftIO.Directory (doesDirectoryExist)
 import UnliftIO.STM (readTVarIO)
+import Filehub.Session.Selected (AllSelected(..))
 
 
 get :: SessionId -> (SessionGet Filehub -> Filehub a) -> Filehub a
@@ -99,13 +101,13 @@ newSessionGet sessionId =
 
 
       controlPanelState = do
-        isAnySelected <- Selected.anySelected sessionId
-        copyState     <- get sessionId (.copyState)
-        case (isAnySelected, copyState) of
-          (_, Paste {})           -> pure ControlPanelCopied
-          (True, CopySelected {}) -> pure ControlPanelSelecting
-          (True, NoCopyPaste)     -> pure ControlPanelSelecting
-          _                       -> pure ControlPanelDefault
+        AllSelected { count } <- Selected.getAllSelected sessionId
+        copyState             <- get sessionId (.copyState)
+        case copyState of
+          Paste {}                    -> pure ControlPanelCopied
+          CopySelected {} | count > 0 -> pure ControlPanelSelecting
+          NoCopyPaste {} | count > 0  -> pure ControlPanelSelecting
+          _                           -> pure ControlPanelDefault
 
 
       storage = do
@@ -235,8 +237,10 @@ newSessionSet sessionId =
 makeStorageDummy :: [(AbsPath, FileWithContent)] -> Storage Filehub
 makeStorageDummy mockFS =
   Storage
-    { get = \path -> let mRes = lookup path mockFS
-                      in case mRes of
+    { get = \path -> let
+                         mRes = lookup path mockFS
+                      in
+                         case mRes of
                            Just res -> pure do extractFileInfo res
                            Nothing  -> error "storge dummy: get"
 

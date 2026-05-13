@@ -1,12 +1,13 @@
 {-# LANGUAGE NamedFieldPuns #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 module Filehub.Session.Selected
   ( elem
   , toList
   , fromList
-  , anySelected
   , clearSelected
   , clearSelectedAllTargets
-  , allSelecteds
+  , getAllSelected
+  , AllSelected(..)
   )
   where
 
@@ -22,6 +23,7 @@ import Prelude hiding (elem)
 import Prelude qualified
 import Target.Types (AnyTarget)
 import {-# SOURCE #-} Filehub.Session.Handle qualified as Session
+import Data.Monoid (Sum(..))
 
 
 toList :: Selected -> [ClientPath]
@@ -39,34 +41,44 @@ elem _ NoSelection        = False
 elem path (Selected x xs) = path == x || path `Prelude.elem` xs
 
 
-newtype AsSet = AsSet Selected
+instance Semigroup Selected where
+  a <> b = fromList (toList a `union` toList b)
 
 
-instance Semigroup AsSet where
-  (AsSet a) <> (AsSet b) = AsSet (fromList (toList a `union` toList b))
+instance Monoid Selected where
+  mempty = NoSelection
 
 
-instance Monoid AsSet where
-  mempty = AsSet NoSelection
-
-
-anySelected :: SessionId -> Filehub Bool
-anySelected sessionId = do
-  targetViews <- Session.get sessionId (.targetViews)
-
-  pure $ or (fmap hasSelection targetViews)
+data AllSelected = AllSelected
+  { allSelected :: [(AnyTarget, Selected)]
+  , count       :: Int
+  }
 
 
 -- | Get all selected files grouped by targets
-allSelecteds :: SessionId -> Filehub [(AnyTarget, Selected)]
-allSelecteds sessionId = do
+getAllSelected :: SessionId -> Filehub AllSelected
+getAllSelected sessionId = do
   targetViews <- Session.get sessionId (.targetViews)
+  let
+      content = [ (target, selected)
+                | tv@(TargetView target (TargetSessionData { selected })) <- targetViews
+                , hasSelection tv
+                ]
 
-  pure
-    [ (target, selected)
-    | tv@(TargetView target (TargetSessionData { selected })) <- targetViews
-    , hasSelection tv
-    ]
+   in
+      pure AllSelected
+        { allSelected = content
+        , count       = totalSelected content
+        }
+
+
+totalSelected :: [(AnyTarget, Selected)] -> Int
+totalSelected as = do
+  let
+      ss           = fmap (toList . snd) as
+      (Sum result) = foldMap (Sum . length) ss
+   in
+      result
 
 
 hasSelection :: TargetView -> Bool

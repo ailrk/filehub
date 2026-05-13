@@ -41,7 +41,7 @@ import Filehub.Orphan ()
 import Filehub.Server.UI.Desktop qualified as Server.Desktop
 import Filehub.Server.UI.Mobile qualified as Server.Mobile
 import Filehub.Server.Util (withQueryParam)
-import Filehub.Session (SessionGet(..), TargetView (..))
+import Filehub.Session (SessionGet(..), TargetView (..), get)
 import Filehub.Session qualified as Session
 import Filehub.Session.Copy qualified as Copy
 import Filehub.Session.Selected qualified as Selected
@@ -71,6 +71,7 @@ import Data.Text.Encoding qualified as T
 import Lucid.Htmx (HxSwapOOB(..))
 import Filehub.Session.Types (Selected (..), Layout (..))
 import Data.Set qualified as S
+import Filehub.Session.Selected (AllSelected(..))
 
 
 -- | Completely reset all state machines. This should be the only place to reset state.
@@ -82,8 +83,8 @@ clear sessionId = do
 
 entry :: SessionId -> FileInfo -> Filehub (Html ())
 entry sessionId file = do
-  display <- Session.get sessionId (.display)
-  layout  <- Session.get sessionId (.layout)
+  display <- get sessionId (.display)
+  layout  <- get sessionId (.layout)
   ctx     <- makeTemplateContext sessionId
 
   pure $ runTemplate ctx
@@ -97,8 +98,8 @@ entry sessionId file = do
 
 entries :: SessionId -> [FileInfo] -> Filehub (Html ())
 entries sessionId files = do
-  display <- Session.get sessionId (.display)
-  layout  <- Session.get sessionId (.layout)
+  display <- get sessionId (.display)
+  layout  <- get sessionId (.layout)
   ctx     <- makeTemplateContext sessionId
 
   pure $ runTemplate ctx
@@ -112,7 +113,7 @@ entries sessionId files = do
 
 index :: SessionId -> Filehub (Html ())
 index sessionId = do
-  display <- Session.get sessionId (.display)
+  display <- get sessionId (.display)
   case display of
     NoDisplay -> pure Template.bootstrap
     Desktop   -> Server.Desktop.index sessionId
@@ -121,7 +122,7 @@ index sessionId = do
 
 view :: SessionId -> Filehub (Html ())
 view sessionId = do
-  display <- Session.get sessionId (.display)
+  display <- get sessionId (.display)
   case display of
     Desktop   -> Server.Desktop.view sessionId
     Mobile    -> Server.Mobile.view sessionId
@@ -130,8 +131,8 @@ view sessionId = do
 
 controlPanel :: SessionId -> Filehub (Html ())
 controlPanel sessionId = do
-  display <- Session.get sessionId (.display)
-  ctx <- makeTemplateContext sessionId
+  display <- get sessionId (.display)
+  ctx     <- makeTemplateContext sessionId
   pure $
     case display of
       Desktop -> runTemplate ctx Template.Desktop.controlPanel
@@ -141,7 +142,7 @@ controlPanel sessionId = do
 
 sideBar :: SessionId -> Filehub (Html ())
 sideBar sessionId = do
-  display <- Session.get sessionId (.display)
+  display <- get sessionId (.display)
   case display of
     Desktop -> Server.Desktop.sideBar sessionId
     _       -> Server.Mobile.sideBar sessionId
@@ -149,7 +150,7 @@ sideBar sessionId = do
 
 toolBar :: SessionId -> Filehub (Html ())
 toolBar sessionId = do
-  display <- Session.get sessionId (.display)
+  display <- get sessionId (.display)
   case display of
     Desktop -> Server.Desktop.toolBar sessionId
     _       -> Server.Mobile.toolBar sessionId
@@ -157,7 +158,7 @@ toolBar sessionId = do
 
 renameModal :: SessionId -> ConfirmLogin -> ConfirmDesktopOnly -> ConfirmReadOnly -> Maybe ClientPath -> Filehub (Html ())
 renameModal sessionId _ _ _ mClientPath = do
-  root       <- Session.get sessionId (.root)
+  root       <- get sessionId (.root)
   clientPath <- withQueryParam mClientPath
   ctx        <- makeTemplateContext sessionId
   pure $ runTemplate ctx (Template.Desktop.renameModal (ClientPath.fromClientPath root clientPath))
@@ -182,7 +183,7 @@ fileDetailModal sessionId _ _ mPath = do
 
 editorModal :: SessionId -> ConfirmLogin -> Maybe ClientPath -> Filehub (Html ())
 editorModal sessionId _ mClientPath = do
-  display <- Session.get sessionId (.display)
+  display <- get sessionId (.display)
   case display of
     Mobile    -> Server.Mobile.editorModal sessionId mClientPath
     Desktop   -> Server.Desktop.editorModal sessionId mClientPath
@@ -202,13 +203,12 @@ sortTable sessionId _ order = do
   pure $ addHeader TableSorted html
 
 
-
 -- | Toggle the frontend theme by triggering the event handler of `ThemeChanged`
 -- in the frontend. A fade-in animation is played when the theme toggled, and it needs
 -- to be removed by the frontend.
 toggleTheme :: SessionId -> ConfirmLogin -> Filehub (Headers '[ Header "HX-Trigger-After-Settle" FilehubEvent ] (Html ()))
 toggleTheme sessionId _ = do
-  theme <- Session.get sessionId (.theme)
+  theme <- get sessionId (.theme)
   case theme of
     Theme.Light -> Session.set sessionId (.theme) Dark
     Theme.Dark  -> Session.set sessionId (.theme) Light
@@ -225,29 +225,34 @@ changeLocale sessionId (Just locale) = do
 
 toggleSidebar :: SessionId -> ConfirmLogin -> Filehub (Html ())
 toggleSidebar sessionId _ = do
-  b <- Session.get sessionId (.sidebarCollapsed)
+  b <- get sessionId (.sidebarCollapsed)
   Session.set sessionId (.sidebarCollapsed) (not b)
   index sessionId
 
 
 selectRows :: SessionId -> ConfirmLogin -> Selected -> Filehub (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))
 selectRows sessionId _ selected = do
+
+  let
+      mkHTMX = do
+        sideBar'      <- sideBar sessionId
+        controlPanel' <- controlPanel sessionId
+        pure do
+          sideBar' `with` [ hxSwapOOB True ]
+          controlPanel'
+
   case selected of
     NoSelection -> do
       Session.set sessionId (.selected) NoSelection
-      sideBar'      <- sideBar sessionId
-      controlPanel' <- controlPanel sessionId
-      pure $ addHeader 0 do
-        sideBar' `with` [ hxSwapOOB True ]
-        controlPanel'
+      AllSelected { count } <- Selected.getAllSelected sessionId
+      htmx <- mkHTMX
+      pure $ addHeader count htmx
     _ -> do
-      Session.set sessionId (.selected) selected
-      count         <- length <$> Selected.allSelecteds sessionId
-      sideBar'      <- sideBar sessionId
-      controlPanel' <- controlPanel sessionId
-      pure $ addHeader count do
-        sideBar' `with` [ hxSwapOOB True ]
-        controlPanel'
+      currentSelected <- get sessionId (.selected)
+      Session.set sessionId (.selected) (currentSelected <> selected)
+      AllSelected { count } <- Selected.getAllSelected sessionId
+      htmx <- mkHTMX
+      pure $ addHeader count htmx
 
 
 contextMenu :: SessionId -> ConfirmLogin -> ConfirmDesktopOnly -> [ClientPath] -> Filehub (Html ())
@@ -257,9 +262,9 @@ contextMenu sessionId _ _ paths = Server.Desktop.contextMenu sessionId paths
 initViewer :: SessionId -> ConfirmLogin -> Maybe ClientPath
            -> Filehub (Headers '[Header "HX-Trigger" FilehubEvent] NoContent)
 initViewer sessionId _ mClientPath = do
-  root       <- Session.get sessionId (.root)
-  order      <- Session.get sessionId (.sortedFileBy)
-  storage    <- Session.get sessionId (.storage)
+  root       <- get sessionId (.root)
+  order      <- get sessionId (.sortedFileBy)
+  storage    <- get sessionId (.storage)
   clientPath <- withQueryParam mClientPath
   payload <- do
     let filePath  =  ClientPath.fromClientPath root clientPath
@@ -295,13 +300,16 @@ open _ _ mTarget mClientPath = do
 
 cancel :: SessionId -> ConfirmLogin -> Filehub (Headers '[Header "X-Filehub-Selected-Count" Int] (Html ()))
 cancel sessionId _ = do
-  allSelected           <- Selected.allSelecteds sessionId
-  TargetView { target } <- Session.get sessionId (.currentTarget)
-  storage               <- Session.get sessionId (.storage)
-  root                  <- Session.get sessionId (.root)
+  AllSelected
+    { count
+    , allSelected
+    }                   <- Selected.getAllSelected sessionId
+  TargetView { target } <- get sessionId (.currentTarget)
+  storage               <- get sessionId (.storage)
+  root                  <- get sessionId (.root)
 
-  let count    = length allSelected
-  let selected = S.fromList case lookup target allSelected of
+  let
+      selected = S.fromList case lookup target allSelected of
                                Just s  -> Selected.toList s
                                Nothing -> []
 

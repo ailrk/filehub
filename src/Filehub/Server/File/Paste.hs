@@ -1,7 +1,6 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Filehub.Server.File.Paste (paste) where
 
-import Conduit (MonadIO (..))
 import Control.Monad (void)
 import Control.Monad.Fix (fix)
 import Control.Monad.Reader (MonadReader(..))
@@ -17,7 +16,7 @@ import Filehub.Handler (ConfirmLogin, ConfirmReadOnly)
 import Filehub.Monad
 import Filehub.Notification.Types (Notification(..))
 import Filehub.Server.UI qualified as UI
-import Filehub.Session (SessionId(..), TargetView (..), SessionGet(..), withTarget)
+import Filehub.Session (SessionId(..), TargetView (..), SessionGet(..), withTarget, get)
 import Filehub.Session qualified as Session
 import Filehub.Session.Selected qualified as Selected
 import Filehub.Session.Types (CopyState (..))
@@ -30,9 +29,10 @@ import Servant (Header , Headers  , addHeader)
 import System.FilePath (takeFileName, (</>))
 import Target.Types (AnyTarget)
 import UnliftIO (throwIO)
-import UnliftIO.Async (async, forConcurrently_)
+import UnliftIO.Async (forConcurrently_)
 import UnliftIO.STM (atomically, modifyTVar', readTVar, newTVarIO, writeTBQueue, newTQueueIO, writeTQueue)
 import Worker.Task (newTaskId)
+import Filehub.Session.Selected (AllSelected(..))
 
 
 data PasteTask
@@ -64,8 +64,8 @@ createPasteTasks sessionId fromDir to selections = fmap (mconcat . mconcat) do
             Regular    -> pure [ PasteFile from to file dst ]
             Dir -> do
               withTarget sessionId from do
-                storage <- Session.get sessionId (.storage)
-                (TargetView _ (TargetSessionData { currentDir = savedDir })) <- Session.get sessionId (.currentTarget)
+                storage <- get sessionId (.storage)
+                (TargetView _ (TargetSessionData { currentDir = savedDir })) <- get sessionId (.currentTarget)
                 storage.cd file.path
                 result <- do
                   dirFiles <- storage.lsCwd
@@ -76,11 +76,11 @@ createPasteTasks sessionId fromDir to selections = fmap (mconcat . mconcat) do
 
 paste :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> Filehub (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))
 paste sessionId _ _ = do
-  notifications   <- Session.get sessionId (.notifications)
-  targetViewSaved <- Session.get sessionId (.currentTarget)
+  notifications   <- get sessionId (.notifications)
+  targetViewSaved <- get sessionId (.currentTarget)
   pasteCounter    <- newTVarIO @_ @Integer 0
   taskId          <- newTaskId
-  state           <- Session.get sessionId (.copyState)
+  state           <- get sessionId (.copyState)
   pasted          <- newTQueueIO @_ @PasteTask
   env             <- ask
 
@@ -90,23 +90,24 @@ paste sessionId _ _ = do
         readTVar pasteCounter
 
   case state of
-    Paste selections -> void . async . liftIO . runFilehub env $ do
+    Paste selections -> forkFilehub_ env $ do
       tasks <- do
-        TargetView to sdata <- Session.get sessionId (.currentTarget)
+        TargetView to sdata <- get sessionId (.currentTarget)
         createPasteTasks sessionId sdata.currentDir to selections
 
       let taskCount = fromIntegral (length tasks)
 
+      -- Concurrently paste files
       forConcurrently_ tasks $ \task -> do
         case task of
           PasteFile { from, to, file, dst } -> do
 
             conduit <- withTarget sessionId from do
-              storage <- Session.get sessionId (.storage)
+              storage <- get sessionId (.storage)
               storage.readStream file Nothing Nothing
 
             withTarget sessionId to do
-              storage <- Session.get sessionId (.storage)
+              storage <- get sessionId (.storage)
               storage.write (withContent file (FileContentConduit conduit)) { path = dst }
 
             atomically do
@@ -119,13 +120,14 @@ paste sessionId _ _ = do
 
           CreateDir to dst -> do
             withTarget sessionId to do
-              storage <- Session.get sessionId (.storage)
+              storage <- get sessionId (.storage)
               void $ storage.newFolder dst
 
+      -- Paste is completed, clear selection
       Session.set sessionId (.copyState) NoCopyPaste
       Selected.clearSelectedAllTargets sessionId
 
-      targetView <- Session.get sessionId (.currentTarget)
+      targetView <- get sessionId (.currentTarget)
 
       response <- do
         if and [ targetView.target == targetViewSaved.target
@@ -147,11 +149,15 @@ paste sessionId _ _ = do
       throwIO (FilehubError SelectError "Not in a pastable state")
 
   UI.clear sessionId
-  selectedCount <- length <$> Selected.allSelecteds sessionId
+  AllSelected{count} <- Selected.getAllSelected sessionId
 
-  addHeader selectedCount
-    <$> (do controlPanel' <- UI.controlPanel sessionId
-            sideBar'      <- UI.sideBar sessionId
-            pure do
-              controlPanel' `with` [ hxSwapOOB True ]
-              sideBar' `with` [ hxSwapOOB True ])
+  addHeader count <$> mkHTMX sessionId
+
+
+mkHTMX :: SessionId -> Filehub (Html ())
+mkHTMX sessionId = do
+  controlPanel' <- UI.controlPanel sessionId
+  sideBar'      <- UI.sideBar sessionId
+  pure do
+    controlPanel' `with` [ hxSwapOOB True ]
+    sideBar' `with` [ hxSwapOOB True ]

@@ -7,9 +7,7 @@ import Data.Set qualified as Set
 import Filehub.Handler (ConfirmLogin)
 import Filehub.Monad (Filehub)
 import Filehub.Notification.Types (Notification(..))
-import Filehub.Session (SessionGet(..))
-import Filehub.Session (SessionId(..))
-import Filehub.Session qualified as Session
+import Filehub.Session (SessionGet(..), SessionId(..), get)
 import Prelude hiding (init, readFile)
 import Servant.API.EventStream (RecommendedEventSourceHeaders, recommendedEventSourceHeaders)
 import UnliftIO.STM (readTBQueue, atomically, isEmptyTBQueue, modifyTVar', readTVar, STM, TBQueue)
@@ -36,8 +34,8 @@ type NotificationStream = ConduitT () Notification IO ()
 -- no conduit.
 listen :: SessionId -> ConfirmLogin -> Filehub (RecommendedEventSourceHeaders NotificationStream)
 listen sessionId _ = recommendedEventSourceHeaders <$> do
-  notifications <- Session.get sessionId (.notifications)
-  pendingTasks  <- Session.get sessionId (.pendingTasks)
+  notifications <- get sessionId (.notifications)
+  pendingTasks  <- get sessionId (.pendingTasks)
   streamAtomically \loop -> do
     n <- readTBQueue notifications
     case n of

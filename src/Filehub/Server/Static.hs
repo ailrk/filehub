@@ -19,9 +19,8 @@ import Filehub.Error ( FilehubError(..) )
 import Filehub.Monad
 import Filehub.Orphan ()
 import Filehub.Server.Static.QQ (staticFiles)
-import Filehub.Session (SessionGet(..))
+import Filehub.Session (SessionGet(..), get)
 import Filehub.Session (SessionId(..))
-import Filehub.Session qualified as Session
 import Filehub.Theme qualified as Theme
 import Filehub.Types (Theme(..))
 import Network.Mime qualified as Mime
@@ -32,7 +31,7 @@ import UnliftIO (throwIO)
 
 themeCss :: SessionId -> Filehub ByteString
 themeCss sessionId = do
-  theme <- Session.get sessionId (.theme)
+  theme <- get sessionId (.theme)
   customThemeDark  <- (fmap . fmap) Theme.customTheme2Css (asks (.customThemeDark))
   customThemeLight <- (fmap . fmap) Theme.customTheme2Css (asks (.customThemeLight))
   pure

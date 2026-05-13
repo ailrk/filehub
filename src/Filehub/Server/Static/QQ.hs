@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE CPP #-}
 -- |
 -- Maintainer  :  jimmy@ailrk.com
 -- Copyright   :  (c) 2026-present Jinyang yao
@@ -16,9 +17,19 @@ import Data.Map.Strict qualified as M
 import Filehub.Orphan ()
 import Prelude hiding (init, readFile)
 
+#ifdef DEBUG
+import GHC.IO.Unsafe (unsafePerformIO)
+#endif
+
 
 -- | Static files are embeded into the final excutable. The key is the path of the file.
 --   e.g main.js -> (data/filehub/main.js)
 staticFiles :: Map FilePath ByteString
-staticFiles = M.fromList
-  $(FileEmbed.embedDir "data/filehub")
+
+-- It's very slow to run template haskell with repl.
+#ifdef DEBUG
+staticFiles = unsafePerformIO $ M.fromList <$> FileEmbed.getDir "data/filehub"
+
+#else
+staticFiles = M.fromList $(FileEmbed.embedDir "data/filehub")
+#endif
