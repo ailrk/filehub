@@ -16,7 +16,7 @@ module Filehub.Theme
 import Text.ParserCombinators.ReadP
 import Data.Char (isAlphaNum, isSpace)
 import Data.ByteString (ByteString)
-import Data.ByteString.Char8 qualified as ByteString
+import Data.ByteString.Char8 qualified as BC
 import Data.Text (Text)
 import Data.String.Interpolate (iii)
 import Text.Debug (Debug (..))
@@ -119,6 +119,6 @@ cssVars = between (string ":root" >> skipSpaces >> char '{') (char '}') (many cs
 -- Extract background1 value from full text
 parse :: String -> ByteString -> Maybe String
 parse color txt =
-  case readP_to_S cssVars (ByteString.unpack txt) of
+  case readP_to_S cssVars (BC.unpack txt) of
     []      -> Nothing
     results -> lookup color (fst (last results))

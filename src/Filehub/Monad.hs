@@ -28,6 +28,7 @@ import Prelude hiding (lookup)
 import Control.Monad.Trans.Resource (MonadResource (..), ResourceT, runResourceT)
 import Control.Monad.Base (MonadBase (..))
 
+
 -- | The core Application monad.
 --
 -- `Filehub` is a concrete reader monad and all capabilities including handles

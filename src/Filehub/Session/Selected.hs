@@ -12,7 +12,7 @@ module Filehub.Session.Selected
 
 import Data.ClientPath (ClientPath)
 import Data.List (union)
-import Data.Map.Strict qualified as Map
+import Data.Map.Strict qualified as M
 import Filehub.Monad (Filehub)
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Session.Types (Selected(..), SessionGet(..), SessionSet(..), TargetView (..), TargetSessionData (..))
@@ -84,6 +84,6 @@ clearSelectedAllTargets sessionId = do
   Session.Pool.update sessionId \s ->
     let
         targets = s.targets
-        newTargets = Map.map (\t -> t { selected = NoSelection } :: TargetSessionData) targets
+        newTargets = M.map (\t -> t { selected = NoSelection } :: TargetSessionData) targets
      in
         s { targets = newTargets }

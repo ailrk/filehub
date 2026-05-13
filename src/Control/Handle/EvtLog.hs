@@ -19,7 +19,7 @@ import Database.SQLite.Simple qualified as Sqlite
 import Database.SQLite.Simple.ToRow
 import Database.SQLite.Simple.FromRow
 import Data.Time (UTCTime)
-import Data.ByteString.Lazy qualified as LBS
+import Data.ByteString.Lazy qualified as BL
 import Control.Monad (when)
 
 
@@ -32,7 +32,7 @@ data EvtLog = EvtLog
 data LogEvt = LogEvt
   { eventTime :: UTCTime
   , eventType :: ByteString
-  , eventData :: LBS.ByteString
+  , eventData :: BL.ByteString
   }
   deriving (Show)
 

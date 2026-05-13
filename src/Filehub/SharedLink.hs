@@ -3,8 +3,8 @@ module Filehub.SharedLink where
 
 import Crypto.Hash.SHA256 qualified as SHA256
 import Data.ByteString (ByteString)
-import Data.ByteString qualified as ByteString
-import Data.ByteString.Char8 qualified as Char8
+import Data.ByteString qualified as B
+import Data.ByteString.Char8 qualified as BC
 import Data.ClientPath (AbsPath(..))
 import Data.Coerce (coerce)
 import Data.File (File(..), FileInfo)
@@ -17,7 +17,7 @@ import Data.Time (getCurrentTime, UTCTime)
 import Data.UUID (UUID)
 import Data.UUID.V4 qualified as UUID
 import Data.Vector (Vector)
-import Data.Vector qualified as Vector
+import Data.Vector qualified as V
 import Servant (FromHttpApiData(..), ToHttpApiData(..))
 import UnliftIO (MonadIO(..))
 import UnliftIO.STM (newTVarIO, writeTVar, atomically, readTVar, modifyTVar', TVar)
@@ -75,7 +75,7 @@ data SharedLinkPool = SharedLinkPool
 
 
 base62Chars :: Vector Char
-base62Chars = Vector.fromList $ ['0'..'9'] ++ ['a'..'z'] ++ ['A'..'Z']
+base62Chars = V.fromList $ ['0'..'9'] ++ ['a'..'z'] ++ ['A'..'Z']
 
 
 toBase62 :: Integer -> String
@@ -85,7 +85,7 @@ toBase62 n = reverse (go n)
     go 0 = []
     go x =
       let (q, r) = x `divMod` 62
-       in base62Chars Vector.! fromIntegral r : go q
+       in base62Chars V.! fromIntegral r : go q
 
 
 shortHash :: ByteString -> Text
@@ -94,7 +94,7 @@ shortHash input =
       num    = bsToInteger digest
    in Text.pack $ take 7 (toBase62 num)
   where
-    bsToInteger = ByteString.foldl' (\acc b -> acc * 256 + fromIntegral b) 0
+    bsToInteger = B.foldl' (\acc b -> acc * 256 + fromIntegral b) 0
 
 
 mkSharedLinkHash :: ByteString -> SharedLinkHash
@@ -104,7 +104,7 @@ mkSharedLinkHash input = SharedLinkHash (shortHash input)
 createSharedLink :: MonadIO m => FileInfo -> SharedLinkType -> Bool -> Maybe SharedLinkPasscode -> m SharedLink
 createSharedLink file linkType readonly mPasscode = do
   now <- liftIO getCurrentTime
-  let hash = mkSharedLinkHash (coerce Char8.pack file.path)
+  let hash = mkSharedLinkHash (coerce BC.pack file.path)
   pure SharedLink
     { file        = file
     , hash        = hash

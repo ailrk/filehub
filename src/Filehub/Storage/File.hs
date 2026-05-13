@@ -28,8 +28,8 @@ import Control.Service.LockManager qualified as LockManager
 import Data.ByteString (ByteString, readFile)
 import Data.ByteString qualified as ByteString
 import Data.ByteString.Builder (Builder)
-import Data.ByteString.Builder qualified as Builder
-import Data.ByteString.Lazy qualified as LBS
+import Data.ByteString.Builder qualified as BB
+import Data.ByteString.Lazy qualified as BL
 import Data.ClientPath (AbsPath(..))
 import Data.ClientPath (ClientPath)
 import Data.ClientPath qualified as ClientPath
@@ -41,8 +41,8 @@ import Data.Generics.Labels ()
 import Data.Kind (Type)
 import Data.List (sort)
 import Data.String.Interpolate (i)
-import Data.Text qualified as Text
-import Data.Text.Encoding qualified as Text
+import Data.Text qualified as T
+import Data.Text.Encoding qualified as T
 import Data.Time (secondsToNominalDiffTime)
 import Filehub.Error (FilehubError(..), Error' (..))
 import Filehub.Monad (Filehub)
@@ -91,7 +91,7 @@ get path = do
             size   <- getFileSize (coerce path)
             mtime  <- getModificationTime (coerce path)
             atime  <- getAccessTime (coerce path)
-            let mimetype = defaultMimeLookup (coerce Text.pack path)
+            let mimetype = defaultMimeLookup (coerce T.pack path)
             let file = File
                   { path     = path
                   , size     = Just size
@@ -120,11 +120,11 @@ get path = do
             pure file
 
         | otherwise -> do
-            logAttention_ (Text.pack ("[97zcsm] get: invalid path" ++ show path))
+            logAttention_ (T.pack ("[97zcsm] get: invalid path" ++ show path))
             throwIO (FilehubError InvalidPath "get: invalid path")
   where
-    cacheKey  = createCacheKey @"file" @FileInfo (coerce Builder.string8 path)
-    cacheDeps = [ SomeCacheKey (createCacheKey @"dir" @[FileInfo] (Builder.string8 (coerce takeDirectory path))) ]
+    cacheKey  = createCacheKey @"file" @FileInfo (coerce BB.string8 path)
+    cacheDeps = [ SomeCacheKey (createCacheKey @"dir" @[FileInfo] (BB.string8 (coerce takeDirectory path))) ]
     cacheTTL  = Just (secondsToNominalDiffTime 10)
 
 
@@ -140,7 +140,7 @@ isDirectory filePath = do
       result     <- if not pathExists then pure False else pure dirExists
       pure result
   where
-    cacheKey = createCacheKey @"file" @FileInfo (coerce Builder.string8 filePath)
+    cacheKey = createCacheKey @"file" @FileInfo (coerce BB.string8 filePath)
 
 
 read :: FileInfo -> Filehub ByteString
@@ -154,8 +154,8 @@ read File { path = AbsPath path } = do
       cacheInsert cacheKey cacheDeps cacheTTL bytes
       pure bytes
   where
-    cacheKey  = createCacheKey @"file-content" @ByteString (Builder.string8 path)
-    cacheDeps = [ SomeCacheKey (createCacheKey @"file" @FileInfo (Builder.string8 path)) ]
+    cacheKey  = createCacheKey @"file-content" @ByteString (BB.string8 path)
+    cacheDeps = [ SomeCacheKey (createCacheKey @"file" @FileInfo (BB.string8 path)) ]
     cacheTTL  = Just (secondsToNominalDiffTime 10)
 
 
@@ -173,7 +173,7 @@ newFolder path = do
 
   createDirectoryIfMissing True (coerce path)
 
-  cacheDelete (SomeCacheKey (createCacheKey @"dir" @[FileInfo] (Builder.string8 dir)))
+  cacheDelete (SomeCacheKey (createCacheKey @"dir" @[FileInfo] (BB.string8 dir)))
 
   file <- get path
 
@@ -189,7 +189,7 @@ new path = do
     throwIO (FilehubError FileExists "File already exists")
   withFile (coerce path) ReadWriteMode (\_ -> pure ())
 
-  cacheDelete (SomeCacheKey (createCacheKey @"dir" @[FileInfo] (Builder.string8 dir)))
+  cacheDelete (SomeCacheKey (createCacheKey @"dir" @[FileInfo] (BB.string8 dir)))
 
   file <- get path
 
@@ -221,9 +221,9 @@ write File{ content, path = path } = do
               when (not (isDoesNotExistError e)) do -- it's ok if file is not there.
                 throwIO e
           renameFile tempFile (coerce path)
-        cacheDelete (SomeCacheKey (createCacheKey @"file" @FileInfo (coerce Builder.string8 path)))
+        cacheDelete (SomeCacheKey (createCacheKey @"file" @FileInfo (coerce BB.string8 path)))
         when (not isCreatingNew) do
-          cacheDelete (SomeCacheKey (createCacheKey @"dir" @[FileInfo] (coerce Builder.string8 dir)))
+          cacheDelete (SomeCacheKey (createCacheKey @"dir" @[FileInfo] (coerce BB.string8 dir)))
 
 
 mv :: [(AbsPath, AbsPath)] -> Filehub ()
@@ -239,8 +239,8 @@ mv cpPairs = do
       if isDir then copyDirectoryRecursive src dst
       else copyFile (coerce src) (coerce dst)
       delete' src
-      cacheDelete (SomeCacheKey (createCacheKey @"dir" @[FileInfo] (Builder.string8 (coerce takeDirectory src))))
-      cacheDelete (SomeCacheKey (createCacheKey @"dir" @[FileInfo] (Builder.string8 (coerce takeDirectory dst))))
+      cacheDelete (SomeCacheKey (createCacheKey @"dir" @[FileInfo] (BB.string8 (coerce takeDirectory src))))
+      cacheDelete (SomeCacheKey (createCacheKey @"dir" @[FileInfo] (BB.string8 (coerce takeDirectory dst))))
 
 
 rename :: AbsPath -> String -> Filehub ()
@@ -264,8 +264,8 @@ rename oldPath newName = do
       when (newExists) do
         throwIO (FilehubError TargetError ("File <redacted>/" <> coerce newName <> " already exists"))
 
-      cacheDelete (SomeCacheKey (createCacheKey @"file" @FileInfo (coerce Builder.string8 newPath)))
-      cacheDelete (SomeCacheKey (createCacheKey @"file" @FileInfo (coerce Builder.string8 oldPath)))
+      cacheDelete (SomeCacheKey (createCacheKey @"file" @FileInfo (coerce BB.string8 newPath)))
+      cacheDelete (SomeCacheKey (createCacheKey @"file" @FileInfo (coerce BB.string8 oldPath)))
 
       renameFile (coerce oldPath) (coerce newPath)
 
@@ -297,7 +297,7 @@ delete' path = do
      | fileExists -> withRetry (removeFile (coerce path))
      | dirExists  -> withRetry (removeDirectoryRecursive (coerce path))
      | otherwise  -> pure ()
-  cacheDelete (SomeCacheKey (createCacheKey @"file" @FileInfo (coerce Builder.string8 path)))
+  cacheDelete (SomeCacheKey (createCacheKey @"file" @FileInfo (coerce BB.string8 path)))
   where
     withRetry action = recovering policy handlers \_ -> do
       logInfo [i|[vhdkl2] Retrying delete|] path
@@ -331,12 +331,12 @@ ls path = do
             >>= traverse makeAbsolute
             >>= traverse (get . coerce)
             >>= traverse \file -> do
-              let depKey = SomeCacheKey (createCacheKey @"file" @FileInfo (coerce Builder.string8 file.path))
+              let depKey = SomeCacheKey (createCacheKey @"file" @FileInfo (coerce BB.string8 file.path))
               pure (file, depKey)
       cacheInsert cacheKey cacheDeps cacheTTL files
       pure files
   where
-    cacheKey = createCacheKey @"dir" @[FileInfo] (coerce Builder.string8 path)
+    cacheKey = createCacheKey @"dir" @[FileInfo] (coerce BB.string8 path)
     cacheTTL = Just (secondsToNominalDiffTime 10)
 
 
@@ -351,9 +351,9 @@ lsCwd currentDir = do
 
 upload :: AbsPath -> FileData Mem -> Filehub ()
 upload currentDir file = do
-  let mimetype = Text.encodeUtf8 file.fdFileCType
-  let name     = Text.unpack file.fdFileName
-  let bytes    = LBS.toStrict file.fdPayload
+  let mimetype = T.encodeUtf8 file.fdFileCType
+  let name     = T.unpack file.fdFileName
+  let bytes    = BL.toStrict file.fdPayload
   fullPath <- toFilePath currentDir name
   write $ defaultFileWithContent
     { path     = fullPath

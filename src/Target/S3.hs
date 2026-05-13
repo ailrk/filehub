@@ -9,7 +9,7 @@ import Data.String.Interpolate (i)
 import Amazonka.Types qualified as Amazonka
 import Data.UUID.V4 qualified as UUID
 import Amazonka qualified
-import Data.ByteString.Char8 qualified as ByteString
+import Data.ByteString.Char8 qualified as BC
 import Data.Maybe (fromMaybe)
 import Text.Read (readMaybe)
 import Network.URI qualified as URI
@@ -86,7 +86,7 @@ initialize opt = do
                 case url.uriAuthority of
                   Nothing -> id
                   Just auth -> do
-                    let host = ByteString.pack auth.uriRegName
+                    let host = BC.pack auth.uriRegName
                     let port = fromMaybe 443 . readMaybe $ auth.uriPort
                     Amazonka.setEndpoint True host port
               Nothing -> id

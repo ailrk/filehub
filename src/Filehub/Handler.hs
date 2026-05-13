@@ -15,8 +15,8 @@ module Filehub.Handler
   where
 
 import Data.Bifunctor (Bifunctor(..))
-import Data.Text.Lazy qualified as Text
-import Data.Text.Lazy.Encoding qualified as Text
+import Data.Text.Lazy qualified as TL
+import Data.Text.Lazy.Encoding qualified as TL
 import Servant.Server.Experimental.Auth (AuthHandler, mkAuthHandler)
 import Filehub.Types (SessionId, Display(..))
 import Filehub.Cookie qualified as Cookie
@@ -75,7 +75,7 @@ sessionHandler env = mkAuthHandler handler
     handler req = do
       sessionId <- either throw401 pure do
         header <- toEither "cookie not found" $ lookup "Cookie" (requestHeaders req)
-        cookie <- first (Text.encodeUtf8 . Text.fromStrict) $ parseHeader header
+        cookie <- first (TL.encodeUtf8 . TL.fromStrict) $ parseHeader header
         toEither "can't get sessionId" (Cookie.fromCookies cookie)
       _ <- toServantHandler env (Session.Pool.get sessionId)
       pure sessionId

@@ -23,9 +23,9 @@ import Data.IORef (newIORef)
 import Prelude hiding (lookup)
 import UnliftIO (IORef)
 import Data.Time (NominalDiffTime, UTCTime, addUTCTime)
-import Data.Map qualified as Map
+import Data.Map qualified as M
 import Data.Map.Strict (Map)
-import Data.Set qualified as Set
+import Data.Set qualified as S
 import Data.Set (Set)
 import Data.Function ((&))
 import Data.Coerce (coerce)
@@ -60,10 +60,10 @@ reachable key graph = go mempty [key]
   where
     go seen [] = seen
     go seen (x:xs)
-      | Set.member x seen = go seen xs
+      | S.member x seen = go seen xs
       | otherwise =
-          let neighbors = Map.findWithDefault mempty x graph
-           in go (Set.insert x seen) (Set.toList neighbors ++ xs)
+          let neighbors = M.findWithDefault mempty x graph
+           in go (S.insert x seen) (S.toList neighbors ++ xs)
 
 
 new ::  Int -> IO InMemoryCache
@@ -151,7 +151,7 @@ insertDyn now key deps mTTL value cache
                 let cacheDeps = coerce @_ @(Map SomeCacheKey (Set SomeCacheKey)) c.dependencies
                  in coerce $
                    foldr
-                    (Map.alter (Just . (Set.insert key) . fromMaybe mempty))
+                    (M.alter (Just . (S.insert key) . fromMaybe mempty))
                     cacheDeps deps
             }
 
@@ -189,8 +189,8 @@ delete key cache@Cache { dependencies = dependencies } =
   cache
     { queue = foldr HashPSQ.delete cache.queue toDelete
     , dependencies = coerce
-                   $ fmap (`Set.difference` toDelete)
-                   $ foldr Map.delete (coerce dependencies)
+                   $ fmap (`S.difference` toDelete)
+                   $ foldr M.delete (coerce dependencies)
                    $ toDelete
     }
   where

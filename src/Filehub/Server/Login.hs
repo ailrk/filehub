@@ -1,11 +1,11 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Filehub.Server.Login where
 
-import Data.ByteString.Char8 qualified as ByteString
+import Data.ByteString.Char8 qualified as BC
 import Data.Maybe (fromMaybe)
 import Data.String.Interpolate (i)
 import Data.Text (Text)
-import Data.Text.Encoding qualified as Text
+import Data.Text.Encoding qualified as T
 import Data.Time (UTCTime (..), fromGregorian)
 import Data.UUID qualified as UUID
 import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
@@ -45,7 +45,7 @@ loginPage sessionId cookie Nothing = do
   if noLogin
      then go
      else do
-       case fmap Text.encodeUtf8 cookie >>= parseHeader' >>= Cookies.fromCookies of
+       case fmap T.encodeUtf8 cookie >>= parseHeader' >>= Cookies.fromCookies of
          Just authId' -> do
            authId <- Session.get sessionId (.authId)
            if authId == Just authId'
@@ -119,7 +119,7 @@ loginAuthOIDCRedirect sessionId providerName = do
         HTTPError err303
           { errHeaders =
               [( "Location"
-               , ByteString.pack (URI.uriToString id url "")
+               , BC.pack (URI.uriToString id url "")
                )]
           }
 
@@ -170,7 +170,7 @@ loginAuthOIDCCallback _ _ _ mErr mErrDescription _ _ = do
   let message = fromMaybe "" mErr <> ", " <> fromMaybe "" mErrDescription
   throwIO do
     HTTPError err303
-      { errHeaders = [( "Location" , "/login?error=\"" <> Text.encodeUtf8 message <> "\"" )]
+      { errHeaders = [( "Location" , "/login?error=\"" <> T.encodeUtf8 message <> "\"" )]
       }
 
 

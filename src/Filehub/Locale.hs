@@ -16,7 +16,7 @@ module Filehub.Locale (Locale(..), Phrase(..), phrase) where
 import Data.Either (fromRight)
 import Data.FileEmbed qualified as FileEmbed
 import Data.Text (Text)
-import Data.Text.Encoding qualified as Text
+import Data.Text.Encoding qualified as T
 import Toml.Codec (TomlCodec, (.=))
 import Toml.Codec qualified as Toml
 import Web.HttpApiData (ToHttpApiData(..), FromHttpApiData(..))
@@ -256,4 +256,4 @@ phraseCodec =
 
 
 config :: Text
-config = Text.decodeUtf8 $(FileEmbed.embedFile "data/locale.toml")
+config = T.decodeUtf8 $(FileEmbed.embedFile "data/locale.toml")

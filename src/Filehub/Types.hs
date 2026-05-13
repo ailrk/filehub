@@ -37,8 +37,8 @@ import Data.Aeson (ToJSON (..), (.=), Value)
 import Data.Aeson qualified as Aeson
 import Data.ClientPath (ClientPath(..), RawClientPath(..))
 import Data.Text (Text)
-import Data.Text.Lazy qualified as LText
-import Data.Text.Lazy.Encoding qualified as LText
+import Data.Text.Lazy qualified as TL
+import Data.Text.Lazy.Encoding qualified as TL
 import Filehub.Display (Display(..), Resolution(..))
 import Filehub.Env (Env(..))
 import Filehub.Session.Types (SessionId(..), Session(..), TargetSessionData(..))
@@ -128,7 +128,7 @@ instance ToJSON UIComponent where
 
 
 instance ToHttpApiData UIComponent where
-  toUrlPiece v = (LText.toStrict $ LText.decodeUtf8 $ Aeson.encode $ v)
+  toUrlPiece v = (TL.toStrict $ TL.decodeUtf8 $ Aeson.encode $ v)
 
 
 instance FromHttpApiData UIComponent where
@@ -194,7 +194,7 @@ instance ToJSON FilehubEvent where
 
 
 instance ToHttpApiData FilehubEvent where
-  toUrlPiece v = (LText.toStrict $ LText.decodeUtf8 $ Aeson.encode $ v)
+  toUrlPiece v = (TL.toStrict $ TL.decodeUtf8 $ Aeson.encode $ v)
 
 
 -- | The target for windows.open().

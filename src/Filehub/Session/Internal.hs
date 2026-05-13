@@ -9,7 +9,7 @@ import Control.Monad.Reader (asks)
 import Data.ClientPath (AbsPath(..), Root(..))
 import Data.Coerce (coerce)
 import Data.Functor ((<&>))
-import Data.Map.Strict qualified as Map
+import Data.Map.Strict qualified as M
 import Data.Maybe (fromMaybe)
 import Data.Set qualified as Set
 import Data.Time (UTCTime, addUTCTime, NominalDiffTime)
@@ -56,7 +56,7 @@ createSession = do
     , resolution        = Nothing
     , deviceType        = UserAgent.Unknown
     , expireDate        = expireDate
-    , targets           = targetToSessionData <$> Map.fromList targets
+    , targets           = targetToSessionData <$> M.fromList targets
     , copyState         = NoCopyPaste
     , currentTargetId   = fst (head targets)
     , sidebarCollapsed  = False

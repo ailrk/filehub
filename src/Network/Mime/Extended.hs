@@ -1,10 +1,10 @@
 module Network.Mime.Extended (isMime) where
 
 import Data.Text (Text)
-import Data.Text qualified as Text
+import Data.Text qualified as T
+import Data.Text.Encoding qualified as T
 import Network.Mime (MimeType)
-import Data.Text.Encoding qualified as Text
 
 
 isMime :: MimeType -> Text -> Bool
-isMime fileMime mime = mime `Text.isPrefixOf` Text.decodeUtf8 fileMime
+isMime fileMime mime = mime `T.isPrefixOf` T.decodeUtf8 fileMime

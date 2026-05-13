@@ -29,8 +29,8 @@ module LockManager.Local
   where
 
 import Data.Map.Strict (Map)
-import Data.Map.Strict qualified as Map
-import Data.Vector qualified as Vector
+import Data.Map.Strict qualified as M
+import Data.Vector qualified as V
 import Data.Vector (Vector)
 import LockManager.Key (LockKey)
 import UnliftIO (MVar, bracket, withMVar, newMVar)
@@ -58,7 +58,7 @@ data LockManager = LockManager
 newShards :: Int -> IO LockManager
 newShards n = do
   let nShards = 2 ^ n
-  shards <- Vector.replicateM nShards (Shard <$> newTVarIO Map.empty)
+  shards <- V.replicateM nShards (Shard <$> newTVarIO M.empty)
   pure LockManager { shards = shards, mask = nShards - 1 }
 
 
@@ -69,7 +69,7 @@ new = newShards 4
 
 getShard :: LockManager -> LockKey -> Shard
 getShard LockManager{ shards, mask } key =
-  Vector.unsafeIndex shards (hash  key .&. mask)
+  V.unsafeIndex shards (hash  key .&. mask)
 
 
 withLock :: LockManager -> LockKey -> IO a -> IO a
@@ -83,23 +83,23 @@ withLock registry key action = do
   where
     acquire lk (Shard shard) = atomically do
       m <- readTVar shard
-      case  Map.lookup key m of
+      case  M.lookup key m of
         Just entry -> do
           let !newEntry = entry { refCount = entry.refCount + 1 }
-          writeTVar shard (Map.insert key newEntry m)
+          writeTVar shard (M.insert key newEntry m)
           pure (entry.lk)
         Nothing -> do
           let !newEntry = LockEntry lk 1
-          writeTVar shard (Map.insert key newEntry m)
+          writeTVar shard (M.insert key newEntry m)
           pure lk
     release (Shard shard) _ = atomically do
       m <- readTVar shard
-      case Map.lookup key m of
+      case M.lookup key m of
         Just entry -> do
           if entry.refCount <= 1
-             then writeTVar shard (Map.delete key m)
+             then writeTVar shard (M.delete key m)
              else let !newEntry = entry { refCount = entry.refCount - 1 }
-                   in writeTVar shard (Map.insert key newEntry m)
+                   in writeTVar shard (M.insert key newEntry m)
         Nothing -> pure ()
     use lk = withMVar lk (const action)
 

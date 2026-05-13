@@ -34,8 +34,8 @@ import Data.Foldable (traverse_)
 import Data.Maybe (fromMaybe)
 import Data.String.Interpolate (iii, i)
 import Data.Text (Text)
-import Data.Text qualified as Text
-import Data.Text.Encoding qualified as Text
+import Data.Text qualified as T
+import Data.Text.Encoding qualified as T
 import Data.Time.Format (formatTime, defaultTimeLocale)
 import Filehub.Links ( apiLinks )
 import Filehub.Locale (Locale(..), Phrase (..), phrase)
@@ -128,7 +128,7 @@ sideBar targets (TargetView currentTarget _) = do
 
         when (selectedCount > 0) do
           div_ [ class_ "target-tab-selected-counter" ] do
-            (toHtml . Text.pack . show) selectedCount
+            (toHtml . T.pack . show) selectedCount
 
       `with` targetAttr target
       `with` tooltipInfo
@@ -462,8 +462,8 @@ renameModal oldPath = do
   root <- asks (.root)
   Phrase { modal_confirm } <- phrase <$> asks (.locale)
 
-  let c2t           = Text.pack . coerce
-      fileName      = Text.pack (coerce takeFileName oldPath)
+  let c2t           = T.pack . coerce
+      fileName      = T.pack (coerce takeFileName oldPath)
       oldClientPath = ClientPath.toClientPath root oldPath
 
   pure do
@@ -546,9 +546,9 @@ editorModal (ClientPath path, filename) content = do
       br_ mempty
 
       form_ [ hxPost (apiLinks.updateFile)
-            , hxConfirm (Text.replace "{}" (Text.pack filename) confirm_save_edit)
+            , hxConfirm (T.replace "{}" (T.pack filename) confirm_save_edit)
             ] do
-        input_ [ class_ "form-control ", type_ "hidden", name_ "path", value_ (Text.pack path) ]
+        input_ [ class_ "form-control ", type_ "hidden", name_ "path", value_ (T.pack path) ]
 
         textarea_
           (mconcat
@@ -561,7 +561,7 @@ editorModal (ClientPath path, filename) content = do
             , if readOnly then [ readonly_ "readonly" ] else mempty
             ]
           )
-          (toHtml (Text.decodeUtf8 content))
+          (toHtml (T.decodeUtf8 content))
 
         br_ mempty >> br_ mempty
 
@@ -686,7 +686,7 @@ entry file = do
       td_ $ sizeElement file
       `with`
         mconcat
-          [ [ term "data-path" (Text.pack (coerce clientPath)) ]
+          [ [ term "data-path" (T.pack (coerce clientPath)) ]
           , [ class_ "selected confirmed " | clientPath `Selected.elem` selected]
           , [ id_ [i|tr-#{hashPath}|]
             , class_ "table-item "
@@ -723,7 +723,7 @@ thumbnail file = do
       previewElement root file
       fileNameElement file target False `with` [ class_ "thumbnail-name" ]
       `with` mconcat
-          [ [ term "data-path" (Text.pack (coerce clientPath)) ]
+          [ [ term "data-path" (T.pack (coerce clientPath)) ]
           , [ class_ "selected confirmed " | clientPath `Selected.elem` selected ]
           , [ id_ [i|tr-#{hashPath}|]
                          , class_ "thumbnail table-item "
@@ -760,7 +760,7 @@ fileNameElement file target withIcon = do
        then Template.icon file
        else mempty
     name
-    `with` [ title_ (Text.pack displayName)
+    `with` [ title_ (T.pack displayName)
            ]
   where
     name = span_ (toHtml displayName)
@@ -777,7 +777,7 @@ sizeElement :: FileInfo -> Html ()
 sizeElement file =
   span_ (toHtml displaySize)
     `with` [ class_ "field file-meta "
-           , title_ (Text.pack displaySize)
+           , title_ (T.pack displaySize)
            ]
   where
     displaySize = toReadableSize (fromMaybe 0 file.size)
@@ -787,7 +787,7 @@ modifiedDateElement :: FileInfo -> Html ()
 modifiedDateElement file =
   span_ (toHtml displayTime)
     `with` [ class_ "field file-meta "
-           , title_ (Text.pack displayTime)
+           , title_ (T.pack displayTime)
            ]
   where
     displayTime = maybe mempty (formatTime defaultTimeLocale "%Y/%m/%d") file.mtime
@@ -824,7 +824,7 @@ contextMenu1 file = do
     } <- phrase <$> asks (.locale)
   pure do
     let clientPath@(ClientPath cp)  = ClientPath.toClientPath root file.path
-    let textClientPath = Text.pack cp
+    let textClientPath = T.pack cp
 
     div_ [ class_ "dropdown-content " , id_ contextMenuId ] do
       let dropDownItem = div_ [ class_ "dropdown-item" ]
@@ -865,7 +865,7 @@ contextMenu1 file = do
           div_ [ class_ "dropdown-item"
                , hxDelete (apiLinks.delete [clientPath] False)
                , hxSwap None
-               , hxConfirm (Text.replace "{}" textClientPath confirm_delete1)
+               , hxConfirm (T.replace "{}" textClientPath confirm_delete1)
                ] do
             i_ [ class_ "bx bxs-trash" ] mempty
             span_ (toHtml contextmenu_delete)
@@ -903,7 +903,7 @@ contextMenuMany clientPaths = do
           div_ [ class_ "dropdown-item"
                , hxDelete (apiLinks.delete clientPaths False)
                , hxSwap None
-               , hxConfirm (Text.replace "{}" (Text.pack (show (length clientPaths))) confirm_delete_local)
+               , hxConfirm (T.replace "{}" (T.pack (show (length clientPaths))) confirm_delete_local)
                ] do
             i_ [ class_ "bx bxs-trash" ] mempty
             span_ (toHtml contextmenu_delete_local)

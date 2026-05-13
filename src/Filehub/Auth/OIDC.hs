@@ -23,15 +23,15 @@ import Crypto.Number.Serialize (os2ip)
 import Crypto.PubKey.RSA qualified as RSA
 import Data.Aeson (FromJSON, Value, (.:))
 import Data.Aeson.Types qualified as Aeson
-import Data.ByteString qualified as ByteString
+import Data.ByteString qualified as B
 import Data.ByteString.Base64.URL qualified as Base64.URL
 import Data.Foldable (find)
 import Data.Function ((&))
 import Data.Functor.Identity (Identity (..))
 import Data.String.Interpolate (i)
 import Data.Text (Text)
-import Data.Text qualified as Text
-import Data.Text.Encoding qualified as Text
+import Data.Text qualified as T
+import Data.Text.Encoding qualified as T
 import Data.Time.Clock.POSIX qualified as Time
 import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
 import Filehub.ActiveUser.Types (ActiveUser(..))
@@ -113,18 +113,18 @@ type AuthorizationApi
 -- authentication flow
 authorize :: OIDCFlow Inited -> Filehub (OIDCFlow AuthRequestPrepared)
 authorize (Inited provider) = do
-  state        <- Text.pack <$> replicateM 32 (randomRIO ('a', 'z'))
-  codeVerifier <- Text.pack <$> replicateM 43 (randomRIO ('a', 'z'))
-  nonce        <- Text.pack <$> replicateM 16 (randomRIO ('a', 'z'))
+  state        <- T.pack <$> replicateM 32 (randomRIO ('a', 'z'))
+  codeVerifier <- T.pack <$> replicateM 43 (randomRIO ('a', 'z'))
+  nonce        <- T.pack <$> replicateM 16 (randomRIO ('a', 'z'))
 
   -- PKCE (Proof Key for Code Exchange) codeChallenge = BASE64URL(SHA256(codeVerifier)). The codeChallenge is sent to the IdP in the
   -- authentication stage. Later in token exchange stage we send codeVerifier again, the IdP use them to prevent code interception.
   let codeChallenge
-        = Text.decodeUtf8
+        = T.decodeUtf8
         $ Base64.URL.encodeUnpadded
         $ SHA256.finalize
         $ SHA256.update SHA256.init
-        $ Text.encodeUtf8
+        $ T.encodeUtf8
         $ codeVerifier
   wellknownConfig@WellKnownConfig { authorization_endpoint = Identity authorization_endpoint } <- getWellknownOpenIdConfigration provider
   let url = flip relativeTo authorization_endpoint
@@ -132,7 +132,7 @@ authorize (Inited provider) = do
             Authorization
               { responseType        = "code"
               , clientId            = provider.clientId
-              , redirectUri         = Text.pack (URI.uriToString id provider.redirectURI "")
+              , redirectUri         = T.pack (URI.uriToString id provider.redirectURI "")
               , scope               = "openid profile email"
               , state               = state
               , nonce               = nonce
@@ -185,13 +185,13 @@ exchangeToken
         TokenForm
           { grant_type    = "authorization_code"
           , code          = code
-          , redirect_uri  = Text.pack (URI.uriToString id provider.redirectURI "")
+          , redirect_uri  = T.pack (URI.uriToString id provider.redirectURI "")
           , client_id     = provider.clientId
           , client_secret = provider.clientSecret
           , code_verifier = codeVerifier
           }
 
-  baseUri <- either (\err -> throwIO (FilehubError InternalError (Text.unpack err))) pure (uriToBaseUrl token_endpoint)
+  baseUri <- either (\err -> throwIO (FilehubError InternalError (T.unpack err))) pure (uriToBaseUrl token_endpoint)
   runClientM (exchangeTokenClient form) (mkClientEnv manager baseUri) & liftIO . try
     >>= either (\(e :: IOError) -> throwIO (FilehubError InternalError (displayException e))) pure
     >>= either (\err -> throwIO (FilehubError InternalError (show err))) pure
@@ -227,7 +227,7 @@ verifyToken
   let JOSEHeader { kid } = JWT.header idTokenUnverified
 
   jwks <- do
-    baseUri <- uriToBaseUrl jwks_uri & either (\err -> throwIO (FilehubError InternalError (Text.unpack err))) pure
+    baseUri <- uriToBaseUrl jwks_uri & either (\err -> throwIO (FilehubError InternalError (T.unpack err))) pure
     value   <- do
       runClientM (client (Proxy @(Get '[JSON] Value))) (mkClientEnv manager baseUri) & liftIO . try
         >>= either (\(e :: IOError) -> throwIO (FilehubError LoginFailed (displayException e))) pure
@@ -245,14 +245,14 @@ verifyToken
     & maybe (throwIO (FilehubError LoginFailed "no jwk corresponds to expected kid")) pure
 
   verifySigner <- either (\err -> throwIO (FilehubError LoginFailed (show err))) pure do
-    nBytes <- Base64.URL.decodeUnpadded . Text.encodeUtf8 $ jwk.n
-    eBytes <- Base64.URL.decodeUnpadded . Text.encodeUtf8 $ jwk.e
+    nBytes <- Base64.URL.decodeUnpadded . T.encodeUtf8 $ jwk.n
+    eBytes <- Base64.URL.decodeUnpadded . T.encodeUtf8 $ jwk.e
     let n' = os2ip nBytes
     let e' = os2ip eBytes
     pure
       . JWT.VerifyRSAPublicKey
       $ RSA.PublicKey
-        { public_size = (ByteString.length nBytes)
+        { public_size = (B.length nBytes)
         , public_n    = n'
         , public_e    = e'
         }
@@ -261,8 +261,8 @@ verifyToken
     maybe (throwIO (FilehubError LoginFailed "invalid id token: failed to verify")) pure
       (JWT.verify verifySigner idTokenUnverified)
 
-  when (Text.toLower token_type /= "bearer") do
-    throwIO (FilehubError LoginFailed (Text.unpack ("invalid token type: " <> token_type)))
+  when (T.toLower token_type /= "bearer") do
+    throwIO (FilehubError LoginFailed (T.unpack ("invalid token type: " <> token_type)))
 
   pure
     $ TokenVerified Token
@@ -294,7 +294,7 @@ getWellknownOpenIdConfigration (Provider { issuer }) = do
   manager          <- asks (.httpManager)
 
   baseUri          <- case uriToBaseUrl issuer of
-                        Left err -> throwIO (FilehubError InternalError (Text.unpack err))
+                        Left err -> throwIO (FilehubError InternalError (T.unpack err))
                         Right r  -> pure r
 
   eWellKnownConfig <- do result <- liftIO . try $ do

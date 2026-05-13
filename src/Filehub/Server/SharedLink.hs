@@ -1,7 +1,7 @@
 module Filehub.Server.SharedLink where
 
 import Data.ClientPath (ClientPath (..))
-import Data.Set qualified as Set
+import Data.Set qualified as S
 import Filehub.Error ( FilehubError(..) )
 import Filehub.Monad
 import Filehub.Orphan ()
@@ -43,7 +43,7 @@ shared sessionId mClientPermit hash mClientPath = do
       case sharedLinkPermit of
         Just (SharedLinkPermitSet permit hashes)
           | clientPermit /= permit         -> goAuth
-          | hash `Set.member` hashes       -> goAuth
+          | hash `S.member` hashes       -> goAuth
           | Just clientPath <- mClientPath -> do
               undefined
               -- TODO

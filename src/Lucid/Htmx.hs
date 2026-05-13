@@ -6,7 +6,7 @@ import Data.Text (Text)
 import Lucid
 import Lucid.Base (makeAttribute)
 import Servant (Link)
-import Data.Text qualified as Text
+import Data.Text qualified as T
 import Servant.Extended (linkToText)
 
 
@@ -49,7 +49,7 @@ instance Show Trigger where
     show Submit    = "submit"
     show Load      = "load"
     show Intersect = "intersect"
-    show (Every t) = "every " <> Text.unpack t
+    show (Every t) = "every " <> T.unpack t
 
 
 data HtmxEvent
@@ -78,7 +78,7 @@ instance Show HtmxEvent where
     show OobAfterSwap    = "htmx:oobAfterSwap"
     show ResponseError   = "htmx:responseError"
     show SendError       = "htmx:sendError"
-    show (CustomEvent t) = Text.unpack t
+    show (CustomEvent t) = T.unpack t
 
 
 -- | Method Attributes (taking Link)
@@ -127,15 +127,15 @@ instance HxOn Text where
 
 instance HxOn HtmxEvent where
   hxOn event script =
-      let eventName = Text.pack (show event)
-          cleanName = Text.replace "htmx:" "" eventName
+      let eventName = T.pack (show event)
+          cleanName = T.replace "htmx:" "" eventName
       in makeAttribute ("hx-on::" <> cleanName) script
 
 
 instance HxOn Trigger where
   hxOn event script =
-      let eventName = Text.pack (show event)
-          cleanName = Text.replace "htmx:" "" eventName
+      let eventName = T.pack (show event)
+          cleanName = T.replace "htmx:" "" eventName
       in makeAttribute ("hx-on::" <> cleanName) script
 
 
@@ -147,11 +147,11 @@ class HxTrigger a where
 
 
 instance HxTrigger Trigger where
-    hxTrigger t = makeAttribute "hx-trigger" (Text.pack $ show t)
+    hxTrigger t = makeAttribute "hx-trigger" (T.pack $ show t)
 
 
 instance HxTrigger HtmxEvent where
-    hxTrigger e = makeAttribute "hx-trigger" (Text.pack $ show e)
+    hxTrigger e = makeAttribute "hx-trigger" (T.pack $ show e)
 
 
 instance HxTrigger Text where
@@ -167,7 +167,7 @@ class HxSwap a where
 
 
 instance HxSwap Swap where
-    hxSwap s = makeAttribute "hx-swap" (Text.pack $ show s)
+    hxSwap s = makeAttribute "hx-swap" (T.pack $ show s)
 
 
 instance HxSwap Text where
@@ -189,7 +189,7 @@ instance HxSwapOOB Bool where
 
 -- | Use for: hx-swap-oob="outerHTML" (Defaulting to the element's ID)
 instance HxSwapOOB Swap where
-  hxSwapOOB s = makeAttribute "hx-swap-oob" (Text.pack $ show s)
+  hxSwapOOB s = makeAttribute "hx-swap-oob" (T.pack $ show s)
 
 
 -- | Use for: hx-swap-oob="innerHTML:#some-id"

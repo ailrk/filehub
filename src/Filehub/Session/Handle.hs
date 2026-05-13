@@ -12,7 +12,7 @@ import Data.File (File (..), FileWithContent, FileContent (..), extractFileInfo)
 import Data.Functor ((<&>))
 import Data.Generics.Labels ()
 import Data.Generics.Labels ()
-import Data.Map qualified as Map
+import Data.Map qualified as M
 import Data.Maybe (fromMaybe, mapMaybe)
 import Data.Typeable (cast)
 import Filehub.Display qualified as Display
@@ -89,11 +89,11 @@ newSessionGet sessionId =
 
       targetViews = do
         s <- Session.Pool.get sessionId
-        let targetIds =  Map.keys s.targets
+        let targetIds =  M.keys s.targets
         targets       <- filter ((`elem` targetIds) . fst) <$> (asks (.targets) >>= readTVarIO)
         pure $
           flip mapMaybe targets \(targetId, target) ->
-            case Map.lookup targetId s.targets of
+            case M.lookup targetId s.targets of
               Just targetData -> pure (TargetView target targetData)
               Nothing         -> Nothing
 
@@ -129,7 +129,7 @@ newSessionGet sessionId =
         targets <- asks (.targets) >>= readTVarIO
         maybe (throwIO (FilehubError InvalidSession "Invalid session")) pure do
           let targetId      = s.currentTargetId
-          targetSessionData <- Map.lookup targetId s.targets
+          targetSessionData <- M.lookup targetId s.targets
           target            <- lookup targetId targets
           pure $ TargetView target targetSessionData
 
@@ -166,7 +166,7 @@ newSessionSet sessionId =
       upS f = Session.Pool.update sessionId f
 
       upT :: (TargetSessionData -> TargetSessionData) -> Filehub ()
-      upT f = upS $ \s -> s { targets = Map.adjust f s.currentTargetId s.targets }
+      upT f = upS $ \s -> s { targets = M.adjust f s.currentTargetId s.targets }
 
       currentDir a = upT (\td -> td { currentDir = a })
 
@@ -391,7 +391,7 @@ attachTarget sessionId target = do
      then pure ()
      else do
        Session.Pool.update sessionId \session -> do
-         session { targets = Map.insert (getTargetId target) (targetToSessionData target) session.targets
+         session { targets = M.insert (getTargetId target) (targetToSessionData target) session.targets
                  }
 
 
@@ -399,7 +399,7 @@ detachTarget :: HasTargetId t => SessionId -> t -> Filehub ()
 detachTarget sessionId target = do
   let tid = getTargetId target
   Session.Pool.update sessionId \session -> do
-    session { targets = Map.delete tid session.targets
+    session { targets = M.delete tid session.targets
             }
 
 

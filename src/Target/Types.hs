@@ -14,7 +14,7 @@ module Target.Types
 
 import Control.Applicative (asum)
 import Data.ByteString.Builder (Builder)
-import Data.ByteString.Builder qualified as Builder
+import Data.ByteString.Builder qualified as BB
 import Data.Generics.Labels ()
 import Data.Hashable (Hashable)
 import Data.Typeable (Typeable, cast)
@@ -42,7 +42,7 @@ instance FromHttpApiData TargetId where
 
 
 targetIdBuilder :: TargetId -> Builder
-targetIdBuilder (TargetId targetId) =  Builder.byteString . UUID.toASCIIBytes $ targetId
+targetIdBuilder (TargetId targetId) =  BB.byteString . UUID.toASCIIBytes $ targetId
 
 
 class HasTargetId t where

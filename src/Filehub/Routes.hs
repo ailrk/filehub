@@ -497,16 +497,6 @@ data Api mode = Api
 
 
   , healthz               :: mode :- "healthz" :> AuthProtect "session" :> Get '[PlainText] Text
-
-
-#ifdef DEBUG
-  , debug1                :: mode
-                          :- "debug1"
-                          :> AuthProtect "session"
-                          :> Get '[HTML] (Headers '[ Header "HX-Trigger" FilehubEvent] NoContent)
-
-
-#endif
   }
   deriving Generic
 

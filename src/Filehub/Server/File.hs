@@ -22,10 +22,9 @@ import Conduit (ConduitT, ResourceT, MonadIO (..), runResourceT, runConduit, (.|
 import Conduit qualified
 import Control.Monad (void, when, replicateM, join)
 import Control.Monad.Reader (MonadReader(..))
-import Data.Binary.Builder qualified as Builder
+import Data.Binary.Builder qualified as BB
 import Data.ByteString (ByteString)
-import Data.ByteString.Char8 qualified as ByteString
-import Data.ByteString.Char8 qualified as Char8
+import Data.ByteString.Char8 qualified as BC
 import Data.ClientPath (ClientPath (..), AbsPath (..), (<./>), Root (..))
 import Data.ClientPath qualified as ClientPath
 import Data.ClientPath.IO (validateAbsPath)
@@ -37,8 +36,8 @@ import Data.Maybe (fromMaybe, catMaybes)
 import Data.Ratio ((%))
 import Data.String.Interpolate (i)
 import Data.Text (Text)
-import Data.Text qualified as Text
-import Data.Text.Encoding qualified as Text
+import Data.Text qualified as T
+import Data.Text.Encoding qualified as T
 import Data.Traversable (for)
 import Filehub.Error ( FilehubError(..), Error' (..) )
 import Filehub.Handler (ConfirmLogin, ConfirmReadOnly)
@@ -110,7 +109,7 @@ updateFile sessionId _ _ (UpdatedFile clientPath content) = do
   let path  = ClientPath.fromClientPath root clientPath
   storage.write $ defaultFileWithContent
     { path     = path
-    , content  = FileContentRaw (Text.encodeUtf8 content)
+    , content  = FileContentRaw (T.encodeUtf8 content)
     }
   UI.view sessionId
 
@@ -121,7 +120,7 @@ newFile' sessionId name create = do
   dir     <- Session.get sessionId (.currentDir)
   order   <- Session.get sessionId (.sortedFileBy)
   root    <- Session.get sessionId (.root)
-  path    <- validateAbsPath (coerce dir </> Text.unpack name) (FilehubError InvalidPath ("<redacted>/" <> show name))
+  path    <- validateAbsPath (coerce dir </> T.unpack name) (FilehubError InvalidPath ("<redacted>/" <> show name))
   file    <- create path
   files   <- Sort.sortFiles order <$> storage.ls dir
   entry'  <- UI.entry sessionId file
@@ -263,7 +262,7 @@ download sessionId _ clientPaths = do
           m <- Zip.mkEntrySelector (coerce makeRelative root path)
           Zip.sinkEntry Zip.Zstd conduit m
 
-      tag <- Text.pack <$> replicateM 8 (randomRIO ('a', 'z'))
+      tag <- T.pack <$> replicateM 8 (randomRIO ('a', 'z'))
 
       let conduit =
             Conduit.bracketP
@@ -327,7 +326,7 @@ serve env sessionId _ = Tagged $ \req respond -> do
     root       <- Session.get sessionId (.root)
     storage    <- Session.get sessionId (.storage)
     clientPath <- do
-      text <- Text.decodeUtf8 <$> withQueryParam mFile
+      text <- T.decodeUtf8 <$> withQueryParam mFile
       case parseUrlPiece @ClientPath text of
         Right c  -> pure c
         Left err -> throwIO do HTTPError err404 { errBody = [i|#{err}|] }
@@ -351,7 +350,7 @@ serve env sessionId _ = Tagged $ \req respond -> do
                                    Just (ByteRangeFrom s : _)     -> (status206, Just s, Just (fileSize - s))
                                    _                              -> (status200, Nothing, Nothing)
 
-      let renderRangeHeader s e t = Char8.pack $ printf "bytes %d-%d/%d" s e t
+      let renderRangeHeader s e t = BC.pack $ printf "bytes %d-%d/%d" s e t
 
       let from = fromMaybe 0 mOff
       let len  = fromMaybe 0 mLen
@@ -362,9 +361,9 @@ serve env sessionId _ = Tagged $ \req respond -> do
                     ]
                 ++ if status == status206
                       then [ ("Content-Range", renderRangeHeader from  to fileSize)
-                           , ("Content-Length", Char8.pack (show len))
+                           , ("Content-Length", BC.pack (show len))
                            ]
-                      else [ ("Content-Length", Char8.pack (show fileSize)) ]
+                      else [ ("Content-Length", BC.pack (show fileSize)) ]
 
       respond do
         responseStream status headers $ \send flush -> do
@@ -377,7 +376,7 @@ serve env sessionId _ = Tagged $ \req respond -> do
             Right stream ->
               runResourceT . runConduit
                 $ stream
-                .| Conduit.mapM_C \chunk -> liftIO do send (Builder.fromByteString chunk); flush
+                .| Conduit.mapM_C \chunk -> liftIO do send (BB.fromByteString chunk); flush
 
 
 thumbnail :: SessionId -> ConfirmLogin -> Maybe ClientPath
@@ -395,7 +394,7 @@ thumbnail sessionId _ mFile = do
   conduit    <- serveOriginal storage file
 
   pure
-    . addHeader (ByteString.unpack file.mimetype)
+    . addHeader (BC.unpack file.mimetype)
     . addHeader (printf "inline; filename=%s" (coerce takeFileName path :: String))
     . addHeader "public, max-age=31536000, immutable"
     $ conduit

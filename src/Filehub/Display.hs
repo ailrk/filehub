@@ -3,7 +3,7 @@ module Filehub.Display (Resolution(..), Display(..), classify) where
 import Data.Generics.Labels ()
 import Servant (ToHttpApiData(..), FromHttpApiData(..))
 import Web.FormUrlEncoded (FromForm(..), parseUnique)
-import Data.Text qualified as Text
+import Data.Text qualified as T
 import Text.Read (readMaybe)
 
 
@@ -21,11 +21,11 @@ instance ToHttpApiData Resolution where
 -- | e.g 1920x1080
 instance FromHttpApiData Resolution where
   parseUrlPiece res =
-    case Text.splitOn "x" res of
+    case T.splitOn "x" res of
       x:y:_ -> do
         maybe (Left "invalid resolution") (\(w, h) -> pure $ Resolution w h) do
-          w <- readMaybe (Text.unpack x)
-          h <- readMaybe (Text.unpack y)
+          w <- readMaybe (T.unpack x)
+          h <- readMaybe (T.unpack y)
           pure (w, h)
       _ -> Left "unknown resolution"
 

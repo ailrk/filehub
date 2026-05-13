@@ -66,11 +66,11 @@ import Network.Mime.Extended (isMime)
 import Data.Coerce (coerce)
 import System.FilePath (takeDirectory)
 import Filehub.Sort qualified as Sort
-import Data.List qualified as List
-import Data.Text.Encoding qualified as Text
+import Data.List qualified as L
+import Data.Text.Encoding qualified as T
 import Lucid.Htmx (HxSwapOOB(..))
 import Filehub.Session.Types (Selected (..), Layout (..))
-import Data.Set qualified as Set
+import Data.Set qualified as S
 
 
 -- | Completely reset all state machines. This should be the only place to reset state.
@@ -265,7 +265,7 @@ initViewer sessionId _ mClientPath = do
     let filePath  =  ClientPath.fromClientPath root clientPath
     let dir       =  coerce takeDirectory filePath
     files         <- takeResourceFiles . Sort.sortFiles order <$> (storage.ls dir)
-    let idx       =  fromMaybe 0 $ List.elemIndex filePath (fmap (.path) files)
+    let idx       =  fromMaybe 0 $ L.elemIndex filePath (fmap (.path) files)
     let resources =  fmap (toResource root) files
     pure $ ViewerInited resources idx
   pure $ addHeader payload NoContent
@@ -281,7 +281,7 @@ initViewer sessionId _ mClientPath = do
       Resource
         { url = let ClientPath path = ClientPath.toClientPath root f.path -- encode path url
                  in ClientPath.RawClientPath [i|/serve?file=#{path}|]
-                                                  , mimetype = Text.decodeUtf8 f.mimetype
+                                                  , mimetype = T.decodeUtf8 f.mimetype
         }
 
 
@@ -301,15 +301,15 @@ cancel sessionId _ = do
   root                  <- Session.get sessionId (.root)
 
   let count    = length allSelected
-  let selected = Set.fromList case lookup target allSelected of
-                                Just s  -> Selected.toList s
-                                Nothing -> []
+  let selected = S.fromList case lookup target allSelected of
+                               Just s  -> Selected.toList s
+                               Nothing -> []
 
   clear sessionId
 
   selectedFiles <- do
     files <- storage.lsCwd
-    let predicate f = (toClientPath root f.path) `Set.member` selected
+    let predicate f = (toClientPath root f.path) `S.member` selected
     pure $ filter predicate files
 
   addHeader count

@@ -12,7 +12,7 @@ module Filehub.Env
   )
   where
 
-import Data.Map.Strict qualified as Map
+import Data.Map.Strict qualified as M
 import Data.Time (NominalDiffTime)
 import Filehub.ActiveUser.Types qualified as ActiveUser
 import Filehub.Locale (Locale)
@@ -78,4 +78,4 @@ data Env = Env
 -- | Check if there is login information provided when the program starts.
 hasNoLogin :: Env -> Bool
 hasNoLogin (Env { simpleAuthUserDB = SimpleAuthUserDB db
-                , oidcAuthProviders = OIDCAuthProviders providers}) = Map.null db && null providers
+                , oidcAuthProviders = OIDCAuthProviders providers}) = M.null db && null providers

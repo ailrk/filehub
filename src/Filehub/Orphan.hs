@@ -7,9 +7,9 @@
 module Filehub.Orphan () where
 import Servant (ToHttpApiData, URI)
 import Servant.API (ToHttpApiData(..))
-import Data.Text qualified as Text
+import Data.Text qualified as T
 import Network.URI qualified as URI
 
 
 instance ToHttpApiData URI where
-  toUrlPiece uri = Text.pack (URI.uriToString id uri "")
+  toUrlPiece uri = T.pack (URI.uriToString id uri "")

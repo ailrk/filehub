@@ -9,10 +9,10 @@ module Text.Debug (Debug(..)) where
 import GHC.Generics
 
 import Data.ByteString (ByteString)
-import Data.ByteString qualified as ByteString
-import Data.ByteString.Lazy qualified as LBS
+import Data.ByteString qualified as B
+import Data.ByteString.Lazy qualified as BL
 import Data.Text (Text)
-import Data.Text qualified as Text
+import Data.Text qualified as T
 import Data.Text.Lazy qualified as LT
 import Data.UUID (UUID)
 import Data.Time (UTCTime)
@@ -73,10 +73,10 @@ instance Debug Float where          debug = show
 instance Debug Double where         debug = show
 instance Debug Bool where           debug = show
 instance Debug Char where           debug = show
-instance Debug Text where           debug = show . Text.unpack
+instance Debug Text where           debug = show . T.unpack
 instance Debug LT.Text where        debug = show . LT.unpack
-instance Debug ByteString where     debug = show . ByteString.unpack
-instance Debug LBS.ByteString where debug = show . LBS.unpack
+instance Debug ByteString where     debug = show . B.unpack
+instance Debug BL.ByteString where  debug = show . BL.unpack
 instance Debug () where             debug = show
 instance Debug UUID where           debug = show
 instance Debug UTCTime where        debug = show

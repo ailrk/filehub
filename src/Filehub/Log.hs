@@ -8,10 +8,10 @@ module Filehub.Log (withColoredStdoutLogger) where
 import System.IO (stdout, hFlush)
 import Data.Time (defaultTimeLocale, UTCTime)
 import Data.Text (Text)
-import Data.Text qualified as Text
-import Data.Text.IO qualified as Text
-import Data.Text.Encoding qualified as Text
-import Data.ByteString qualified as ByteString
+import Data.Text qualified as T
+import Data.Text.IO qualified as T
+import Data.Text.Encoding qualified as T
+import Data.ByteString qualified as B
 import Log.Internal.Logger (withLogger, Logger)
 import Data.Aeson (Value)
 import Data.Time.Format (formatTime)
@@ -25,7 +25,7 @@ import Log (mkLogger)
 withColoredStdoutLogger :: MonadUnliftIO m => (Logger -> m r) -> m r
 withColoredStdoutLogger act = withRunInIO \unlift -> do
   logger <- mkLogger "stdout" \msg -> do
-    Text.putStrLn (showColoredLogMessage Nothing msg)
+    T.putStrLn (showColoredLogMessage Nothing msg)
     hFlush stdout
   withLogger logger (unlift . act)
 
@@ -33,14 +33,14 @@ withColoredStdoutLogger act = withRunInIO \unlift -> do
 -- | Render a 'LogMessage' to 'Text'.
 showColoredLogMessage :: Maybe UTCTime -> LogMessage -> Text
 showColoredLogMessage mInsertionTime LogMessage{..}
-  = Text.concat $ [
-    Text.pack (formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S" lmTime)
+  = T.concat $ [
+    T.pack (formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S" lmTime)
   , case mInsertionTime of
       Nothing -> " "
-      Just it -> Text.pack (formatTime defaultTimeLocale " (%H:%M:%S) " it)
-  , colorize lmLevel . Text.toUpper $ showLogLevel lmLevel
+      Just it -> T.pack (formatTime defaultTimeLocale " (%H:%M:%S) " it)
+  , colorize lmLevel . T.toUpper $ showLogLevel lmLevel
   , " "
-  , colorize lmLevel . Text.intercalate "/" $ lmComponent : lmDomain
+  , colorize lmLevel . T.intercalate "/" $ lmComponent : lmDomain
   , ": "
   , lmMessage
   ] ++ if lmData == emptyObject
@@ -48,7 +48,7 @@ showColoredLogMessage mInsertionTime LogMessage{..}
     else [" ", textifyData lmData]
   where
     textifyData :: Value -> Text
-    textifyData = Text.decodeUtf8 . ByteString.toStrict . encodePretty' defConfig {
+    textifyData = T.decodeUtf8 . B.toStrict . encodePretty' defConfig {
       confIndent = Spaces 2
     }
 

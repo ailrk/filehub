@@ -14,7 +14,7 @@ import Control.Exception (throwIO)
 import Control.Monad (when)
 import Data.Coerce (coerce)
 import Data.Text (Text)
-import Data.Text qualified as Text
+import Data.Text qualified as T
 import Filehub.Auth.Types.OIDC qualified as Auth.OIDC
 import Filehub.Auth.Types.Simple qualified as Auth.Simple
 import Filehub.Config
@@ -211,12 +211,12 @@ _URI = uriText >>> Toml._Text
     uriText :: TomlBiMap URI Text
     uriText = Toml.BiMap forward backward
 
-    forward uri = Right . Text.pack . URI.uriToString id uri $ ""
+    forward uri = Right . T.pack . URI.uriToString id uri $ ""
     backward t = maybe
       (Left (Toml.ArbitraryError "invalid uri"))
       Right
-      (URI.parseURI (Text.unpack t))
+      (URI.parseURI (T.unpack t))
 
 
 colorHex :: Key -> TomlCodec Text
-colorHex key = Toml.validateIf (\s -> "#" `Text.isPrefixOf` s && Text.length s == 7) Toml._Text key
+colorHex key = Toml.validateIf (\s -> "#" `T.isPrefixOf` s && T.length s == 7) Toml._Text key
