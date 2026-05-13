@@ -16,22 +16,26 @@ import UnliftIO.STM (readTBQueue, atomically, isEmptyTBQueue, modifyTVar', readT
 type NotificationStream = ConduitT () Notification IO ()
 
 
--- | Creating a notification conduit. The conduit tries to read notifications
--- from the `notifications :: TBQueue Notification` and handle each message accordingly.
+-- | Creating a notification conduit.
+--
+-- The conduit tries to read notifications from the `notifications :: TBQueue
+-- Notification` and handle each message accordingly.
 --
 -- == Task
--- If a notification has a task id, it associates with a task that has been created earlier.
--- The worker pool reports the progress by sending a notification to this thread. We can
--- then choose yeild it to downtream or swallow it.
--- When a task is completed, a `TaskCompleted` notification will be sent. The session
--- maintains a set of pending task ids, every time we received a `TaskCompleted` message
--- we remove the task Id from the pending task set. We can close the notification if there
--- is no more pending tasks.
+-- If a notification has a task id, it associates with a task that has been
+-- created earlier.
 --
--- This means the notification conduit is created on demand. That is: it's created only when
--- we have a task running in the back ground. When there are multiple tasks, they share the
--- same conduit; when there are no pending task, the conduit finshes; when there is not task,
--- no conduit.
+-- The worker pool reports the progress by sending a notification to this
+-- thread. We can then choose to yeild it to downtream or swallow it.
+--
+-- When a task is completed, a `TaskCompleted` notification will be sent. The
+-- session maintains a set of pending task ids, every time we received a
+-- `TaskCompleted` message we remove the task Id from the pending task set. We
+-- can close the notification if there is no more pending tasks.
+--
+-- As long as the tab is on, the notification conduit runs forever in the
+-- background. When the browser tab is closed, the conduit will fail to yield
+-- hence clean up the resource
 listen :: SessionId -> ConfirmLogin -> Filehub (RecommendedEventSourceHeaders NotificationStream)
 listen sessionId _ = recommendedEventSourceHeaders <$> do
   notifications <- get sessionId (.notifications)
@@ -45,7 +49,7 @@ listen sessionId _ = recommendedEventSourceHeaders <$> do
         if Set.null tasksRemaining
            then do
              clearQueue notifications
-             pure (yield n)
+             pure do yield n; loop
            else pure do yield n; loop
       SimpleMessage _        -> pure do yield n; loop
       DeleteProgressed _ _ _ -> pure do yield n; loop

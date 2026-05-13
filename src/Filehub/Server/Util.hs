@@ -1,6 +1,7 @@
 module Filehub.Server.Util
   ( withQueryParam
   , parseHeader'
+  , throttle
   )
   where
 
@@ -13,6 +14,7 @@ import Servant ( FromHttpApiData (..) )
 import Servant.Server (err400)
 import Filehub.Monad (Filehub)
 import UnliftIO (throwIO)
+import Control.Monad (when)
 
 
 -- | Ensure a query parameter presents, otherwise it's a client error
@@ -25,3 +27,18 @@ withQueryParam m =
 
 parseHeader' :: FromHttpApiData a => ByteString -> Maybe a
 parseHeader' x = either (const Nothing) Just (parseHeader x)
+
+
+
+throttle :: (Monad m, Integral n) => n -> n -> n -> m () -> m ()
+throttle idx total steps action
+  | total <= 0 = action
+  | otherwise  =
+      let
+        -- Ensure interval is at least 1 to avoid DivByZero
+        interval = max 1 (total `div` steps)
+      in
+        when (idx `rem` interval == 0 || idx == total) action
+
+
+

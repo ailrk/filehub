@@ -228,9 +228,12 @@ function startListenSSE() {
     if (!evtSource) {
         evtSource = new EventSource("/listen");
     }
+    evtSource.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        console.log("New update:", data);
+    };
     evtSource.addEventListener('Pong', _ => { console.log('pong'); });
     evtSource.addEventListener('TaskCompleted', e => {
-        console.log('Task completed');
         let data = JSON.parse(e.data);
         htmxProcessOOB(data);
         let _remaining = Balloon.deleteLongLivedBalloon(data.taskId);

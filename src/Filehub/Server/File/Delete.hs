@@ -28,7 +28,8 @@ import Servant (Header , Headers  , addHeader)
 import UnliftIO.Async (forConcurrently_)
 import UnliftIO.STM (atomically, modifyTVar', readTVar, newTVarIO, writeTBQueue, newTQueueIO, writeTQueue)
 import Worker.Task (newTaskId)
-import Debug.Trace
+import Filehub.Server.Util (throttle)
+import Control.Concurrent.STM (flushTQueue)
 
 
 -- | Delete files.
@@ -45,22 +46,39 @@ delete sessionId _ _ clientPaths deleteSelected = do
   storage             <- get sessionId (.storage)
   notifications       <- get sessionId (.notifications)
   taskId              <- newTaskId
-  deleteCounter       <- newTVarIO @_ @Integer 0
-  deleted             <- newTQueueIO @_ @ClientPath
   env                 <- ask
   AllSelected
     { count
     , allSelected
     }                 <- Selected.getAllSelected sessionId
 
-  traceShowM "delete"
-  traceShowM (count)
+  -- States
+  deleteCounter       <- newTVarIO @_ @Integer 0
+  deletedPaths        <- newTQueueIO @_ @ClientPath
 
-  -- Record on each successful delete.
-  let jot clientPath = do
+  let total = fromIntegral (count + length clientPaths)
+
+      -- Record on each successful delete.
+      jot clientPath = do
         modifyTVar' deleteCounter (+ 1)
-        writeTQueue deleted clientPath
+        writeTQueue deletedPaths clientPath
         readTVar deleteCounter
+
+      -- Notify the SSE
+      notify n = do
+        dPaths <- flushTQueue deletedPaths
+        let htmx =
+              foldMap (\p ->
+                let
+                    ClientPathView { hashPath } = asClientPathView root p
+                 in
+                    div_ [ id_ [i|tr-#{hashPath}|], hxSwapOOB Delete ] mempty)
+                dPaths
+        writeTBQueue notifications $ DeleteProgressed
+          { taskId       = taskId
+          , progress     = n % max 1 total
+          , htmxResponse = Just htmx
+          }
 
   forkFilehub_ env $ do
     -- Make sure the frontend opens a /listen connection otherwise this will block.
@@ -73,47 +91,43 @@ delete sessionId _ _ clientPaths deleteSelected = do
 
     -- Delete from parameters
     forConcurrently_ clientPaths \clientPath -> do
-      let ClientPathView { path, hashPath } = asClientPathView root clientPath
+      let ClientPathView { path } = asClientPathView root clientPath
       storage.delete path
       atomically do
         n <- jot clientPath
-        writeTBQueue notifications $ DeleteProgressed
-          { taskId       = taskId
-          , progress     = n % max 1 (fromIntegral count)
-          , htmxResponse = Just $ div_ [ id_ [i|tr-#{hashPath}|], hxSwapOOB Delete ] mempty
-          }
-
+        throttle n total 6 do
+          notify n
 
     -- Delete all selected files
     when deleteSelected do
       for_ allSelected \(target, selected) -> withTarget sessionId target do
         case selected of
           NoSelection   -> pure ()
+
           Selected x xs -> do
             let ps = fmap (asClientPathView root) (x:xs)
-            forConcurrently_  ps \(ClientPathView { path, clientPath, hashPath }) -> do
+
+            forConcurrently_ ps \(ClientPathView { path, clientPath }) -> do
               storage.delete path
               atomically do
                 n <- jot clientPath
-                writeTBQueue notifications $ DeleteProgressed
-                  { taskId       = taskId
-                  , progress     = n % max 1 (fromIntegral count)
-                  , htmxResponse = Just $ div_ [ id_ [i|tr-#{hashPath}|], hxSwapOOB Delete ] mempty
-                  }
+                throttle n total 6 do
+                  notify n
 
     atomically do
+      notify total
       writeTBQueue notifications $ TaskCompleted
-        { taskId      = taskId
+        { taskId       = taskId
         , htmxResponse = Nothing
         }
 
   UI.clear sessionId
   AllSelected { count = newCount } <- Selected.getAllSelected sessionId
-  addHeader newCount <$> mkHTMX sessionId
+  addHeader newCount <$> mkHtmx sessionId
 
 
-mkHTMX :: SessionId -> Filehub (Html ())
-mkHTMX sessionId = do
+mkHtmx :: SessionId -> Filehub (Html ())
+mkHtmx sessionId = do
   controlPanel' <- UI.controlPanel sessionId
   sideBar'      <- UI.sideBar sessionId
   pure do

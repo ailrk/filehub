@@ -49,11 +49,11 @@ data PasteTask
 createPasteTasks :: SessionId -> AbsPath -> AnyTarget -> [(AnyTarget, [File FileType])] -> Filehub [PasteTask]
 createPasteTasks sessionId fromDir to selections = fmap (mconcat . mconcat) do
   for selections \(from, files) -> do
-    for files $
-      flip fix fromDir \rec (AbsPath currentDir) file -> do
+    for files $ flip fix fromDir \rec (AbsPath currentDir) file -> do
 
-      let name = coerce takeFileName file.path
-      let path = (currentDir </> takeFileName name)
+      let
+          name = coerce takeFileName file.path
+          path = (currentDir </> takeFileName name)
 
       dst <- validateAbsPath path (FilehubError InvalidPath "Invalid path")
 
@@ -62,10 +62,13 @@ createPasteTasks sessionId fromDir to selections = fmap (mconcat . mconcat) do
         _          ->
           case file.content of
             Regular    -> pure [ PasteFile from to file dst ]
+
             Dir -> do
               withTarget sessionId from do
                 storage <- get sessionId (.storage)
-                (TargetView _ (TargetSessionData { currentDir = savedDir })) <- get sessionId (.currentTarget)
+                (TargetView _
+                  (TargetSessionData
+                    { currentDir = savedDir })) <- get sessionId (.currentTarget)
                 storage.cd file.path
                 result <- do
                   dirFiles <- storage.lsCwd
@@ -77,20 +80,30 @@ createPasteTasks sessionId fromDir to selections = fmap (mconcat . mconcat) do
 paste :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> Filehub (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))
 paste sessionId _ _ = do
   notifications   <- get sessionId (.notifications)
-  targetViewSaved <- get sessionId (.currentTarget)
-  pasteCounter    <- newTVarIO @_ @Integer 0
   taskId          <- newTaskId
   state           <- get sessionId (.copyState)
-  pasted          <- newTQueueIO @_ @PasteTask
   env             <- ask
 
-  let jot clientPath = do
+  -- States
+  pasteCounter    <- newTVarIO @_ @Integer 0
+  pastedTasks     <- newTQueueIO @_ @PasteTask
+
+  let
+      jot task = do
         modifyTVar' pasteCounter (+ 1)
-        writeTQueue pasted clientPath
+        writeTQueue pastedTasks task
         readTVar pasteCounter
 
+      -- Notify the SSE
+      notify n taskCount = do
+        writeTBQueue notifications $ PasteProgressed
+          { taskId       = taskId
+          , progress     = (n % max 1 taskCount)
+          , htmxResponse = Nothing
+          }
+
   case state of
-    Paste selections -> forkFilehub_ env $ do
+    Paste selections -> forkFilehub_ env do
       tasks <- do
         TargetView to sdata <- get sessionId (.currentTarget)
         createPasteTasks sessionId sdata.currentDir to selections
@@ -98,7 +111,7 @@ paste sessionId _ _ = do
       let taskCount = fromIntegral (length tasks)
 
       -- Concurrently paste files
-      forConcurrently_ tasks $ \task -> do
+      forConcurrently_ tasks \task -> do
         case task of
           PasteFile { from, to, file, dst } -> do
 
@@ -112,11 +125,7 @@ paste sessionId _ _ = do
 
             atomically do
               n <- jot task
-              writeTBQueue notifications $ PasteProgressed
-                { taskId       = taskId
-                , progress     = (n % max 1 taskCount)
-                , htmxResponse = Nothing
-                }
+              notify n taskCount
 
           CreateDir to dst -> do
             withTarget sessionId to do
@@ -127,16 +136,9 @@ paste sessionId _ _ = do
       Session.set sessionId (.copyState) NoCopyPaste
       Selected.clearSelectedAllTargets sessionId
 
-      targetView <- get sessionId (.currentTarget)
-
       response <- do
-        if and [ targetView.target == targetViewSaved.target
-               , targetView.sessionData.currentDir == targetViewSaved.sessionData.currentDir
-               ]
-          then do
-            view' <- UI.view sessionId
-            pure $ Just $ view' `with` [ hxSwapOOB True ]
-          else pure Nothing
+        view' <- UI.view sessionId
+        pure $ Just $ view' `with` [ hxSwapOOB True ]
 
       atomically do
         writeTBQueue notifications $ TaskCompleted
@@ -151,11 +153,11 @@ paste sessionId _ _ = do
   UI.clear sessionId
   AllSelected{count} <- Selected.getAllSelected sessionId
 
-  addHeader count <$> mkHTMX sessionId
+  addHeader count <$> mkHtmx sessionId
 
 
-mkHTMX :: SessionId -> Filehub (Html ())
-mkHTMX sessionId = do
+mkHtmx :: SessionId -> Filehub (Html ())
+mkHtmx sessionId = do
   controlPanel' <- UI.controlPanel sessionId
   sideBar'      <- UI.sideBar sessionId
   pure do
