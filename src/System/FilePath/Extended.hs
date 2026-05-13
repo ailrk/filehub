@@ -8,7 +8,6 @@ import Control.Monad.IO.Class (liftIO)
 import UnliftIO (MonadIO)
 
 
-
 -- |  A simple util to expand environment variables embeded in a filepath.
 expandVars :: FilePath -> IO FilePath
 expandVars path
