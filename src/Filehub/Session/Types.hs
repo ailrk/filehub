@@ -52,7 +52,7 @@ data Session = Session
   , expireDate        :: UTCTime
   , targets           :: Map TargetId TargetSessionData
   , copyState         :: CopyState
-  , currentTargetId   :: TargetId
+  , currentTargetId   :: TVar TargetId
   , sidebarCollapsed  :: Bool
   , layout            :: Layout
   , theme             :: Theme

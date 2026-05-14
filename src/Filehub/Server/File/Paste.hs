@@ -16,7 +16,7 @@ import Filehub.Handler (ConfirmLogin, ConfirmReadOnly)
 import Filehub.Monad
 import Filehub.Notification.Types (Notification(..))
 import Filehub.Server.UI qualified as UI
-import Filehub.Session (SessionId(..), TargetView (..), SessionGet(..), withTarget, get)
+import Filehub.Session (SessionId(..), TargetView (..), SessionGet(..), withTarget, get, set)
 import Filehub.Session qualified as Session
 import Filehub.Session.Selected qualified as Selected
 import Filehub.Session.Types (CopyState (..))
@@ -33,6 +33,7 @@ import UnliftIO.Async (forConcurrently_)
 import UnliftIO.STM (atomically, modifyTVar', readTVar, newTVarIO, writeTBQueue, newTQueueIO, writeTQueue)
 import Worker.Task (newTaskId)
 import Filehub.Session.Selected (AllSelected(..))
+import Filehub.Server.Util (throttle)
 
 
 data PasteTask
@@ -47,34 +48,36 @@ data PasteTask
 
 
 createPasteTasks :: SessionId -> AbsPath -> AnyTarget -> [(AnyTarget, [File FileType])] -> Filehub [PasteTask]
-createPasteTasks sessionId fromDir to selections = fmap (mconcat . mconcat) do
-  for selections \(from, files) -> do
-    for files $ flip fix fromDir \rec (AbsPath currentDir) file -> do
+createPasteTasks sessionId fromDir to selections = fmap (mconcat . mconcat) go
+  where
+    go = do
+      for selections \(from, files) -> do
+        for files $ flip fix fromDir \rec (AbsPath currentDir) file -> do
 
-      let
-          name = coerce takeFileName file.path
-          path = (currentDir </> takeFileName name)
+          let
+              name = coerce takeFileName file.path
+              path = (currentDir </> takeFileName name)
 
-      dst <- validateAbsPath path (FilehubError InvalidPath "Invalid path")
+          dst <- validateAbsPath path (FilehubError InvalidPath "Invalid path")
 
-      case file.isLink of
-        BrokenLink -> pure []
-        _          ->
-          case file.content of
-            Regular    -> pure [ PasteFile from to file dst ]
+          case file.isLink of
+            BrokenLink -> pure []
+            _          ->
+              case file.content of
+                Regular    -> pure [ PasteFile from to file dst ]
 
-            Dir -> do
-              withTarget sessionId from do
-                storage <- get sessionId (.storage)
-                (TargetView _
-                  (TargetSessionData
-                    { currentDir = savedDir })) <- get sessionId (.currentTarget)
-                storage.cd file.path
-                result <- do
-                  dirFiles <- storage.lsCwd
-                  for dirFiles \dfile -> rec dst dfile
-                storage.cd savedDir -- go back
-                pure $ ([CreateDir to dst] ++ mconcat result)
+                Dir -> do
+                  withTarget sessionId from do
+                    storage <- get sessionId (.storage)
+                    (TargetView _
+                      (TargetSessionData
+                        { currentDir = savedDir })) <- get sessionId (.currentTarget)
+                    storage.cd file.path
+                    result <- do
+                      dirFiles <- storage.lsCwd
+                      for dirFiles \dfile -> rec dst dfile
+                    storage.cd savedDir -- go back
+                    pure $ ([CreateDir to dst] ++ mconcat result)
 
 
 paste :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> Filehub (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))
@@ -83,6 +86,8 @@ paste sessionId _ _ = do
   taskId          <- newTaskId
   state           <- get sessionId (.copyState)
   env             <- ask
+  TargetView
+    pasteTo sdata <- get sessionId (.currentTarget)
 
   -- States
   pasteCounter    <- newTVarIO @_ @Integer 0
@@ -104,9 +109,7 @@ paste sessionId _ _ = do
 
   case state of
     Paste selections -> forkFilehub_ env do
-      tasks <- do
-        TargetView to sdata <- get sessionId (.currentTarget)
-        createPasteTasks sessionId sdata.currentDir to selections
+      tasks <- createPasteTasks sessionId sdata.currentDir pasteTo selections
 
       let taskCount = fromIntegral (length tasks)
 
@@ -125,7 +128,8 @@ paste sessionId _ _ = do
 
             atomically do
               n <- jot task
-              notify n taskCount
+              throttle n taskCount 10 do
+                notify n taskCount
 
           CreateDir to dst -> do
             withTarget sessionId to do
@@ -133,7 +137,7 @@ paste sessionId _ _ = do
               void $ storage.newFolder dst
 
       -- Paste is completed, clear selection
-      Session.set sessionId (.copyState) NoCopyPaste
+      set sessionId (.copyState) NoCopyPaste
       Selected.clearSelectedAllTargets sessionId
 
       response <- do
@@ -152,6 +156,7 @@ paste sessionId _ _ = do
 
   UI.clear sessionId
   AllSelected{count} <- Selected.getAllSelected sessionId
+
 
   addHeader count <$> mkHtmx sessionId
 

@@ -42,13 +42,14 @@ createExpireDate = do
 
 createSession :: Filehub Session
 createSession = do
-  targets       <- asks (.targets) >>= readTVarIO
-  theme         <- asks (.theme)
-  locale        <- asks (.locale)
-  sessionId     <- createSessionId
-  expireDate    <- createExpireDate
-  notifications <- liftIO (newTBQueueIO 16)
-  pendingTasks  <- newTVarIO Set.empty
+  targets         <- asks (.targets) >>= readTVarIO
+  theme           <- asks (.theme)
+  locale          <- asks (.locale)
+  sessionId       <- createSessionId
+  expireDate      <- createExpireDate
+  notifications   <- liftIO (newTBQueueIO 16)
+  pendingTasks    <- newTVarIO Set.empty
+  currentTargetId <- newTVarIO (fst (head targets))
   pure Session
     { sessionId         = sessionId
     , authId            = Nothing
@@ -58,7 +59,7 @@ createSession = do
     , expireDate        = expireDate
     , targets           = targetToSessionData <$> M.fromList targets
     , copyState         = NoCopyPaste
-    , currentTargetId   = fst (head targets)
+    , currentTargetId   = currentTargetId
     , sidebarCollapsed  = False
     , layout            = ThumbnailLayout
     , theme             = theme

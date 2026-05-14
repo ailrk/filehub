@@ -33,9 +33,8 @@ import Prelude hiding (read, readFile, writeFile)
 import Target.File (Target(..), FileSys)
 import Target.S3 (S3)
 import Target.Types (handleTarget, targetHandler, AnyTarget (..), HasTargetId (..))
-import UnliftIO (throwIO, finally)
+import UnliftIO (throwIO, finally, writeTVar, atomically, readTVarIO)
 import UnliftIO.Directory (doesDirectoryExist)
-import UnliftIO.STM (readTVarIO)
 import Filehub.Session.Selected (AllSelected(..))
 
 
@@ -128,9 +127,9 @@ newSessionGet sessionId =
       currentTarget :: Filehub TargetView
       currentTarget = do
         s <- Session.Pool.get sessionId
-        targets <- asks (.targets) >>= readTVarIO
+        targets  <- asks (.targets) >>= readTVarIO
+        targetId <- readTVarIO s.currentTargetId
         maybe (throwIO (FilehubError InvalidSession "Invalid session")) pure do
-          let targetId      = s.currentTargetId
           targetSessionData <- M.lookup targetId s.targets
           target            <- lookup targetId targets
           pure $ TargetView target targetSessionData
@@ -168,7 +167,11 @@ newSessionSet sessionId =
       upS f = Session.Pool.update sessionId f
 
       upT :: (TargetSessionData -> TargetSessionData) -> Filehub ()
-      upT f = upS $ \s -> s { targets = M.adjust f s.currentTargetId s.targets }
+      upT f = do
+        targetId <- do
+          s <- Session.Pool.get sessionId
+          readTVarIO s.currentTargetId
+        upS $ \s -> s { targets = M.adjust f targetId s.targets }
 
       currentDir a = upT (\td -> td { currentDir = a })
 
@@ -208,7 +211,9 @@ newSessionSet sessionId =
              else do
                case lookup tid targets of
                  Just _ -> do
-                   upS (\s -> s { currentTargetId = tid })
+                    s <- Session.Pool.get sessionId
+                    atomically do
+                      writeTVar s.currentTargetId tid
                  Nothing -> do
                    throwIO (FilehubError InvalidSession "Invalid session")
 
@@ -409,7 +414,7 @@ detachTarget sessionId target = do
 
 withTarget :: HasTargetId t => SessionId -> t -> Filehub a -> Filehub a
 withTarget sid t action = do
-  oldS <- Session.Pool.get sid
-  let oldTid = oldS.currentTargetId
-  (newSessionSet sid).currentTarget (getTargetId t)
+  oldS   <- Session.Pool.get sid
+  oldTid <- readTVarIO oldS.currentTargetId
+  set sid (.currentTarget) (getTargetId t)
   action `finally` (newSessionSet sid).currentTarget oldTid
