@@ -73,6 +73,7 @@ import UnliftIO (throwIO, try, newEmptyMVar, takeMVar, putMVar)
 import UnliftIO.Async (forConcurrently_)
 import UnliftIO.STM (atomically, modifyTVar', readTVar, newTVarIO, writeTBQueue)
 import Worker.Task (newTaskId)
+import Data.Bifunctor (Bifunctor(..))
 
 
 cd :: SessionId -> ConfirmLogin -> Maybe ClientPath -> Filehub (Headers '[ Header "HX-Trigger-After-Swap" FilehubEvent ] (Html ()))
@@ -196,7 +197,9 @@ move sessionId _ _ (MoveFile src tgt) = do
 
     if | coerce takeDirectory srcPath == tgtPath -> do pure Nothing
        | otherwise -> do
-           let dstPath = tgtPath <./> coerce takeFileName srcPath
+           let
+               fileName = coerce takeFileName srcPath
+               dstPath = tgtPath <./> fileName
 
            eFile <- try @_ @FilehubError $ storage.get dstPath
 
@@ -206,8 +209,18 @@ move sessionId _ _ (MoveFile src tgt) = do
 
   forkFilehub_ env $ do
     _ <- takeMVar lk
-    storage.mv do
-      fmap (\srcPath -> (srcPath, tgtPath <./> coerce takeFileName srcPath)) checkedSrcPaths
+
+    storage.mv
+      let
+          merge srcPath =
+            let
+                fileName = coerce takeFileName srcPath
+             in
+                tgtPath <./> fileName
+
+          check = bimap id merge . (\a -> (a, a))
+       in
+          fmap check checkedSrcPaths
 
     view' <- UI.view sessionId
     atomically do
@@ -263,9 +276,13 @@ download sessionId _ clientPaths = do
         pure (file.path, conduit)
 
       Zip.createArchive zipPath do
-        for_ tasks \(path, conduit) -> do
-          m <- Zip.mkEntrySelector (coerce makeRelative root path)
-          Zip.sinkEntry Zip.Zstd conduit m
+        for_ tasks \(path, conduit) ->
+          let
+              relativePath = coerce makeRelative root path
+           in
+              do
+                m <- Zip.mkEntrySelector relativePath
+                Zip.sinkEntry Zip.Zstd conduit m
 
       tag <- T.pack <$> replicateM 8 (randomRIO ('a', 'z'))
 
@@ -353,21 +370,21 @@ serve env sessionId _ = Tagged $ \req respond -> do
     Right (Just (fileInfo, storage)) -> do
       let fileSize = fromMaybe 0 fileInfo.size
 
-      let mReqRange = lookup "Range" (requestHeaders req) >>= parseByteRanges
+          mReqRange = lookup "Range" (requestHeaders req) >>= parseByteRanges
 
-      -- We need handle the Range header to support video seek.
-      let (status, mOff, mLen) = case mReqRange of
+          -- We need handle the Range header to support video seek.
+          (status, mOff, mLen) = case mReqRange of
                                    Just (ByteRangeFromTo s e : _) -> (status206, Just s, Just (e - s + 1))
                                    Just (ByteRangeFrom s : _)     -> (status206, Just s, Just (fileSize - s))
                                    _                              -> (status200, Nothing, Nothing)
 
-      let renderRangeHeader s e t = BC.pack $ printf "bytes %d-%d/%d" s e t
+          renderRangeHeader s e t = BC.pack $ printf "bytes %d-%d/%d" s e t
 
-      let from = fromMaybe 0 mOff
-      let len  = fromMaybe 0 mLen
-      let to   = from + len - 1
+          from = fromMaybe 0 mOff
+          len  = fromMaybe 0 mLen
+          to   = from + len - 1
 
-      let headers = [ ("Content-Type", fileInfo.mimetype)
+          headers = [ ("Content-Type", fileInfo.mimetype)
                     , ("Accept-Ranges", "bytes")
                     ]
                 ++ if status == status206
