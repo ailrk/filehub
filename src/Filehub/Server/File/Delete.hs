@@ -30,6 +30,7 @@ import UnliftIO.STM (atomically, modifyTVar', readTVar, newTVarIO, writeTBQueue,
 import Worker.Task (newTaskId)
 import Filehub.Server.Util (throttle)
 import Control.Concurrent.STM (flushTQueue)
+import UnliftIO (newEmptyMVar, takeMVar, putMVar)
 
 
 -- | Delete files.
@@ -55,6 +56,7 @@ delete sessionId _ _ clientPaths deleteSelected = do
   -- States
   deleteCounter       <- newTVarIO @_ @Integer 0
   deletedPaths        <- newTQueueIO @_ @ClientPath
+  lk                  <- newEmptyMVar
 
   let total = fromIntegral (count + length clientPaths)
 
@@ -81,6 +83,7 @@ delete sessionId _ _ clientPaths deleteSelected = do
           }
 
   forkFilehub_ env $ do
+    _ <- takeMVar lk
     -- Make sure the frontend opens a /listen connection otherwise this will block.
     atomically do
       writeTBQueue notifications $ DeleteProgressed
@@ -123,7 +126,10 @@ delete sessionId _ _ clientPaths deleteSelected = do
 
   UI.clear sessionId
   AllSelected { count = newCount } <- Selected.getAllSelected sessionId
-  addHeader newCount <$> mkHtmx sessionId
+  htmx <- mkHtmx sessionId
+
+  putMVar lk ()
+  addHeader newCount <$> pure htmx
 
 
 mkHtmx :: SessionId -> Filehub (Html ())

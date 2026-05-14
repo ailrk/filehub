@@ -28,7 +28,7 @@ import Prelude hiding (init, readFile)
 import Servant (Header , Headers  , addHeader)
 import System.FilePath (takeFileName, (</>))
 import Target.Types (AnyTarget)
-import UnliftIO (throwIO)
+import UnliftIO (throwIO, newEmptyMVar, takeMVar, putMVar)
 import UnliftIO.Async (forConcurrently_)
 import UnliftIO.STM (atomically, modifyTVar', readTVar, newTVarIO, writeTBQueue, newTQueueIO, writeTQueue)
 import Worker.Task (newTaskId)
@@ -47,6 +47,8 @@ data PasteTask
               }
 
 
+-- This function is sequentials, it needs to finish completely to start
+-- pasting.
 createPasteTasks :: SessionId -> AbsPath -> AnyTarget -> [(AnyTarget, [File FileType])] -> Filehub [PasteTask]
 createPasteTasks sessionId fromDir to selections = fmap (mconcat . mconcat) go
   where
@@ -87,14 +89,13 @@ paste sessionId _ _ = do
   state           <- get sessionId (.copyState)
   env             <- ask
 
-  -- The `pasteTo` target needs to be decided here instead of the handler
-  -- otherwise it can have race condition
   TargetView
     pasteTo sdata <- get sessionId (.currentTarget)
 
   -- States
   pasteCounter    <- newTVarIO @_ @Integer 0
   pastedTasks     <- newTQueueIO @_ @PasteTask
+  lk              <- newEmptyMVar
 
   let
       jot task = do
@@ -112,6 +113,7 @@ paste sessionId _ _ = do
 
   case state of
     Paste selections -> forkFilehub_ env do
+      _ <- takeMVar lk
       tasks <- createPasteTasks sessionId sdata.currentDir pasteTo selections
 
       let taskCount = fromIntegral (length tasks)
@@ -160,8 +162,10 @@ paste sessionId _ _ = do
   UI.clear sessionId
   AllSelected{count} <- Selected.getAllSelected sessionId
 
+  htmx <- mkHtmx sessionId
+  _ <- putMVar lk ()
 
-  addHeader count <$> mkHtmx sessionId
+  addHeader count <$> pure htmx
 
 
 mkHtmx :: SessionId -> Filehub (Html ())

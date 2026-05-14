@@ -69,7 +69,7 @@ import System.FilePath (takeFileName, (</>), makeRelative, takeDirectory)
 import System.IO.Temp qualified as Temp
 import System.Random (randomRIO)
 import Text.Printf (printf)
-import UnliftIO (throwIO, try)
+import UnliftIO (throwIO, try, newEmptyMVar, takeMVar, putMVar)
 import UnliftIO.Async (forConcurrently_)
 import UnliftIO.STM (atomically, modifyTVar', readTVar, newTVarIO, writeTBQueue)
 import Worker.Task (newTaskId)
@@ -180,6 +180,8 @@ move sessionId _ _ (MoveFile src tgt) = do
   notifications <- get sessionId (.notifications)
   env           <- ask
   taskId        <- newTaskId
+  lk            <- newEmptyMVar
+
   let srcPaths  =  fmap (ClientPath.fromClientPath root) src
   let tgtPath   =  ClientPath.fromClientPath root tgt
 
@@ -203,6 +205,7 @@ move sessionId _ _ (MoveFile src tgt) = do
              Left  _  -> pure $ Just srcPath
 
   forkFilehub_ env $ do
+    _ <- takeMVar lk
     storage.mv do
       fmap (\srcPath -> (srcPath, tgtPath <./> coerce takeFileName srcPath)) checkedSrcPaths
 
@@ -216,13 +219,15 @@ move sessionId _ _ (MoveFile src tgt) = do
         }
 
   UI.clear sessionId
-  addHeader FileMoved <$>
-    (do controlPanel' <- UI.controlPanel sessionId
-        sideBar'      <- UI.sideBar sessionId
-        pure do
-          controlPanel' `with` [ hxSwapOOB True ]
-          sideBar' `with` [ hxSwapOOB True ])
 
+  htmx <- do controlPanel' <- UI.controlPanel sessionId
+             sideBar'      <- UI.sideBar sessionId
+             pure do
+               controlPanel' `with` [ hxSwapOOB True ]
+               sideBar' `with` [ hxSwapOOB True ]
+
+  putMVar lk ()
+  addHeader FileMoved <$> pure htmx
 
 
 download :: SessionId -> ConfirmLogin -> [ClientPath]
@@ -277,11 +282,14 @@ upload :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> MultipartData Mem
 upload sessionId _ _ multipart = do
   notifications <- get sessionId (.notifications)
   taskId        <- newTaskId
-  uploadCounter <- newTVarIO @_ @Integer 0
   env           <- ask
   let taskCount =  fromIntegral $ length multipart.files
 
-  forkFilehub_ env $ do
+  uploadCounter <- newTVarIO @_ @Integer 0
+  lk            <- newEmptyMVar
+
+  forkFilehub_ env do
+    _ <- takeMVar lk
     atomically do
       writeTBQueue notifications $ UploadProgressed
         { taskId       = taskId
@@ -313,7 +321,10 @@ upload sessionId _ _ multipart = do
         , htmxResponse = Just $ view' `with` [ hxSwapOOB True ]
         }
 
-  UI.index sessionId
+  htmx <- UI.index sessionId
+  putMVar lk ()
+
+  pure htmx
 
 
 serve :: Env -> SessionId -> ConfirmLogin -> Tagged Filehub Application

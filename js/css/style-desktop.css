@@ -43,8 +43,9 @@ textarea:focus {
 
 #index {
   display: grid;
-  --sidebar-width: 210px;
+  --sidebar-width: 245px;
 
+  column-gap: 10px;
   grid-template-areas:
   "side-bar control-panel"
   "side-bar tool-bar"
@@ -71,16 +72,20 @@ textarea:focus {
   grid-area: side-bar;
   background-color: var(--background2);
   overflow: hidden;
+  margin-left: 8px;
+  margin-top: 10px;
+  border-radius: 8px;
+  padding: 15px 0 10px 0;
   min-width: 0;
 }
 
 
 #side-bar .target-tab {
-  width: 180px;
+  width: 220px;
   height: 40px;
   margin-top: 5px;
   margin-left: 8px;
-  border-radius: 6px;
+  border-radius: 5px;
   padding: 0 5px;
   display: flex;
   align-items: center;
