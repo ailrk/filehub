@@ -1,3 +1,4 @@
+{-# LANGUAGE MultiWayIf #-}
 module Filehub.Server.Util
   ( withQueryParam
   , parseHeader'
@@ -29,16 +30,18 @@ parseHeader' :: FromHttpApiData a => ByteString -> Maybe a
 parseHeader' x = either (const Nothing) Just (parseHeader x)
 
 
-
-throttle :: (Monad m, Integral n) => n -> n -> n -> m () -> m ()
-throttle idx total steps action
+throttle :: (Monad m, Integral n) => n -> n -> m () -> m ()
+throttle idx total action
   | total <= 0 = action
   | otherwise  =
       let
-        -- Ensure interval is at least 1 to avoid DivByZero
-        interval = max 1 (total `div` steps)
+          steps = if
+                     | total > 1000 -> total `div` 50
+                     | total > 100  -> 20
+                     | total > 10   -> 8
+                     | otherwise    -> 3
+
+          -- Ensure interval is at least 1 to avoid DivByZero
+          interval = max 1 (total `div` steps)
       in
-        when (idx `rem` interval == 0 || idx == total) action
-
-
-
+          when (idx `rem` interval == 0 || idx == total) action

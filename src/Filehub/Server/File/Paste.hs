@@ -86,6 +86,9 @@ paste sessionId _ _ = do
   taskId          <- newTaskId
   state           <- get sessionId (.copyState)
   env             <- ask
+
+  -- The `pasteTo` target needs to be decided here instead of the handler
+  -- otherwise it can have race condition
   TargetView
     pasteTo sdata <- get sessionId (.currentTarget)
 
@@ -128,7 +131,7 @@ paste sessionId _ _ = do
 
             atomically do
               n <- jot task
-              throttle n taskCount 10 do
+              throttle n taskCount do
                 notify n taskCount
 
           CreateDir to dst -> do

@@ -95,7 +95,7 @@ delete sessionId _ _ clientPaths deleteSelected = do
       storage.delete path
       atomically do
         n <- jot clientPath
-        throttle n total 6 do
+        throttle n total do
           notify n
 
     -- Delete all selected files
@@ -111,7 +111,7 @@ delete sessionId _ _ clientPaths deleteSelected = do
               storage.delete path
               atomically do
                 n <- jot clientPath
-                throttle n total 6 do
+                throttle n total do
                   notify n
 
     atomically do
