@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 -- |
 -- Maintainer  :  jimmy@ailrk.com
--- Copyright   :  (c) 2025-present Jinyang yao
+-- Copyright   :  (c) 2025-present Jinyang Yao
 --
 -- An in memory LRU cache based on priority search queue.
 module Cache.InMemory

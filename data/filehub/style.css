@@ -118,6 +118,7 @@ hr {
 .dropdown-item {
   cursor: pointer;
   padding: 0.7em;
+  padding-right: 2em;
   white-space: nowrap;
 }
 

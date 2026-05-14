@@ -243,6 +243,16 @@ function startListenSSE() {
             duration: 3000
         });
     });
+    evtSource.addEventListener('TaskFailed', e => {
+        let data = JSON.parse(e.data);
+        htmxProcessOOB(data);
+        let _remaining = Balloon.deleteLongLivedBalloon(data.taskId);
+        Balloon.pushBalloon({
+            kind: "InfoMsg",
+            msg: `Task Failed`,
+            duration: 3000
+        });
+    });
     evtSource.addEventListener('DeleteProgressed', e => {
         let data = JSON.parse(e.data);
         htmxProcessOOB(data);

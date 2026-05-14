@@ -30,7 +30,7 @@ import UnliftIO.STM (atomically, modifyTVar', readTVar, newTVarIO, writeTBQueue,
 import Worker.Task (newTaskId)
 import Filehub.Server.Util (throttle)
 import Control.Concurrent.STM (flushTQueue)
-import UnliftIO (newEmptyMVar, takeMVar, putMVar)
+import UnliftIO (newEmptyMVar, takeMVar, putMVar, finally, onException)
 
 
 -- | Delete files.
@@ -82,6 +82,43 @@ delete sessionId _ _ clientPaths deleteSelected = do
           , htmxResponse = Just htmx
           }
 
+      doDelete = do
+        -- Delete from parameters
+        forConcurrently_ clientPaths \clientPath -> do
+          let ClientPathView { path } = asClientPathView root clientPath
+          storage.delete path
+          atomically do
+            n <- jot clientPath
+            throttle n total do
+              notify n
+
+        -- Delete all selected files
+        when deleteSelected do
+          for_ allSelected \(target, selected) -> withTarget sessionId target do
+            case selected of
+              NoSelection   -> pure ()
+
+              Selected x xs -> do
+                let ps = fmap (asClientPathView root) (x:xs)
+
+                forConcurrently_ ps \(ClientPathView { path, clientPath }) -> do
+                  storage.delete path
+                  atomically do
+                    n <- jot clientPath
+                    throttle n total do
+                      notify n
+
+      cleanup = do
+        UI.clear sessionId
+
+      handleErr = do
+        atomically $
+          writeTBQueue notifications $ TaskFailed
+            { taskId       = taskId
+            , htmxResponse = Nothing
+            }
+
+
   forkFilehub_ env $ do
     _ <- takeMVar lk
     -- Make sure the frontend opens a /listen connection otherwise this will block.
@@ -92,43 +129,21 @@ delete sessionId _ _ clientPaths deleteSelected = do
         , htmxResponse = Nothing
         }
 
-    -- Delete from parameters
-    forConcurrently_ clientPaths \clientPath -> do
-      let ClientPathView { path } = asClientPathView root clientPath
-      storage.delete path
-      atomically do
-        n <- jot clientPath
-        throttle n total do
-          notify n
-
-    -- Delete all selected files
-    when deleteSelected do
-      for_ allSelected \(target, selected) -> withTarget sessionId target do
-        case selected of
-          NoSelection   -> pure ()
-
-          Selected x xs -> do
-            let ps = fmap (asClientPathView root) (x:xs)
-
-            forConcurrently_ ps \(ClientPathView { path, clientPath }) -> do
-              storage.delete path
-              atomically do
-                n <- jot clientPath
-                throttle n total do
-                  notify n
+    doDelete
+      `onException` handleErr
+      `finally` cleanup
 
     atomically do
-      notify total
       writeTBQueue notifications $ TaskCompleted
         { taskId       = taskId
         , htmxResponse = Nothing
         }
 
-  UI.clear sessionId
   AllSelected { count = newCount } <- Selected.getAllSelected sessionId
-  htmx <- mkHtmx sessionId
 
+  htmx <- mkHtmx sessionId
   putMVar lk ()
+
   addHeader newCount <$> pure htmx
 
 

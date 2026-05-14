@@ -17,6 +17,10 @@ data Notification
       { taskId :: TaskId
       , htmxResponse :: Maybe (Html ())
       }
+  | TaskFailed
+      { taskId :: TaskId
+      , htmxResponse :: Maybe (Html ())
+      }
   | DeleteProgressed
       { taskId       :: TaskId
       , progress     :: Rational
@@ -54,6 +58,14 @@ instance ToServerEvent Notification where
     }
   toServerEvent (TaskCompleted taskId htmxResponse) = ServerEvent
     { eventType = Just "TaskCompleted"
+    , eventId   = Nothing
+    , eventData = Aeson.encode $ Aeson.object
+        [ "taskId"       .= toJSON taskId
+        , "htmxResponse" .= toJSON (renderText <$> htmxResponse)
+        ]
+    }
+  toServerEvent (TaskFailed taskId htmxResponse) = ServerEvent
+    { eventType = Just "TaskFailed"
     , eventId   = Nothing
     , eventData = Aeson.encode $ Aeson.object
         [ "taskId"       .= toJSON taskId

@@ -316,27 +316,27 @@ open root file = do
                , hxTarget "this"
                , hxSwap None
                ]
-           | file.mimetype `isMime` "audio" ->
+          | file.mimetype `isMime` "audio" ->
                [ hxGet (apiLinks.open (Just OpenViewer) (Just clientPath))
                , hxTarget "this"
                , hxSwap None
                ]
-           | file.mimetype `isMime` "video" ->
+          | file.mimetype `isMime` "video" ->
                [ hxGet (apiLinks.open (Just OpenViewer) (Just clientPath))
                , hxTarget "this"
                , hxSwap None
                ]
-           | file.mimetype `isMime` "image" ->
+          | file.mimetype `isMime` "image" ->
                [ hxGet (apiLinks.open (Just OpenViewer) (Just clientPath))
                , hxTarget "this"
                , hxSwap None
                ]
-           | file.mimetype `isMime` "text" ->
+          | file.mimetype `isMime` "text" ->
                [ hxGet (apiLinks.editorModal (Just clientPath))
                , hxTarget "#index"
                , hxSwap BeforeEnd
                ]
-           | otherwise ->
+          | otherwise ->
                [ hxGet (apiLinks.editorModal (Just clientPath))
                , hxTarget "#index"
                , hxSwap BeforeEnd

@@ -12,7 +12,7 @@ import * as DesktopSelected from './handlers/desktop/selected.js';
 import * as MobileCloseSidebar from './handlers/mobile/closeSidebar.js';
 import * as MobileSelected from './handlers/mobile/selected.js';
 import Viewer from './viewer.js';
-import type { DeleteProgressed, MoveProgressed, Opened, PasteProgressed, TaskCompleted, UIComponent, UploadProgressed, ViewerInited } from './def.js';
+import type { DeleteProgressed, MoveProgressed, Opened, PasteProgressed, TaskCompleted, TaskFailed, UIComponent, UploadProgressed, ViewerInited } from './def.js';
 import { Display } from './def.js';
 
 
@@ -290,6 +290,20 @@ function startListenSSE() {
     Balloon.pushBalloon({
       kind: "InfoMsg",
       msg: `Task Completed`,
+      duration: 3000
+    })
+  })
+
+  evtSource.addEventListener('TaskFailed', e => {
+    let data = JSON.parse(e.data) as TaskFailed;
+
+    htmxProcessOOB (data);
+
+    let _remaining = Balloon.deleteLongLivedBalloon(data.taskId)
+
+    Balloon.pushBalloon({
+      kind: "InfoMsg",
+      msg: `Task Failed`,
       duration: 3000
     })
   })

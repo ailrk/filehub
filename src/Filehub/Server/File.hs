@@ -73,7 +73,6 @@ import UnliftIO (throwIO, try, newEmptyMVar, takeMVar, putMVar)
 import UnliftIO.Async (forConcurrently_)
 import UnliftIO.STM (atomically, modifyTVar', readTVar, newTVarIO, writeTBQueue)
 import Worker.Task (newTaskId)
-import Data.Bifunctor (Bifunctor(..))
 
 
 cd :: SessionId -> ConfirmLogin -> Maybe ClientPath -> Filehub (Headers '[ Header "HX-Trigger-After-Swap" FilehubEvent ] (Html ()))
@@ -218,7 +217,7 @@ move sessionId _ _ (MoveFile src tgt) = do
              in
                 tgtPath <./> fileName
 
-          check = bimap id merge . (\a -> (a, a))
+          check a = (a, merge a)
        in
           fmap check checkedSrcPaths
 
@@ -232,7 +231,6 @@ move sessionId _ _ (MoveFile src tgt) = do
         }
 
   UI.clear sessionId
-
   htmx <- do controlPanel' <- UI.controlPanel sessionId
              sideBar'      <- UI.sideBar sessionId
              pure do
@@ -240,6 +238,7 @@ move sessionId _ _ (MoveFile src tgt) = do
                sideBar' `with` [ hxSwapOOB True ]
 
   putMVar lk ()
+
   addHeader FileMoved <$> pure htmx
 
 
@@ -253,14 +252,14 @@ download sessionId _ clientPaths = do
       file    <- storage.get (ClientPath.fromClientPath root clientPath)
 
       case file.isLink of
-        BrokenLink -> throwIO (FilehubError undefined "Can't download a broken link")
+        BrokenLink -> throwIO (FilehubError InvalidPath "Can't download a broken link")
         _          -> pure ()
 
       conduit <- storage.download clientPath
 
       let filename = case file.content of
-                       Dir -> printf "attachement; filename=%s.zip" (takeFileName path)
-                       _   -> printf "attachement; filename=%s" (takeFileName path)
+                       Dir -> printf "attachment; filename=%s.zip" (takeFileName path)
+                       _   -> printf "attachment; filename=%s" (takeFileName path)
 
       pure $ addHeader filename conduit
 

@@ -37,6 +37,11 @@ export type TaskCompleted = {
   htmxResponse: string | null
 }
 
+export type TaskFailed = {
+  taskId: number
+  htmxResponse: string | null
+}
+
 export type DeleteProgressed = {
   taskId: number
   progress: Rational,
