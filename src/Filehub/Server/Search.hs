@@ -18,7 +18,7 @@ search :: SessionId -> ConfirmLogin -> SearchWord -> Filehub (Html ())
 search sessionId _ searchWord = do
   storage <- get sessionId (.storage)
   display <- get sessionId (.display)
-  ctx <- makeTemplateContext sessionId
+  ctx     <- makeTemplateContext sessionId
   files   <- storage.lsCwd
   case display of
     Mobile    -> pure $ runTemplate ctx (Template.search searchWord files Template.Mobile.table)

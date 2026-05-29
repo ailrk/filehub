@@ -1,19 +1,19 @@
-{ mkDerivation, aeson, aeson-pretty, amazonka, amazonka-s3, async
-, base, base64-bytestring, bcrypt, binary, bytestring
-, case-insensitive, conduit, containers, cookie, criterion
-, cryptohash-sha256, cryptonite, data-default, directory, effectful
+{ mkDerivation, aeson, aeson-pretty, amazonka, amazonka-s3, base
+, base64-bytestring, bcrypt, binary, breakpoint, bytestring
+, case-insensitive, conduit, conduit-extra, containers, cookie
+, criterion, cryptohash-sha256, cryptonite, data-default, directory
 , file-embed, filepath, fuzzy, generic-lens, hashable, hashtables
 , hspec, hspec-wai, http-api-data, http-client, http-client-tls
-, http-types, JuicyPixels, JuicyPixels-stbir, jwt, lib, log-base
-, log-effectful, lucid, microlens, microlens-platform, mime-types
-, network-uri, optparse-applicative, pretty-simple, process
-, psqueues, QuickCheck, random, req, retry, servant, servant-client
-, servant-conduit, servant-event-stream, servant-lucid
-, servant-multipart, servant-server, split, sqlite-simple, stm
-, string-interpolate, suspend, template-haskell, temporary, text
-, time, timers, tomland, transformers, unliftio
-, unordered-containers, uri-encode, uuid, vault, vector, wai
-, wai-app-static, wai-extra, warp, zip
+, http-types, jwt, lib, log-base, lucid, microlens
+, microlens-platform, mime-types, mtl, network-uri
+, optparse-applicative, pretty-simple, psqueues, QuickCheck, random
+, req, resourcet, retry, servant, servant-client, servant-conduit
+, servant-event-stream, servant-lucid, servant-multipart
+, servant-server, split, sqlite-simple, stm, string-interpolate
+, suspend, template-haskell, temporary, text, time, timers, tomland
+, transformers, transformers-base, unliftio, unordered-containers
+, uri-encode, uuid, vault, vector, wai, wai-app-static, wai-extra
+, warp, zip
 }:
 mkDerivation {
   pname = "filehub";
@@ -23,29 +23,30 @@ mkDerivation {
   isExecutable = true;
   enableSeparateDataOutput = true;
   libraryHaskellDepends = [
-    aeson aeson-pretty amazonka amazonka-s3 async base
-    base64-bytestring bcrypt binary bytestring case-insensitive conduit
-    containers cookie cryptohash-sha256 cryptonite data-default
-    directory effectful file-embed filepath fuzzy generic-lens hashable
-    hashtables http-api-data http-client http-client-tls http-types
-    JuicyPixels JuicyPixels-stbir jwt log-base log-effectful lucid
-    microlens microlens-platform mime-types network-uri
-    optparse-applicative pretty-simple psqueues random retry servant
-    servant-client servant-conduit servant-event-stream servant-lucid
+    aeson aeson-pretty amazonka amazonka-s3 base base64-bytestring
+    bcrypt binary breakpoint bytestring case-insensitive conduit
+    conduit-extra containers cookie cryptohash-sha256 cryptonite
+    data-default directory file-embed filepath fuzzy generic-lens
+    hashable hashtables http-api-data http-client http-client-tls
+    http-types jwt log-base lucid microlens microlens-platform
+    mime-types mtl network-uri optparse-applicative pretty-simple
+    psqueues random resourcet retry servant servant-client
+    servant-conduit servant-event-stream servant-lucid
     servant-multipart servant-server split sqlite-simple stm
     string-interpolate suspend template-haskell temporary text time
-    timers tomland transformers unliftio unordered-containers
-    uri-encode uuid vault vector wai wai-app-static wai-extra warp zip
+    timers tomland transformers transformers-base unliftio
+    unordered-containers uri-encode uuid vault vector wai
+    wai-app-static wai-extra warp zip
   ];
-  executableHaskellDepends = [ base ];
+  executableHaskellDepends = [ base breakpoint ];
   testHaskellDepends = [
-    base bcrypt bytestring containers cookie directory effectful
+    base bcrypt breakpoint bytestring containers cookie directory
     filepath hspec hspec-wai http-api-data http-client http-client-tls
-    http-types log-base log-effectful QuickCheck servant-server
-    sqlite-simple text time uri-encode uuid wai wai-extra
+    http-types log-base QuickCheck servant-server text time unliftio
+    uri-encode uuid wai wai-extra
   ];
   benchmarkHaskellDepends = [
-    async base criterion http-types process req temporary time
+    base breakpoint criterion http-types req time unliftio
   ];
   license = "unknown";
   mainProgram = "filehub";

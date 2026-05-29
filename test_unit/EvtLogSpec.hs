@@ -2,9 +2,10 @@
 module EvtLogSpec (spec) where
 
 import Control.Exception (bracket)
+import Control.Handle.EvtLog
+import Control.Handle.EvtLog qualified as EvtLog
 import Data.ByteString.Lazy.Char8 qualified as LBS
 import Data.Time.Clock (getCurrentTime, addUTCTime)
-import EvtLog
 import Test.Hspec
 
 
@@ -33,7 +34,7 @@ instance FromLogEvt MyEvent where
 
 
 -- Helper: run a test with an in-memory SQLite DB
-withMemoryDB :: (Handle -> IO a) -> IO a
+withMemoryDB :: (EvtLog -> IO a) -> IO a
 withMemoryDB = bracket (EvtLog.initialize ":memory:" maxSize) EvtLog.close
 
 

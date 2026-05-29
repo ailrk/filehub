@@ -8,10 +8,10 @@ import Data.Maybe (fromJust)
 import Data.Text qualified as Text
 import Data.Time (secondsToNominalDiffTime)
 import Data.UUID qualified as UUID
-import EvtLog qualified
+import Control.Handle.EvtLog qualified as EvtLog
 import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
-import Filehub.Auth.OIDC (OIDCAuthProviders(..))
-import Filehub.Auth.Simple (SimpleAuthUserDB(..))
+import Filehub.Auth.Types.OIDC (OIDCAuthProviders(..))
+import Filehub.Auth.Types.Simple (SimpleAuthUserDB(..))
 import Filehub.Env (Env(..))
 import Filehub.Locale (Locale(..))
 import Filehub.Session.Pool qualified as Session.Pool

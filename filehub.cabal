@@ -163,7 +163,6 @@ library
                           Data.ClientPath.View
                           Data.File
                           Data.Queue
-                          EvtLog
                           Filehub
                           Filehub.ActiveUser.Pool
                           Filehub.ActiveUser.Types
