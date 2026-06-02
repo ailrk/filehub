@@ -133,7 +133,7 @@ html, body {
   &::after {
     position: absolute;
     translate: -5px 28px;
-    content: attr(data-btn-title);
+    content: attr(data-tooltip);
     background-color: var(--frontground);
     color: var(--background3);
     white-space: nowrap;

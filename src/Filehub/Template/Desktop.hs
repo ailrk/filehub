@@ -166,12 +166,12 @@ newFolderBtn :: Template (Html ())
 newFolderBtn = do
   Phrase { control_panel_new_folder } <- phrase <$> asks (.locale)
   pure do
-    button_ [ class_ "btn btn-control "
+    button_ [ class_ "btn btn-control tooltip"
             , type_ "submit"
             , hxGet apiLinks.newFolderModal
             , hxTarget "#index"
             , hxSwap BeforeEnd
-            , term "data-btn-title" control_panel_new_folder
+            , term "data-tooltip" control_panel_new_folder
             ] do
       span_ [ class_ "field " ] do
         i_ [ class_ "bx bx-folder-plus" ] mempty
@@ -181,12 +181,12 @@ newFileBtn :: Template (Html ())
 newFileBtn = do
   Phrase { control_panel_new_file } <- phrase <$> asks (.locale)
   pure do
-    button_ [ class_ "btn btn-control"
+    button_ [ class_ "btn btn-control tooltip"
             , type_ "submit"
             , hxGet apiLinks.newFileModal
             , hxTarget "#index"
             , hxSwap BeforeEnd
-            , term "data-btn-title" control_panel_new_file
+            , term "data-tooltip" control_panel_new_file
             ] do
       span_ [ class_ "field " ] do
         i_ [ class_ "bx bxs-file-plus" ] mempty
@@ -209,9 +209,9 @@ uploadBtn = do
            , hxTrigger Change
            ]
 
-    button_ [ class_ "btn btn-control"
+    button_ [ class_ "btn btn-control tooltip"
             , onclick_ [iii|document.querySelector('\##{fileInputId}').click()|]
-            , term "data-btn-title" control_panel_upload
+            , term "data-tooltip" control_panel_upload
             ] do
       span_ [ class_ "field " ] do
         i_ [ class_ "bx bx-upload" ] mempty
@@ -221,12 +221,12 @@ copyBtn :: Template (Html ())
 copyBtn = do
   Phrase { control_panel_copy } <- phrase <$> asks (.locale)
   pure do
-    button_ [ class_ "btn btn-control"
+    button_ [ class_ "btn btn-control tooltip"
             , type_ "submit"
             , hxGet apiLinks.copy
             , hxTarget "#control-panel"
             , hxSwap OuterHTML
-            , term "data-btn-title" control_panel_copy
+            , term "data-tooltip" control_panel_copy
             ] do
       span_ [ class_ "field " ] do
         i_ [ class_ "bx bxs-copy-alt" ] mempty
@@ -236,11 +236,11 @@ pasteBtn :: Template (Html ())
 pasteBtn = do
   Phrase { control_panel_paste } <- phrase <$> asks (.locale)
   pure do
-    button_ [ class_ "btn btn-control"
+    button_ [ class_ "btn btn-control tooltip"
             , type_ "submit"
             , hxPost apiLinks.paste
             , hxSwap None
-            , term "data-btn-title" control_panel_paste
+            , term "data-tooltip" control_panel_paste
             ] do
       span_ [ class_ "field " ] do
         i_ [ class_ "bx bxs-paste" ] mempty
@@ -253,12 +253,12 @@ deleteBtn = do
     , confirm_delete_all
     } <- phrase <$> asks (.locale)
   pure do
-    button_ [ class_ "btn btn-control urgent"
+    button_ [ class_ "btn btn-control urgent tooltip"
             , type_ "submit"
             , hxDelete (apiLinks.delete [] True)
             , hxSwap None
             , hxConfirm confirm_delete_all
-            , term "data-btn-title" control_panel_delete
+            , term "data-tooltip" control_panel_delete
             ] do
       span_ [ class_ "field " ] do
         i_ [ class_ "bx bxs-trash" ] mempty
@@ -268,12 +268,12 @@ cancelBtn :: Template (Html ())
 cancelBtn = do
   Phrase { control_panel_cancel } <- phrase <$> asks (.locale)
   pure do
-    button_ [ class_ "btn btn-control"
+    button_ [ class_ "btn btn-control tooltip"
             , type_ "submit"
             , hxPost apiLinks.cancel
             , hxTarget "#index"
             , hxSwap OuterHTML
-            , term "data-btn-title" control_panel_cancel
+            , term "data-tooltip" control_panel_cancel
             ] do
       span_ [ class_ "field " ] do
         i_ [ class_ "bx bxs-message-alt-x" ] mempty
@@ -283,12 +283,12 @@ toggleSidebarBtn :: Template (Html ())
 toggleSidebarBtn = do
   Phrase { toggle_sidebar } <- phrase <$> asks (.locale)
   pure do
-    button_ [ class_ "btn btn-control"
+    button_ [ class_ "btn btn-control tooltip"
             , type_ "submit"
             , hxGet apiLinks.toggleSidebar
             , hxTarget "#index"
             , hxSwap OuterHTML
-            , term "data-btn-title" toggle_sidebar
+            , term "data-tooltip" toggle_sidebar
             ] do
       i_ [ class_ "bx bx-sidebar" ] mempty
 
@@ -315,21 +315,21 @@ themeBtn = do
   pure do
     case theme of
       Light -> do
-        button_ [ class_ "btn btn-control"
+        button_ [ class_ "btn btn-control tooltip"
                 , type_ "submit"
                 , hxGet apiLinks.toggleTheme
                 , hxTarget "#index"
                 , hxSwap OuterHTML
-                , term "data-btn-title" control_panel_dark
+                , term "data-tooltip" control_panel_dark
                 ] do
           i_ [ class_ "bx bxs-moon" ] mempty
       Dark -> do
-        button_ [ class_ "btn btn-control"
+        button_ [ class_ "btn btn-control tooltip"
                 , type_ "submit"
                 , hxGet apiLinks.toggleTheme
                 , hxTarget "#index"
                 , hxSwap OuterHTML
-                , term "data-btn-title" control_panel_light
+                , term "data-tooltip" control_panel_light
                 ] do
           i_ [ class_ "bx bxs-sun" ] mempty
 
@@ -341,21 +341,21 @@ layoutBtn =  do
   pure do
     case layout of
       ListLayout -> do
-        button_ [ class_ "btn btn-control"
+        button_ [ class_ "btn btn-control tooltip"
                 , type_ "submit"
                 , hxGet (apiLinks.selectLayout (Just ThumbnailLayout))
                 , hxTarget "#index"
                 , hxSwap OuterHTML
-                , term "data-btn-title" control_panel_grid
+                , term "data-tooltip" control_panel_grid
                 ] do
           i_ [ class_ "bx bxs-grid-alt" ] mempty
       ThumbnailLayout -> do
-        button_ [ class_ "btn btn-control"
+        button_ [ class_ "btn btn-control tooltip"
                 , type_ "submit"
                 , hxGet (apiLinks.selectLayout (Just ListLayout))
                 , hxTarget "#index"
                 , hxSwap OuterHTML
-                , term "data-btn-title" control_panel_list
+                , term "data-tooltip" control_panel_list
                 ] do
           i_ [ class_ "bx bx-menu" ] mempty
 
@@ -408,7 +408,6 @@ newFileModal = do
              , term "_" "on click trigger Close"
              ] do
           i_ [ class_ "bx bx-x"] mempty
-      br_ mempty
       form_ [ hxPost apiLinks.newFile
             , hxSwap None
             ] do
@@ -441,7 +440,6 @@ newFolderModal = do
              , term "_" "on click trigger Close"
              ] do
           i_ [ class_ "bx bx-x"] mempty
-      br_ mempty
       form_ [ hxPost (apiLinks.newFolder)
             , hxSwap None
             ] do
@@ -538,12 +536,14 @@ editorModal (ClientPath path, filename) content = do
           span_ [ class_ "modal-title-bar " ] do
             bold (toHtml modal_edit)
             bold (toHtml filename)
-            div_ [ class_ "title-bar-btn btn-modal-close "
-                 , term "_" "on click trigger Close"
-                 ] do
-              i_ [ class_ "bx bx-x"] mempty
-
-      br_ mempty
+            div_ [ class_ "modal-title-bar-control " ] do
+              div_ [ class_ "btn modal-title-bar-confirm "
+                   , term "_" "on click trigger Close"
+                   ] (toHtml modal_edit)
+              div_ [ class_ "btn-modal-close "
+                   , term "_" "on click trigger Close"
+                   ] do
+                i_ [ class_ "bx bx-x"] mempty
 
       form_ [ hxPost (apiLinks.updateFile)
             , hxConfirm (T.replace "{}" (T.pack filename) confirm_save_edit)
@@ -557,21 +557,12 @@ editorModal (ClientPath path, filename) content = do
               , type_ "text"
               , name_ "content"
               , placeholder_ placeholder_empty_file
+              , spellcheck_ "false"
               ]
             , if readOnly then [ readonly_ "readonly" ] else mempty
             ]
           )
           (toHtml (T.decodeUtf8 content))
-
-        br_ mempty >> br_ mempty
-
-        case readOnly of
-          True -> do
-            mempty
-          False -> do
-            button_ [ class_ "btn btn-modal-confirm-1 "
-                    , term "_" "on click trigger Close"
-                    ] (toHtml modal_edit)
 
 
 ------------------------------------

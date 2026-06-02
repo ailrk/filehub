@@ -20,19 +20,13 @@ body {
 }
 
 
-input[name="new-folder"],
-input[name="new-file"]
-{
-  border-radius: 5px 0 0 5px;
-}
-
 
 textarea {
   font-size: 1em;
   background-color: var(--background3);
   color: var(--frontground);
   border-style: solid;
-  border-radius: 5px;
+  resize: none;
 }
 
 
@@ -229,15 +223,16 @@ textarea:focus {
 
 .thumbnail-name {
   display: -webkit-box;
-  line-height: 1.2em;                 /* Control line height */
-  min-height: calc(1.2em * 3);        /* Reserve height for 3 lines */
-  -webkit-line-clamp: 3;
+  line-height: 1em;                 /* Control line height */
+  min-height: calc(1em * 4);        /* Reserve height for 3 lines */
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   text-overflow: ellipsis;
   word-break: break-all;
   hyphens: manual;
   overflow: hidden;
-  text-align: center;
+  text-align: justify;
+  text-align-last: center;
   pointer-events: none;
 }
 
@@ -285,6 +280,7 @@ textarea:focus {
   cursor: pointer;
   color: var(--tertiary);
 }
+
 
 .entry-preview {
   position: relative;
@@ -344,22 +340,9 @@ textarea:focus {
 }
 
 
-.btn-like {
-  cursor: pointer;
-  padding: 0.5rem 0.5rem;
-  border: none;
-  font-weight: bold;
-  border-radius: 8px;
-  color: var(--frontground);
-}
-
-
 .btn {
   cursor: pointer;
-  padding: 0.5rem 0.5rem;
   border: none;
-  font-weight: bold;
-  border-radius: 8px;
   color: var(--frontground);
 }
 
@@ -380,16 +363,16 @@ textarea:focus {
 }
 
 
-.btn:hover::after {
+.tooltip:hover::after {
   cursor: pointer;
   opacity: 1;
 }
 
 
-.btn::after {
+.tooltip::after {
   position: absolute;
   translate: -5px 28px;
-  content: attr(data-btn-title);
+  content: attr(data-tooltip);
   background-color: var(--frontground);
   color: var(--background3);
   white-space: nowrap;
@@ -403,6 +386,7 @@ textarea:focus {
 }
 
 
+/* control panel button style */
 .btn-control {
   background: var(--background);
   color: var(--frontground);
@@ -519,11 +503,6 @@ textarea:focus {
   border: var(--background3) solid;
   border-radius: 8px;
   background-color: var(--background2);
-  padding-top: 20px;
-  padding-left: 20px;
-  padding-right: 20px;
-  padding-bottom: 20px;
-
   animation-name: zoomIn;
   animation-duration: 100ms;
   animation-timing-function: ease;
@@ -548,6 +527,27 @@ textarea:focus {
 .modal .modal-title-bar {
   display: flex;
   justify-content: space-between;
+  padding: 2px 5px;
+}
+
+
+.modal .modal-title-bar-control {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+
+.modal .modal-title-bar-confirm {
+  display: flex;
+  color: var(--dark);
+  background: var(--primary);
+  border-radius: 10px;
+  padding: 0.5px 12px;
+  font-size: 0.9rem;
+  height: 20px;
+  justify-content: center;
+  align-items: center;
 }
 
 
@@ -559,6 +559,7 @@ textarea:focus {
   border-radius: 100%;
   justify-content: center;
   align-items: center;
+  cursor: pointer;
 }
 
 
@@ -568,12 +569,6 @@ textarea:focus {
   border-radius: 0 5px 5px 0 !important;
 }
 
-
-.modal .btn-modal-confirm-1 {
-  color: var(--dark);
-  background: var(--primary);
-  border-radius: 5px !important;
-}
 
 
 #new-file-modal {
@@ -620,6 +615,10 @@ textarea:focus {
   transform: translateX(10px);
 }
 
+
+#file-detail-modal {
+  padding: 10px;
+}
 
 #file-detail-modal table {
   border-spacing: 1rem;
