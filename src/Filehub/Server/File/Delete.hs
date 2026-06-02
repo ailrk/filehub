@@ -139,8 +139,8 @@ delete sessionId _ _ clientPaths deleteSelected = do
         , htmxResponse = Nothing
         }
 
+  UI.clear sessionId
   AllSelected { count = newCount } <- Selected.getAllSelected sessionId
-
   htmx <- mkHtmx sessionId
   putMVar lk ()
 

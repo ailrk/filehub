@@ -176,8 +176,8 @@ paste sessionId _ _ = do
       logAttention_ [i|[v8dsaz] #{sessionId}, not in pastable state.|]
       throwIO (FilehubError SelectError "Not in a pastable state")
 
+  UI.clear sessionId
   AllSelected{count} <- Selected.getAllSelected sessionId
-
   htmx <- mkHtmx sessionId
   _    <- putMVar lk ()
 
