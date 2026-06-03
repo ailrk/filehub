@@ -19,7 +19,6 @@ import Control.Concurrent.Timer qualified as Timer
 import Control.Handle.Storage (Storage(..))
 import Data.ClientPath (AbsPath, Root, ClientPath)
 import Data.File (FileInfo)
-import Data.HashTable.IO (BasicHashTable)
 import Data.Map.Strict (Map)
 import Data.Set (Set)
 import Data.Time (UTCTime)
@@ -37,7 +36,7 @@ import GHC.Generics (Generic)
 import Servant (ToHttpApiData (..), FromHttpApiData (..))
 import Target.Types (AnyTarget, TargetId)
 import Text.Debug (Debug(..))
-import UnliftIO (TBQueue, TVar)
+import UnliftIO (TBQueue, TVar, STM)
 import Web.FormUrlEncoded (FromForm, parseAll)
 import Web.Internal.FormUrlEncoded (FromForm(..))
 import Worker.Task (TaskId)
@@ -82,14 +81,14 @@ data SessionGet m = SessionGet
   , theme             :: m Theme
   , locale            :: m Locale
   , copyState         :: m CopyState
-  , targetViews       :: m [TargetView]
+  , targetViews       :: m (STM [TargetView])
   , controlPanelState :: m (ControlPanelState)
   , sharedLinkPermit  :: m (Maybe SharedLinkPermitSet)
   , oidcFlow          :: m (Maybe SomeOIDCFlow)
   , notifications     :: m (TBQueue Notification)
   , pendingTasks      :: m (TVar (Set TaskId))
   , storage           :: m (Storage m)
-  , currentTarget     :: m TargetView
+  , currentTarget     :: m (STM TargetView)
   }
 
 
@@ -106,7 +105,7 @@ data SessionSet m = SessionSet
   , locale            :: Locale -> m ()
   , copyState         :: CopyState -> m ()
   , sharedLinkPermit  :: Maybe SharedLinkPermitSet -> m ()
-  , currentTarget     :: TargetId -> m ()
+  , currentTarget     :: TargetId -> m (STM ())
   , oidcFlow          :: Maybe SomeOIDCFlow -> m ()
   , notifications     :: TBQueue Notification -> m ()
   , pendingTasks      :: TVar (Set TaskId) -> m ()
@@ -118,7 +117,7 @@ data SessionSet m = SessionSet
 
 
 data Pool = Pool
-  { pool :: BasicHashTable SessionId Session
+  { pool :: TVar (Map SessionId Session)
   , gc   :: Timer.TimerIO
   -- ^ garbage collector, periodically clean up expired sessions.
   }

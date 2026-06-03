@@ -5,17 +5,16 @@ module Filehub.Session.Pool
   , extendSession
   , delete
   , get
+  , withSession
   , update
   )
   where
 
 import Data.Time (addUTCTime)
 import Data.Time.Clock qualified as Time
-import Data.HashTable.IO qualified as HashTable
-import Data.String.Interpolate (i)
+import Data.Map.Strict qualified as M
 import Control.Concurrent.Timer qualified as Timer
 import Control.Concurrent.Suspend qualified as Suspend
-import Control.Monad (when)
 import Filehub.Types (Env(..))
 import Filehub.Session.Internal qualified as Session
 import Filehub.Error (FilehubError (..), Error' (..))
@@ -23,28 +22,30 @@ import Filehub.Session.Types (Session(..), SessionId)
 import Filehub.Session.Types qualified as Session
 import Filehub.Monad (Filehub)
 import Control.Monad.Reader (asks)
-import UnliftIO (MonadIO(..), throwIO)
-import Log (logTrace_)
+import UnliftIO (MonadIO(..), newTVarIO, modifyTVar, atomically, STM, readTVar)
+import Control.Concurrent.STM (throwSTM)
 
 
 new :: MonadIO m => m Session.Pool
 new = do
-  table <- liftIO HashTable.new
+  tvar <- newTVarIO M.empty
+
   let
       cleanUp = do
-        flip HashTable.mapM_ table $ \(k, session) -> do
-          now <- Time.getCurrentTime
-          when (now > session.expireDate) do
-            HashTable.delete table k
+        now <- Time.getCurrentTime
+        atomically do
+          modifyTVar tvar (M.filter (\session -> now > session.expireDate))
+
   gc <- liftIO $ Timer.repeatedTimer cleanUp (Suspend.sDelay 10)
-  pure $ Session.Pool table gc
+  pure $ Session.Pool tvar gc
 
 
 newSession :: Filehub Session
 newSession = do
   Session.Pool pool _ <- asks (.sessionPool)
   session             <- Session.createSession
-  liftIO $ HashTable.insert pool session.sessionId session
+  atomically do
+    modifyTVar pool (M.insert session.sessionId session)
   pure session
 
 
@@ -53,17 +54,18 @@ extendSession sessionId = do
   duration            <- asks (.sessionDuration)
   Session.Pool pool _ <- asks (.sessionPool)
   now                 <- liftIO Time.getCurrentTime
-  liftIO
-    $ HashTable.mutate pool sessionId
-    $ maybe
-        (Nothing, ())
-        \session -> (Just session { expireDate = duration `addUTCTime` now }, ())
+
+  let up = maybe Nothing \session -> Just session { expireDate = duration `addUTCTime` now }
+
+  atomically do
+    modifyTVar pool (M.alter up sessionId)
 
 
 delete :: SessionId -> Filehub ()
 delete sessionId = do
   Session.Pool pool _ <- asks (.sessionPool)
-  liftIO $ HashTable.delete pool sessionId
+  atomically do
+    modifyTVar pool (M.delete sessionId)
 
 
 -- | Get a session.
@@ -75,22 +77,33 @@ delete sessionId = do
 -- `InvalidSession` is in the wai middleware. Once we pass the middleware
 -- check, a session with sessionId should alway exist. If not, it's an
 -- unrecoverable exception and there's not much to do about it.
-get :: SessionId -> Filehub Session
+get :: SessionId -> Filehub (STM Session)
 get sessionId = do
   Session.Pool pool _ <- asks (.sessionPool)
-  mResult <- liftIO $ HashTable.lookup pool sessionId
-  case mResult of
-    Just session -> pure session
-    Nothing -> do
-      logTrace_ [i|[zsv09d] No such session #{sessionId}|]
-      throwIO (FilehubError InvalidSession "Invalid session")
+  pure do
+    m <- readTVar pool
+    case M.lookup sessionId m of
+      Just session -> pure session
+      Nothing -> do
+        throwSTM (FilehubError InvalidSession "Invalid session")
 
 
-update :: SessionId -> (Session -> Session) -> Filehub ()
+withSession :: SessionId -> (Session -> STM (Session, a)) -> Filehub a
+withSession sessionId f = do
+  Session.Pool pool _ <- asks (.sessionPool)
+  getSTM <- get sessionId
+  atomically do
+    s <- getSTM
+    (s1, o) <- f s
+    let up = maybe Nothing \_ -> Just s1
+    modifyTVar pool (M.alter up sessionId)
+    pure o
+
+
+update :: SessionId -> (Session -> Session) -> Filehub (STM ())
 update sessionId f = do
   Session.Pool pool _ <- asks (.sessionPool)
-  liftIO
-    $ HashTable.mutate pool sessionId
-    $ maybe
-        (Nothing, ())
-        \session -> (Just (f session), ())
+  let up = maybe Nothing \session -> Just (f session)
+
+  pure do
+    modifyTVar pool (M.alter up sessionId)

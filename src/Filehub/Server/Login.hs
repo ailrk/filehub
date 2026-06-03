@@ -34,7 +34,7 @@ import Network.HTTP.Types.Header (hLocation)
 import Network.URI qualified as URI
 import Prelude hiding (init, readFile)
 import Servant (Header , Headers , NoContent (..) , addHeader , err301 , err303    , errHeaders , noHeader  )
-import UnliftIO (throwIO)
+import UnliftIO (throwIO, atomically)
 import Web.Cookie (SetCookie (..), defaultSetCookie)
 
 
@@ -143,7 +143,7 @@ loginAuthOIDCCallback sessionId (Just code) (Just state) _ _ _ _ = do
     _ -> do
       logAttention_ "[s9vf9d] OIDC Error: invalid stage"
       pure ()
-  session <- Session.Pool.get sessionId
+  session <- Session.Pool.get sessionId >>= atomically
   case session.authId of
     Just (AuthId authId) -> do
       let bytes = UUID.toASCIIBytes authId
@@ -178,7 +178,7 @@ logout :: SessionId -> ConfirmLogin -> Filehub (Headers '[ Header "Set-Cookie" S
                                                          , Header "HX-Redirect" Text
                                                          ] NoContent)
 logout sessionId _ = do
-  session <- Session.Pool.get sessionId
+  session <- Session.Pool.get sessionId >>= atomically
   let mSetCookie =
         fmap (\(AuthId authId) -> do
           let bytes = UUID.toASCIIBytes authId

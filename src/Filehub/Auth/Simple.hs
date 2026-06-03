@@ -26,7 +26,7 @@ import Prelude hiding (readFile)
 import Filehub.Session qualified as Session
 import Filehub.Monad (Filehub)
 import Control.Monad.Reader (asks)
-import UnliftIO (MonadIO(..))
+import UnliftIO (MonadIO(..), atomically)
 import Filehub.Auth.Types.Simple
 
 
@@ -65,7 +65,7 @@ authenticateSession sessionId (LoginForm username password) = do
     Session.set sessionId (.authId) (Just authId)
     activeUser <- createActiveUser authId sessionId username'
     ActiveUser.Pool.add activeUser
-    Just <$> Session.Pool.get sessionId
+    Just <$> (Session.Pool.get sessionId >>= atomically)
   else pure Nothing
 
 

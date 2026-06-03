@@ -14,6 +14,7 @@ module Filehub.Session.Selected
 import Data.ClientPath (ClientPath)
 import Data.List (union)
 import Data.Map.Strict qualified as M
+import Data.Monoid (Sum(..))
 import Filehub.Monad (Filehub)
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Session.Types (Selected(..), SessionGet(..), SessionSet(..), TargetView (..), TargetSessionData (..))
@@ -22,8 +23,8 @@ import Filehub.Types (SessionId)
 import Prelude hiding (elem)
 import Prelude qualified
 import Target.Types (AnyTarget)
+import UnliftIO (atomically)
 import {-# SOURCE #-} Filehub.Session.Handle qualified as Session
-import Data.Monoid (Sum(..))
 
 
 toList :: Selected -> [ClientPath]
@@ -58,7 +59,7 @@ data AllSelected = AllSelected
 -- | Get all selected files grouped by targets
 getAllSelected :: SessionId -> Filehub AllSelected
 getAllSelected sessionId = do
-  targetViews <- Session.get sessionId (.targetViews)
+  targetViews <- Session.get sessionId (.targetViews) >>= atomically
   let
       content = [ (target, selected)
                 | tv@(TargetView target (TargetSessionData { selected })) <- targetViews
@@ -92,7 +93,7 @@ clearSelected sessionId = Session.set sessionId (.selected) NoSelection
 
 
 clearSelectedAllTargets :: SessionId -> Filehub ()
-clearSelectedAllTargets sessionId = do
+clearSelectedAllTargets sessionId = atomically =<< do
   Session.Pool.update sessionId \s ->
     let
         targets = s.targets

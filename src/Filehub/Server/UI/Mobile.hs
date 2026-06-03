@@ -26,7 +26,7 @@ import Data.Coerce (coerce)
 import Filehub.Session (SessionGet(..))
 import Filehub.Monad (Filehub)
 import Control.Monad.Reader (asks)
-import UnliftIO.STM (readTVarIO)
+import UnliftIO.STM (readTVarIO, atomically)
 import Filehub.Session.Selected (AllSelected(..))
 
 
@@ -42,7 +42,7 @@ index sessionId = do
 
 sideBar :: SessionId -> Filehub (Html ())
 sideBar sessionId = do
-  currentTarget <- Session.get sessionId (.currentTarget)
+  currentTarget <- Session.get sessionId (.currentTarget) >>= atomically
   targets <- asks (.targets) >>= readTVarIO
   pure $ Template.Mobile.sideBar (fmap snd targets) currentTarget
 

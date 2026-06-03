@@ -95,7 +95,7 @@ paste sessionId _ _ = do
   env             <- ask
 
   TargetView
-    pasteTo sdata <- get sessionId (.currentTarget)
+    pasteTo sdata <- get sessionId (.currentTarget) >>= atomically
 
   -- States
   pasteCounter    <- newTVarIO @_ @Integer 0
@@ -166,10 +166,15 @@ paste sessionId _ _ = do
         `onException` handleErr
         `finally`  cleanup
 
+      getCurrentTarget <- get sessionId (.currentTarget)
+
       atomically do
+        TargetView currentTarget _ <- getCurrentTarget
         writeTBQueue notifications $ TaskCompleted
           { taskId       = taskId
-          , htmxResponse = response
+          , htmxResponse = if currentTarget == pasteTo
+                              then response
+                              else Nothing
           }
 
     _ -> do

@@ -22,7 +22,6 @@ import Filehub.Types (SessionId, Display(..))
 import Filehub.Cookie qualified as Cookie
 import Filehub.Env (Env(..))
 import Filehub.Env qualified as Env
-import Filehub.Session (Session(..))
 import Filehub.Error (toServerError)
 import Network.Wai
 import Prelude hiding (readFile)
@@ -30,7 +29,7 @@ import Servant
 import Filehub.Cookie qualified as Cookies
 import Filehub.Server.Util (parseHeader')
 import Filehub.Monad (runFilehub, Filehub)
-import UnliftIO (MonadIO(..))
+import UnliftIO (MonadIO(..), atomically)
 import Data.ByteString.Lazy (ByteString)
 import Control.Monad.Trans.Except (ExceptT(..), withExceptT)
 import Network.HTTP.Types.Header (hLocation)
@@ -132,7 +131,7 @@ loginHandler env
         cookie    <- MaybeT . pure $ lookup "Cookie" (requestHeaders req)
         sessionId <- MaybeT . pure $ parseHeader' cookie >>= fromCookies
         authId    <- MaybeT . pure $ parseHeader' cookie >>= fromCookies
-        eSession  <- liftIO $ runFilehub env (Session.Pool.get sessionId)
+        eSession  <- liftIO $ runFilehub env (Session.Pool.get sessionId >>= atomically)
         session   <- MaybeT . pure $ either (const Nothing) Just eSession
         guard (session.authId == Just authId)
         pure ConfirmLogin
@@ -150,7 +149,7 @@ sharedLinkPermitHandler env = mkAuthHandler \req -> do
     cookie           <- MaybeT . pure $ lookup "Cookie" (requestHeaders req)
     sessionId        <- MaybeT . pure $ parseHeader' cookie >>= fromCookies
     sharedLinkPermit <- MaybeT . pure $ parseHeader' cookie >>= fromCookies @SharedLinkPermit
-    eSession         <- liftIO $ runFilehub env (Session.Pool.get sessionId)
+    eSession         <- liftIO $ runFilehub env (Session.Pool.get sessionId >>= atomically)
     session          <- MaybeT . pure $ either (const Nothing) Just eSession
     permitSet        <- MaybeT . pure $ session.sharedLinkPermit
     case req.pathInfo of

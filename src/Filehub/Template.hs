@@ -22,6 +22,7 @@ import Filehub.Session.Types (Selected, Layout, ControlPanelState)
 import Filehub.Sort (SortFileBy)
 import Filehub.Theme (Theme)
 import Filehub.Types (Display(..), Env)
+import UnliftIO (atomically)
 
 
 -- | A Template context type that capture all useful information to render
@@ -70,7 +71,7 @@ makeTemplateContext sessionId = do
   root              <- Session.get sessionId (.root)
   locale            <- Session.get sessionId (.locale)
   currentDir        <- Session.get sessionId (.currentDir)
-  currentTarget     <- Session.get sessionId (.currentTarget)
+  currentTarget     <- Session.get sessionId (.currentTarget) >>= atomically
   readOnly          <- asks (.readOnly)
   noLogin           <- Env.hasNoLogin <$> ask @Env
   simpleAuthUserDB  <- asks (.simpleAuthUserDB)

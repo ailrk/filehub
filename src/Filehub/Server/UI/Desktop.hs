@@ -26,6 +26,8 @@ import Filehub.Session (TargetView(..))
 import Data.Coerce (coerce)
 import Filehub.Session (SessionGet(..))
 import Filehub.Monad (Filehub)
+import UnliftIO (atomically)
+import Control.Monad (join)
 
 
 fileDetailModal :: SessionId -> Maybe ClientPath -> Filehub (Html ())
@@ -72,15 +74,20 @@ index sessionId = do
 
 sideBar :: SessionId -> Filehub (Html ())
 sideBar sessionId = do
-  targetViews    <- Session.get sessionId (.targetViews)
-  currentTarget  <- Session.get sessionId (.currentTarget)
-  ctx            <- makeTemplateContext sessionId
-  let targets' = flip fmap targetViews \(TargetView target targetData) -> do
-        case targetData.selected of
-          Selected _ sels -> (target, length sels + 1)
-          NoSelection     -> (target, 0)
+  g1 <- Session.get sessionId (.targetViews)
+  g2 <- Session.get sessionId (.currentTarget)
 
-  pure $ runTemplate ctx (Template.Desktop.sideBar targets' currentTarget)
+  join . atomically $ do
+    targetViews   <- g1
+    currentTarget <- g2
+    pure do
+      ctx <- makeTemplateContext sessionId
+      let targets' = flip fmap targetViews \(TargetView target targetData) -> do
+            case targetData.selected of
+              Selected _ sels -> (target, length sels + 1)
+              NoSelection     -> (target, 0)
+
+      pure $ runTemplate ctx (Template.Desktop.sideBar targets' currentTarget)
 
 
 view :: SessionId -> Filehub (Html ())

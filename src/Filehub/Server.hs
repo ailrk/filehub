@@ -78,7 +78,7 @@ import Servant (Context (..) , Header , Headers  , addHeader   , err400  , err50
 import Servant.Server.Generic (AsServerT)
 import Target.Types (TargetId)
 import Target.Types qualified as Target
-import UnliftIO (try, throwIO)
+import UnliftIO (try, throwIO, atomically)
 import UnliftIO.Exception (SomeException, catch)
 import Web.Cookie (SetCookie (..), defaultSetCookie)
 
@@ -214,12 +214,14 @@ changeTarget :: SessionId -> ConfirmLogin -> Maybe TargetId
              -> Filehub (Headers '[Header "HX-Trigger-After-Swap" FilehubEvent] (Html ()))
 changeTarget sessionId _ mTargetId = do
   savedTargetId <- do
-    TargetView saved _ <- Session.get sessionId (.currentTarget)
+    TargetView saved _ <- Session.get sessionId (.currentTarget) >>= atomically
     pure $ Target.getTargetId saved
 
-  let restore = Session.set sessionId (.currentTarget) savedTargetId
+  let restore = Session.set sessionId (.currentTarget) savedTargetId >>= atomically
+
   targetId <- withQueryParam mTargetId
-  Session.set sessionId (.currentTarget) targetId
+
+  Session.set sessionId (.currentTarget) targetId >>= atomically
 
   html <- withRunInIO \unlift -> do
     unlift (index sessionId)

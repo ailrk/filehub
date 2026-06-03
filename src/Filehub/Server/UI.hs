@@ -57,7 +57,7 @@ import Servant (Header , Headers  , addHeader, NoContent (..)         )
 import Filehub.Theme qualified as Theme
 import Filehub.Locale (Locale)
 import Filehub.Error (FilehubError(..), Error' (..))
-import UnliftIO (throwIO)
+import UnliftIO (throwIO, atomically)
 import Network.Mime (MimeType)
 import Data.File (FileInfo, File(..))
 import Data.ClientPath (Root, toClientPath)
@@ -304,7 +304,7 @@ cancel sessionId _ = do
     { count
     , allSelected
     }                   <- Selected.getAllSelected sessionId
-  TargetView { target } <- get sessionId (.currentTarget)
+  TargetView { target } <- get sessionId (.currentTarget) >>= atomically
   storage               <- get sessionId (.storage)
   root                  <- get sessionId (.root)
 
