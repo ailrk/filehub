@@ -21,7 +21,6 @@
 module Filehub.Server (application) where
 
 import Conduit (MonadIO (..), MonadUnliftIO (..))
-import Control.Monad (when, when)
 import Data.Aeson ((.:), withObject)
 import Data.Aeson.Types (parseMaybe)
 import Data.ByteString.Char8 qualified as BC
@@ -55,9 +54,7 @@ import Filehub.Server.UI.Desktop qualified as Server.Desktop
 import Filehub.Server.UI.Mobile qualified as Server.Mobile
 import Filehub.Server.Util (parseHeader')
 import Filehub.Server.Util (withQueryParam)
-import Filehub.Session (SessionGet(..))
-import Filehub.Session (SessionId(..), TargetView (..))
-import Filehub.Session qualified as Session
+import Filehub.Session (SessionId(..), TargetView (..), getDisplay, getCurrentTarget, setCurrentTarget)
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Template.Shared qualified as Template
 import Filehub.Types (Display (..), Resolution, UIComponent (..), FilehubEvent (..))
@@ -78,9 +75,11 @@ import Servant (Context (..) , Header , Headers  , addHeader   , err400  , err50
 import Servant.Server.Generic (AsServerT)
 import Target.Types (TargetId)
 import Target.Types qualified as Target
-import UnliftIO (try, throwIO, atomically)
+import UnliftIO (try, throwIO)
 import UnliftIO.Exception (SomeException, catch)
 import Web.Cookie (SetCookie (..), defaultSetCookie)
+import Filehub.Session.Pool (withSession_, withSession)
+import Control.Monad.Reader (MonadReader(..))
 
 
 ------------------------------------
@@ -152,7 +151,10 @@ healthz _ = do
 
 initialize :: SessionId -> Resolution -> Filehub (Html ())
 initialize sessionId res = do
-  Session.set sessionId (.resolution) (Just res)
+  withSession_ sessionId \s -> pure
+    ( s { resolution = (Just res)}
+    , ()
+    )
   clear sessionId
   index sessionId
 
@@ -170,7 +172,7 @@ initialize sessionId res = do
 -- start a full reload from the bootstrap stage.
 home :: SessionId -> ConfirmLogin -> Filehub (Html ())
 home sessionId _  = do
-  display <- Session.get sessionId (.display)
+  display <- withSession sessionId getDisplay
   m <- Filehub.Server.Static.manifest
   let background
         = fromMaybe "#000000"
@@ -213,15 +215,18 @@ refresh sessionId _ mUIComponent = do
 changeTarget :: SessionId -> ConfirmLogin -> Maybe TargetId
              -> Filehub (Headers '[Header "HX-Trigger-After-Swap" FilehubEvent] (Html ()))
 changeTarget sessionId _ mTargetId = do
+  env <- ask
   savedTargetId <- do
-    TargetView saved _ <- Session.get sessionId (.currentTarget) >>= atomically
+    TargetView saved _ <- withSession sessionId (getCurrentTarget env)
     pure $ Target.getTargetId saved
 
-  let restore = Session.set sessionId (.currentTarget) savedTargetId >>= atomically
+  let restore = withSession sessionId \s -> do
+                  setCurrentTarget env s savedTargetId
 
   targetId <- withQueryParam mTargetId
 
-  Session.set sessionId (.currentTarget) targetId >>= atomically
+  withSession sessionId \s -> do
+    setCurrentTarget env s targetId
 
   html <- withRunInIO \unlift -> do
     unlift (index sessionId)
@@ -247,9 +252,6 @@ displayMiddleware  env app req respond = toIO onErr env do
                  Just sessionId -> pure sessionId
                  Nothing        -> throwIO (HTTPError (err400 { errBody = [i|Invalid session id|]}))
 
-  -- session <- Session.Pool.get sessionId
-
-  -- set device type
   do
     let mUserAgent = lookup hUserAgent (requestHeaders req)
         deviceType =
@@ -257,15 +259,18 @@ displayMiddleware  env app req respond = toIO onErr env do
             Just userAgent -> UserAgent.detectDeviceType userAgent
             Nothing        -> UserAgent.Unknown
 
-    deviceType' <- Session.get sessionId (.deviceType)
-    when (deviceType' /= deviceType) do
-      Session.set sessionId (.deviceType) deviceType
-      -- Session.Pool.update sessionId (#deviceType .~ deviceType)
+    withSession_ sessionId \s -> pure
+      if s.deviceType /= deviceType
+         then ( s { deviceType = deviceType
+                  }
+              , ()
+              )
+         else (s, ())
 
   -- set display cookie
   -- Note only the server set the cookie.
   setCookieHeader <- do
-    currentDisplay <- Session.get sessionId (.display)
+    currentDisplay <- withSession sessionId getDisplay
     let displaySetCookie = defaultSetCookie
           { setCookieName     = "display"
           , setCookieValue    = BC.pack (show currentDisplay)
@@ -282,7 +287,8 @@ displayMiddleware  env app req respond = toIO onErr env do
      in respond res'
 
   where
-    onErr _ = respond $ responseLBS (status500) [] "invalid display information"
+    onErr err = do
+      respond $ responseLBS (status500) [] (err.errBody)
 
 
 -- | If session is not present, create a new session
@@ -292,11 +298,12 @@ sessionMiddleware env app req respond = toIO onErr env do
   let mSessionId = mCookie >>= parseHeader' >>= Cookies.fromCookies
   case mSessionId of
     Just sessionId -> do
-      eSession <- try $ Session.Pool.get sessionId
+      eSession <- try $ withSession sessionId pure
       case eSession of
         Left (FilehubError InvalidSession _) -> respondWithNewSession
         Left err                             -> throwIO err
         Right _                              -> liftIO $ app req respond
+
     Nothing -> do
       logTrace_ [i|[0vz333] No session found.|]
       respondWithNewSession

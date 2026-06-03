@@ -4,7 +4,6 @@ module Filehub.Session.Selected
   ( elem
   , toList
   , fromList
-  , clearSelected
   , clearSelectedAllTargets
   , getAllSelected
   , AllSelected(..)
@@ -16,15 +15,13 @@ import Data.List (union)
 import Data.Map.Strict qualified as M
 import Data.Monoid (Sum(..))
 import Filehub.Monad (Filehub)
-import Filehub.Session.Pool qualified as Session.Pool
-import Filehub.Session.Types (Selected(..), SessionGet(..), SessionSet(..), TargetView (..), TargetSessionData (..))
+import Filehub.Session.Types (Selected(..), TargetView (..), TargetSessionData (..))
 import Filehub.Session.Types (Session(..))
 import Filehub.Types (SessionId)
 import Prelude hiding (elem)
 import Prelude qualified
 import Target.Types (AnyTarget)
-import UnliftIO (atomically)
-import {-# SOURCE #-} Filehub.Session.Handle qualified as Session
+import Filehub.Session.Pool (modifySession)
 
 
 toList :: Selected -> [ClientPath]
@@ -57,9 +54,8 @@ data AllSelected = AllSelected
 
 
 -- | Get all selected files grouped by targets
-getAllSelected :: SessionId -> Filehub AllSelected
-getAllSelected sessionId = do
-  targetViews <- Session.get sessionId (.targetViews) >>= atomically
+getAllSelected :: [TargetView] -> AllSelected
+getAllSelected targetViews =
   let
       content = [ (target, selected)
                 | tv@(TargetView target (TargetSessionData { selected })) <- targetViews
@@ -67,7 +63,7 @@ getAllSelected sessionId = do
                 ]
 
    in
-      pure AllSelected
+      AllSelected
         { allSelected = content
         , count       = totalSelected content
         }
@@ -88,15 +84,10 @@ hasSelection TargetView { sessionData = TargetSessionData { selected } }
   | otherwise               = True
 
 
-clearSelected :: SessionId -> Filehub ()
-clearSelected sessionId = Session.set sessionId (.selected) NoSelection
-
-
 clearSelectedAllTargets :: SessionId -> Filehub ()
-clearSelectedAllTargets sessionId = atomically =<< do
-  Session.Pool.update sessionId \s ->
+clearSelectedAllTargets sessionId = modifySession sessionId \s ->  do
     let
-        targets = s.targets
+        targets    = s.targets
         newTargets = M.map (\t -> t { selected = NoSelection } :: TargetSessionData) targets
      in
-        s { targets = newTargets }
+        pure s { targets = newTargets }

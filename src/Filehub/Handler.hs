@@ -39,6 +39,8 @@ import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Cookie (FromCookies(..))
 import Filehub.SharedLink (SharedLinkPermit)
 import Filehub.Session qualified as Session
+import Filehub.Session.Pool (withSession)
+import Filehub.Session.Handle (getDisplay)
 
 
 toServantHandler :: Env -> Filehub a -> Handler a
@@ -112,7 +114,7 @@ displayOnlyHandler witness predicate msg env =
       cookie <-  lookup "Cookie" (requestHeaders req)
       parseHeader' cookie >>= Cookies.fromCookies @SessionId
     display <- liftIO $ runFilehub env do
-      Session.get sessionId (.display)
+      withSession sessionId getDisplay
     case display of
       Right d | predicate d -> pure witness
       _                     -> throwError err400 { errBody = msg }

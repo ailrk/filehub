@@ -7,10 +7,12 @@ import Data.Set qualified as Set
 import Filehub.Handler (ConfirmLogin)
 import Filehub.Monad (Filehub)
 import Filehub.Notification.Types (Notification(..))
-import Filehub.Session (SessionGet(..), SessionId(..), get)
+import Filehub.Session (SessionId(..))
 import Prelude hiding (init, readFile)
 import Servant.API.EventStream (RecommendedEventSourceHeaders, recommendedEventSourceHeaders)
 import UnliftIO.STM (readTBQueue, atomically, isEmptyTBQueue, modifyTVar', readTVar, STM, TBQueue)
+import Filehub.Session.Pool (withSession)
+import Filehub.Session (Session(..))
 
 
 type NotificationStream = ConduitT () Notification IO ()
@@ -38,19 +40,24 @@ type NotificationStream = ConduitT () Notification IO ()
 -- hence clean up the resource
 listen :: SessionId -> ConfirmLogin -> Filehub (RecommendedEventSourceHeaders NotificationStream)
 listen sessionId _ = recommendedEventSourceHeaders <$> do
-  notifications <- get sessionId (.notifications)
-  pendingTasks  <- get sessionId (.pendingTasks)
+  s <- withSession sessionId pure
+  startStream s
+
+
+startStream :: Session -> Filehub NotificationStream
+startStream s =
   streamAtomically \loop -> do
-    n <- readTBQueue notifications
+    n <- readTBQueue s.notifications
     case n of
       TaskCompleted taskId _ -> do
-        modifyTVar' pendingTasks (Set.delete taskId)
-        tasksRemaining <- readTVar pendingTasks
+        modifyTVar' s.pendingTasks (Set.delete taskId)
+        tasksRemaining <- readTVar s.pendingTasks
         if Set.null tasksRemaining
            then do
-             clearQueue notifications
+             clearQueue s.notifications
              pure do yield n; loop
            else pure do yield n; loop
+      TaskFailed _ _         -> pure do yield n; loop
       SimpleMessage _        -> pure do yield n; loop
       DeleteProgressed _ _ _ -> pure do yield n; loop
       PasteProgressed _ _ _  -> pure do yield n; loop

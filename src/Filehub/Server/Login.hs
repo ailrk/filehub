@@ -20,10 +20,8 @@ import Filehub.Locale (Locale (..))
 import Filehub.Monad
 import Filehub.Orphan ()
 import Filehub.Server.Util (parseHeader')
-import Filehub.Session (SessionGet(..), SessionId(..), get)
-import Filehub.Session qualified as Session
+import Filehub.Session (SessionId(..), Session(..))
 import Filehub.Session.Pool qualified as Session.Pool
-import Filehub.Session.Types (SessionSet(..))
 import Filehub.Template (runTemplate, TemplateContext(..), makeTemplateContext)
 import Filehub.Template.Login qualified as Template.Login
 import Filehub.Theme qualified as Theme
@@ -36,6 +34,7 @@ import Prelude hiding (init, readFile)
 import Servant (Header , Headers , NoContent (..) , addHeader , err301 , err303    , errHeaders , noHeader  )
 import UnliftIO (throwIO, atomically)
 import Web.Cookie (SetCookie (..), defaultSetCookie)
+import Filehub.Session.Pool (withSession, modifySession)
 
 
 -- | Return the login page
@@ -47,7 +46,7 @@ loginPage sessionId cookie Nothing = do
      else do
        case fmap T.encodeUtf8 cookie >>= parseHeader' >>= Cookies.fromCookies of
          Just authId' -> do
-           authId <- get sessionId (.authId)
+           authId <- withSession sessionId (pure . (.authId))
            if authId == Just authId'
               then go
               else pure $ runTemplate ctx Template.Login.login
@@ -61,10 +60,10 @@ loginPage sessionId _ (Just _) = do
 
 loginToggleTheme :: SessionId -> Filehub (Headers '[ Header "HX-Trigger-After-Settle" FilehubEvent ] (Html ()))
 loginToggleTheme sessionId = do
-  theme <- get sessionId (.theme)
+  theme <- withSession sessionId (pure . (.theme))
   case theme of
-    Theme.Light -> Session.set sessionId (.theme) Theme.Dark
-    Theme.Dark  -> Session.set sessionId (.theme) Theme.Light
+    Theme.Light -> modifySession sessionId \s -> pure $ s { theme = Theme.Dark }
+    Theme.Dark  -> modifySession sessionId \s -> pure $ s { theme = Theme.Light }
   ctx <- makeTemplateContext sessionId
   let html = runTemplate ctx Template.Login.login'
   pure $ addHeader ThemeChanged html
@@ -73,7 +72,7 @@ loginToggleTheme sessionId = do
 loginChangeLocale :: SessionId -> Maybe Locale -> Filehub (Headers '[ Header "HX-Trigger-After-Settle" FilehubEvent ] (Html ()))
 loginChangeLocale _ Nothing = throwIO (FilehubError LocaleError "Invalid locale")
 loginChangeLocale sessionId (Just locale) = do
-  Session.set sessionId (.locale) locale
+  modifySession sessionId \s -> pure $ s { locale = locale }
   ctx <- makeTemplateContext sessionId
   let html = runTemplate ctx Template.Login.login'
   pure $ addHeader LocaleChanged html
@@ -112,7 +111,7 @@ loginAuthSimple sessionId form@(LoginForm username _) =  do
 loginAuthOIDCRedirect :: SessionId -> Text -> Filehub NoContent
 loginAuthOIDCRedirect sessionId providerName = do
   stage <- Auth.OIDC.initialize providerName >>= Auth.OIDC.authorize
-  Session.set sessionId (.oidcFlow) (Just (SomeOIDCFlow stage))
+  modifySession sessionId \s -> pure $ s { oidcFlow = (Just (SomeOIDCFlow stage)) }
   case stage of
     AuthRequestPrepared _ _ _ _ (AuthUrl url) ->
       throwIO do
@@ -133,13 +132,14 @@ loginAuthOIDCCallback :: SessionId
                       -> Maybe Text
                       -> Filehub NoContent
 loginAuthOIDCCallback sessionId (Just code) (Just state) _ _ _ _ = do
-  get sessionId (.oidcFlow) >>= \case
+
+  withSession sessionId (pure . (.oidcFlow)) >>= \case
     Just (SomeOIDCFlow (stage@AuthRequestPrepared {})) -> do
-        Auth.OIDC.callback stage code state
-          >>= Auth.OIDC.exchangeToken
-          >>= Auth.OIDC.verifyToken
-          >>= Auth.OIDC.authenticateSession sessionId
-          >>= Session.set sessionId (.oidcFlow) . Just . SomeOIDCFlow
+      stg <- Auth.OIDC.callback stage code state
+        >>= Auth.OIDC.exchangeToken
+        >>= Auth.OIDC.verifyToken
+        >>= Auth.OIDC.authenticateSession sessionId
+      modifySession sessionId \s -> pure $ s { oidcFlow = Just (SomeOIDCFlow stg)}
     _ -> do
       logAttention_ "[s9vf9d] OIDC Error: invalid stage"
       pure ()
@@ -194,8 +194,10 @@ logout sessionId _ = do
 
   case (,) <$> mSetCookie  <*> session.authId of
     Just (setCookie, authId) -> do
-      Session.set sessionId (.authId) Nothing
-      Session.set sessionId (.oidcFlow) Nothing
+      modifySession sessionId \s -> pure do
+        s { authId = Nothing
+          , oidcFlow = Nothing
+          }
       ActiveUser.Pool.delete authId
       addHeader
         (setCookie

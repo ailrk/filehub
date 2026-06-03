@@ -16,10 +16,9 @@ import Filehub.Handler (ConfirmLogin, ConfirmReadOnly)
 import Filehub.Monad
 import Filehub.Notification.Types (Notification(..))
 import Filehub.Server.UI qualified as UI
-import Filehub.Session (SessionId(..), TargetView (..), SessionGet(..), withTarget, get, set)
-import Filehub.Session qualified as Session
+import Filehub.Session (SessionId(..), TargetView (..), withTarget, getStorage, getCurrentTarget, getTargetViews)
 import Filehub.Session.Selected qualified as Selected
-import Filehub.Session.Types (CopyState (..))
+import Filehub.Session.Types (CopyState (..), Storage(..))
 import Filehub.Types (TargetSessionData (..))
 import Log (logAttention_)
 import Lucid hiding (for_)
@@ -34,6 +33,8 @@ import UnliftIO.STM (atomically, modifyTVar', readTVar, newTVarIO, writeTBQueue)
 import Worker.Task (newTaskId)
 import Filehub.Session.Selected (AllSelected(..))
 import Filehub.Server.Util (throttle)
+import Filehub.Session.Pool (withSession, withSession_)
+import Filehub.Session (Session(..))
 
 
 data PasteTask
@@ -51,8 +52,11 @@ data PasteTask
 -- the original dir.
 withDir :: SessionId -> AbsPath -> Filehub a -> Filehub a
 withDir sessionId dir action = do
-  storage  <- get sessionId (.storage)
-  savedDir <- get sessionId (.currentDir)
+  env <- ask
+  storage <- getStorage sessionId
+  savedDir <- withSession sessionId \s -> do
+    TargetView _ td <- getCurrentTarget env s
+    pure td.currentDir
   storage.cd dir
   action `finally` storage.cd savedDir
 
@@ -80,7 +84,7 @@ createPasteTasks sessionId fromDir to selections = fmap (mconcat . mconcat) go
 
                 Dir -> do
                   withTarget sessionId from do
-                    storage <- get sessionId (.storage)
+                    storage <- getStorage sessionId
                     withDir sessionId file.path do
                       dirFiles <- storage.lsCwd
                       result <- for dirFiles \dfile -> rec dst dfile
@@ -89,13 +93,20 @@ createPasteTasks sessionId fromDir to selections = fmap (mconcat . mconcat) go
 
 paste :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> Filehub (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))
 paste sessionId _ _ = do
-  notifications   <- get sessionId (.notifications)
-  taskId          <- newTaskId
-  state           <- get sessionId (.copyState)
   env             <- ask
+  taskId          <- newTaskId
 
-  TargetView
-    pasteTo sdata <- get sessionId (.currentTarget) >>= atomically
+  ( notifications
+    , state
+    , TargetView pasteTo sdata
+    ) <- withSession sessionId \s -> do
+
+    currentTarget <- getCurrentTarget env s
+
+    pure ( s.notifications
+         , s.copyState
+         , currentTarget
+         )
 
   -- States
   pasteCounter    <- newTVarIO @_ @Integer 0
@@ -121,11 +132,11 @@ paste sessionId _ _ = do
             PasteFile { from, to, file, dst } -> do
 
               conduit <- withTarget sessionId from do
-                storage <- get sessionId (.storage)
+                storage <- getStorage sessionId
                 storage.readStream file Nothing Nothing
 
               withTarget sessionId to do
-                storage <- get sessionId (.storage)
+                storage <- getStorage sessionId
                 storage.write (withContent file (FileContentConduit conduit)) { path = dst }
 
               atomically do
@@ -135,11 +146,11 @@ paste sessionId _ _ = do
 
             CreateDir to dst -> do
               withTarget sessionId to do
-                storage <- get sessionId (.storage)
+                storage <- getStorage sessionId
                 void $ storage.newFolder dst
 
       cleanup = do
-        set sessionId (.copyState) NoCopyPaste
+        withSession_ sessionId \s -> pure (s { copyState = NoCopyPaste } , ())
         Selected.clearSelectedAllTargets sessionId
         UI.clear sessionId
 
@@ -166,10 +177,8 @@ paste sessionId _ _ = do
         `onException` handleErr
         `finally`  cleanup
 
-      getCurrentTarget <- get sessionId (.currentTarget)
-
-      atomically do
-        TargetView currentTarget _ <- getCurrentTarget
+      withSession sessionId \s -> do
+        TargetView currentTarget _ <- getCurrentTarget env s
         writeTBQueue notifications $ TaskCompleted
           { taskId       = taskId
           , htmxResponse = if currentTarget == pasteTo
@@ -182,7 +191,10 @@ paste sessionId _ _ = do
       throwIO (FilehubError SelectError "Not in a pastable state")
 
   UI.clear sessionId
-  AllSelected{count} <- Selected.getAllSelected sessionId
+
+  AllSelected { count } <- withSession sessionId \s -> do
+    Selected.getAllSelected <$> getTargetViews env s
+
   htmx <- mkHtmx sessionId
   _    <- putMVar lk ()
 

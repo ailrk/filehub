@@ -39,16 +39,17 @@ module Filehub.Session
   , SessionId(..)
   , TargetView(..)
   , Storage(..)
-  , attachTarget
-  , detachTarget
   , withTarget
-  , get
-  , set
-  , SessionGet(..)
-  , SessionSet(..)
+  , getCurrentTarget
+  , getDisplay
+  , getRoot
+  , getTargetViews
+  , getStorage
+  , setCurrentTarget
+  , makeStorageDummy
   )
   where
 
 import Control.Handle.Storage (Storage(..))
-import Filehub.Session.Handle (set, get, attachTarget, detachTarget, withTarget)
-import Filehub.Session.Types (SessionSet(..), SessionGet(..), TargetView(..), Session(..), SessionId(..))
+import Filehub.Session.Handle
+import Filehub.Session.Types (TargetView(..), Session(..), SessionId(..))

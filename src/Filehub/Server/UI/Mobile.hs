@@ -13,8 +13,7 @@ import Data.ClientPath qualified as ClientPath
 import Filehub.Env qualified as Env
 import Filehub.Server.Util (withQueryParam)
 import Filehub.Template (makeTemplateContext, runTemplate, TemplateContext(..))
-import Filehub.Session (SessionId)
-import Filehub.Session qualified as Session
+import Filehub.Session (SessionId, getTargetViews, getCurrentTarget, getRoot, getStorage)
 import Filehub.Session.Selected qualified as Selected
 import Filehub.Sort (sortFiles)
 import Filehub.Template.Mobile qualified as Template.Mobile
@@ -23,28 +22,37 @@ import Lucid
 import Prelude hiding (readFile)
 import System.FilePath (takeFileName)
 import Data.Coerce (coerce)
-import Filehub.Session (SessionGet(..))
 import Filehub.Monad (Filehub)
-import Control.Monad.Reader (asks)
-import UnliftIO.STM (readTVarIO, atomically)
+import Control.Monad.Reader (asks, MonadReader (..))
+import UnliftIO.STM (readTVar)
 import Filehub.Session.Selected (AllSelected(..))
+import Filehub.Session.Pool (withSession)
+import Control.Monad (join)
+import Filehub.Session (Storage(..))
 
 
 index :: SessionId -> Filehub (Html ())
 index sessionId = do
-  ctx                 <- makeTemplateContext sessionId
-  sideBar'            <- sideBar sessionId
-  view'               <- view sessionId
-  toolBar'            <- toolBar sessionId
-  AllSelected {count} <- Selected.getAllSelected sessionId
+  env         <- ask
+  ctx         <- makeTemplateContext sessionId
+  sideBar'    <- sideBar sessionId
+  view'       <- view sessionId
+  toolBar'    <- toolBar sessionId
+  targetViews <- withSession sessionId \s -> getTargetViews env s
+
+  let AllSelected {count} = Selected.getAllSelected targetViews
+
   pure $ runTemplate ctx (Template.Mobile.index sideBar' toolBar' view' count)
 
 
 sideBar :: SessionId -> Filehub (Html ())
 sideBar sessionId = do
-  currentTarget <- Session.get sessionId (.currentTarget) >>= atomically
-  targets <- asks (.targets) >>= readTVarIO
-  pure $ Template.Mobile.sideBar (fmap snd targets) currentTarget
+  env         <- ask
+  targetsTVar <- asks (.targets)
+  withSession sessionId \s -> do
+    currentTarget <- getCurrentTarget env s
+    targets <- readTVar targetsTVar
+    pure $ Template.Mobile.sideBar (fmap snd targets) currentTarget
 
 
 toolBar :: SessionId -> Filehub (Html ())
@@ -55,20 +63,23 @@ toolBar sessionId = do
 
 editorModal :: SessionId -> Maybe ClientPath -> Filehub (Html ())
 editorModal sessionId mClientPath = do
-  root         <- Session.get sessionId (.root)
-  storage      <- Session.get sessionId (.storage)
-  ctx          <- makeTemplateContext sessionId
-  clientPath   <- withQueryParam mClientPath
-  let p        =  ClientPath.fromClientPath root clientPath
-  file         <- storage.get p
-  content      <- storage.read file
-  let filename = coerce takeFileName p
-  pure $ runTemplate ctx (Template.Mobile.editorModal (clientPath, filename) content)
+  env <- ask
+  join $ withSession sessionId \s -> do
+    root    <- getRoot env s
+    pure do
+      storage      <- getStorage sessionId
+      ctx          <- makeTemplateContext sessionId
+      clientPath   <- withQueryParam mClientPath
+      let p        =  ClientPath.fromClientPath root clientPath
+      file         <- storage.get p
+      content      <- storage.read file
+      let filename = coerce takeFileName p
+      pure $ runTemplate ctx (Template.Mobile.editorModal (clientPath, filename) content)
 
 
 view :: SessionId -> Filehub (Html ())
 view sessionId = do
-  storage <- Session.get sessionId (.storage)
+  storage <- getStorage sessionId
   ctx@TemplateContext{ sortedBy = order } <- makeTemplateContext sessionId
   table <- do
     files   <- sortFiles order <$> storage.lsCwd

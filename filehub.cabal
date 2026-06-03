@@ -205,7 +205,6 @@ library
                           Filehub.Session
                           Filehub.Session.Copy
                           Filehub.Session.Handle
-                          Filehub.Session.Handle1
                           Filehub.Session.Internal
                           Filehub.Session.Pool
                           Filehub.Session.Selected

@@ -32,46 +32,50 @@ module Filehub.Server.UI
   )
   where
 
+import Control.Monad (join)
+import Control.Monad.Reader (MonadReader(ask))
+import Data.ClientPath (Root, toClientPath)
 import Data.ClientPath qualified as ClientPath
+import Data.Coerce (coerce)
+import Data.File (FileInfo, File(..))
+import Data.List qualified as L
 import Data.Maybe (fromMaybe)
+import Data.Set qualified as S
+import Data.String.Interpolate (i)
+import Data.Text.Encoding qualified as T
+import Filehub.Error (FilehubError(..), Error' (..))
 import Filehub.Handler (ConfirmLogin, ConfirmReadOnly, ConfirmDesktopOnly)
+import Filehub.Locale (Locale)
 import Filehub.Monad
 import Filehub.Orphan ()
 import Filehub.Orphan ()
 import Filehub.Server.UI.Desktop qualified as Server.Desktop
 import Filehub.Server.UI.Mobile qualified as Server.Mobile
 import Filehub.Server.Util (withQueryParam)
-import Filehub.Session (SessionGet(..), TargetView (..), get)
-import Filehub.Session qualified as Session
+import Filehub.Session (TargetView (..), getDisplay, getRoot, getTargetViews, getStorage, getCurrentTarget)
 import Filehub.Session.Copy qualified as Copy
+import Filehub.Session.Handle (modifyCurrentTarget)
+import Filehub.Session.Pool (withSession, withSession_, modifySession)
+import Filehub.Session.Selected (AllSelected(..))
 import Filehub.Session.Selected qualified as Selected
+import Filehub.Session.Types (Selected (..), Layout (..))
+import Filehub.Session.Types (Storage(..))
+import Filehub.Sort qualified as Sort
 import Filehub.Template (runTemplate, makeTemplateContext)
 import Filehub.Template.Desktop qualified as Template.Desktop
 import Filehub.Template.Mobile qualified as Template.Mobile
 import Filehub.Template.Shared qualified as Template
+import Filehub.Theme qualified as Theme
 import Filehub.Types
 import Lucid hiding ()
+import Lucid.Htmx (HxSwapOOB(..))
+import Network.Mime (MimeType)
+import Network.Mime.Extended (isMime)
 import Prelude hiding (elem, readFile, init)
 import Prelude hiding (init, readFile)
 import Servant (Header , Headers  , addHeader, NoContent (..)         )
-import Filehub.Theme qualified as Theme
-import Filehub.Locale (Locale)
-import Filehub.Error (FilehubError(..), Error' (..))
-import UnliftIO (throwIO, atomically)
-import Network.Mime (MimeType)
-import Data.File (FileInfo, File(..))
-import Data.ClientPath (Root, toClientPath)
-import Data.String.Interpolate (i)
-import Network.Mime.Extended (isMime)
-import Data.Coerce (coerce)
 import System.FilePath (takeDirectory)
-import Filehub.Sort qualified as Sort
-import Data.List qualified as L
-import Data.Text.Encoding qualified as T
-import Lucid.Htmx (HxSwapOOB(..))
-import Filehub.Session.Types (Selected (..), Layout (..))
-import Data.Set qualified as S
-import Filehub.Session.Selected (AllSelected(..))
+import UnliftIO (throwIO)
 
 
 -- | Completely reset all state machines. This should be the only place to reset state.
@@ -83,37 +87,36 @@ clear sessionId = do
 
 entry :: SessionId -> FileInfo -> Filehub (Html ())
 entry sessionId file = do
-  display <- get sessionId (.display)
-  layout  <- get sessionId (.layout)
-  ctx     <- makeTemplateContext sessionId
-
-  pure $ runTemplate ctx
-    case display of
-      NoDisplay -> Template.Mobile.entry file
-      Mobile    -> Template.Mobile.entry file
-      Desktop   -> case layout of
-                     ListLayout      -> Template.Desktop.entry file
-                     ThumbnailLayout -> Template.Desktop.thumbnail file
+  ctx <- makeTemplateContext sessionId
+  withSession sessionId \s -> do
+    display <- getDisplay s
+    pure $ runTemplate ctx
+      case display of
+        NoDisplay -> Template.Mobile.entry file
+        Mobile    -> Template.Mobile.entry file
+        Desktop   -> case s.layout of
+                       ListLayout      -> Template.Desktop.entry file
+                       ThumbnailLayout -> Template.Desktop.thumbnail file
 
 
 entries :: SessionId -> [FileInfo] -> Filehub (Html ())
 entries sessionId files = do
-  display <- get sessionId (.display)
-  layout  <- get sessionId (.layout)
-  ctx     <- makeTemplateContext sessionId
+  ctx <- makeTemplateContext sessionId
+  withSession sessionId \s -> do
+    display <- getDisplay s
 
-  pure $ runTemplate ctx
-    case display of
-      NoDisplay -> Template.Mobile.entries files
-      Mobile    -> Template.Mobile.entries files
-      Desktop   -> case layout of
-                     ListLayout      -> Template.Desktop.entries files
-                     ThumbnailLayout -> Template.Desktop.entries  files
+    pure $ runTemplate ctx
+      case display of
+        NoDisplay -> Template.Mobile.entries files
+        Mobile    -> Template.Mobile.entries files
+        Desktop   -> case s.layout of
+                       ListLayout      -> Template.Desktop.entries files
+                       ThumbnailLayout -> Template.Desktop.entries  files
 
 
 index :: SessionId -> Filehub (Html ())
 index sessionId = do
-  display <- get sessionId (.display)
+  display <- withSession sessionId getDisplay
   case display of
     NoDisplay -> pure Template.bootstrap
     Desktop   -> Server.Desktop.index sessionId
@@ -122,7 +125,7 @@ index sessionId = do
 
 view :: SessionId -> Filehub (Html ())
 view sessionId = do
-  display <- get sessionId (.display)
+  display <- withSession sessionId getDisplay
   case display of
     Desktop   -> Server.Desktop.view sessionId
     Mobile    -> Server.Mobile.view sessionId
@@ -131,7 +134,7 @@ view sessionId = do
 
 controlPanel :: SessionId -> Filehub (Html ())
 controlPanel sessionId = do
-  display <- get sessionId (.display)
+  display <- withSession sessionId getDisplay
   ctx     <- makeTemplateContext sessionId
   pure $
     case display of
@@ -142,7 +145,7 @@ controlPanel sessionId = do
 
 sideBar :: SessionId -> Filehub (Html ())
 sideBar sessionId = do
-  display <- get sessionId (.display)
+  display <- withSession sessionId getDisplay
   case display of
     Desktop -> Server.Desktop.sideBar sessionId
     _       -> Server.Mobile.sideBar sessionId
@@ -150,7 +153,7 @@ sideBar sessionId = do
 
 toolBar :: SessionId -> Filehub (Html ())
 toolBar sessionId = do
-  display <- get sessionId (.display)
+  display <- withSession sessionId getDisplay
   case display of
     Desktop -> Server.Desktop.toolBar sessionId
     _       -> Server.Mobile.toolBar sessionId
@@ -158,7 +161,7 @@ toolBar sessionId = do
 
 renameModal :: SessionId -> ConfirmLogin -> ConfirmDesktopOnly -> ConfirmReadOnly -> Maybe ClientPath -> Filehub (Html ())
 renameModal sessionId _ _ _ mClientPath = do
-  root       <- get sessionId (.root)
+  root <- withSession sessionId . getRoot =<< ask
   clientPath <- withQueryParam mClientPath
   ctx        <- makeTemplateContext sessionId
   pure $ runTemplate ctx (Template.Desktop.renameModal (ClientPath.fromClientPath root clientPath))
@@ -183,7 +186,7 @@ fileDetailModal sessionId _ _ mPath = do
 
 editorModal :: SessionId -> ConfirmLogin -> Maybe ClientPath -> Filehub (Html ())
 editorModal sessionId _ mClientPath = do
-  display <- get sessionId (.display)
+  display <- withSession sessionId getDisplay
   case display of
     Mobile    -> Server.Mobile.editorModal sessionId mClientPath
     Desktop   -> Server.Desktop.editorModal sessionId mClientPath
@@ -192,13 +195,17 @@ editorModal sessionId _ mClientPath = do
 
 selectLayout :: SessionId -> ConfirmLogin -> Maybe Layout -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
 selectLayout sessionId _ layout = do
-  Session.set sessionId (.layout) (fromMaybe ThumbnailLayout layout)
+  modifySession sessionId \s -> pure do
+    s { layout = (fromMaybe ThumbnailLayout layout)
+      }
   addHeader LayoutChanged <$> index sessionId
 
 
 sortTable :: SessionId -> ConfirmLogin -> Maybe SortFileBy -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
 sortTable sessionId _ order = do
-  Session.set sessionId (.sortedFileBy) (fromMaybe ByNameUp order)
+  modifyCurrentTarget sessionId \td ->
+    td { sortedFileBy = (fromMaybe ByNameUp order)
+       }
   html <- do index sessionId
   pure $ addHeader TableSorted html
 
@@ -208,10 +215,10 @@ sortTable sessionId _ order = do
 -- to be removed by the frontend.
 toggleTheme :: SessionId -> ConfirmLogin -> Filehub (Headers '[ Header "HX-Trigger-After-Settle" FilehubEvent ] (Html ()))
 toggleTheme sessionId _ = do
-  theme <- get sessionId (.theme)
-  case theme of
-    Theme.Light -> Session.set sessionId (.theme) Dark
-    Theme.Dark  -> Session.set sessionId (.theme) Light
+  withSession_ sessionId \s -> pure
+    case s.theme of
+      Theme.Light -> ( s { theme = Dark }, ())
+      Theme.Dark  -> ( s { theme = Light }, ())
   html <- index sessionId
   pure $ addHeader ThemeChanged (html `with` [ class_ "fade-in " ])
 
@@ -219,20 +226,23 @@ toggleTheme sessionId _ = do
 changeLocale :: SessionId -> Maybe Locale -> Filehub (Headers '[ Header "HX-Trigger-After-Settle" FilehubEvent ] (Html ()))
 changeLocale _ Nothing = throwIO (FilehubError LocaleError "Invalid locale")
 changeLocale sessionId (Just locale) = do
-  Session.set sessionId (.locale) locale
+  withSession_ sessionId \s -> pure (s { locale = locale } , ())
   addHeader LocaleChanged <$> index sessionId
 
 
 toggleSidebar :: SessionId -> ConfirmLogin -> Filehub (Html ())
 toggleSidebar sessionId _ = do
-  b <- get sessionId (.sidebarCollapsed)
-  Session.set sessionId (.sidebarCollapsed) (not b)
+  withSession_ sessionId \s -> pure
+    ( s { sidebarCollapsed = not s.sidebarCollapsed
+        }
+    , ()
+    )
   index sessionId
 
 
 selectRows :: SessionId -> ConfirmLogin -> Selected -> Filehub (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))
 selectRows sessionId _ selected = do
-
+  env <- ask
   let
       mkHTMX = do
         sideBar'      <- sideBar sessionId
@@ -243,16 +253,20 @@ selectRows sessionId _ selected = do
 
   case selected of
     NoSelection -> do
-      Session.set sessionId (.selected) NoSelection
-      AllSelected { count } <- Selected.getAllSelected sessionId
-      htmx <- mkHTMX
-      pure $ addHeader count htmx
+      modifyCurrentTarget sessionId \td ->
+        td { selected = NoSelection
+           }
+
     _ -> do
-      currentSelected <- get sessionId (.selected)
-      Session.set sessionId (.selected) (currentSelected <> selected)
-      AllSelected { count } <- Selected.getAllSelected sessionId
-      htmx <- mkHTMX
-      pure $ addHeader count htmx
+      modifyCurrentTarget sessionId \td ->
+        td { selected = td.selected <> selected
+           }
+
+  AllSelected { count } <- withSession sessionId \s -> do
+    Selected.getAllSelected <$> getTargetViews env s
+
+  htmx <- mkHTMX
+  pure $ addHeader count htmx
 
 
 contextMenu :: SessionId -> ConfirmLogin -> ConfirmDesktopOnly -> [ClientPath] -> Filehub (Html ())
@@ -262,9 +276,13 @@ contextMenu sessionId _ _ paths = Server.Desktop.contextMenu sessionId paths
 initViewer :: SessionId -> ConfirmLogin -> Maybe ClientPath
            -> Filehub (Headers '[Header "HX-Trigger" FilehubEvent] NoContent)
 initViewer sessionId _ mClientPath = do
-  root       <- get sessionId (.root)
-  order      <- get sessionId (.sortedFileBy)
-  storage    <- get sessionId (.storage)
+  env <- ask
+  storage <- getStorage sessionId
+  (root, order) <- withSession sessionId \s -> do
+    root <- getRoot env s
+    TargetView _ td <- getCurrentTarget env s
+    pure (root, td.sortedFileBy)
+
   clientPath <- withQueryParam mClientPath
   payload <- do
     let filePath  =  ClientPath.fromClientPath root clientPath
@@ -300,32 +318,36 @@ open _ _ mTarget mClientPath = do
 
 cancel :: SessionId -> ConfirmLogin -> Filehub (Headers '[Header "X-Filehub-Selected-Count" Int] (Html ()))
 cancel sessionId _ = do
-  AllSelected
-    { count
-    , allSelected
-    }                   <- Selected.getAllSelected sessionId
-  TargetView { target } <- get sessionId (.currentTarget) >>= atomically
-  storage               <- get sessionId (.storage)
-  root                  <- get sessionId (.root)
+  env <- ask
+  storage <- getStorage sessionId
+  join $ withSession sessionId \s -> do
+    AllSelected
+      { count
+      , allSelected
+      }                   <- Selected.getAllSelected <$> getTargetViews env s
 
-  let
-      selected = S.fromList case lookup target allSelected of
-                               Just s  -> Selected.toList s
-                               Nothing -> []
+    TargetView { target } <- getCurrentTarget env s
+    root                  <- getRoot env s
 
-  clear sessionId
+    pure do
+      let
+          selected = S.fromList case lookup target allSelected of
+                                   Just sel  -> Selected.toList sel
+                                   Nothing -> []
 
-  selectedFiles <- do
-    files <- storage.lsCwd
-    let predicate f = (toClientPath root f.path) `S.member` selected
-    pure $ filter predicate files
+      clear sessionId
 
-  addHeader count
-    <$> (do controlPanel' <- controlPanel sessionId
-            sideBar'      <- sideBar sessionId
-            entries'      <- entries sessionId selectedFiles
-            pure do
-              controlPanel' `with` [ hxSwapOOB True ]
-              sideBar' `with` [ hxSwapOOB True ]
-              entries' `with` [ hxSwapOOB True ]
-        )
+      selectedFiles <- do
+        files <- storage.lsCwd
+        let predicate f = (toClientPath root f.path) `S.member` selected
+        pure $ filter predicate files
+
+      addHeader count
+        <$> (do controlPanel' <- controlPanel sessionId
+                sideBar'      <- sideBar sessionId
+                entries'      <- entries sessionId selectedFiles
+                pure do
+                  controlPanel' `with` [ hxSwapOOB True ]
+                  sideBar' `with` [ hxSwapOOB True ]
+                  entries' `with` [ hxSwapOOB True ]
+            )

@@ -5,12 +5,14 @@ import Data.Set qualified as S
 import Filehub.Error ( FilehubError(..) )
 import Filehub.Monad
 import Filehub.Orphan ()
-import Filehub.Session (SessionId(..), get, SessionGet(..))
+import Filehub.Session (SessionId(..))
 import Filehub.SharedLink (SharedLinkHash, SharedLinkPermitSet (..), SharedLinkPermit)
 import Lucid hiding (for_)
 import Prelude hiding (init, readFile)
 import Servant (err303    , errHeaders   )
 import UnliftIO (throwIO)
+import Filehub.Session.Pool (withSession)
+import Filehub.Session (Session(..))
 
 
 -- TODO
@@ -37,7 +39,7 @@ shared :: SessionId -> Maybe SharedLinkPermit -> SharedLinkHash -> Maybe ClientP
 shared sessionId mClientPermit hash mClientPath = do
   case mClientPermit of
     Just clientPermit -> do
-      sharedLinkPermit <- get sessionId (.sharedLinkPermit)
+      sharedLinkPermit <- withSession sessionId \s -> pure s.sharedLinkPermit
       case sharedLinkPermit of
         Just (SharedLinkPermitSet permit hashes)
           | clientPermit /= permit         -> goAuth

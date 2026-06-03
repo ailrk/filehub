@@ -15,12 +15,10 @@ import Filehub.Monad
 import Filehub.Notification.Types (Notification(..))
 import Filehub.Orphan ()
 import Filehub.Server.UI qualified as UI
-import Filehub.Session (SessionGet(..), get)
-import Filehub.Session (SessionId(..), withTarget)
-import Filehub.Session qualified as Session
+import Filehub.Session (SessionId(..), Session(..), withTarget, getRoot, getStorage, getTargetViews)
 import Filehub.Session.Selected qualified as Selected
 import Filehub.Session.Selected (AllSelected(..))
-import Filehub.Session.Types (Selected(..))
+import Filehub.Session.Types (Selected(..), Storage(..))
 import Lucid hiding (for_)
 import Lucid.Htmx (HxSwapOOB(..), Swap (..))
 import Prelude hiding (init, readFile)
@@ -31,6 +29,7 @@ import Worker.Task (newTaskId)
 import Filehub.Server.Util (throttle)
 import Control.Concurrent.STM (flushTQueue)
 import UnliftIO (newEmptyMVar, takeMVar, putMVar, finally, onException)
+import Filehub.Session.Pool (withSession)
 
 
 -- | Delete files.
@@ -43,20 +42,25 @@ delete :: SessionId -> ConfirmLogin -> ConfirmReadOnly
        -> [ClientPath] -> Bool
        -> Filehub (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))
 delete sessionId _ _ clientPaths deleteSelected = do
-  root                <- get sessionId (.root)
-  storage             <- get sessionId (.storage)
-  notifications       <- get sessionId (.notifications)
-  taskId              <- newTaskId
-  env                 <- ask
-  AllSelected
-    { count
-    , allSelected
-    }                 <- Selected.getAllSelected sessionId
+  taskId    <- newTaskId
+  env       <- ask
+  storage   <- getStorage sessionId
+
+  ( notifications
+    , root
+    , AllSelected { count , allSelected }
+    ) <- withSession sessionId \s -> do
+    root          <- getRoot env s
+    allSelected   <- Selected.getAllSelected <$> getTargetViews env s
+    pure ( s.notifications
+         , root
+         , allSelected
+         )
 
   -- States
-  deleteCounter       <- newTVarIO @_ @Integer 0
-  deletedPaths        <- newTQueueIO @_ @ClientPath
-  lk                  <- newEmptyMVar
+  deleteCounter <- newTVarIO @_ @Integer 0
+  deletedPaths  <- newTQueueIO @_ @ClientPath
+  lk            <- newEmptyMVar
 
   let total = fromIntegral (count + length clientPaths)
 
@@ -140,7 +144,10 @@ delete sessionId _ _ clientPaths deleteSelected = do
         }
 
   UI.clear sessionId
-  AllSelected { count = newCount } <- Selected.getAllSelected sessionId
+
+  AllSelected { count = newCount } <- withSession sessionId \s -> do
+      Selected.getAllSelected <$> getTargetViews env s
+
   htmx <- mkHtmx sessionId
   putMVar lk ()
 

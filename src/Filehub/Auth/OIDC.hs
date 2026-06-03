@@ -41,7 +41,6 @@ import Filehub.Env (Env(..))
 import Filehub.Error (FilehubError (..), Error' (..))
 import Filehub.Monad (Filehub)
 import Filehub.Orphan ()
-import Filehub.Session qualified as Session
 import Filehub.Session.Types.SessionId (SessionId)
 import GHC.Generics (Generic)
 import Network.URI (URI(..), URIAuth(..), relativeTo)
@@ -58,6 +57,8 @@ import UnliftIO (Exception (..), MonadIO (..), throwIO, try)
 import Web.FormUrlEncoded (ToForm)
 import Web.JWT (JOSEHeader (..))
 import Web.JWT qualified as JWT
+import Filehub.Session.Pool (modifySession)
+import Filehub.Session (Session(..))
 
 
 
@@ -278,7 +279,7 @@ authenticateSession :: SessionId -> OIDCFlow TokenVerified -> Filehub (OIDCFlow 
 authenticateSession sessionId (TokenVerified token) = do
   let user = User token
   authId <- createAuthId
-  Session.set sessionId (.authId) (Just authId)
+  modifySession sessionId \s -> pure $ s { authId = (Just authId) }
   activeUser <- createActiveUser authId sessionId user
   ActiveUser.Pool.add activeUser
   pure SessionAuthenticated

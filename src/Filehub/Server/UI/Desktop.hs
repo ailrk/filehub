@@ -22,18 +22,18 @@ import Filehub.Types ( SessionId(..), ClientPath)
 import Lucid
 import Prelude hiding (readFile)
 import System.FilePath (takeFileName)
-import Filehub.Session (TargetView(..))
+import Filehub.Session (TargetView(..), getStorage, getTargetViews, getCurrentTarget)
 import Data.Coerce (coerce)
-import Filehub.Session (SessionGet(..))
 import Filehub.Monad (Filehub)
-import UnliftIO (atomically)
 import Control.Monad (join)
+import Filehub.Session.Pool (withSession)
+import Control.Monad.Reader (MonadReader(..))
 
 
 fileDetailModal :: SessionId -> Maybe ClientPath -> Filehub (Html ())
 fileDetailModal sessionId mClientPath = do
   ctx@TemplateContext{ root } <- makeTemplateContext sessionId
-  storage    <- Session.get sessionId (.storage)
+  storage    <- getStorage sessionId
   clientPath <- withQueryParam mClientPath
   file       <- storage.get (ClientPath.fromClientPath root clientPath)
   pure $ runTemplate ctx (Template.Desktop.fileDetailModal file)
@@ -42,7 +42,7 @@ fileDetailModal sessionId mClientPath = do
 editorModal :: SessionId -> Maybe ClientPath -> Filehub (Html ())
 editorModal sessionId mClientPath = do
   ctx@TemplateContext{ root } <- makeTemplateContext sessionId
-  storage      <- Session.get sessionId (.storage)
+  storage      <- getStorage sessionId
   clientPath   <- withQueryParam mClientPath
   let p        =  ClientPath.fromClientPath root clientPath
   file         <- storage.get p
@@ -53,7 +53,7 @@ editorModal sessionId mClientPath = do
 
 contextMenu :: SessionId -> [ClientPath] -> Filehub (Html ())
 contextMenu sessionId clientPaths = do
-  storage <- Session.get sessionId (.storage)
+  storage <- getStorage sessionId
   ctx@TemplateContext { root } <- makeTemplateContext sessionId
   case clientPaths of
     [clientPath] -> do
@@ -74,12 +74,10 @@ index sessionId = do
 
 sideBar :: SessionId -> Filehub (Html ())
 sideBar sessionId = do
-  g1 <- Session.get sessionId (.targetViews)
-  g2 <- Session.get sessionId (.currentTarget)
-
-  join . atomically $ do
-    targetViews   <- g1
-    currentTarget <- g2
+  env <- ask
+  join $ withSession sessionId \s -> do
+    targetViews   <- getTargetViews env s
+    currentTarget <- getCurrentTarget env s
     pure do
       ctx <- makeTemplateContext sessionId
       let targets' = flip fmap targetViews \(TargetView target targetData) -> do
@@ -93,7 +91,7 @@ sideBar sessionId = do
 view :: SessionId -> Filehub (Html ())
 view sessionId = do
   ctx@TemplateContext { sortedBy = order } <- makeTemplateContext sessionId
-  storage <- Session.get sessionId (.storage)
+  storage <- getStorage sessionId
   table <- do
     files <- sortFiles order <$> storage.lsCwd
     pure $ runTemplate ctx (Template.Desktop.table files)

@@ -3,6 +3,7 @@
 module Filehub.Server.Static where
 
 import Control.Applicative (Alternative((<|>)))
+import Control.Monad (join)
 import Control.Monad.Reader (asks)
 import Crypto.Hash.SHA256 qualified as SHA256
 import Data.Aeson (object, KeyValue (..), Value)
@@ -19,8 +20,9 @@ import Filehub.Error ( FilehubError(..) )
 import Filehub.Monad
 import Filehub.Orphan ()
 import Filehub.Server.Static.QQ (staticFiles)
-import Filehub.Session (SessionGet(..), get)
+import Filehub.Session (Session(..))
 import Filehub.Session (SessionId(..))
+import Filehub.Session.Pool (withSession)
 import Filehub.Theme qualified as Theme
 import Filehub.Types (Theme(..))
 import Network.Mime qualified as Mime
@@ -31,11 +33,10 @@ import UnliftIO (throwIO)
 
 themeCss :: SessionId -> Filehub ByteString
 themeCss sessionId = do
-  theme <- get sessionId (.theme)
   customThemeDark  <- (fmap . fmap) Theme.customTheme2Css (asks (.customThemeDark))
   customThemeLight <- (fmap . fmap) Theme.customTheme2Css (asks (.customThemeLight))
-  pure
-    case theme of
+  withSession sessionId \s -> pure
+    case s.theme of
       Dark  -> fromMaybe "no-theme" $ customThemeDark <|> M.lookup "theme-dark.css" staticFiles
       Light -> fromMaybe "no-theme" $ customThemeLight <|> M.lookup "theme-light.css" staticFiles
 
@@ -65,8 +66,6 @@ static paths = do
     . addHeader "public, no-cache"
     . addHeader etag
     $ content
-
-
 
 
 -- It's for PWA. More on https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Manifest

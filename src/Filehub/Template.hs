@@ -15,14 +15,16 @@ import Filehub.Auth.Types.Simple (SimpleAuthUserDB)
 import Filehub.Env qualified as Env
 import Filehub.Locale (Locale)
 import Filehub.Monad (Filehub)
-import Filehub.Session (SessionGet(..))
+import Filehub.Session (Session(..), getRoot, getCurrentTarget, getTargetViews)
 import Filehub.Session (TargetView(..), SessionId)
-import Filehub.Session qualified as Session
 import Filehub.Session.Types (Selected, Layout, ControlPanelState)
 import Filehub.Sort (SortFileBy)
 import Filehub.Theme (Theme)
 import Filehub.Types (Display(..), Env)
-import UnliftIO (atomically)
+import Filehub.Session.Pool (withSession)
+import Filehub.Session.Handle (getDisplay, getControlPanelState)
+import Filehub.Session.Types (TargetSessionData(..))
+import Filehub.Session.Selected (getAllSelected)
 
 
 -- | A Template context type that capture all useful information to render
@@ -61,35 +63,32 @@ type Template = ReaderT TemplateContext Identity
 
 makeTemplateContext :: SessionId -> Filehub TemplateContext
 makeTemplateContext sessionId = do
-  display           <- Session.get sessionId (.display)
-  sidebarCollapsed  <- Session.get sessionId (.sidebarCollapsed)
-  layout            <- Session.get sessionId (.layout)
-  theme             <- Session.get sessionId (.theme)
-  sortedBy          <- Session.get sessionId (.sortedFileBy)
-  state             <- Session.get sessionId (.controlPanelState)
-  selected          <- Session.get sessionId (.selected)
-  root              <- Session.get sessionId (.root)
-  locale            <- Session.get sessionId (.locale)
-  currentDir        <- Session.get sessionId (.currentDir)
-  currentTarget     <- Session.get sessionId (.currentTarget) >>= atomically
+  env <- ask
   readOnly          <- asks (.readOnly)
   noLogin           <- Env.hasNoLogin <$> ask @Env
   simpleAuthUserDB  <- asks (.simpleAuthUserDB)
   oidcAuthProviders <- asks (.oidcAuthProviders)
-  pure TemplateContext
-    { readOnly           = readOnly
-    , noLogin            = noLogin
-    , display            = display
-    , sidebarCollapsed   = sidebarCollapsed
-    , layout             = layout
-    , theme              = theme
-    , sortedBy           = sortedBy
-    , selected           = selected
-    , state              = state
-    , root               = root
-    , locale             = locale
-    , currentDir         = currentDir
-    , currentTarget      = currentTarget
-    , simpleAuthUserDB   = simpleAuthUserDB
-    , oidcAuthProviders  = oidcAuthProviders
-    }
+
+  withSession sessionId \s -> do
+    display       <- getDisplay s
+    root          <- getRoot env s
+    currentTarget <- getCurrentTarget env s
+    targetViews   <- getTargetViews env s
+    state         <- getControlPanelState (getAllSelected targetViews) s
+    pure TemplateContext
+      { readOnly           = readOnly
+      , noLogin            = noLogin
+      , display            = display
+      , sidebarCollapsed   = s.sidebarCollapsed
+      , layout             = s.layout
+      , theme              = s.theme
+      , sortedBy           = currentTarget.sessionData.sortedFileBy
+      , selected           = currentTarget.sessionData.selected
+      , state              = state
+      , root               = root
+      , locale             = s.locale
+      , currentDir         = currentTarget.sessionData.currentDir
+      , currentTarget      = currentTarget
+      , simpleAuthUserDB   = simpleAuthUserDB
+      , oidcAuthProviders  = oidcAuthProviders
+      }

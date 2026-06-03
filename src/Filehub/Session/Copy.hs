@@ -12,48 +12,53 @@ import Control.Monad (forM_)
 import Data.ClientPath qualified as ClientPath
 import Data.Function (on, (&))
 import Data.List (nub)
-import Data.String.Interpolate (i)
 import Filehub.Error (FilehubError (..), Error' (..))
 import Filehub.Monad (Filehub)
 import Filehub.Session.Selected (AllSelected(..))
 import Filehub.Session.Selected qualified as Selected
-import Filehub.Session.Types (Selected(..), SessionId, CopyState (..), SessionGet(..), SessionSet(..))
-import Log (logAttention_)
+import Filehub.Session.Types (Selected(..), SessionId, CopyState (..))
 import Target.Types qualified as Target
-import UnliftIO (throwIO)
-import {-# SOURCE #-} Filehub.Session.Handle (withTarget, get, set)
+import Filehub.Session.Pool (withSession, modifySession, withSession_)
+import Filehub.Session (Session(..), getTargetViews, withTarget, getStorage, getRoot)
+import Control.Monad.Reader (MonadReader(ask))
+import Control.Concurrent.STM (throwSTM)
 
 
 clearCopyState :: SessionId -> Filehub ()
-clearCopyState sessionId = set sessionId (.copyState) NoCopyPaste
+clearCopyState sessionId = modifySession sessionId \s -> pure s { copyState = NoCopyPaste }
 
 
 -- | Add selected to copy state.
 select :: SessionId -> Filehub ()
 select sessionId = do
-  AllSelected { allSelected } <- Selected.getAllSelected sessionId
+  env <- ask
+  AllSelected { allSelected } <- withSession sessionId \s -> do
+    targetViews <- getTargetViews env s
+    pure $ Selected.getAllSelected targetViews
+
   forM_ allSelected \(target, selected) -> do
     withTarget sessionId target do
-      storage <- get sessionId (.storage)
-      case selected of
-        NoSelection -> do
-          state <- get sessionId (.copyState)
-          case onNoSelection state of
-            Right (Just state') -> set sessionId (.copyState) state'
-            Right Nothing       -> pure ()
-            Left err -> do
-              logAttention_ [i|[asckkk] #{err}|]
-              throwIO err
-        Selected x xs -> do
-          root <- get sessionId (.root)
-          let paths = (x:xs) & fmap (ClientPath.fromClientPath root)
-          files <- traverse storage.get paths
-          state <- get sessionId (.copyState)
-          case onSelected (target, files) state of
-            Right state' -> set sessionId (.copyState) state'
-            Left err -> do
-              logAttention_ [i|[ascks1] #{err}|]
-              throwIO err
+      paths <- withSession_ sessionId \s -> do
+        case selected of
+          NoSelection -> do
+            case onNoSelection s.copyState of
+              Right (Just state') -> pure (s { copyState = state' }, mempty)
+              Right Nothing       -> pure (s, mempty)
+              Left err -> do
+                throwSTM err
+          Selected x xs -> do
+            root <- getRoot env s
+            pure (s, (x:xs) & fmap (ClientPath.fromClientPath root))
+
+      files <- do
+        storage <- getStorage sessionId
+        traverse storage.get paths
+
+      withSession_ sessionId \s -> do
+        case onSelected (target, files) s.copyState of
+          Right state' -> pure (s { copyState = state' }, ())
+          Left err -> do
+            throwSTM err
   where
     merge sel [] = [sel]
     merge sel@(target, files) (h@(target', files'):rest)
@@ -73,14 +78,13 @@ select sessionId = do
 
 -- | Confirm selection
 copy :: SessionId -> Filehub ()
-copy sessionId = do
-  state <- get sessionId (.copyState)
-  case step state of
+copy sessionId = withSession_ sessionId \s -> do
+  case step s.copyState of
     Right state' -> do
-      set sessionId (.copyState) state'
+      pure ( s { copyState = state' }
+           , ())
     Left err -> do
-      logAttention_ [i|[tyy33d] #{err}|]
-      throwIO err
+      throwSTM err
   where
     step = \case
       CopySelected selections -> Right (Paste selections)

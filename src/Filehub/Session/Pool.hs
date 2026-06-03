@@ -6,24 +6,26 @@ module Filehub.Session.Pool
   , delete
   , get
   , withSession
-  , update
+  , withSession_
+  , modifySession
   )
   where
 
+import Control.Concurrent.STM (throwSTM)
+import Control.Concurrent.Suspend qualified as Suspend
+import Control.Concurrent.Timer qualified as Timer
+import Control.Monad ((>=>))
+import Control.Monad.Reader (asks)
+import Data.Map.Strict qualified as M
 import Data.Time (addUTCTime)
 import Data.Time.Clock qualified as Time
-import Data.Map.Strict qualified as M
-import Control.Concurrent.Timer qualified as Timer
-import Control.Concurrent.Suspend qualified as Suspend
-import Filehub.Types (Env(..))
-import Filehub.Session.Internal qualified as Session
 import Filehub.Error (FilehubError (..), Error' (..))
+import Filehub.Monad (Filehub)
+import Filehub.Session.Internal qualified as Session
 import Filehub.Session.Types (Session(..), SessionId)
 import Filehub.Session.Types qualified as Session
-import Filehub.Monad (Filehub)
-import Control.Monad.Reader (asks)
+import Filehub.Types (Env(..))
 import UnliftIO (MonadIO(..), newTVarIO, modifyTVar, atomically, STM, readTVar)
-import Control.Concurrent.STM (throwSTM)
 
 
 new :: MonadIO m => m Session.Pool
@@ -36,7 +38,7 @@ new = do
         atomically do
           modifyTVar tvar (M.filter (\session -> now > session.expireDate))
 
-  gc <- liftIO $ Timer.repeatedTimer cleanUp (Suspend.sDelay 10)
+  gc <- liftIO $ Timer.repeatedTimer cleanUp (Suspend.sDelay 60)
   pure $ Session.Pool tvar gc
 
 
@@ -88,8 +90,8 @@ get sessionId = do
         throwSTM (FilehubError InvalidSession "Invalid session")
 
 
-withSession :: SessionId -> (Session -> STM (Session, a)) -> Filehub a
-withSession sessionId f = do
+withSession_ :: SessionId -> (Session -> STM (Session, a)) -> Filehub a
+withSession_ sessionId f = do
   Session.Pool pool _ <- asks (.sessionPool)
   getSTM <- get sessionId
   atomically do
@@ -100,10 +102,9 @@ withSession sessionId f = do
     pure o
 
 
-update :: SessionId -> (Session -> Session) -> Filehub (STM ())
-update sessionId f = do
-  Session.Pool pool _ <- asks (.sessionPool)
-  let up = maybe Nothing \session -> Just (f session)
+withSession :: SessionId -> (Session -> STM a) -> Filehub a
+withSession sessionId f = withSession_ sessionId (\s -> f s >>= \a -> pure (s, a))
 
-  pure do
-    modifyTVar pool (M.alter up sessionId)
+
+modifySession :: SessionId -> (Session -> STM Session) -> Filehub ()
+modifySession sessionId f = withSession_ sessionId (f >=> \s' -> pure (s', ()))

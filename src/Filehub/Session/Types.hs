@@ -7,8 +7,6 @@ module Filehub.Session.Types
   , TargetSessionData(..)
   , Pool(..)
   , TargetView(..)
-  , SessionGet(..)
-  , SessionSet(..)
   , ControlPanelState(..)
   , CopyState(..)
   , Layout(..)
@@ -17,14 +15,14 @@ module Filehub.Session.Types
 
 import Control.Concurrent.Timer qualified as Timer
 import Control.Handle.Storage (Storage(..))
-import Data.ClientPath (AbsPath, Root, ClientPath)
+import Data.ClientPath (AbsPath, ClientPath)
 import Data.File (FileInfo)
 import Data.Map.Strict (Map)
 import Data.Set (Set)
 import Data.Time (UTCTime)
 import Filehub.Auth.Types (AuthId)
 import Filehub.Auth.Types.OIDC (SomeOIDCFlow)
-import Filehub.Display (Resolution, Display)
+import Filehub.Display (Resolution)
 import Filehub.Locale (Locale)
 import Filehub.Notification.Types (Notification(..))
 import Filehub.Session.Types.SessionId (SessionId(..))
@@ -36,7 +34,7 @@ import GHC.Generics (Generic)
 import Servant (ToHttpApiData (..), FromHttpApiData (..))
 import Target.Types (AnyTarget, TargetId)
 import Text.Debug (Debug(..))
-import UnliftIO (TBQueue, TVar, STM)
+import UnliftIO (TBQueue, TVar)
 import Web.FormUrlEncoded (FromForm, parseAll)
 import Web.Internal.FormUrlEncoded (FromForm(..))
 import Worker.Task (TaskId)
@@ -65,51 +63,6 @@ data Session = Session
 
 instance Eq Session where
   a == b = a.sessionId == b.sessionId
-
-
-data SessionGet m = SessionGet
-  { currentDir        :: m AbsPath
-  , root              :: m Root
-  , display           :: m Display
-  , sortedFileBy      :: m SortFileBy
-  , selected          :: m Selected
-  , authId            :: m (Maybe AuthId)
-  , resolution        :: m (Maybe Resolution)
-  , deviceType        :: m DeviceType
-  , sidebarCollapsed  :: m Bool
-  , layout            :: m Layout
-  , theme             :: m Theme
-  , locale            :: m Locale
-  , copyState         :: m CopyState
-  , targetViews       :: m (STM [TargetView])
-  , controlPanelState :: m (ControlPanelState)
-  , sharedLinkPermit  :: m (Maybe SharedLinkPermitSet)
-  , oidcFlow          :: m (Maybe SomeOIDCFlow)
-  , notifications     :: m (TBQueue Notification)
-  , pendingTasks      :: m (TVar (Set TaskId))
-  , storage           :: m (Storage m)
-  , currentTarget     :: m (STM TargetView)
-  }
-
-
-data SessionSet m = SessionSet
-  { currentDir        :: AbsPath -> m ()
-  , sortedFileBy      :: SortFileBy -> m ()
-  , selected          :: Selected -> m  ()
-  , authId            :: Maybe AuthId -> m ()
-  , sidebarCollapsed  :: Bool -> m ()
-  , layout            :: Layout -> m ()
-  , resolution        :: Maybe Resolution -> m ()
-  , deviceType        :: DeviceType -> m ()
-  , theme             :: Theme -> m ()
-  , locale            :: Locale -> m ()
-  , copyState         :: CopyState -> m ()
-  , sharedLinkPermit  :: Maybe SharedLinkPermitSet -> m ()
-  , currentTarget     :: TargetId -> m (STM ())
-  , oidcFlow          :: Maybe SomeOIDCFlow -> m ()
-  , notifications     :: TBQueue Notification -> m ()
-  , pendingTasks      :: TVar (Set TaskId) -> m ()
-  }
 
 
 ------------------------------

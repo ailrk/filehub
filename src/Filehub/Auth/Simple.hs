@@ -23,11 +23,12 @@ import Filehub.Session (SessionId, Session)
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Types (LoginForm (..))
 import Prelude hiding (readFile)
-import Filehub.Session qualified as Session
 import Filehub.Monad (Filehub)
 import Control.Monad.Reader (asks)
 import UnliftIO (MonadIO(..), atomically)
 import Filehub.Auth.Types.Simple
+import Filehub.Session.Pool (modifySession)
+import Filehub.Session (Session(..))
 
 
 validate :: Username -> ByteString -> SimpleAuthUserDB -> Bool
@@ -62,7 +63,7 @@ authenticateSession sessionId (LoginForm username password) = do
   let username' =  Username username
   if (validate username' (Text.encodeUtf8 password) db) then do
     authId <- createAuthId
-    Session.set sessionId (.authId) (Just authId)
+    modifySession sessionId \s -> pure $ s { authId = (Just authId) }
     activeUser <- createActiveUser authId sessionId username'
     ActiveUser.Pool.add activeUser
     Just <$> (Session.Pool.get sessionId >>= atomically)

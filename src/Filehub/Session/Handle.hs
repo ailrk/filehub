@@ -1,12 +1,24 @@
 {-# LANGUAGE NamedFieldPuns #-}
-module Filehub.Session.Handle where
+module Filehub.Session.Handle
+  ( getCurrentTarget
+  , getDisplay
+  , getRoot
+  , getTargetViews
+  , getStorage
+  , getControlPanelState
+  , setCurrentTarget
+  , modifyCurrentTarget
+  , makeStorageDummy
+  , withTarget
+  )
+  where
 
 import Conduit (yield)
 import Control.Applicative (asum)
 import Control.Concurrent.STM (throwSTM)
 import Control.Handle.Storage (Storage(..))
-import Control.Monad (unless)
-import Control.Monad.Reader (asks)
+import Control.Monad (unless, join)
+import Control.Monad.Reader (MonadReader (..))
 import Data.ClientPath (AbsPath (..), Root (..))
 import Data.ClientPath (fromClientPath)
 import Data.Coerce (coerce)
@@ -21,236 +33,98 @@ import Filehub.Display qualified as Display
 import Filehub.Error (Error' (..))
 import Filehub.Error (FilehubError(..))
 import Filehub.Monad (Filehub)
-import Filehub.Session.Internal (targetToSessionData)
-import Filehub.Session.Pool qualified as Session.Pool
-import Filehub.Session.Selected (AllSelected(..))
-import Filehub.Session.Selected qualified as Selected
-import Filehub.Session.Types (TargetView(..), SessionGet (..), SessionSet (..), SessionId, Session, TargetSessionData(..), Session(..), CopyState (..), ControlPanelState (..))
+import Filehub.Session.Types (TargetView(..), SessionId, Session, TargetSessionData(..), Session(..), ControlPanelState (..), CopyState (..))
 import Filehub.Storage.File qualified as File
 import Filehub.Storage.S3 qualified as S3
 import Filehub.Types (Display (..), Env(..))
 import Filehub.UserAgent qualified as UserAgent
-import Log (logAttention_, logAttention)
+import Log (logAttention)
 import Prelude hiding (read, readFile, writeFile)
 import Target.File (Target(..), FileSys)
 import Target.S3 (S3)
-import Target.Types (handleTarget, targetHandler, AnyTarget (..), HasTargetId (..))
-import UnliftIO (throwIO, finally, writeTVar, atomically, STM, readTVar)
+import Target.Types (handleTarget, targetHandler, AnyTarget (..), HasTargetId (..), TargetId)
+import UnliftIO (throwIO, finally, writeTVar, STM, readTVar)
 import UnliftIO.Directory (doesDirectoryExist)
+import Filehub.Session.Pool (withSession, modifySession)
+import Filehub.Session.Selected (AllSelected (..))
 
 
-get :: SessionId -> (SessionGet Filehub -> Filehub a) -> Filehub a
-get sessionId field = do
-  let viewRecord = newSessionGet sessionId
-  field viewRecord
+getCurrentTarget :: Env -> Session -> STM TargetView
+getCurrentTarget env s = do
+  targets  <- readTVar env.targets
+  targetId <- readTVar s.currentTargetId
+
+  let mTargetView = do
+        targetSessionData <- M.lookup targetId s.targets
+        target            <- lookup targetId targets
+        pure (TargetView target targetSessionData)
+
+  case mTargetView of
+    Just tv -> pure tv
+    Nothing -> throwSTM (FilehubError InvalidSession "Invalid session")
 
 
-set :: SessionId -> (SessionSet Filehub -> val -> Filehub a) -> val -> Filehub a
-set sessionId field val = do
-  let setRecord = newSessionSet sessionId
-  field setRecord val
+getDisplay :: Session -> STM Display
+getDisplay s = do
+  case s.resolution of
+    Just resolution ->
+      case s.deviceType of
+        UserAgent.Desktop -> pure $ Desktop
+        UserAgent.Mobile  -> pure $ Display.classify resolution
+        UserAgent.Tablet  -> pure $ Display.classify resolution
+        UserAgent.Bot     -> pure $ Display.classify resolution
+        UserAgent.Unknown -> pure $ Display.classify resolution
+    Nothing -> pure NoDisplay
 
 
-newSessionGet :: SessionId -> SessionGet Filehub
-newSessionGet sessionId =
-  let display = do
-        s <- Session.Pool.get sessionId >>= atomically
-        case s.resolution of
-          Just resolution ->
-            case s.deviceType of
-              UserAgent.Desktop -> pure $ Desktop
-              UserAgent.Mobile  -> pure $ Display.classify resolution
-              UserAgent.Tablet  -> pure $ Display.classify resolution
-              UserAgent.Bot     -> pure $ Display.classify resolution
-              UserAgent.Unknown -> pure $ Display.classify resolution
-          Nothing -> pure NoDisplay
+getRoot :: Env -> Session -> STM Root
+getRoot env s = do
+  (TargetView (AnyTarget tgt) _) <- getCurrentTarget env s
+  fromMaybe (pure $ Root (AbsPath "")) . asum $
+    [ cast tgt <&> \(x :: Target FileSys) -> pure x.root
+    , cast tgt <&> \(_ :: Target S3) -> pure (Root (AbsPath ""))
+    ]
 
 
-      currentDir = do
-        (TargetView _ td) <- currentTarget >>= atomically
-        pure td.currentDir
+getControlPanelState :: AllSelected -> Session -> STM ControlPanelState
+getControlPanelState AllSelected { count } s = do
+  case s.copyState of
+    Paste {}                    -> pure ControlPanelCopied
+    CopySelected {} | count > 0 -> pure ControlPanelSelecting
+    NoCopyPaste {} | count > 0  -> pure ControlPanelSelecting
+    _                           -> pure ControlPanelDefault
 
 
-      sortedFileBy = do
-        (TargetView _ td) <- currentTarget >>= atomically
-        pure td.sortedFileBy
+getTargetViews :: Env -> Session -> STM [TargetView]
+getTargetViews env s = do
+  targets <- readTVar env.targets
+  let tvs = flip mapMaybe targets \(targetId, target) ->
+              case M.lookup targetId s.targets of
+                Just targetData -> pure (TargetView target targetData)
+                Nothing         -> Nothing
+  pure tvs
 
 
-      selected = do
-        (TargetView _ td) <- currentTarget >>= atomically
-        pure td.selected
+setCurrentTarget :: Env -> Session -> TargetId -> STM ()
+setCurrentTarget env s tid = do
+  TargetView target _ <- getCurrentTarget env s
+  targets             <-  readTVar env.targets
+  if getTargetId target == tid
+     then pure ()
+     else do
+       case lookup tid targets of
+         Just _ -> writeTVar s.currentTargetId tid
+         Nothing -> do
+           throwSTM (FilehubError InvalidSession "Invalid session")
 
 
-      root = do
-        (TargetView (AnyTarget tgt) _) <- currentTarget >>= atomically
-        fromMaybe (pure $ Root (AbsPath "")) . asum $
-          [ cast tgt <&> \(x :: Target FileSys) -> pure x.root
-          , cast tgt <&> \(_ :: Target S3) -> pure (Root (AbsPath ""))
-          ]
-
-
-      targetViews = do
-        getSession <- Session.Pool.get sessionId
-        tvar       <- asks (.targets)
-        pure do
-          s <- getSession
-          targets <- readTVar tvar
-          let tvs = flip mapMaybe targets \(targetId, target) ->
-                      case M.lookup targetId s.targets of
-                        Just targetData -> pure (TargetView target targetData)
-                        Nothing         -> Nothing
-          pure tvs
-
-
-      controlPanelState = do
-        AllSelected { count } <- Selected.getAllSelected sessionId
-        copyState             <- get sessionId (.copyState)
-        case copyState of
-          Paste {}                    -> pure ControlPanelCopied
-          CopySelected {} | count > 0 -> pure ControlPanelSelecting
-          NoCopyPaste {} | count > 0  -> pure ControlPanelSelecting
-          _                           -> pure ControlPanelDefault
-
-
-      storage = do
-        (TargetView t _) <- currentTarget >>= atomically
-        let s3Storage   = makeStorageS3 sessionId
-            fileStorage = makeStorageFileSys sessionId
-            onError     = do
-              logAttention_ "[ssshuu] Target error"
-              throwIO (FilehubError TargetError "Invalid target")
-
-
-        fromMaybe onError $ handleTarget t
-          [ targetHandler @FileSys \_ -> pure fileStorage
-          , targetHandler @S3      \_ -> pure s3Storage
-          ]
-
-
-      currentTarget :: Filehub (STM TargetView)
-      currentTarget = do
-        getSession <- Session.Pool.get sessionId
-        tvar       <- asks (.targets)
-        pure do
-          s        <- getSession
-          targets  <- readTVar tvar
-          targetId <- readTVar s.currentTargetId
-
-          let mTargetView = do
-                targetSessionData <- M.lookup targetId s.targets
-                target            <- lookup targetId targets
-                pure (TargetView target targetSessionData)
-
-          case mTargetView of
-            Just tv -> pure tv
-            Nothing -> throwSTM (FilehubError InvalidSession "Invalid session")
-
-      g = Session.Pool.get sessionId >>= atomically
-
-    in SessionGet
-      { currentDir        = currentDir
-      , root              = root
-      , display           = display
-      , sortedFileBy      = sortedFileBy
-      , selected          = selected
-      , resolution        = g <&> (.resolution)
-      , deviceType        = g <&> (.deviceType)
-      , authId            = g <&> (.authId)
-      , sidebarCollapsed  = g <&> (.sidebarCollapsed)
-      , layout            = g <&> (.layout)
-      , theme             = g <&> (.theme)
-      , locale            = g <&> (.locale)
-      , targetViews       = targetViews
-      , copyState         = g <&> (.copyState)
-      , controlPanelState = controlPanelState
-      , sharedLinkPermit  = g <&> (.sharedLinkPermit)
-      , currentTarget     = currentTarget
-      , oidcFlow          = g <&> (.oidcFlow)
-      , notifications     = g <&> (.notifications)
-      , pendingTasks      = g <&> (.pendingTasks)
-      , storage           = storage
-      }
-
-
-newSessionSet :: SessionId -> SessionSet Filehub
-newSessionSet sessionId =
-  let upS :: (Session -> Session) -> Filehub ()
-      upS f =  do
-        stm <- Session.Pool.update sessionId f
-        atomically stm
-
-      upT :: (TargetSessionData -> TargetSessionData) -> Filehub ()
-      upT f = do
-        TargetView target _ <- ((newSessionGet sessionId).currentTarget >>= atomically)
-        let targetId = getTargetId target
-        upS $ \s -> s { targets = M.adjust f targetId s.targets }
-
-      currentDir a = upT (\td -> td { currentDir = a })
-
-      sortedFileBy a = upT (\td -> td { sortedFileBy = a })
-
-      selected a = upT (\td -> td { selected = a })
-
-      authId a = upS (\s -> s { authId = a })
-
-      sidebarCollapsed a = upS (\s -> s { sidebarCollapsed = a })
-
-      layout a = upS (\s -> s { layout = a })
-
-      theme a = upS (\s -> s { theme = a })
-
-      locale a = upS (\s -> s { locale = a })
-
-      resolution a = upS (\s -> s { resolution = a})
-
-      deviceType a = upS (\s -> s { deviceType = a})
-
-      sharedLinkPermit a = upS (\s -> s { sharedLinkPermit = a })
-
-      notifications a = upS (\s -> s { notifications = a })
-
-      oidcFlow a = upS (\s -> s { oidcFlow = a })
-
-      pendingTasks a = upS (\s -> s { pendingTasks = a })
-
-      copyState a = upS (\s -> s { copyState = a })
-
-      currentTarget tid = do
-        getSession <- Session.Pool.get sessionId
-        stm        <- get sessionId (.currentTarget)
-        tvar       <- asks (.targets)
-        pure do
-          s <- getSession
-          TargetView target _ <- stm
-          targets             <-  readTVar tvar
-          if getTargetId target == tid
-             then pure ()
-             else do
-               case lookup tid targets of
-                 Just _ -> writeTVar s.currentTargetId tid
-                 Nothing -> do
-                   throwSTM (FilehubError InvalidSession "Invalid session")
-
-   in
-      SessionSet
-        { currentDir        = currentDir
-        , sortedFileBy      = sortedFileBy
-        , selected          = selected
-        , authId            = authId
-        , sidebarCollapsed  = sidebarCollapsed
-        , resolution        = resolution
-        , deviceType        = deviceType
-        , copyState         = copyState
-        , layout            = layout
-        , theme             = theme
-        , locale            = locale
-        , sharedLinkPermit  = sharedLinkPermit
-        , notifications     = notifications
-        , oidcFlow          = oidcFlow
-        , pendingTasks      = pendingTasks
-        , currentTarget     = currentTarget
-        }
-
+modifyCurrentTarget :: SessionId -> (TargetSessionData -> TargetSessionData) -> Filehub ()
+modifyCurrentTarget sessionId f = do
+  env <- ask
+  modifySession sessionId \s -> do
+    TargetView target _ <- getCurrentTarget env s
+    let targetId = getTargetId target
+    pure $ (s { targets =  M.adjust f targetId s.targets } :: Session)
 
 
 makeStorageDummy :: [(AbsPath, FileWithContent)] -> Storage Filehub
@@ -296,45 +170,6 @@ makeStorageDummy mockFS =
     , upload      = error "not implemented"
     , download    = error "not implemented"
     }
-
-
-makeStorageFileSys :: SessionId -> Storage Filehub
-makeStorageFileSys sessionId =
-  Storage
-    { get         = File.get
-    , read        = File.read
-    , readStream  = File.readStream
-    , ls          = File.ls
-    , cd          = \dir -> do
-                      exists <- doesDirectoryExist (coerce dir)
-                      unless exists do
-                        logAttention "[nmb224] dir doesn't exists:" dir
-                        throwIO (FilehubError InvalidDir "Can't enter, not a directory")
-                      set sessionId (.currentDir) dir
-    , isDirectory = File.isDirectory
-    , write       = File.write
-    , mv          = File.mv
-    , rename      = File.rename
-    , delete      = File.delete
-    , new         = File.new
-    , newFolder   = File.newFolder
-    , lsCwd       = do
-                      currentDir <- get sessionId (.currentDir)
-                      File.lsCwd currentDir
-    , upload      = \filedata -> do
-                      currentDir <- get sessionId (.currentDir)
-                      File.upload currentDir filedata
-    , download    = \clientPath -> do
-                      fileSys <- getFileSys
-                      File.download fileSys clientPath
-    }
-  where
-    getFileSys :: Filehub (Target FileSys)
-    getFileSys = do
-      TargetView target _ <- get sessionId (.currentTarget) >>= atomically
-      maybe (throwIO (FilehubError TargetError "Target is not valid file system direcotry")) pure $ handleTarget target
-        [ targetHandler @FileSys id
-        ]
 
 
 makeStorageS3 :: SessionId -> Storage Filehub
@@ -389,9 +224,11 @@ makeStorageS3 sessionId =
         S3.upload s3 filedata
 
     , download = \clientPath -> do
-        root     <- get sessionId (.root)
-        s3       <- getS3
-        let path =  fromClientPath root clientPath
+        env <- ask
+        s3 <- getS3
+        path <- withSession sessionId \session -> do
+          root <- getRoot env session
+          pure $ fromClientPath root clientPath
         S3.download s3 path
     , isDirectory = \filePath -> do
         s3 <- getS3
@@ -400,44 +237,87 @@ makeStorageS3 sessionId =
   where
     getS3 :: Filehub (Target S3)
     getS3 = do
-      TargetView target _ <- get sessionId (.currentTarget) >>= atomically
-      maybe (throwIO (FilehubError TargetError "Target is not valid S3 bucket")) pure $ handleTarget target
-        [ targetHandler @S3 id
-        ]
+      env <- ask
+      withSession sessionId \s -> do
+        TargetView target _ <- getCurrentTarget env s
+        case handleTarget target [ targetHandler @S3 id ] of
+          Just r  -> pure r
+          Nothing -> throwSTM (FilehubError TargetError "Target is not valid file system direcotry")
 
 
 
-attachTarget :: SessionId -> AnyTarget -> Filehub ()
-attachTarget sessionId target = do
-
-  getCurrentTarget <- get sessionId (.currentTarget)
-
-  update <- Session.Pool.update sessionId \session -> do
-    session { targets = M.insert (getTargetId target) (targetToSessionData target) session.targets
-            }
-
-  atomically do
-    TargetView current _ <- getCurrentTarget
-    if current == target
-       then pure ()
-       else update
 
 
-detachTarget :: HasTargetId t => SessionId -> t -> Filehub ()
-detachTarget sessionId target = do
-  let tid = getTargetId target
-  atomically =<< do
-    Session.Pool.update sessionId \session -> do
-      session { targets = M.delete tid session.targets
-              }
+makeStorageFileSys :: SessionId -> Storage Filehub
+makeStorageFileSys sessionId =
+  Storage
+    { get         = File.get
+    , read        = File.read
+    , readStream  = File.readStream
+    , ls          = File.ls
+    , cd          = \dir -> do
+                      exists <- doesDirectoryExist (coerce dir)
+                      unless exists do
+                        logAttention "[nmb224] dir doesn't exists:" dir
+                        throwIO (FilehubError InvalidDir "Can't enter, not a directory")
+                      modifyCurrentTarget sessionId \td -> td { currentDir = dir }
+    , isDirectory = File.isDirectory
+    , write       = File.write
+    , mv          = File.mv
+    , rename      = File.rename
+    , delete      = File.delete
+    , new         = File.new
+    , newFolder   = File.newFolder
+    , lsCwd       = join do
+                      env <- ask
+                      withSession sessionId \s -> do
+                        TargetView _ td <- getCurrentTarget env s
+                        pure do File.lsCwd td.currentDir
+    , upload      = \filedata -> do
+                      env <- ask
+                      dir <- withSession sessionId \s -> do
+                        TargetView _ td <- getCurrentTarget env s
+                        pure td.currentDir
+                      File.upload dir filedata
+    , download    = \clientPath -> do
+                      fileSys <- getFileSys
+                      File.download fileSys clientPath
+    }
+  where
+    getFileSys :: Filehub (Target FileSys)
+    getFileSys = do
+      env <- ask
+      withSession sessionId \s -> do
+        TargetView target _ <- getCurrentTarget env s
+        case handleTarget target [ targetHandler @FileSys id ] of
+          Just r  -> pure r
+          Nothing -> throwSTM (FilehubError TargetError "Target is not valid file system direcotry")
 
 
 withTarget :: HasTargetId t => SessionId -> t -> Filehub a -> Filehub a
 withTarget sid t action = do
-  getSession  <- Session.Pool.get sid
-  setTargetId <- set sid (.currentTarget) (getTargetId t)
-  oldTid <- atomically do
-    oldS <- getSession
-    setTargetId
-    readTVar oldS.currentTargetId
-  action `finally` ((newSessionSet sid).currentTarget oldTid >>= atomically)
+  env <- ask
+  oldTid <- withSession sid \s -> do
+    setCurrentTarget env s (getTargetId t)
+    readTVar s.currentTargetId
+
+  let cleanup = withSession sid \s -> do
+        setCurrentTarget env s oldTid
+
+  action `finally` cleanup
+
+
+getStorage :: SessionId -> Filehub (Storage Filehub)
+getStorage sessionId = do
+  env <- ask
+  (TargetView t _) <- withSession sessionId \s -> do
+    getCurrentTarget env s
+  let s3Storage   = makeStorageS3 sessionId
+      fileStorage = makeStorageFileSys sessionId
+      onError     = do
+        throwIO (FilehubError TargetError "Invalid target")
+
+  fromMaybe onError $ handleTarget t
+    [ targetHandler @FileSys \_ -> pure fileStorage
+    , targetHandler @S3      \_ -> pure s3Storage
+    ]
