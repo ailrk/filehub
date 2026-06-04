@@ -36,7 +36,7 @@ new = do
       cleanUp = do
         now <- Time.getCurrentTime
         atomically do
-          modifyTVar tvar (M.filter (\session -> now > session.expireDate))
+          modifyTVar tvar (M.filter (\session -> now <= session.expireDate))
 
   gc <- liftIO $ Timer.repeatedTimer cleanUp (Suspend.sDelay 60)
   pure $ Session.Pool tvar gc

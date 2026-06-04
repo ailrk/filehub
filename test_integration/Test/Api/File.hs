@@ -53,7 +53,7 @@ spec = before setup  . after_ teardown . with (Filehub.application <$> defaultEn
           expectationFailure dirStructure
 
     it "paste a dir - dir1 should be pasted into dir2 completely" do
-      postHtmlForm "/table/select" [("selected", "/dir1")] `shouldRespondWith` 200
+      postHtmlForm "/table/select" [("selected", "dir1")] `shouldRespondWith` 200
       get "/files/copy" `shouldRespondWith` 200
       get "/cd?dir=dir2" `shouldRespondWith` 200
       post "/files/paste" "" `shouldRespondWith` 200

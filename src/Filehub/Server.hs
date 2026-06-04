@@ -78,7 +78,7 @@ import Target.Types qualified as Target
 import UnliftIO (try, throwIO)
 import UnliftIO.Exception (SomeException, catch)
 import Web.Cookie (SetCookie (..), defaultSetCookie)
-import Filehub.Session.Pool (withSession_, withSession)
+import Filehub.Session.Pool (withSession_, withSession, extendSession)
 import Control.Monad.Reader (MonadReader(..))
 
 
@@ -244,10 +244,9 @@ changeTarget sessionId _ mTargetId = do
 ------------------------------------
 
 
-
 displayMiddleware :: Env -> Middleware
 displayMiddleware  env app req respond = toIO onErr env do
-  let mCookie    = lookup "Cookie" (requestHeaders req)
+  let mCookie = lookup "Cookie" (requestHeaders req)
   sessionId <- case mCookie >>= parseHeader' >>= Cookies.fromCookies of
                  Just sessionId -> pure sessionId
                  Nothing        -> throwIO (HTTPError (err400 { errBody = [i|Invalid session id|]}))
@@ -292,6 +291,8 @@ displayMiddleware  env app req respond = toIO onErr env do
 
 
 -- | If session is not present, create a new session
+-- If session exists, extend it by adding `env.sessionDuration` to the current
+-- UTCTime.
 sessionMiddleware :: Env -> Middleware
 sessionMiddleware env app req respond = toIO onErr env do
   let mCookie    = lookup "Cookie" (requestHeaders req)
@@ -302,7 +303,8 @@ sessionMiddleware env app req respond = toIO onErr env do
       case eSession of
         Left (FilehubError InvalidSession _) -> respondWithNewSession
         Left err                             -> throwIO err
-        Right _                              -> liftIO $ app req respond
+        Right _                              -> do extendSession sessionId
+                                                   liftIO $ app req respond
 
     Nothing -> do
       logTrace_ [i|[0vz333] No session found.|]
@@ -327,7 +329,6 @@ sessionMiddleware env app req respond = toIO onErr env do
         let res' = mapResponseHeaders (setCookieHeader :) res
          in respond res'
     onErr _ = respond $ responseLBS status500 [] "server error"
-
 
 
 -- | We want to strict all cookies on responds to static files, otherwise CDN will not cache these

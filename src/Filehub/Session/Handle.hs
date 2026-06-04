@@ -108,7 +108,7 @@ getTargetViews env s = do
 setCurrentTarget :: Env -> Session -> TargetId -> STM ()
 setCurrentTarget env s tid = do
   TargetView target _ <- getCurrentTarget env s
-  targets             <-  readTVar env.targets
+  targets             <- readTVar env.targets
   if getTargetId target == tid
      then pure ()
      else do
@@ -243,9 +243,6 @@ makeStorageS3 sessionId =
         case handleTarget target [ targetHandler @S3 id ] of
           Just r  -> pure r
           Nothing -> throwSTM (FilehubError TargetError "Target is not valid file system direcotry")
-
-
-
 
 
 makeStorageFileSys :: SessionId -> Storage Filehub

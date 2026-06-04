@@ -93,8 +93,8 @@ createPasteTasks sessionId fromDir to selections = fmap (mconcat . mconcat) go
 
 paste :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> Filehub (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))
 paste sessionId _ _ = do
-  env             <- ask
-  taskId          <- newTaskId
+  env    <- ask
+  taskId <- newTaskId
 
   ( notifications
     , state
@@ -109,8 +109,8 @@ paste sessionId _ _ = do
          )
 
   -- States
-  pasteCounter    <- newTVarIO @_ @Integer 0
-  lk              <- newEmptyMVar
+  pasteCounter <- newTVarIO @_ @Integer 0
+  lk           <- newEmptyMVar
 
   let
       jot = do
