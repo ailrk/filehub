@@ -534,7 +534,7 @@ editorModal (ClientPath path, filename) content = do
         True -> bold (toHtml modal_readonly)
         False ->  do
           span_ [ class_ "modal-title-bar " ] do
-            bold (toHtml modal_edit)
+            div_ mempty
             bold (toHtml filename)
             div_ [ class_ "modal-title-bar-control " ] do
               div_ [ class_ "btn modal-title-bar-confirm "
