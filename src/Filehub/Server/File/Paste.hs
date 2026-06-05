@@ -8,6 +8,7 @@ import Data.ClientPath (AbsPath (..))
 import Data.ClientPath.IO (validateAbsPath)
 import Data.Coerce (coerce)
 import Data.File (FileType(..), File(..), FileContent (..), withContent, FileInfo, IsLink (..))
+import Data.Maybe (catMaybes)
 import Data.Ratio ((%))
 import Data.String.Interpolate (i)
 import Data.Traversable (for)
@@ -16,7 +17,11 @@ import Filehub.Handler (ConfirmLogin, ConfirmReadOnly)
 import Filehub.Monad
 import Filehub.Notification.Types (Notification(..))
 import Filehub.Server.UI qualified as UI
-import Filehub.Session (SessionId(..), TargetView (..), withTarget, getStorage, getCurrentTarget, getTargetViews)
+import Filehub.Server.Util (throttle)
+import Filehub.Session (Session(..))
+import Filehub.Session (SessionId(..), TargetView (..), getCurrentTarget, getTargetViews, getTarget, makeStorage)
+import Filehub.Session.Pool (withSession, withSession_)
+import Filehub.Session.Selected (AllSelected(..))
 import Filehub.Session.Selected qualified as Selected
 import Filehub.Session.Types (CopyState (..), Storage(..))
 import Filehub.Types (TargetSessionData (..))
@@ -27,48 +32,49 @@ import Prelude hiding (init, readFile)
 import Servant (Header , Headers  , addHeader)
 import System.FilePath (takeFileName, (</>))
 import Target.Types (AnyTarget)
-import UnliftIO (throwIO, newEmptyMVar, takeMVar, putMVar, onException, finally)
+import UnliftIO (throwIO, newEmptyMVar, takeMVar, putMVar, finally, readTVarIO, catch, SomeException)
 import UnliftIO.Async (forConcurrently_)
 import UnliftIO.STM (atomically, modifyTVar', readTVar, newTVarIO, writeTBQueue)
 import Worker.Task (newTaskId)
-import Filehub.Session.Selected (AllSelected(..))
-import Filehub.Server.Util (throttle)
-import Filehub.Session.Pool (withSession, withSession_)
-import Filehub.Session (Session(..))
 
 
 data PasteTask
-  = PasteFile { from  :: AnyTarget
-              , to    :: AnyTarget
-              , file  :: FileInfo
-              , dst   :: AbsPath
+  = PasteFile { from     :: AnyTarget
+              , to       :: AnyTarget
+              , file     :: FileInfo
+              , dst      :: AbsPath
               }
-  | CreateDir { to  :: AnyTarget
-              , dst :: AbsPath
+  | CreateDir { to       :: AnyTarget
+              , dst      :: AbsPath
+              , subTasks :: [PasteTask]
               }
 
 
--- Set the current dir to dir. If an exception happen, this always go back to
+countTasks :: [PasteTask] -> Integer
+countTasks ts = sum (map go ts)
+  where
+    go PasteFile{}            = 1
+    go CreateDir{ subTasks }  = 1 + countTasks subTasks
+
+
+-- Set the current dir to dir. If an exception happens, this always go back to
 -- the original dir.
-withDir :: SessionId -> AbsPath -> Filehub a -> Filehub a
-withDir sessionId dir action = do
-  env <- ask
-  storage <- getStorage sessionId
-  savedDir <- withSession sessionId \s -> do
-    TargetView _ td <- getCurrentTarget env s
-    pure td.currentDir
+withDir :: TargetView -> AbsPath -> (Storage Filehub -> Filehub a) -> Filehub a
+withDir tv@(TargetView _ td) dir action = do
+  storage  <- makeStorage tv
+  savedDir <- readTVarIO td.currentDir
   storage.cd dir
-  action `finally` storage.cd savedDir
+  action storage `finally` storage.cd savedDir
 
 
--- This function is sequentials, it needs to finish completely to start
--- pasting.
+-- This function is sequential, it needs to finish completely to start pasting.
 createPasteTasks :: SessionId -> AbsPath -> AnyTarget -> [(AnyTarget, [File FileType])] -> Filehub [PasteTask]
-createPasteTasks sessionId fromDir to selections = fmap (mconcat . mconcat) go
+createPasteTasks sessionId fromDir to selections = fmap mconcat go
   where
     go = do
+      env <- ask
       for selections \(from, files) -> do
-        for files $ flip fix fromDir \rec (AbsPath currentDir) file -> do
+        tasks <- for files $ flip fix fromDir \rec (AbsPath currentDir) file -> do
 
           let
               name = coerce takeFileName file.path
@@ -77,18 +83,18 @@ createPasteTasks sessionId fromDir to selections = fmap (mconcat . mconcat) go
           dst <- validateAbsPath path (FilehubError InvalidPath "Invalid path")
 
           case file.isLink of
-            BrokenLink -> pure []
+            BrokenLink -> pure Nothing
             _          ->
               case file.content of
-                Regular    -> pure [ PasteFile from to file dst ]
+                Regular    -> pure (Just (PasteFile from to file dst))
 
                 Dir -> do
-                  withTarget sessionId from do
-                    storage <- getStorage sessionId
-                    withDir sessionId file.path do
-                      dirFiles <- storage.lsCwd
-                      result <- for dirFiles \dfile -> rec dst dfile
-                      pure $ [CreateDir to dst] ++ mconcat result
+                  targetView <- withSession sessionId \s -> getTarget env s from
+                  withDir targetView file.path \storage -> do
+                    dirFiles <- storage.lsCwd
+                    result   <- for dirFiles \dfile -> rec dst dfile
+                    pure $ Just (CreateDir to dst (catMaybes result))
+        pure $ catMaybes tasks
 
 
 paste :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> Filehub (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))
@@ -118,53 +124,55 @@ paste sessionId _ _ = do
         readTVar pasteCounter
 
       -- Notify the SSE
-      notify n taskCount = do
+      notify n totalCount = do
         writeTBQueue notifications $ PasteProgressed
           { taskId       = taskId
-          , progress     = (n % max 1 taskCount)
+          , progress     = (n % max 1 totalCount)
           , htmxResponse = Nothing
           }
 
       -- Concurrently paste files
-      doPaste tasks taskCount = do
+      doPaste tasks totalCount = do
+        let localCount = fromIntegral (length tasks)
         forConcurrently_ tasks \task -> do
           case task of
             PasteFile { from, to, file, dst } -> do
 
-              conduit <- withTarget sessionId from do
-                storage <- getStorage sessionId
+              conduit <- do
+                storage <- makeStorage =<< withSession sessionId \s -> getTarget env s from
                 storage.readStream file Nothing Nothing
 
-              withTarget sessionId to do
-                storage <- getStorage sessionId
+              do
+                storage <- makeStorage =<< withSession sessionId \s -> getTarget env s to
                 storage.write (withContent file (FileContentConduit conduit)) { path = dst }
 
               atomically do
                 n <- jot
-                throttle n taskCount do
-                  notify n taskCount
+                throttle n localCount do
+                  notify n totalCount
 
-            CreateDir to dst -> do
-              withTarget sessionId to do
-                storage <- getStorage sessionId
-                void $ storage.newFolder dst
+            CreateDir { to, dst, subTasks } -> do
+              storage <- makeStorage =<< withSession sessionId \s -> getTarget env s to
+              void $ storage.newFolder dst
+              doPaste subTasks totalCount
 
       cleanup = do
         withSession_ sessionId \s -> pure (s { copyState = NoCopyPaste } , ())
         Selected.clearSelectedAllTargets sessionId
         UI.clear sessionId
 
-      handleErr = do
+      handleErr (e :: SomeException) = do
         atomically $
           writeTBQueue notifications $ TaskFailed
             { taskId       = taskId
             , htmxResponse = Nothing
             }
+        throwIO e
 
       go selections = do
-        tasks <- createPasteTasks sessionId sdata.currentDir pasteTo selections
-        let taskCount = fromIntegral (length tasks)
-        doPaste tasks taskCount
+        currentDir' <- readTVarIO sdata.currentDir
+        tasks       <- createPasteTasks sessionId currentDir' pasteTo selections
+        doPaste tasks (countTasks tasks)
 
         view' <- UI.view sessionId
         pure $ Just $ view' `with` [ hxSwapOOB True ]
@@ -174,7 +182,7 @@ paste sessionId _ _ = do
       _ <- takeMVar lk
 
       response <- go selections
-        `onException` handleErr
+        `catch` handleErr
         `finally`  cleanup
 
       withSession sessionId \s -> do
@@ -193,7 +201,7 @@ paste sessionId _ _ = do
   UI.clear sessionId
 
   AllSelected { count } <- withSession sessionId \s -> do
-    Selected.getAllSelected <$> getTargetViews env s
+    Selected.getAllSelected =<< getTargetViews env s
 
   htmx <- mkHtmx sessionId
   _    <- putMVar lk ()

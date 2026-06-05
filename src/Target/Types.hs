@@ -8,6 +8,7 @@ module Target.Types
   , targetHandler
   , runTargetHandler
   , handleTarget
+  , execTarget
   , targetIdBuilder
   )
   where
@@ -26,6 +27,7 @@ import Servant (ToHttpApiData (..), FromHttpApiData (..))
 import Text.Debug (Debug(..))
 import Data.Aeson (FromJSON, ToJSON)
 import GHC.Generics (Generic)
+import Data.Foldable (for_)
 
 
 newtype TargetId = TargetId UUID
@@ -54,6 +56,10 @@ class HasTargetId (Target t) => IsTarget t where
   data family Config t
 
 
+instance HasTargetId TargetId where
+  getTargetId = id
+
+
 -- | Existential wrapper of `Target a`.
 data AnyTarget where
   AnyTarget :: (Typeable a, IsTarget a, Debug (Target a)) => Target a -> AnyTarget
@@ -76,6 +82,17 @@ data TargetHandler r = forall a. (Typeable a) => TargetHandler (Target a -> r)
 
 targetHandler :: forall a r. (Typeable a) => (Target a -> r) -> TargetHandler r
 targetHandler = TargetHandler
+
+
+execTargetHandler :: Monad m => AnyTarget -> TargetHandler (m ()) -> m ()
+execTargetHandler (AnyTarget t) (TargetHandler f) = case cast t of
+                                                      Just t' -> f t'
+                                                      Nothing -> pure ()
+
+
+execTarget :: Monad m => AnyTarget -> [TargetHandler (m ())] -> m ()
+execTarget target handlers = for_ handlers \h -> do
+  execTargetHandler target h
 
 
 runTargetHandler :: AnyTarget -> TargetHandler r -> Maybe r

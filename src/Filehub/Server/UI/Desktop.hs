@@ -22,18 +22,20 @@ import Filehub.Types ( SessionId(..), ClientPath)
 import Lucid
 import Prelude hiding (readFile)
 import System.FilePath (takeFileName)
-import Filehub.Session (TargetView(..), getStorage, getTargetViews, getCurrentTarget)
+import Filehub.Session (TargetView(..), getTargetViews, getCurrentTarget, makeStorageDyn)
 import Data.Coerce (coerce)
 import Filehub.Monad (Filehub)
 import Control.Monad (join)
 import Filehub.Session.Pool (withSession)
 import Control.Monad.Reader (MonadReader(..))
+import UnliftIO (readTVarIO)
+import Data.Traversable (for)
 
 
 fileDetailModal :: SessionId -> Maybe ClientPath -> Filehub (Html ())
 fileDetailModal sessionId mClientPath = do
   ctx@TemplateContext{ root } <- makeTemplateContext sessionId
-  storage    <- getStorage sessionId
+  storage    <- makeStorageDyn sessionId
   clientPath <- withQueryParam mClientPath
   file       <- storage.get (ClientPath.fromClientPath root clientPath)
   pure $ runTemplate ctx (Template.Desktop.fileDetailModal file)
@@ -42,7 +44,7 @@ fileDetailModal sessionId mClientPath = do
 editorModal :: SessionId -> Maybe ClientPath -> Filehub (Html ())
 editorModal sessionId mClientPath = do
   ctx@TemplateContext{ root } <- makeTemplateContext sessionId
-  storage      <- getStorage sessionId
+  storage      <- makeStorageDyn sessionId
   clientPath   <- withQueryParam mClientPath
   let p        =  ClientPath.fromClientPath root clientPath
   file         <- storage.get p
@@ -53,7 +55,7 @@ editorModal sessionId mClientPath = do
 
 contextMenu :: SessionId -> [ClientPath] -> Filehub (Html ())
 contextMenu sessionId clientPaths = do
-  storage <- getStorage sessionId
+  storage <- makeStorageDyn sessionId
   ctx@TemplateContext { root } <- makeTemplateContext sessionId
   case clientPaths of
     [clientPath] -> do
@@ -80,10 +82,11 @@ sideBar sessionId = do
     currentTarget <- getCurrentTarget env s
     pure do
       ctx <- makeTemplateContext sessionId
-      let targets' = flip fmap targetViews \(TargetView target targetData) -> do
-            case targetData.selected of
-              Selected _ sels -> (target, length sels + 1)
-              NoSelection     -> (target, 0)
+      targets'    <- for targetViews \(TargetView target td) -> do
+        selected' <- readTVarIO td.selected
+        case selected' of
+          Selected _ sels -> pure (target, length sels + 1)
+          NoSelection     -> pure (target, 0)
 
       pure $ runTemplate ctx (Template.Desktop.sideBar targets' currentTarget)
 
@@ -91,7 +94,7 @@ sideBar sessionId = do
 view :: SessionId -> Filehub (Html ())
 view sessionId = do
   ctx@TemplateContext { sortedBy = order } <- makeTemplateContext sessionId
-  storage <- getStorage sessionId
+  storage <- makeStorageDyn sessionId
   table <- do
     files <- sortFiles order <$> storage.lsCwd
     pure $ runTemplate ctx (Template.Desktop.table files)

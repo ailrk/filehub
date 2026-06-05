@@ -1,14 +1,16 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Filehub.Session.Handle
   ( getCurrentTarget
+  , getTarget
   , getDisplay
   , getRoot
   , getTargetViews
-  , getStorage
   , getControlPanelState
   , setCurrentTarget
   , modifyCurrentTarget
   , makeStorageDummy
+  , makeStorage
+  , makeStorageDyn
   , withTarget
   )
   where
@@ -17,7 +19,7 @@ import Conduit (yield)
 import Control.Applicative (asum)
 import Control.Concurrent.STM (throwSTM)
 import Control.Handle.Storage (Storage(..))
-import Control.Monad (unless, join)
+import Control.Monad (unless)
 import Control.Monad.Reader (MonadReader (..))
 import Data.ClientPath (AbsPath (..), Root (..))
 import Data.ClientPath (fromClientPath)
@@ -43,25 +45,34 @@ import Prelude hiding (read, readFile, writeFile)
 import Target.File (Target(..), FileSys)
 import Target.S3 (S3)
 import Target.Types (handleTarget, targetHandler, AnyTarget (..), HasTargetId (..), TargetId)
-import UnliftIO (throwIO, finally, writeTVar, STM, readTVar)
+import UnliftIO (throwIO, finally, writeTVar, STM, readTVar, TVar, atomically, newTVar)
 import UnliftIO.Directory (doesDirectoryExist)
 import Filehub.Session.Pool (withSession, modifySession)
 import Filehub.Session.Selected (AllSelected (..))
 
 
-getCurrentTarget :: Env -> Session -> STM TargetView
-getCurrentTarget env s = do
+getTarget :: HasTargetId t => Env -> Session -> t -> STM TargetView
+getTarget env s t = do
   targets  <- readTVar env.targets
-  targetId <- readTVar s.currentTargetId
 
-  let mTargetView = do
+  let
+      targetId = getTargetId t
+
+      mTargetView = do
         targetSessionData <- M.lookup targetId s.targets
         target            <- lookup targetId targets
         pure (TargetView target targetSessionData)
 
-  case mTargetView of
-    Just tv -> pure tv
-    Nothing -> throwSTM (FilehubError InvalidSession "Invalid session")
+   in
+      case mTargetView of
+        Just tv -> pure tv
+        Nothing -> throwSTM (FilehubError InvalidSession "Invalid session")
+
+
+getCurrentTarget :: Env -> Session -> STM TargetView
+getCurrentTarget env s = do
+  targetId <- readTVar s.currentTargetId
+  getTarget env s targetId
 
 
 getDisplay :: Session -> STM Display
@@ -172,8 +183,8 @@ makeStorageDummy mockFS =
     }
 
 
-makeStorageS3 :: SessionId -> Storage Filehub
-makeStorageS3 sessionId =
+makeStorageS3 :: AnyTarget -> Storage Filehub
+makeStorageS3 target =
   Storage
     { get = \path -> do
         s3 <- getS3
@@ -224,12 +235,8 @@ makeStorageS3 sessionId =
         S3.upload s3 filedata
 
     , download = \clientPath -> do
-        env <- ask
         s3 <- getS3
-        path <- withSession sessionId \session -> do
-          root <- getRoot env session
-          pure $ fromClientPath root clientPath
-        S3.download s3 path
+        S3.download s3 (fromClientPath (Root (AbsPath "")) clientPath)
     , isDirectory = \filePath -> do
         s3 <- getS3
         S3.isDirectory s3 filePath
@@ -237,16 +244,13 @@ makeStorageS3 sessionId =
   where
     getS3 :: Filehub (Target S3)
     getS3 = do
-      env <- ask
-      withSession sessionId \s -> do
-        TargetView target _ <- getCurrentTarget env s
-        case handleTarget target [ targetHandler @S3 id ] of
-          Just r  -> pure r
-          Nothing -> throwSTM (FilehubError TargetError "Target is not valid file system direcotry")
+      case handleTarget target [ targetHandler @S3 id ] of
+        Just r  -> pure r
+        Nothing -> throwIO (FilehubError TargetError "Target is not valid file system direcotry")
 
 
-makeStorageFileSys :: SessionId -> Storage Filehub
-makeStorageFileSys sessionId =
+makeStorageFileSys :: AnyTarget -> TVar AbsPath -> Storage Filehub
+makeStorageFileSys target currentDir =
   Storage
     { get         = File.get
     , read        = File.read
@@ -257,7 +261,7 @@ makeStorageFileSys sessionId =
                       unless exists do
                         logAttention "[nmb224] dir doesn't exists:" dir
                         throwIO (FilehubError InvalidDir "Can't enter, not a directory")
-                      modifyCurrentTarget sessionId \td -> td { currentDir = dir }
+                      atomically do writeTVar currentDir dir
     , isDirectory = File.isDirectory
     , write       = File.write
     , mv          = File.mv
@@ -265,30 +269,45 @@ makeStorageFileSys sessionId =
     , delete      = File.delete
     , new         = File.new
     , newFolder   = File.newFolder
-    , lsCwd       = join do
-                      env <- ask
-                      withSession sessionId \s -> do
-                        TargetView _ td <- getCurrentTarget env s
-                        pure do File.lsCwd td.currentDir
-    , upload      = \filedata -> do
-                      env <- ask
-                      dir <- withSession sessionId \s -> do
-                        TargetView _ td <- getCurrentTarget env s
-                        pure td.currentDir
-                      File.upload dir filedata
-    , download    = \clientPath -> do
-                      fileSys <- getFileSys
-                      File.download fileSys clientPath
+    , lsCwd       = atomically (readTVar currentDir) >>= File.lsCwd
+    , upload      = \filedata -> atomically (readTVar currentDir) >>= flip File.upload filedata
+    , download    = \clientPath -> getFileSys >>= flip File.download clientPath
     }
   where
     getFileSys :: Filehub (Target FileSys)
     getFileSys = do
-      env <- ask
-      withSession sessionId \s -> do
-        TargetView target _ <- getCurrentTarget env s
-        case handleTarget target [ targetHandler @FileSys id ] of
-          Just r  -> pure r
-          Nothing -> throwSTM (FilehubError TargetError "Target is not valid file system direcotry")
+      case handleTarget target [ targetHandler @FileSys id ] of
+        Just r  -> pure r
+        Nothing -> throwIO (FilehubError TargetError "Target is not valid file system direcotry")
+
+
+makeStorage' :: AnyTarget -> TVar AbsPath -> Filehub (Storage Filehub)
+makeStorage' target currentDir = do
+  let s3Storage   = makeStorageS3 target
+      fileStorage = makeStorageFileSys target currentDir
+      onError     = do
+        throwIO (FilehubError TargetError "Invalid target")
+
+  fromMaybe onError $ handleTarget target
+    [ targetHandler @FileSys \_ -> pure fileStorage
+    , targetHandler @S3      \_ -> pure s3Storage
+    ]
+
+
+makeStorage :: TargetView -> Filehub (Storage Filehub)
+makeStorage (TargetView target td) = do
+  currentDir <- atomically do
+    cd <- readTVar td.currentDir
+    newTVar cd
+  makeStorage' target currentDir
+
+
+makeStorageDyn :: SessionId -> Filehub (Storage Filehub)
+makeStorageDyn sessionId = do
+  env <- ask
+  TargetView target td <- withSession sessionId \s -> do
+    getCurrentTarget env s
+  makeStorage' target td.currentDir
 
 
 withTarget :: HasTargetId t => SessionId -> t -> Filehub a -> Filehub a
@@ -302,19 +321,3 @@ withTarget sid t action = do
         setCurrentTarget env s oldTid
 
   action `finally` cleanup
-
-
-getStorage :: SessionId -> Filehub (Storage Filehub)
-getStorage sessionId = do
-  env <- ask
-  (TargetView t _) <- withSession sessionId \s -> do
-    getCurrentTarget env s
-  let s3Storage   = makeStorageS3 sessionId
-      fileStorage = makeStorageFileSys sessionId
-      onError     = do
-        throwIO (FilehubError TargetError "Invalid target")
-
-  fromMaybe onError $ handleTarget t
-    [ targetHandler @FileSys \_ -> pure fileStorage
-    , targetHandler @S3      \_ -> pure s3Storage
-    ]

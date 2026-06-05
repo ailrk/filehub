@@ -48,7 +48,7 @@ import Filehub.Server.File.Paste (paste)
 import Filehub.Server.File.Delete (delete)
 import Filehub.Server.UI qualified as UI
 import Filehub.Server.Util (withQueryParam)
-import Filehub.Session (SessionId(..), Session(..), Storage(..), getStorage, getRoot, TargetView (..), getCurrentTarget)
+import Filehub.Session (SessionId(..), Session(..), Storage(..), getRoot, TargetView (..), getCurrentTarget, makeStorageDyn)
 import Filehub.Session.Copy qualified as Copy
 import Filehub.Session.Types (Selected(..))
 import Filehub.Sort qualified as Sort
@@ -67,19 +67,18 @@ import System.FilePath (takeFileName, (</>), makeRelative, takeDirectory)
 import System.IO.Temp qualified as Temp
 import System.Random (randomRIO)
 import Text.Printf (printf)
-import UnliftIO (throwIO, try, newEmptyMVar, takeMVar, putMVar)
+import UnliftIO (throwIO, try, newEmptyMVar, takeMVar, putMVar, writeTVar)
 import UnliftIO.Async (forConcurrently_)
 import UnliftIO.STM (atomically, modifyTVar', readTVar, newTVarIO, writeTBQueue)
 import Worker.Task (newTaskId)
 import Filehub.Session.Pool (withSession)
 import Filehub.Session.Types (TargetSessionData(..))
-import Filehub.Session.Handle (modifyCurrentTarget)
 
 
 cd :: SessionId -> ConfirmLogin -> Maybe ClientPath -> Filehub (Headers '[ Header "HX-Trigger-After-Swap" FilehubEvent ] (Html ()))
 cd sessionId _ mClientPath = do
   root       <- withSession sessionId . getRoot =<< ask
-  storage    <- getStorage sessionId
+  storage    <- makeStorageDyn sessionId
   clientPath <- withQueryParam mClientPath
   storage.cd (ClientPath.fromClientPath root clientPath)
   html <- do
@@ -94,7 +93,7 @@ cd sessionId _ mClientPath = do
 rename :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> RenameFile
   -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
 rename sessionId _ _ (RenameFile old new) = do
-  storage <- getStorage sessionId
+  storage <- makeStorageDyn sessionId
   root    <- withSession sessionId . getRoot =<< ask
   storage.rename
     (ClientPath.fromClientPath root old)
@@ -105,7 +104,7 @@ rename sessionId _ _ (RenameFile old new) = do
 
 updateFile :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> UpdatedFile -> Filehub (Html ())
 updateFile sessionId _ _ (UpdatedFile clientPath content) = do
-  storage <- getStorage sessionId
+  storage <- makeStorageDyn sessionId
   root    <- withSession sessionId . getRoot =<< ask
   let path  = ClientPath.fromClientPath root clientPath
   storage.write $ defaultFileWithContent
@@ -118,17 +117,16 @@ updateFile sessionId _ _ (UpdatedFile clientPath content) = do
 newFile' :: SessionId -> Text -> (AbsPath -> Filehub FileInfo) -> Filehub (Html ())
 newFile' sessionId name create = do
   env     <- ask
-  storage <- getStorage sessionId
+  storage <- makeStorageDyn sessionId
 
   (dir, order, root) <- withSession sessionId \s -> do
     TargetView _ td
          <- getCurrentTarget env s
-    root <- getRoot env s
+    root  <- getRoot env s
+    dir   <- readTVar td.currentDir
+    order <- readTVar td.sortedFileBy
 
-    pure ( td.currentDir
-         , td.sortedFileBy
-         , root
-         )
+    pure ( dir, order, root)
 
   path    <- validateAbsPath (coerce dir </> T.unpack name) (FilehubError InvalidPath ("<redacted>/" <> show name))
   file    <- create path
@@ -155,13 +153,13 @@ newFile' sessionId name create = do
 
 newFile :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> NewFile -> Filehub (Html ())
 newFile sessionId _ _ (NewFile name) = do
-  storage   <- getStorage sessionId
+  storage   <- makeStorageDyn sessionId
   newFile' sessionId name storage.new
 
 
 newFolder :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> NewFolder -> Filehub (Html ())
 newFolder sessionId _ _ (NewFolder name) = do
-  storage   <- getStorage sessionId
+  storage   <- makeStorageDyn sessionId
   newFile' sessionId name storage.newFolder
 
 
@@ -174,11 +172,14 @@ copy sessionId _ _ = do
 
 copy1 :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> Maybe ClientPath -> Filehub (Html ())
 copy1 sessionId _ _ mClientPath = do
+  env        <- ask
   clientPath <- withQueryParam mClientPath
   UI.clear sessionId
-  modifyCurrentTarget sessionId \td ->
-    td { selected = (Selected clientPath [])
-       }
+
+  withSession sessionId \s -> do
+    TargetView _ td <- getCurrentTarget env s
+    writeTVar td.selected (Selected clientPath [])
+
   Copy.select sessionId
   Copy.copy sessionId
   UI.index sessionId
@@ -188,7 +189,7 @@ move :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> MoveFile
      -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
 move sessionId _ _ (MoveFile src tgt) = do
   env     <- ask
-  storage <- getStorage sessionId
+  storage <- makeStorageDyn sessionId
 
   (notifications, root) <- withSession sessionId \s -> do
     root <- getRoot env s
@@ -263,7 +264,7 @@ download :: SessionId -> ConfirmLogin -> [ClientPath]
          -> Filehub (Headers '[ Header "Content-Disposition" String ] (ConduitT () ByteString (ResourceT IO) ()))
 download sessionId _ clientPaths = do
   env     <- ask
-  storage <- getStorage sessionId
+  storage <- makeStorageDyn sessionId
   root    <- withSession sessionId (getRoot env)
 
   case clientPaths of
@@ -332,7 +333,7 @@ upload sessionId _ _ multipart = do
         , htmxResponse = Nothing
         }
 
-    storage   <- getStorage sessionId
+    storage   <- makeStorageDyn sessionId
     forConcurrently_ multipart.files \filedata -> do
       storage.upload filedata
       atomically do
@@ -370,7 +371,7 @@ serve env sessionId _ = Tagged $ \req respond -> do
   -- Lookup the file
   res <- runFilehub env do
     root       <- withSession sessionId (getRoot env)
-    storage    <- getStorage sessionId
+    storage    <- makeStorageDyn sessionId
     clientPath <- do
       text <- T.decodeUtf8 <$> withQueryParam mFile
       case parseUrlPiece @ClientPath text of
@@ -432,7 +433,7 @@ thumbnail :: SessionId -> ConfirmLogin -> Maybe ClientPath
                                ]
                                (ConduitT () ByteString (ResourceT IO) ()))
 thumbnail sessionId _ mFile = do
-  storage    <- getStorage sessionId
+  storage    <- makeStorageDyn sessionId
   root       <- withSession sessionId . getRoot =<< ask
   clientPath <- withQueryParam mFile
   let path   =  ClientPath.fromClientPath root clientPath

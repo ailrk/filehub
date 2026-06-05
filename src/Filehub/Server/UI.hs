@@ -52,9 +52,8 @@ import Filehub.Orphan ()
 import Filehub.Server.UI.Desktop qualified as Server.Desktop
 import Filehub.Server.UI.Mobile qualified as Server.Mobile
 import Filehub.Server.Util (withQueryParam)
-import Filehub.Session (TargetView (..), getDisplay, getRoot, getTargetViews, getStorage, getCurrentTarget)
+import Filehub.Session (TargetView (..), getDisplay, getRoot, getTargetViews, getCurrentTarget, makeStorageDyn)
 import Filehub.Session.Copy qualified as Copy
-import Filehub.Session.Handle (modifyCurrentTarget)
 import Filehub.Session.Pool (withSession, withSession_, modifySession)
 import Filehub.Session.Selected (AllSelected(..))
 import Filehub.Session.Selected qualified as Selected
@@ -75,7 +74,7 @@ import Prelude hiding (elem, readFile, init)
 import Prelude hiding (init, readFile)
 import Servant (Header , Headers  , addHeader, NoContent (..)         )
 import System.FilePath (takeDirectory)
-import UnliftIO (throwIO)
+import UnliftIO (throwIO, writeTVar, readTVar)
 
 
 -- | Completely reset all state machines. This should be the only place to reset state.
@@ -203,9 +202,10 @@ selectLayout sessionId _ layout = do
 
 sortTable :: SessionId -> ConfirmLogin -> Maybe SortFileBy -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
 sortTable sessionId _ order = do
-  modifyCurrentTarget sessionId \td ->
-    td { sortedFileBy = (fromMaybe ByNameUp order)
-       }
+  env <- ask
+  withSession sessionId \s -> do
+    TargetView _ td <- getCurrentTarget env s
+    writeTVar td.sortedFileBy (fromMaybe ByNameUp order)
   html <- do index sessionId
   pure $ addHeader TableSorted html
 
@@ -253,17 +253,18 @@ selectRows sessionId _ selected = do
 
   case selected of
     NoSelection -> do
-      modifyCurrentTarget sessionId \td ->
-        td { selected = NoSelection
-           }
+      withSession sessionId \s -> do
+        TargetView _ td <- getCurrentTarget env s
+        writeTVar td.selected NoSelection
 
     _ -> do
-      modifyCurrentTarget sessionId \td ->
-        td { selected = td.selected <> selected
-           }
+      withSession sessionId \s -> do
+        TargetView _ td <- getCurrentTarget env s
+        writeTVar td.selected selected
+
 
   AllSelected { count } <- withSession sessionId \s -> do
-    Selected.getAllSelected <$> getTargetViews env s
+    Selected.getAllSelected =<< getTargetViews env s
 
   htmx <- mkHTMX
   pure $ addHeader count htmx
@@ -277,11 +278,12 @@ initViewer :: SessionId -> ConfirmLogin -> Maybe ClientPath
            -> Filehub (Headers '[Header "HX-Trigger" FilehubEvent] NoContent)
 initViewer sessionId _ mClientPath = do
   env <- ask
-  storage <- getStorage sessionId
+  storage <- makeStorageDyn sessionId
   (root, order) <- withSession sessionId \s -> do
-    root <- getRoot env s
     TargetView _ td <- getCurrentTarget env s
-    pure (root, td.sortedFileBy)
+    root            <- getRoot env s
+    order           <- readTVar td.sortedFileBy
+    pure (root, order)
 
   clientPath <- withQueryParam mClientPath
   payload <- do
@@ -319,12 +321,12 @@ open _ _ mTarget mClientPath = do
 cancel :: SessionId -> ConfirmLogin -> Filehub (Headers '[Header "X-Filehub-Selected-Count" Int] (Html ()))
 cancel sessionId _ = do
   env <- ask
-  storage <- getStorage sessionId
+  storage <- makeStorageDyn sessionId
   join $ withSession sessionId \s -> do
     AllSelected
       { count
       , allSelected
-      }                   <- Selected.getAllSelected <$> getTargetViews env s
+      }                   <- Selected.getAllSelected =<< getTargetViews env s
 
     TargetView { target } <- getCurrentTarget env s
     root                  <- getRoot env s

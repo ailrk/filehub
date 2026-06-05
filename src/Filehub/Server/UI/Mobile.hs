@@ -13,7 +13,7 @@ import Data.ClientPath qualified as ClientPath
 import Filehub.Env qualified as Env
 import Filehub.Server.Util (withQueryParam)
 import Filehub.Template (makeTemplateContext, runTemplate, TemplateContext(..))
-import Filehub.Session (SessionId, getTargetViews, getCurrentTarget, getRoot, getStorage)
+import Filehub.Session (SessionId, Storage(..), getTargetViews, getCurrentTarget, getRoot, makeStorageDyn)
 import Filehub.Session.Selected qualified as Selected
 import Filehub.Sort (sortFiles)
 import Filehub.Template.Mobile qualified as Template.Mobile
@@ -24,11 +24,10 @@ import System.FilePath (takeFileName)
 import Data.Coerce (coerce)
 import Filehub.Monad (Filehub)
 import Control.Monad.Reader (asks, MonadReader (..))
-import UnliftIO.STM (readTVar)
+import UnliftIO.STM (readTVar, atomically)
 import Filehub.Session.Selected (AllSelected(..))
 import Filehub.Session.Pool (withSession)
 import Control.Monad (join)
-import Filehub.Session (Storage(..))
 
 
 index :: SessionId -> Filehub (Html ())
@@ -40,7 +39,8 @@ index sessionId = do
   toolBar'    <- toolBar sessionId
   targetViews <- withSession sessionId \s -> getTargetViews env s
 
-  let AllSelected {count} = Selected.getAllSelected targetViews
+  AllSelected {count} <- atomically do
+    Selected.getAllSelected targetViews
 
   pure $ runTemplate ctx (Template.Mobile.index sideBar' toolBar' view' count)
 
@@ -67,7 +67,7 @@ editorModal sessionId mClientPath = do
   join $ withSession sessionId \s -> do
     root    <- getRoot env s
     pure do
-      storage      <- getStorage sessionId
+      storage      <- makeStorageDyn sessionId
       ctx          <- makeTemplateContext sessionId
       clientPath   <- withQueryParam mClientPath
       let p        =  ClientPath.fromClientPath root clientPath
@@ -79,7 +79,7 @@ editorModal sessionId mClientPath = do
 
 view :: SessionId -> Filehub (Html ())
 view sessionId = do
-  storage <- getStorage sessionId
+  storage <- makeStorageDyn sessionId
   ctx@TemplateContext{ sortedBy = order } <- makeTemplateContext sessionId
   table <- do
     files   <- sortFiles order <$> storage.lsCwd

@@ -1,31 +1,28 @@
 module Filehub.Session.Internal
   ( createSession
   , extendSession
-  , targetToSessionData
   )
   where
 
 import Control.Monad.Reader (asks)
 import Data.ClientPath (AbsPath(..), Root(..))
 import Data.Coerce (coerce)
-import Data.Functor ((<&>))
-import Data.Map.Strict qualified as M
-import Data.Maybe (fromMaybe)
+import Data.Map qualified as M
+import Data.Map.Strict (Map)
 import Data.Set qualified as Set
 import Data.Time (UTCTime, addUTCTime, NominalDiffTime)
 import Data.Time qualified as Time
-import Data.Typeable (cast)
+import Data.Traversable (for)
 import Data.UUID.V4 qualified as UUID
 import Filehub.Monad (Filehub)
 import Filehub.Session.Types (Session(..), TargetSessionData(..), Selected (..), CopyState (..), Layout (..))
 import Filehub.Session.Types.SessionId (SessionId(..))
 import Filehub.Types (SortFileBy (..), Env(..))
 import Filehub.UserAgent qualified as UserAgent
-import Options.Applicative (asum)
-import Target.File (FileSys, Target(..))
-import Target.S3 (S3)
-import Target.Types (AnyTarget (..))
-import UnliftIO (MonadIO(..))
+import Target.File (FileSys)
+import Target.File (Target(..))
+import Target.Types (AnyTarget (..), TargetId, execTarget, targetHandler, IsTarget (..))
+import UnliftIO (MonadIO(..), atomically, writeTVar)
 import UnliftIO.STM (newTBQueueIO, newTVarIO, readTVarIO)
 
 
@@ -42,14 +39,15 @@ createExpireDate = do
 
 createSession :: Filehub Session
 createSession = do
-  targets         <- asks (.targets) >>= readTVarIO
+  ts              <- asks (.targets) >>= readTVarIO
   theme           <- asks (.theme)
   locale          <- asks (.locale)
   sessionId       <- createSessionId
   expireDate      <- createExpireDate
   notifications   <- liftIO (newTBQueueIO 16)
   pendingTasks    <- newTVarIO Set.empty
-  currentTargetId <- newTVarIO (fst (head targets))
+  currentTargetId <- newTVarIO . fst . head $ ts
+  targets         <- createTargets ts
   pure Session
     { sessionId         = sessionId
     , authId            = Nothing
@@ -57,7 +55,7 @@ createSession = do
     , resolution        = Nothing
     , deviceType        = UserAgent.Unknown
     , expireDate        = expireDate
-    , targets           = targetToSessionData <$> M.fromList targets
+    , targets           = targets -- targetToSessionData <$> M.fromList targets
     , copyState         = NoCopyPaste
     , currentTargetId   = currentTargetId
     , sidebarCollapsed  = False
@@ -70,19 +68,24 @@ createSession = do
     }
 
 
-targetToSessionData :: AnyTarget -> TargetSessionData
-targetToSessionData (AnyTarget target) =
-  fromMaybe defaultTargetSessionData . asum $
-    [ cast target <&> \(x :: Target FileSys) -> defaultTargetSessionData { currentDir = coerce x.root }
-    , cast target <&> \(_ :: Target S3)      -> defaultTargetSessionData
-    ]
+createTargets :: [(TargetId, AnyTarget)] -> Filehub (Map TargetId TargetSessionData)
+createTargets ts = do
+  tds <- for ts \(tid, t) -> do
+    td <- mkDef
+    _ <- execTarget t
+      [ targetHandler @FileSys \(x :: Target FileSys) -> do
+          atomically do
+            writeTVar td.currentDir (coerce x.root)
+      ]
+    pure (tid, td)
+  pure $ M.fromList tds
+
   where
-    defaultTargetSessionData =
-      TargetSessionData
-        { currentDir   = AbsPath ""
-        , sortedFileBy = ByModifiedDown
-        , selected     = NoSelection
-        }
+    mkDef = do
+      currentDir   <- newTVarIO (AbsPath "")
+      sortedFileBy <- newTVarIO ByModifiedDown
+      selected     <- newTVarIO NoSelection
+      pure TargetSessionData {..}
 
 
 extendSession :: NominalDiffTime -> Session -> Session

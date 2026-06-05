@@ -12,7 +12,6 @@ module Filehub.Session.Selected
 
 import Data.ClientPath (ClientPath)
 import Data.List (union)
-import Data.Map.Strict qualified as M
 import Data.Monoid (Sum(..))
 import Filehub.Monad (Filehub)
 import Filehub.Session.Types (Selected(..), TargetView (..), TargetSessionData (..))
@@ -21,7 +20,11 @@ import Filehub.Types (SessionId)
 import Prelude hiding (elem)
 import Prelude qualified
 import Target.Types (AnyTarget)
-import Filehub.Session.Pool (modifySession)
+import Filehub.Session.Pool (withSession)
+import UnliftIO (STM, readTVar, modifyTVar)
+import Data.Traversable (for)
+import Data.Foldable (for_)
+import Data.Maybe (catMaybes)
 
 
 toList :: Selected -> [ClientPath]
@@ -54,19 +57,20 @@ data AllSelected = AllSelected
 
 
 -- | Get all selected files grouped by targets
-getAllSelected :: [TargetView] -> AllSelected
-getAllSelected targetViews =
-  let
-      content = [ (target, selected)
-                | tv@(TargetView target (TargetSessionData { selected })) <- targetViews
-                , hasSelection tv
-                ]
+getAllSelected :: [TargetView] -> STM AllSelected
+getAllSelected targetViews = do
+  mContent <- for targetViews \(TargetView t (TargetSessionData { selected })) -> do
+    selected' <- readTVar selected
+    case selected' of
+      NoSelection -> pure Nothing
+      _           -> pure (Just (t, selected'))
 
-   in
-      AllSelected
-        { allSelected = content
-        , count       = totalSelected content
-        }
+  let content = catMaybes mContent
+  pure
+    AllSelected
+      { allSelected = content
+      , count       = totalSelected content
+      }
 
 
 totalSelected :: [(AnyTarget, Selected)] -> Int
@@ -78,16 +82,7 @@ totalSelected as = do
       result
 
 
-hasSelection :: TargetView -> Bool
-hasSelection TargetView { sessionData = TargetSessionData { selected } }
-  | NoSelection <- selected = False
-  | otherwise               = True
-
-
 clearSelectedAllTargets :: SessionId -> Filehub ()
-clearSelectedAllTargets sessionId = modifySession sessionId \s ->  do
-    let
-        targets    = s.targets
-        newTargets = M.map (\t -> t { selected = NoSelection } :: TargetSessionData) targets
-     in
-        pure s { targets = newTargets }
+clearSelectedAllTargets sessionId = withSession sessionId \s ->  do
+  for_ s.targets \t -> do
+    modifyTVar t.selected (const NoSelection)

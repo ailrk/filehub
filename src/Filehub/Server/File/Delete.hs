@@ -15,7 +15,7 @@ import Filehub.Monad
 import Filehub.Notification.Types (Notification(..))
 import Filehub.Orphan ()
 import Filehub.Server.UI qualified as UI
-import Filehub.Session (SessionId(..), Session(..), withTarget, getRoot, getStorage, getTargetViews)
+import Filehub.Session (SessionId(..), Session(..), getRoot, getTargetViews, makeStorageDyn, getTarget, makeStorage)
 import Filehub.Session.Selected qualified as Selected
 import Filehub.Session.Selected (AllSelected(..))
 import Filehub.Session.Types (Selected(..), Storage(..))
@@ -44,14 +44,12 @@ delete :: SessionId -> ConfirmLogin -> ConfirmReadOnly
 delete sessionId _ _ clientPaths deleteSelected = do
   taskId    <- newTaskId
   env       <- ask
-  storage   <- getStorage sessionId
-
   ( notifications
     , root
     , AllSelected { count , allSelected }
     ) <- withSession sessionId \s -> do
-    root          <- getRoot env s
-    allSelected   <- Selected.getAllSelected <$> getTargetViews env s
+    root        <- getRoot env s
+    allSelected <- Selected.getAllSelected =<< getTargetViews env s
     pure ( s.notifications
          , root
          , allSelected
@@ -88,17 +86,21 @@ delete sessionId _ _ clientPaths deleteSelected = do
 
       doDelete = do
         -- Delete from parameters
-        forConcurrently_ clientPaths \clientPath -> do
-          let ClientPathView { path } = asClientPathView root clientPath
-          storage.delete path
-          atomically do
-            n <- jot clientPath
-            throttle n total do
-              notify n
+        do
+           storage <- makeStorageDyn sessionId
+           forConcurrently_ clientPaths \clientPath -> do
+             let ClientPathView { path } = asClientPathView root clientPath
+             storage.delete path
+             atomically do
+               n <- jot clientPath
+               throttle n total do
+                 notify n
 
         -- Delete all selected files
         when deleteSelected do
-          for_ allSelected \(target, selected) -> withTarget sessionId target do
+          for_ allSelected \(target, selected) -> do
+            storage <- makeStorage =<< withSession sessionId \s -> getTarget env s target
+
             case selected of
               NoSelection   -> pure ()
 
@@ -146,7 +148,7 @@ delete sessionId _ _ clientPaths deleteSelected = do
   UI.clear sessionId
 
   AllSelected { count = newCount } <- withSession sessionId \s -> do
-      Selected.getAllSelected <$> getTargetViews env s
+      Selected.getAllSelected =<< getTargetViews env s
 
   htmx <- mkHtmx sessionId
   putMVar lk ()

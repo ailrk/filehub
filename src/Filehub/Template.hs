@@ -25,6 +25,7 @@ import Filehub.Session.Pool (withSession)
 import Filehub.Session.Handle (getDisplay, getControlPanelState)
 import Filehub.Session.Types (TargetSessionData(..))
 import Filehub.Session.Selected (getAllSelected)
+import UnliftIO (readTVar)
 
 
 -- | A Template context type that capture all useful information to render
@@ -74,7 +75,11 @@ makeTemplateContext sessionId = do
     root          <- getRoot env s
     currentTarget <- getCurrentTarget env s
     targetViews   <- getTargetViews env s
-    state         <- getControlPanelState (getAllSelected targetViews) s
+    allSelected   <- getAllSelected targetViews
+    state         <- getControlPanelState allSelected s
+    sortedBy      <- readTVar currentTarget.sessionData.sortedFileBy
+    selected      <- readTVar currentTarget.sessionData.selected
+    currentDir    <- readTVar currentTarget.sessionData.currentDir
     pure TemplateContext
       { readOnly           = readOnly
       , noLogin            = noLogin
@@ -82,12 +87,12 @@ makeTemplateContext sessionId = do
       , sidebarCollapsed   = s.sidebarCollapsed
       , layout             = s.layout
       , theme              = s.theme
-      , sortedBy           = currentTarget.sessionData.sortedFileBy
-      , selected           = currentTarget.sessionData.selected
+      , sortedBy           = sortedBy
+      , selected           = selected
       , state              = state
       , root               = root
       , locale             = s.locale
-      , currentDir         = currentTarget.sessionData.currentDir
+      , currentDir         = currentDir
       , currentTarget      = currentTarget
       , simpleAuthUserDB   = simpleAuthUserDB
       , oidcAuthProviders  = oidcAuthProviders

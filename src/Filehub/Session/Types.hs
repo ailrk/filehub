@@ -139,12 +139,12 @@ data TargetView = TargetView
   { target      :: AnyTarget
   , sessionData :: TargetSessionData
   }
-  deriving (Generic, Debug)
+  deriving (Generic)
 
 
 data TargetSessionData = TargetSessionData
-  { currentDir   :: AbsPath
-  , sortedFileBy :: SortFileBy
-  , selected     :: Selected
+  { currentDir   :: TVar AbsPath
+  , sortedFileBy :: TVar SortFileBy
+  , selected     :: TVar Selected
   }
-  deriving (Generic, Debug)
+  deriving (Generic)

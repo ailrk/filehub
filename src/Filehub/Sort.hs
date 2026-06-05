@@ -56,7 +56,6 @@ byFileNamewithDirFirst file = do
   (file.content, pre : name)
 
 
-
 sortFiles :: SortFileBy -> [FileInfo] -> [FileInfo]
 sortFiles ByNameUp       = sortOn byFileNamewithDirFirst
 sortFiles ByNameDown     = reverse . sortFiles ByNameUp

@@ -19,7 +19,7 @@ import Filehub.Session.Selected qualified as Selected
 import Filehub.Session.Types (Selected(..), SessionId, CopyState (..))
 import Target.Types qualified as Target
 import Filehub.Session.Pool (withSession, modifySession, withSession_)
-import Filehub.Session (Session(..), getTargetViews, withTarget, getStorage, getRoot)
+import Filehub.Session (Session(..), getTargetViews, getRoot, makeStorage, getTarget)
 import Control.Monad.Reader (MonadReader(ask))
 import Control.Concurrent.STM (throwSTM)
 
@@ -34,30 +34,32 @@ select sessionId = do
   env <- ask
   AllSelected { allSelected } <- withSession sessionId \s -> do
     targetViews <- getTargetViews env s
-    pure $ Selected.getAllSelected targetViews
+    Selected.getAllSelected targetViews
 
   forM_ allSelected \(target, selected) -> do
-    withTarget sessionId target do
-      paths <- withSession_ sessionId \s -> do
-        case selected of
-          NoSelection -> do
-            case onNoSelection s.copyState of
-              Right (Just state') -> pure (s { copyState = state' }, mempty)
-              Right Nothing       -> pure (s, mempty)
-              Left err -> do
-                throwSTM err
-          Selected x xs -> do
-            root <- getRoot env s
-            pure (s, (x:xs) & fmap (ClientPath.fromClientPath root))
 
-      files <- do
-        storage <- getStorage sessionId
-        traverse storage.get paths
+    paths <- withSession_ sessionId \s -> do
 
-      withSession_ sessionId \s -> do
-        case onSelected (target, files) s.copyState of
-          Right state' -> pure (s { copyState = state' }, ())
-          Left err -> do
+      case selected of
+        NoSelection -> do
+          case onNoSelection s.copyState of
+            Right (Just state') -> pure (s { copyState = state' }, mempty)
+            Right Nothing       -> pure (s, mempty)
+            Left err -> do
+              throwSTM err
+        Selected x xs -> do
+          root <- getRoot env s
+          pure (s, (x:xs) & fmap (ClientPath.fromClientPath root))
+
+    files <- do
+      targetView <- withSession sessionId \s -> getTarget env s target
+      storage    <- makeStorage targetView
+      traverse storage.get paths
+
+    withSession_ sessionId \s -> do
+      case onSelected (target, files) s.copyState of
+        Right state' -> pure (s { copyState = state' }, ())
+        Left err -> do
             throwSTM err
   where
     merge sel [] = [sel]
