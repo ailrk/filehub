@@ -52,7 +52,7 @@ import Filehub.Orphan ()
 import Filehub.Server.UI.Desktop qualified as Server.Desktop
 import Filehub.Server.UI.Mobile qualified as Server.Mobile
 import Filehub.Server.Util (withQueryParam)
-import Filehub.Session (TargetView (..), getDisplay, getRoot, getTargetViews, getCurrentTarget, makeStorageDyn)
+import Filehub.Session (TargetView (..), getDisplay, getRoot, getTargetViews, getCurrentTarget, makeStorageCurrentTarget)
 import Filehub.Session.Copy qualified as Copy
 import Filehub.Session.Pool (withSession, withSession_, modifySession)
 import Filehub.Session.Selected (AllSelected(..))
@@ -278,7 +278,7 @@ initViewer :: SessionId -> ConfirmLogin -> Maybe ClientPath
            -> Filehub (Headers '[Header "HX-Trigger" FilehubEvent] NoContent)
 initViewer sessionId _ mClientPath = do
   env <- ask
-  storage <- makeStorageDyn sessionId
+  storage <- makeStorageCurrentTarget sessionId
   (root, order) <- withSession sessionId \s -> do
     TargetView _ td <- getCurrentTarget env s
     root            <- getRoot env s
@@ -321,7 +321,7 @@ open _ _ mTarget mClientPath = do
 cancel :: SessionId -> ConfirmLogin -> Filehub (Headers '[Header "X-Filehub-Selected-Count" Int] (Html ()))
 cancel sessionId _ = do
   env <- ask
-  storage <- makeStorageDyn sessionId
+  storage <- makeStorageCurrentTarget sessionId
   join $ withSession sessionId \s -> do
     AllSelected
       { count

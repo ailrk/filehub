@@ -15,7 +15,7 @@ import Filehub.Monad
 import Filehub.Notification.Types (Notification(..))
 import Filehub.Orphan ()
 import Filehub.Server.UI qualified as UI
-import Filehub.Session (SessionId(..), Session(..), getRoot, getTargetViews, makeStorageDyn, getTarget, makeStorage)
+import Filehub.Session (SessionId(..), Session(..), getRoot, getTargetViews, makeStorageCurrentTarget, makeStorageForTarget)
 import Filehub.Session.Selected qualified as Selected
 import Filehub.Session.Selected (AllSelected(..))
 import Filehub.Session.Types (Selected(..), Storage(..))
@@ -87,7 +87,7 @@ delete sessionId _ _ clientPaths deleteSelected = do
       doDelete = do
         -- Delete from parameters
         do
-           storage <- makeStorageDyn sessionId
+           storage <- makeStorageCurrentTarget sessionId
            forConcurrently_ clientPaths \clientPath -> do
              let ClientPathView { path } = asClientPathView root clientPath
              storage.delete path
@@ -99,7 +99,7 @@ delete sessionId _ _ clientPaths deleteSelected = do
         -- Delete all selected files
         when deleteSelected do
           for_ allSelected \(target, selected) -> do
-            storage <- makeStorage =<< withSession sessionId \s -> getTarget env s target
+            storage <- makeStorageForTarget sessionId target
 
             case selected of
               NoSelection   -> pure ()

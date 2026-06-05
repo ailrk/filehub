@@ -4,7 +4,7 @@ import Filehub.Handler (ConfirmLogin)
 import Filehub.Monad
 import Filehub.Orphan ()
 import Filehub.Session qualified as Session
-import Filehub.Session (SessionId(..), getDisplay, makeStorageDyn)
+import Filehub.Session (SessionId(..), getDisplay, makeStorageCurrentTarget)
 import Filehub.Template (runTemplate, makeTemplateContext)
 import Filehub.Template.Desktop qualified as Template.Desktop
 import Filehub.Template.Mobile qualified as Template.Mobile
@@ -22,7 +22,7 @@ search sessionId _ searchWord = do
     display <- getDisplay s
     pure do
       ctx     <- makeTemplateContext sessionId
-      storage <- makeStorageDyn sessionId
+      storage <- makeStorageCurrentTarget sessionId
       files   <- storage.lsCwd
       case display of
         Mobile    -> pure $ runTemplate ctx (Template.search searchWord files Template.Mobile.table)

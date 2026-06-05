@@ -39,7 +39,6 @@ module Filehub.Session
   , SessionId(..)
   , TargetView(..)
   , Storage(..)
-  , withTarget
   , getCurrentTarget
   , getTarget
   , getDisplay
@@ -48,7 +47,8 @@ module Filehub.Session
   , setCurrentTarget
   , makeStorageDummy
   , makeStorage
-  , makeStorageDyn
+  , makeStorageForTarget
+  , makeStorageCurrentTarget
   )
   where
 

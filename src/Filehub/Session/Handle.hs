@@ -10,8 +10,8 @@ module Filehub.Session.Handle
   , modifyCurrentTarget
   , makeStorageDummy
   , makeStorage
-  , makeStorageDyn
-  , withTarget
+  , makeStorageForTarget
+  , makeStorageCurrentTarget
   )
   where
 
@@ -45,7 +45,7 @@ import Prelude hiding (read, readFile, writeFile)
 import Target.File (Target(..), FileSys)
 import Target.S3 (S3)
 import Target.Types (handleTarget, targetHandler, AnyTarget (..), HasTargetId (..), TargetId)
-import UnliftIO (throwIO, finally, writeTVar, STM, readTVar, TVar, atomically, newTVar)
+import UnliftIO (throwIO, writeTVar, STM, readTVar, TVar, atomically, newTVar)
 import UnliftIO.Directory (doesDirectoryExist)
 import Filehub.Session.Pool (withSession, modifySession)
 import Filehub.Session.Selected (AllSelected (..))
@@ -302,22 +302,15 @@ makeStorage (TargetView target td) = do
   makeStorage' target currentDir
 
 
-makeStorageDyn :: SessionId -> Filehub (Storage Filehub)
-makeStorageDyn sessionId = do
+makeStorageForTarget :: SessionId -> AnyTarget -> Filehub (Storage Filehub)
+makeStorageForTarget sessionId target = do
+  env <- ask
+  makeStorage =<< withSession sessionId \s -> getTarget env s target
+
+
+makeStorageCurrentTarget :: SessionId -> Filehub (Storage Filehub)
+makeStorageCurrentTarget sessionId = do
   env <- ask
   TargetView target td <- withSession sessionId \s -> do
     getCurrentTarget env s
   makeStorage' target td.currentDir
-
-
-withTarget :: HasTargetId t => SessionId -> t -> Filehub a -> Filehub a
-withTarget sid t action = do
-  env <- ask
-  oldTid <- withSession sid \s -> do
-    setCurrentTarget env s (getTargetId t)
-    readTVar s.currentTargetId
-
-  let cleanup = withSession sid \s -> do
-        setCurrentTarget env s oldTid
-
-  action `finally` cleanup

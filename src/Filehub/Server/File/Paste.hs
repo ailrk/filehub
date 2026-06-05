@@ -18,7 +18,7 @@ import Filehub.Monad
 import Filehub.Notification.Types (Notification(..))
 import Filehub.Server.UI qualified as UI
 import Filehub.Server.Util (throttle)
-import Filehub.Session (Session(..))
+import Filehub.Session (Session(..), makeStorageForTarget)
 import Filehub.Session (SessionId(..), TargetView (..), getCurrentTarget, getTargetViews, getTarget, makeStorage)
 import Filehub.Session.Pool (withSession, withSession_)
 import Filehub.Session.Selected (AllSelected(..))
@@ -33,9 +33,10 @@ import Servant (Header , Headers  , addHeader)
 import System.FilePath (takeFileName, (</>))
 import Target.Types (AnyTarget)
 import UnliftIO (throwIO, newEmptyMVar, takeMVar, putMVar, finally, readTVarIO, catch, SomeException)
-import UnliftIO.Async (forConcurrently_)
+import UnliftIO.Async (pooledForConcurrentlyN_)
 import UnliftIO.STM (atomically, modifyTVar', readTVar, newTVarIO, writeTBQueue)
 import Worker.Task (newTaskId)
+import UnliftIO.Concurrent (getNumCapabilities)
 
 
 data PasteTask
@@ -101,6 +102,7 @@ paste :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> Filehub (Headers '[ Hea
 paste sessionId _ _ = do
   env    <- ask
   taskId <- newTaskId
+  nCores <- getNumCapabilities
 
   ( notifications
     , state
@@ -133,26 +135,25 @@ paste sessionId _ _ = do
 
       -- Concurrently paste files
       doPaste tasks totalCount = do
-        let localCount = fromIntegral (length tasks)
-        forConcurrently_ tasks \task -> do
+        pooledForConcurrentlyN_ (nCores * 3) tasks \task -> do
           case task of
             PasteFile { from, to, file, dst } -> do
 
               conduit <- do
-                storage <- makeStorage =<< withSession sessionId \s -> getTarget env s from
+                storage <- makeStorageForTarget sessionId from
                 storage.readStream file Nothing Nothing
 
               do
-                storage <- makeStorage =<< withSession sessionId \s -> getTarget env s to
+                storage <- makeStorageForTarget sessionId to
                 storage.write (withContent file (FileContentConduit conduit)) { path = dst }
 
               atomically do
                 n <- jot
-                throttle n localCount do
+                throttle n totalCount do
                   notify n totalCount
 
             CreateDir { to, dst, subTasks } -> do
-              storage <- makeStorage =<< withSession sessionId \s -> getTarget env s to
+              storage <- makeStorageForTarget sessionId to
               void $ storage.newFolder dst
               doPaste subTasks totalCount
 
