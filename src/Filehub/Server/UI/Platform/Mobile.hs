@@ -1,6 +1,6 @@
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE NamedFieldPuns #-}
-module Filehub.Server.UI.Mobile
+module Filehub.Server.UI.Platform.Mobile
   ( index
   , sideBar
   , editorModal

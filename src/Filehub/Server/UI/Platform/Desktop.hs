@@ -1,6 +1,6 @@
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE NamedFieldPuns #-}
-module Filehub.Server.UI.Desktop
+module Filehub.Server.UI.Platform.Desktop
   ( fileDetailModal
   , editorModal
   , contextMenu

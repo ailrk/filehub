@@ -54,7 +54,6 @@ import Filehub.Session.Types (Selected(..))
 import Filehub.Sort qualified as Sort
 import Filehub.Types ( NewFile(..) , NewFolder(..), UpdatedFile(..) , UpdatedFile(..) , FilehubEvent (..), RenameFile (..), MoveFile (..), Env)
 import Lucid hiding (for_)
-import Lucid.Htmx (HxSwapOOB(..), hxOn, Trigger (..))
 import Network.HTTP.Types (ByteRange(..), parseByteRanges)
 import Network.HTTP.Types.Status (status404, status206, status200)
 import Network.Mime.Extended (isMime)
@@ -73,6 +72,7 @@ import UnliftIO.STM (atomically, modifyTVar', readTVar, newTVarIO, writeTBQueue)
 import Worker.Task (newTaskId)
 import Filehub.Session.Pool (withSession)
 import Filehub.Session.Types (TargetSessionData(..))
+import Filehub.Server.UI.Render (runUIPartialUpdate, UIPartialUpdate (..))
 
 
 cd :: SessionId -> ConfirmLogin -> Maybe ClientPath -> Filehub (Headers '[ Header "HX-Trigger-After-Swap" FilehubEvent ] (Html ()))
@@ -81,13 +81,10 @@ cd sessionId _ mClientPath = do
   storage    <- makeStorageCurrentTarget sessionId
   clientPath <- withQueryParam mClientPath
   storage.cd (ClientPath.fromClientPath root clientPath)
-  html <- do
-    toolBar' <- UI.toolBar sessionId
-    view'    <- UI.view sessionId
-    pure do
-      toolBar' `with` [ hxSwapOOB True ]
-      view'
-  pure $ addHeader DirChanged html
+  addHeader DirChanged <$> runUIPartialUpdate sessionId
+    [ UpdateToolBar
+    , UpdateView
+    ]
 
 
 rename :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> RenameFile
@@ -98,8 +95,9 @@ rename sessionId _ _ (RenameFile old new) = do
   storage.rename
     (ClientPath.fromClientPath root old)
     new
-  html <- UI.view sessionId
-  pure $ addHeader FileRenamed html
+  addHeader FileRenamed <$> runUIPartialUpdate sessionId
+    [ UpdateView
+    ]
 
 
 updateFile :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> UpdatedFile -> Filehub (Html ())
@@ -131,7 +129,6 @@ newFile' sessionId name create = do
   path    <- validateAbsPath (coerce dir </> T.unpack name) (FilehubError InvalidPath ("<redacted>/" <> show name))
   file    <- create path
   files   <- Sort.sortFiles order <$> storage.ls dir
-  entry'  <- UI.entry sessionId file
 
   let target :: Text
       target = case getPrev file files of
@@ -139,10 +136,9 @@ newFile' sessionId name create = do
                                    in [i|afterend:\#tr-#{hashPath}|]
                  Nothing       -> [i|afterbegin:\#table|]
 
-  pure do
-    div_  [ hxSwapOOB target ] do
-      entry' `with` [ hxOn Load "this.focus();"
-                    , tabindex_ "-1" ]
+  runUIPartialUpdate sessionId
+    [ UpdateEntry target file
+    ]
 
   where
     getPrev target list =
@@ -239,21 +235,20 @@ move sessionId _ _ (MoveFile src tgt) = do
        in
           fmap check checkedSrcPaths
 
-    view' <- UI.view sessionId
+    htmx <- runUIPartialUpdate sessionId [UpdateView]
+
     atomically do
       writeTBQueue notifications $ TaskCompleted
         { taskId       = taskId
-        , htmxResponse = Just $ view' `with` [ hxSwapOOB True
-                                             , tabindex_ "-1"
-                                             ]
+        , htmxResponse = Just htmx
         }
 
   UI.clear sessionId
-  htmx <- do controlPanel' <- UI.controlPanel sessionId
-             sideBar'      <- UI.sideBar sessionId
-             pure do
-               controlPanel' `with` [ hxSwapOOB True ]
-               sideBar' `with` [ hxSwapOOB True ]
+
+  htmx <- runUIPartialUpdate sessionId
+    [ UpdateSideBar
+    , UpdateControlPanel
+    ]
 
   putMVar lk ()
 
@@ -345,7 +340,8 @@ upload sessionId _ _ multipart = do
           , htmxResponse = Nothing
           }
 
-    view' <- UI.view sessionId
+    htmx <- runUIPartialUpdate sessionId [UpdateView]
+
     atomically do
       writeTBQueue notifications $ UploadProgressed
         { taskId       = taskId
@@ -354,7 +350,7 @@ upload sessionId _ _ multipart = do
         }
       writeTBQueue notifications $ TaskCompleted
         { taskId       = taskId
-        , htmxResponse = Just $ view' `with` [ hxSwapOOB True ]
+        , htmxResponse = Just $ htmx
         }
 
   htmx <- UI.index sessionId

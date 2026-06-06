@@ -50,8 +50,8 @@ import Filehub.Server.SharedLink qualified
 import Filehub.Server.Static qualified
 import Filehub.Server.UI (index, clear, controlPanel, sideBar, view)
 import Filehub.Server.UI qualified
-import Filehub.Server.UI.Desktop qualified as Server.Desktop
-import Filehub.Server.UI.Mobile qualified as Server.Mobile
+import Filehub.Server.UI.Platform.Desktop qualified as Server.Desktop
+import Filehub.Server.UI.Platform.Mobile qualified as Server.Mobile
 import Filehub.Server.Util (parseHeader')
 import Filehub.Server.Util (withQueryParam)
 import Filehub.Session (SessionId(..), TargetView (..), getDisplay, getCurrentTarget, setCurrentTarget)
@@ -236,7 +236,6 @@ changeTarget sessionId _ mTargetId = do
         throwIO (HTTPError (err500 { errBody = [i|Invalid target|]}))
 
   pure $ addHeader TargetChanged html
-
 
 
 ------------------------------------

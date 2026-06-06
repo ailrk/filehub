@@ -199,8 +199,10 @@ library
                           Filehub.Server.Static
                           Filehub.Server.Static.QQ
                           Filehub.Server.UI
-                          Filehub.Server.UI.Desktop
-                          Filehub.Server.UI.Mobile
+                          Filehub.Server.UI.Render
+                          Filehub.Server.UI.Action
+                          Filehub.Server.UI.Platform.Desktop
+                          Filehub.Server.UI.Platform.Mobile
                           Filehub.Server.Util
                           Filehub.Session
                           Filehub.Session.Copy
