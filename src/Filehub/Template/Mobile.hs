@@ -23,7 +23,6 @@ import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
 import Data.Time.Format (formatTime, defaultTimeLocale)
-import Filehub.Links (apiLinks)
 import Filehub.Locale (Phrase(..), phrase, Locale (..))
 import Filehub.Routes (Api(..))
 import Filehub.Session.Selected qualified as Selected
@@ -44,7 +43,8 @@ import Target.Dummy (DummyTarget)
 import Data.Coerce (coerce)
 import Control.Monad.Reader (asks, MonadReader (..))
 import Data.ClientPath.View (ClientPathView(..), AsClientPathView (..))
-import Lucid.Htmx (Swap(..), HxSwap (..), hxTarget, hxGet, HxTrigger (..), HxPost (..), hxEncoding, Trigger (..), hxConfirm, hxDelete, HtmxEvent (..), HxOn (..))
+import Lucid.Htmx (hxGet, HxTrigger (..), HxPost (..), hxEncoding, Trigger (..), hxConfirm, hxDelete, HtmxEvent (..), HxOn (..))
+import Filehub.Template.Htmx (asHtmx)
 
 
 index :: Html ()
@@ -80,11 +80,8 @@ sideBar targets (TargetView currentTarget _) = do
   where
     targetIcon :: AnyTarget -> Html ()
     targetIcon target = do
-      div_ [ class_ "target-icon"
-           , hxGet (apiLinks.changeTarget (Just (Target.getTargetId target)))
-           , hxTarget "#index"
-           , hxSwap OuterHTML
-           ] do
+      div_ (asHtmx @"changeTarget" hxGet (Just (Target.getTargetId target))
+           [ class_ "target-icon" ]) do
         fromMaybe "unknown" $ handleTarget target
           [ targetHandler @FileSys \(FileBackend { root = Root (AbsPath root) }) -> do
               i_ [ class_ "bx bx-folder" ] mempty
@@ -163,11 +160,7 @@ sortTool = do
         sortIconSize order
         `with` sortControlSize order
   where
-    sortControl o =
-      [ hxGet (apiLinks.sortTable (Just o))
-      , hxSwap OuterHTML
-      , hxTarget "#index"
-      ]
+    sortControl o = asHtmx @"sortTable" hxGet (Just o) []
     sortControlName = \case
         ByNameUp   -> sortControl ByNameDown
         ByNameDown -> sortControl ByNameUp
@@ -277,11 +270,8 @@ languagePanel :: Html ()
 languagePanel =
   div_ [ id_ "locale", class_ "panel " ] do
     let item :: Locale -> Html () -> Html ()
-        item loc label = div_ [ class_ "dropdown-item"
-                              , hxGet (apiLinks.loginChangeLocale (Just loc))
-                              , hxTarget "#login"
-                              , hxSwap OuterHTML
-                              ] do span_ label
+        item loc label = div_ (asHtmx @"changeLocale" hxGet (Just loc)
+                              [ class_ "dropdown-item" ]) do span_ label
     item EN "English"
     item ZH_CN "简体中文"
     item ZH_TW "繁體中文"
@@ -381,16 +371,14 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
       Phrase { control_panel_upload } <- phrase <$> asks (.locale)
       let fileInputId = "file-input"
       pure do
-        input_ [ type_ "file"
+        input_ (asHtmx @"upload" hxPost ()
+               [ type_ "file"
                , name_ "file"
                , id_ fileInputId
                , style_ "display:none"
                , hxEncoding "multipart/form-data"
-               , hxPost apiLinks.upload
-               , hxTarget "#index"
-               , hxSwap OuterHTML
                , hxTrigger Change
-               ]
+               ])
 
         button_ [ class_ "action-btn"
                 , onclick_ [iii|document.querySelector('\##{fileInputId}').click()|]
@@ -404,11 +392,7 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
     copyBtn = do
       Phrase { control_panel_copy } <- phrase <$> asks (.locale)
       pure do
-        button_ [ class_ "action-btn"
-                , hxGet apiLinks.copy
-                , hxTarget "#control-panel"
-                , hxSwap OuterHTML
-                ] do
+        button_ (asHtmx @"copy" hxGet () [ class_ "action-btn" ]) do
           span_ [ class_ "field " ] do
             i_ [ class_ "bx bxs-copy-alt" ] mempty
             span_ (toHtml control_panel_copy)
@@ -418,10 +402,7 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
     pasteBtn = do
       Phrase { control_panel_paste } <- phrase <$> asks (.locale)
       pure do
-        button_ [ class_ "action-btn"
-                , hxPost apiLinks.paste
-                , hxSwap None
-                ] do
+        button_ (asHtmx @"paste" hxPost () [ class_ "action-btn" ]) do
           span_ [ class_ "field " ] do
             i_ [ class_ "bx bxs-paste" ] mempty
             span_ (toHtml control_panel_paste)
@@ -432,11 +413,10 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
       selected <- asks (.selected)
       Phrase { control_panel_delete } <- phrase <$> asks (.locale)
       pure do
-        button_ [ class_ "action-btn urgent "
-                , hxDelete (apiLinks.delete (Selected.toList selected) True)
-                , hxSwap None
+        button_ (asHtmx @"delete" hxDelete ((Selected.toList selected), True)
+                [ class_ "action-btn urgent "
                 , hxConfirm ("Are you sure about deleting selected files?")
-                ] do
+                ]) do
           span_ [ class_ "field " ] do
             i_ [ class_ "bx bxs-trash" ] mempty
             span_ (toHtml control_panel_delete)
@@ -446,11 +426,7 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
     cancelBtn = do
       Phrase { control_panel_cancel } <- phrase <$> asks (.locale)
       pure do
-        button_ [ class_ "action-btn"
-                , hxPost apiLinks.cancel
-                , hxTarget "#index"
-                , hxSwap OuterHTML
-                ] do
+        button_ (asHtmx @"cancel" hxPost () [ class_ "action-btn" ]) do
           span_ [ class_ "field " ] do
             i_ [ class_ "bx bxs-message-alt-x" ] mempty
             span_ (toHtml control_panel_cancel)
@@ -460,13 +436,11 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
     logoutBtn = do
       Phrase { control_panel_logout } <- phrase <$> asks (.locale)
       pure do
-        button_ [ class_ "action-btn urgent "
+        button_ (asHtmx @"logout" hxPost ()
+                [ class_ "action-btn urgent "
                 , type_ "submit"
-                , hxPost (apiLinks.logout)
-                , hxTarget "#index"
-                , hxSwap OuterHTML
                 , hxConfirm "Logout?"
-                ] do
+                ]) do
           span_ [ class_ "field " ] do
             i_ [ class_ "bx bx-power-off" ] mempty
             span_ (toHtml control_panel_logout)
@@ -481,21 +455,17 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
       pure do
         case theme of
           Light -> do
-            button_ [ class_ "action-btn"
+            button_ (asHtmx @"toggleTheme" hxGet ()
+                    [ class_ "action-btn"
                     , type_ "submit"
-                    , hxGet apiLinks.toggleTheme
-                    , hxTarget "#index"
-                    , hxSwap OuterHTML
-                    ] do
+                    ]) do
               i_ [ class_ "bx bxs-moon" ] mempty
               span_ (toHtml control_panel_dark )
           Dark -> do
-            button_ [ class_ "action-btn"
+            button_ (asHtmx @"toggleTheme" hxGet ()
+                    [ class_ "action-btn"
                     , type_ "submit"
-                    , hxGet apiLinks.toggleTheme
-                    , hxTarget "#index"
-                    , hxSwap OuterHTML
-                    ] do
+                    ]) do
               i_ [ class_ "bx bxs-sun" ] mempty
               span_ (toHtml control_panel_light )
 
@@ -514,12 +484,10 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
 
 selectedCounter :: Int -> Html ()
 selectedCounter n = do
-  div_ [ id_ selectedCounterId
-       , hxPost apiLinks.cancel
-       , hxTarget "#index"
-       , hxSwap OuterHTML
+  div_ (asHtmx @"cancel" hxPost ()
+       [ id_ selectedCounterId
        , class_ "field "
-       ] do
+       ]) do
     span_ [i|#{n}|]
     span_ "selected"
     i_ [ class_ "bx bx-x" ] mempty
@@ -537,10 +505,10 @@ editorModal (ClientPath path, filename) content = do
   pure do
     div_ [ id_ editorModalId, closeEditorScript ] do
 
-      form_ [ hxPost (apiLinks.updateFile)
-            , hxConfirm (Text.replace "{}" (Text.pack filename) confirm_save_edit)
+      form_ (asHtmx @"updateFile" hxPost ()
+            [ hxConfirm (Text.replace "{}" (Text.pack filename) confirm_save_edit)
             , hxOn AfterRequest [i|document.querySelector('\##{editorModalId}').dispatchEvent(new Event('Close'))|]
-            ] do
+            ]) do
 
         div_ do
           button_ [ class_ "btn btn-modal-close "

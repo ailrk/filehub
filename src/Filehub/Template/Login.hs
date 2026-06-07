@@ -15,6 +15,7 @@ import Filehub.Theme (Theme(..))
 import Lucid
 import Lucid.Htmx (HxPost(..), hxTarget, HxSwap (..), Swap (..), hxGet)
 import Servant.Extended (linkToText)
+import Filehub.Template.Htmx (asHtmx)
 
 
 login :: Template (Html ())
@@ -90,11 +91,9 @@ localeBtn =
         i_ [ class_ "bx bx-world" ] mempty
     div_ [ class_ "dropdown-content " ] do
       let item :: Locale -> Html () -> Html ()
-          item loc label = div_ [ class_ "dropdown-item"
-                                , hxGet (apiLinks.loginChangeLocale (Just loc))
-                                , hxTarget "#login"
-                                , hxSwap OuterHTML
-                                ] do span_ label
+          item loc label = div_ (asHtmx @"loginChangeLocale" hxGet (Just loc)
+                                [ class_ "dropdown-item"
+                                ]) do span_ label
       item EN "English"
       item ZH_CN "简体中文"
       item ZH_TW "繁體中文"
@@ -115,20 +114,19 @@ themeBtn = do
   pure do
     case theme of
       Light -> do
-        button_ [ class_ "btn btn-control"
+        button_ (asHtmx @"loginToggleTheme" hxGet ()
+                [ class_ "btn btn-control"
                 , type_ "submit"
-                , hxGet apiLinks.loginToggleTheme
-                , hxTarget "#login"
-                , hxSwap OuterHTML
-                ] do
+                ]) do
           i_ [ class_ "bx bxs-moon" ] mempty
       Dark -> do
-        button_ [ class_ "btn btn-control"
+        button_ (asHtmx @"loginToggleTheme" hxGet ()
+                [ class_ "btn btn-control"
                 , type_ "submit"
                 , hxGet apiLinks.loginToggleTheme
                 , hxTarget "#login"
                 , hxSwap OuterHTML
-                ] do
+                ]) do
           i_ [ class_ "bx bxs-sun" ] mempty
 
 

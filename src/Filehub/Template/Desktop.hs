@@ -50,7 +50,7 @@ import Filehub.Template.Shared qualified as Template
 import Filehub.Theme (Theme (..))
 import Filehub.Types (SortFileBy(..))
 import Lucid
-import Lucid.Htmx (hxGet, hxTarget, hxSwap, Swap (..), hxEncoding, hxPost, hxTrigger, Trigger (..), hxDelete, hxConfirm)
+import Lucid.Htmx (hxGet, hxEncoding, hxPost, hxTrigger, Trigger (..), hxDelete, hxConfirm)
 import Network.Mime.Extended (isMime)
 import Servant.Extended (linkToText)
 import System.FilePath (takeFileName)
@@ -59,6 +59,7 @@ import Target.File (FileSys, Target (..))
 import Target.S3 (S3, Target (..))
 import Target.Types (targetHandler, AnyTarget, handleTarget)
 import Target.Types qualified as Target
+import Filehub.Template.Htmx (asHtmx)
 
 
 ------------------------------------
@@ -110,11 +111,8 @@ sideBar targets (TargetView currentTarget _) = do
   where
     targetTab :: Phrase -> (AnyTarget, Int) -> Html ()
     targetTab Phrase { target_filesystem, target_s3 } (target, selectedCount) = do
-      div_ [ class_ "target-tab"
-           , hxGet (apiLinks.changeTarget (Just (Target.getTargetId target)))
-           , hxTarget "#index"
-           , hxSwap OuterHTML
-           ] do
+      div_ (asHtmx @"changeTarget" hxGet (Just (Target.getTargetId target))
+           [ class_ "target-tab" ]) do
         span_ [ class_ "field "] do
           fromMaybe "unknown" $ handleTarget target
             [ targetHandler @S3      \_ -> i_ [ class_ "bx bxs-cube" ] mempty
@@ -166,13 +164,11 @@ newFolderBtn :: Template (Html ())
 newFolderBtn = do
   Phrase { control_panel_new_folder } <- phrase <$> asks (.locale)
   pure do
-    button_ [ class_ "btn btn-control tooltip"
+    button_ (asHtmx @"newFolderModal" hxGet ()
+            [ class_ "btn btn-control tooltip"
             , type_ "submit"
-            , hxGet apiLinks.newFolderModal
-            , hxTarget "#index"
-            , hxSwap BeforeEnd
             , term "data-tooltip" control_panel_new_folder
-            ] do
+            ]) do
       span_ [ class_ "field " ] do
         i_ [ class_ "bx bx-folder-plus" ] mempty
 
@@ -181,13 +177,11 @@ newFileBtn :: Template (Html ())
 newFileBtn = do
   Phrase { control_panel_new_file } <- phrase <$> asks (.locale)
   pure do
-    button_ [ class_ "btn btn-control tooltip"
+    button_ (asHtmx @"newFileModal" hxGet ()
+            [ class_ "btn btn-control tooltip"
             , type_ "submit"
-            , hxGet apiLinks.newFileModal
-            , hxTarget "#index"
-            , hxSwap BeforeEnd
             , term "data-tooltip" control_panel_new_file
-            ] do
+            ]) do
       span_ [ class_ "field " ] do
         i_ [ class_ "bx bxs-file-plus" ] mempty
 
@@ -197,17 +191,15 @@ uploadBtn = do
   Phrase { control_panel_upload } <- phrase <$> asks (.locale)
   pure do
     let fileInputId = "file-input"
-    input_ [ type_ "file"
+    input_ (asHtmx @"upload" hxPost ()
+           [ type_ "file"
            , name_ "file"
            , id_ fileInputId
            , style_ "display:none"
            , multiple_ ""
            , hxEncoding "multipart/form-data"
-           , hxPost apiLinks.upload
-           , hxTarget "#index"
-           , hxSwap OuterHTML
            , hxTrigger Change
-           ]
+           ])
 
     button_ [ class_ "btn btn-control tooltip"
             , onclick_ [iii|document.querySelector('\##{fileInputId}').click()|]
@@ -221,13 +213,11 @@ copyBtn :: Template (Html ())
 copyBtn = do
   Phrase { control_panel_copy } <- phrase <$> asks (.locale)
   pure do
-    button_ [ class_ "btn btn-control tooltip"
+    button_ (asHtmx @"copy" hxGet ()
+            [ class_ "btn btn-control tooltip"
             , type_ "submit"
-            , hxGet apiLinks.copy
-            , hxTarget "#control-panel"
-            , hxSwap OuterHTML
             , term "data-tooltip" control_panel_copy
-            ] do
+            ]) do
       span_ [ class_ "field " ] do
         i_ [ class_ "bx bxs-copy-alt" ] mempty
 
@@ -236,12 +226,11 @@ pasteBtn :: Template (Html ())
 pasteBtn = do
   Phrase { control_panel_paste } <- phrase <$> asks (.locale)
   pure do
-    button_ [ class_ "btn btn-control tooltip"
+    button_ (asHtmx @"paste" hxPost ()
+            [ class_ "btn btn-control tooltip"
             , type_ "submit"
-            , hxPost apiLinks.paste
-            , hxSwap None
             , term "data-tooltip" control_panel_paste
-            ] do
+            ]) do
       span_ [ class_ "field " ] do
         i_ [ class_ "bx bxs-paste" ] mempty
 
@@ -253,13 +242,12 @@ deleteBtn = do
     , confirm_delete_all
     } <- phrase <$> asks (.locale)
   pure do
-    button_ [ class_ "btn btn-control urgent tooltip"
+    button_ (asHtmx @"delete" hxDelete ([], True)
+            [ class_ "btn btn-control urgent tooltip"
             , type_ "submit"
-            , hxDelete (apiLinks.delete [] True)
-            , hxSwap None
             , hxConfirm confirm_delete_all
             , term "data-tooltip" control_panel_delete
-            ] do
+            ]) do
       span_ [ class_ "field " ] do
         i_ [ class_ "bx bxs-trash" ] mempty
 
@@ -268,13 +256,11 @@ cancelBtn :: Template (Html ())
 cancelBtn = do
   Phrase { control_panel_cancel } <- phrase <$> asks (.locale)
   pure do
-    button_ [ class_ "btn btn-control tooltip"
+    button_ (asHtmx @"cancel" hxPost ()
+            [ class_ "btn btn-control tooltip"
             , type_ "submit"
-            , hxPost apiLinks.cancel
-            , hxTarget "#index"
-            , hxSwap OuterHTML
             , term "data-tooltip" control_panel_cancel
-            ] do
+            ]) do
       span_ [ class_ "field " ] do
         i_ [ class_ "bx bxs-message-alt-x" ] mempty
 
@@ -283,13 +269,11 @@ toggleSidebarBtn :: Template (Html ())
 toggleSidebarBtn = do
   Phrase { toggle_sidebar } <- phrase <$> asks (.locale)
   pure do
-    button_ [ class_ "btn btn-control tooltip"
+    button_ (asHtmx @"toggleSidebar" hxGet ()
+            [ class_ "btn btn-control tooltip"
             , type_ "submit"
-            , hxGet apiLinks.toggleSidebar
-            , hxTarget "#index"
-            , hxSwap OuterHTML
             , term "data-tooltip" toggle_sidebar
-            ] do
+            ]) do
       i_ [ class_ "bx bx-sidebar" ] mempty
 
 
@@ -297,13 +281,11 @@ logoutBtn :: Template (Html ())
 logoutBtn = do
   Phrase { confirm_logout } <- phrase <$> asks (.locale)
   pure do
-    button_ [ class_ "btn btn-control urgent "
+    button_ (asHtmx @"logout" hxPost ()
+            [ class_ "btn btn-control urgent "
             , type_ "submit"
-            , hxPost apiLinks.logout
-            , hxTarget "#index"
-            , hxSwap OuterHTML
             , hxConfirm confirm_logout
-            ] do
+            ]) do
       span_ [ class_ "field " ] do
         i_ [ class_ "bx bx-power-off" ] mempty
 
@@ -315,22 +297,18 @@ themeBtn = do
   pure do
     case theme of
       Light -> do
-        button_ [ class_ "btn btn-control tooltip"
+        button_ (asHtmx @"toggleTheme" hxGet ()
+                [ class_ "btn btn-control tooltip"
                 , type_ "submit"
-                , hxGet apiLinks.toggleTheme
-                , hxTarget "#index"
-                , hxSwap OuterHTML
                 , term "data-tooltip" control_panel_dark
-                ] do
+                ]) do
           i_ [ class_ "bx bxs-moon" ] mempty
       Dark -> do
-        button_ [ class_ "btn btn-control tooltip"
+        button_ (asHtmx @"toggleTheme" hxGet ()
+                [ class_ "btn btn-control tooltip"
                 , type_ "submit"
-                , hxGet apiLinks.toggleTheme
-                , hxTarget "#index"
-                , hxSwap OuterHTML
                 , term "data-tooltip" control_panel_light
-                ] do
+                ]) do
           i_ [ class_ "bx bxs-sun" ] mempty
 
 
@@ -341,24 +319,19 @@ layoutBtn =  do
   pure do
     case layout of
       ListLayout -> do
-        button_ [ class_ "btn btn-control tooltip"
+        button_ (asHtmx @"selectLayout" hxGet (Just ThumbnailLayout)
+                [ class_ "btn btn-control tooltip"
                 , type_ "submit"
-                , hxGet (apiLinks.selectLayout (Just ThumbnailLayout))
-                , hxTarget "#index"
-                , hxSwap OuterHTML
                 , term "data-tooltip" control_panel_grid
-                ] do
+                ]) do
           i_ [ class_ "bx bxs-grid-alt" ] mempty
       ThumbnailLayout -> do
-        button_ [ class_ "btn btn-control tooltip"
+        button_ (asHtmx @"selectLayout" hxGet (Just ListLayout)
+                [ class_ "btn btn-control tooltip"
                 , type_ "submit"
-                , hxGet (apiLinks.selectLayout (Just ListLayout))
-                , hxTarget "#index"
-                , hxSwap OuterHTML
                 , term "data-tooltip" control_panel_list
-                ] do
+                ]) do
           i_ [ class_ "bx bx-menu" ] mempty
-
 
 
 localeBtn :: Html ()
@@ -369,11 +342,8 @@ localeBtn =
         i_ [ class_ "bx bx-world" ] mempty
     div_ [ class_ "dropdown-content " ] do
       let item :: Locale -> Html () -> Html ()
-          item loc label = div_ [ class_ "dropdown-item"
-                                , hxGet (apiLinks.changeLocale (Just loc))
-                                , hxTarget "#index"
-                                , hxSwap OuterHTML
-                                ] do span_ label
+          item loc label = div_ (asHtmx @"changeLocale" hxGet (Just loc)
+                                [ class_ "dropdown-item" ]) do span_ label
       item EN    "English"
       item ZH_CN "简体中文"
       item ZH_TW "繁體中文"
@@ -408,9 +378,7 @@ newFileModal = do
              , term "_" "on click trigger Close"
              ] do
           i_ [ class_ "bx bx-x"] mempty
-      form_ [ hxPost apiLinks.newFile
-            , hxSwap None
-            ] do
+      form_ (asHtmx @"newFile" hxPost () []) do
         div_ [ style_ "display: flex" ] do
           input_ [ class_ "form-control "
                  , type_ "text"
@@ -440,9 +408,8 @@ newFolderModal = do
              , term "_" "on click trigger Close"
              ] do
           i_ [ class_ "bx bx-x"] mempty
-      form_ [ hxPost (apiLinks.newFolder)
-            , hxSwap None
-            ] do
+
+      form_ (asHtmx @"newFolder" hxPost () []) do
         div_ [ style_ "display: flex" ] do
           input_ [ class_ "form-control "
                  , type_ "text"
@@ -466,10 +433,7 @@ renameModal oldPath = do
 
   pure do
     modal [ id_ renameModalId ] do
-      form_ [ hxPost apiLinks.rename
-            , hxTarget "#view"
-            , hxSwap OuterHTML
-            ] do
+      form_ (asHtmx @"rename" hxPost () []) do
         input_ [ type_ "hidden", name_ "old", value_ (c2t oldClientPath) ]
         div_ [ style_ "display: flex" ] do
           input_ [ class_ "form-control "
@@ -545,9 +509,9 @@ editorModal (ClientPath path, filename) content = do
                    ] do
                 i_ [ class_ "bx bx-x"] mempty
 
-      form_ [ hxPost (apiLinks.updateFile)
-            , hxConfirm (T.replace "{}" (T.pack filename) confirm_save_edit)
-            ] do
+      form_ (asHtmx @"updateFile" hxPost ()
+            [ hxConfirm (T.replace "{}" (T.pack filename) confirm_save_edit)
+            ]) do
         input_ [ class_ "form-control ", type_ "hidden", name_ "path", value_ (T.pack path) ]
 
         textarea_
@@ -785,11 +749,7 @@ modifiedDateElement file =
 
 
 sortControl :: SortFileBy -> [Attribute]
-sortControl o =
-    [ hxGet (apiLinks.sortTable (Just o))
-    , hxSwap OuterHTML
-    , hxTarget "#index"
-    ]
+sortControl o = asHtmx @"sortTable" hxGet (Just o) []
 
 
 ------------------------------------
@@ -830,11 +790,7 @@ contextMenu1 file = do
         Dir        -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bxs-folder-open" ] mempty >> span_ (toHtml contextmenu_open)
         `with` Template.open root file
 
-      div_ [ class_ "dropdown-item"
-           , hxGet (apiLinks.copy1 (Just clientPath))
-           , hxTarget "#index"
-           , hxSwap OuterHTML
-           ] do
+      div_ (asHtmx @"copy1" hxGet (Just clientPath) [ class_ "dropdown-item" ]) do
         i_ [ class_ "bx bx-detail" ] mempty
         span_ (toHtml contextmenu_copy)
 
@@ -845,27 +801,18 @@ contextMenu1 file = do
       case readOnly of
         True -> mempty
         False -> do
-          div_ [ class_ "dropdown-item"
-               , hxGet (apiLinks.renameModal (Just clientPath))
-               , hxTarget "#index"
-               , hxSwap BeforeEnd
-               ] do
+          div_ (asHtmx @"renameModal" hxGet (Just clientPath) [ class_ "dropdown-item" ]) do
             i_ [ class_ "bx bxs-rename" ] mempty
             span_ (toHtml contextmenu_rename)
 
-          div_ [ class_ "dropdown-item"
-               , hxDelete (apiLinks.delete [clientPath] False)
-               , hxSwap None
+          div_ (asHtmx @"delete" hxDelete ([clientPath], False)
+               [ class_ "dropdown-item"
                , hxConfirm (T.replace "{}" textClientPath confirm_delete1)
-               ] do
+               ]) do
             i_ [ class_ "bx bxs-trash" ] mempty
             span_ (toHtml contextmenu_delete)
 
-      div_ [ class_ "dropdown-item"
-           , hxGet (apiLinks.fileDetailModal (Just clientPath))
-           , hxTarget "#index"
-           , hxSwap BeforeEnd
-           ] do
+      div_ (asHtmx @"fileDetailModal" hxGet (Just clientPath) [ class_ "dropdown-item" ]) do
         i_ [ class_ "bx bx-detail" ] mempty
         span_ (toHtml contextmenu_details)
 
@@ -891,19 +838,14 @@ contextMenuMany clientPaths = do
       case readOnly of
         True -> mempty
         False -> do
-          div_ [ class_ "dropdown-item"
-               , hxDelete (apiLinks.delete clientPaths False)
-               , hxSwap None
+          div_ (asHtmx @"delete" hxDelete (clientPaths, False)
+               [ class_ "dropdown-item"
                , hxConfirm (T.replace "{}" (T.pack (show (length clientPaths))) confirm_delete_local)
-               ] do
+               ]) do
             i_ [ class_ "bx bxs-trash" ] mempty
             span_ (toHtml contextmenu_delete_local)
 
-          div_ [ class_ "dropdown-item"
-               , hxGet apiLinks.copy
-               , hxTarget "#control-panel"
-               , hxSwap OuterHTML
-               ] do
+          div_ (asHtmx @"copy" hxGet () [ class_ "dropdown-item" ]) do
             i_ [ class_ "bx bx-detail" ] mempty
             span_ (toHtml contextmenu_copy)
 
@@ -911,11 +853,7 @@ contextMenuMany clientPaths = do
         i_ [ class_ "bx bx-download" ] mempty
         span_ (toHtml contextmenu_download)
 
-      div_ [ class_ "dropdown-item"
-           , hxPost apiLinks.cancel
-           , hxTarget "#index"
-           , hxSwap OuterHTML
-           ] do
+      div_ (asHtmx @"cancel" hxPost () [ class_ "dropdown-item" ]) do
         i_ [ class_ "bx bx-message-alt-x" ] mempty
         span_ (toHtml contextmenu_cancel)
 

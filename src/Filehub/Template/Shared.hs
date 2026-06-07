@@ -43,7 +43,7 @@ import Filehub.Sort ( sortFiles )
 import Filehub.Template (Template, TemplateContext(..))
 import Filehub.Types (Display(..), OpenTarget(..), SearchWord(..))
 import Lucid
-import Lucid.Htmx (Swap(..), HxSwap (..), hxTarget, hxGet, HxTrigger (..), HxPost (..))
+import Lucid.Htmx (hxGet, HxTrigger (..), HxPost (..))
 import Network.Mime.Extended (isMime)
 import System.FilePath (splitPath)
 import Target.Dummy (DummyTarget)
@@ -51,6 +51,7 @@ import Target.File (FileSys)
 import Target.S3 (S3)
 import Target.Types (targetHandler, handleTarget)
 import Text.Fuzzy (simpleFilter)
+import Filehub.Template.Htmx (asHtmx)
 
 
 -- | The bootstrap page is used to detect the client's device  information.
@@ -127,12 +128,10 @@ pathBreadcrumb = do
           & filter (\(AbsPath path) -> length (splitPath path) >= length (splitPath (coerce root)))
           & fmap (\path ->
             let clientPath@(ClientPath cp) = (ClientPath.toClientPath root path)
-                mkLi                       = li_ [ hxGet (apiLinks.cd (Just clientPath))
-                                                 , hxTarget ("#" <> viewId)
-                                                 , hxSwap OuterHTML
-                                                 , term "data-path" (Text.pack cp)
-                                                 , class_ "dir "
-                                                 ]
+                mkLi                       = li_ (asHtmx @"cd" hxGet (Just clientPath)
+                                              [ term "data-path" (Text.pack cp)
+                                              , class_ "dir "
+                                              ])
              in  (mkLi . toHtml . pathShow) (coerce path))
           & Seq.fromList
           & (\path -> Seq.adjust (`with` [class_ " active"]) (length path - 1) path)
@@ -163,17 +162,16 @@ search (SearchWord searchWord) files table = do
 searchBar :: Template (Html ())
 searchBar = do
   Phrase { search_as_you_type } <- phrase <$> asks (.locale)
+
   pure do
     div_ [ id_ searchBarId ] do
-      input_ [ class_ "form-control "
-             , type_ "input"
-             , name_ "search"
-             , placeholder_ search_as_you_type
-             , hxPost apiLinks.search
-             , hxTrigger @Text "input changed delay:200ms, search"
-             , hxTarget "#table"
-             , hxSwap OuterHTML
-             ]
+      input_ (asHtmx @"search" hxPost ()
+        [ class_ "form-control "
+        , type_ "input"
+        , name_ "search"
+        , placeholder_ search_as_you_type
+        , hxTrigger @Text "input changed delay:200ms, search"
+        ])
 
 
 controlPanel
@@ -306,41 +304,24 @@ open root file = do
     BrokenLink -> []
     _          ->
       case file.content of
-        Dir        -> [ hxGet (apiLinks.cd (Just clientPath))
-                      , hxTarget ("#" <> viewId)
-                      , hxSwap OuterHTML
-                      ]
+        Dir        -> asHtmx @"cd" hxGet (Just clientPath) []
         Regular
           | file.mimetype `isMime` "application/pdf" ->
                [ hxGet (apiLinks.open (Just OpenDOMBlank) (Just clientPath))
-               , hxTarget "this"
-               , hxSwap None
                ]
           | file.mimetype `isMime` "audio" ->
                [ hxGet (apiLinks.open (Just OpenViewer) (Just clientPath))
-               , hxTarget "this"
-               , hxSwap None
                ]
           | file.mimetype `isMime` "video" ->
                [ hxGet (apiLinks.open (Just OpenViewer) (Just clientPath))
-               , hxTarget "this"
-               , hxSwap None
                ]
           | file.mimetype `isMime` "image" ->
                [ hxGet (apiLinks.open (Just OpenViewer) (Just clientPath))
-               , hxTarget "this"
-               , hxSwap None
                ]
           | file.mimetype `isMime` "text" ->
-               [ hxGet (apiLinks.editorModal (Just clientPath))
-               , hxTarget "#index"
-               , hxSwap BeforeEnd
-               ]
+               asHtmx @"editorModal" hxGet (Just clientPath) []
           | otherwise ->
-               [ hxGet (apiLinks.editorModal (Just clientPath))
-               , hxTarget "#index"
-               , hxSwap BeforeEnd
-               ]
+               asHtmx @"editorModal" hxGet (Just clientPath) []
   where
     clientPath = ClientPath.toClientPath root file.path
 
