@@ -1,4 +1,4 @@
-module Filehub.Links
+module Filehub.Routes.Links
   ( apiLinks
   )
   where

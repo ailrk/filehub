@@ -149,13 +149,13 @@ newFile' sessionId name create = do
 
 newFile :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> NewFile -> Filehub (Html ())
 newFile sessionId _ _ (NewFile name) = do
-  storage   <- makeStorageCurrentTarget sessionId
+  storage <- makeStorageCurrentTarget sessionId
   newFile' sessionId name storage.new
 
 
 newFolder :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> NewFolder -> Filehub (Html ())
 newFolder sessionId _ _ (NewFolder name) = do
-  storage   <- makeStorageCurrentTarget sessionId
+  storage <- makeStorageCurrentTarget sessionId
   newFile' sessionId name storage.newFolder
 
 
@@ -193,11 +193,11 @@ move sessionId _ _ (MoveFile src tgt) = do
          , root
          )
 
-  taskId        <- newTaskId
-  lk            <- newEmptyMVar
+  taskId <- newTaskId
+  lk     <- newEmptyMVar
 
-  let srcPaths  =  fmap (ClientPath.fromClientPath root) src
-  let tgtPath   =  ClientPath.fromClientPath root tgt
+  let srcPaths = fmap (ClientPath.fromClientPath root) src
+  let tgtPath  = ClientPath.fromClientPath root tgt
 
   -- check before take action
   checkedSrcPaths <- catMaybes <$> for srcPaths \srcPath -> do
@@ -238,7 +238,7 @@ move sessionId _ _ (MoveFile src tgt) = do
     htmx <- runUIPartialUpdate sessionId [UpdateView]
 
     atomically do
-      writeTBQueue notifications $ TaskCompleted
+      writeTBQueue notifications TaskCompleted
         { taskId       = taskId
         , htmxResponse = Just htmx
         }
@@ -322,7 +322,7 @@ upload sessionId _ _ multipart = do
   forkFilehub_ env do
     _ <- takeMVar lk
     atomically do
-      writeTBQueue notifications $ UploadProgressed
+      writeTBQueue notifications UploadProgressed
         { taskId       = taskId
         , progress     = 0
         , htmxResponse = Nothing
@@ -334,7 +334,7 @@ upload sessionId _ _ multipart = do
       atomically do
         modifyTVar' uploadCounter (+ 1)
         n <- readTVar uploadCounter
-        writeTBQueue notifications $ UploadProgressed
+        writeTBQueue notifications UploadProgressed
           { taskId       = taskId
           , progress     = n % max 1 taskCount
           , htmxResponse = Nothing
@@ -343,14 +343,14 @@ upload sessionId _ _ multipart = do
     htmx <- runUIPartialUpdate sessionId [UpdateView]
 
     atomically do
-      writeTBQueue notifications $ UploadProgressed
+      writeTBQueue notifications UploadProgressed
         { taskId       = taskId
         , progress     = 1
         , htmxResponse = Nothing
         }
-      writeTBQueue notifications $ TaskCompleted
+      writeTBQueue notifications TaskCompleted
         { taskId       = taskId
-        , htmxResponse = Just $ htmx
+        , htmxResponse = Just htmx
         }
 
   htmx <- UI.index sessionId

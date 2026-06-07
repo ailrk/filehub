@@ -1,5 +1,5 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
-module Filehub.LinkConf
+module Filehub.Routes.LinkConf
   ( apiLinksConf
   , LinkConf(..)
   , AsLinkConf
@@ -14,8 +14,8 @@ import GHC.Generics
 
 
 data LinkConf = LinkConf
-  { target         :: Maybe Text
-  , swap           :: Swap
+  { target :: Maybe Text
+  , swap   :: Swap
   }
 
 
@@ -27,35 +27,23 @@ instance GenericMode AsLinkConf where
 
 
 type family HFromApi api where
-  HFromApi ("cd" :> r)                            = LinkConf
-  HFromApi ("files" :> "new" :> r)                = LinkConf
-  HFromApi ("files" :> "update" :> r)             = LinkConf
-  HFromApi ("files" :> "rename" :> r)             = LinkConf
-  HFromApi ("files" :> "delete" :> r)             = LinkConf
-  HFromApi ("files" :> "copy" :> r)               = LinkConf
-  HFromApi ("files" :> "copy1" :> r)              = LinkConf
-  HFromApi ("files" :> "paste" :> r)              = LinkConf
-  HFromApi ("files" :> "move" :> r)               = LinkConf
-  HFromApi ("modal" :> "rename" :> r)             = LinkConf
-  HFromApi ("folders" :> "new" :> r)              = LinkConf
-  HFromApi ("modal" :> "new-file" :> r)           = LinkConf
-  HFromApi ("modal" :> "new-folder" :> r)         = LinkConf
-  HFromApi ("modal" :> "file" :> "detail" :> r)   = LinkConf
-  HFromApi ("modal" :> "editor" :> r)             = LinkConf
-  HFromApi ("search" :> r)                        = LinkConf
-  HFromApi ("table" :> "sort" :> r)               = LinkConf
-  HFromApi ("layout" :> r)                        = LinkConf
-  HFromApi ("table" :> "select" :> r)             = LinkConf
-  HFromApi ("upload" :> r)                        = LinkConf
-  HFromApi ("cancel" :> r)                        = LinkConf
-  HFromApi ("target" :> "change" :> r)            = LinkConf
-  HFromApi ("sidebar" :> "toggle" :> r)           = LinkConf
-  HFromApi ("theme" :> "toggle" :> r)             = LinkConf
-  HFromApi ("locale" :> "change" :> r)            = LinkConf
-  HFromApi ("login" :> "theme" :> "toggle" :> r)  = LinkConf
-  HFromApi ("login" :> "locale" :> "change" :> r) = LinkConf
-  HFromApi ("logout" :> r)                        = LinkConf
-  HFromApi x                                      = ()
+  HFromApi ("cd" :> r)                = LinkConf
+  HFromApi ("files" :> r)             = LinkConf
+  HFromApi ("modal" :> r)             = LinkConf
+  HFromApi ("folders" :> r)           = LinkConf
+  HFromApi ("search" :> r)            = LinkConf
+  HFromApi ("table" :> r)             = LinkConf
+  HFromApi ("layout" :> r)            = LinkConf
+  HFromApi ("upload" :> r)            = LinkConf
+  HFromApi ("cancel" :> r)            = LinkConf
+  HFromApi ("logout" :> r)            = LinkConf
+  HFromApi ("theme" :> r)             = LinkConf
+  HFromApi ("target" :> r)            = LinkConf
+  HFromApi ("sidebar" :> r)           = LinkConf
+  HFromApi ("login" :> "theme" :> r)  = LinkConf
+  HFromApi ("login" :> "locale" :> r) = LinkConf
+  HFromApi ("locale" :> r)            = LinkConf
+  HFromApi x                          = ()
 
 
 apiLinksConf :: Api AsLinkConf

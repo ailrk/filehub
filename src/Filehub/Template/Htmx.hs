@@ -4,14 +4,14 @@
 {-# LANGUAGE FunctionalDependencies #-}
 module Filehub.Template.Htmx where
 
-import Filehub.LinkConf (LinkConf(..), AsLinkConf, apiLinksConf)
 import Filehub.Routes
-import Servant (Link, AsLink)
-import Lucid (Attribute)
-import Filehub.Links (apiLinks)
-import Lucid.Htmx (hxTarget, HxSwap (..))
+import Filehub.Routes.LinkConf (LinkConf(..), AsLinkConf, apiLinksConf)
+import Filehub.Routes.Links (apiLinks)
 import GHC.Records (HasField (..))
 import GHC.TypeLits (Symbol)
+import Lucid (Attribute)
+import Lucid.Htmx (hxTarget, HxSwap (..))
+import Servant (Link, AsLink)
 
 
 -- | Computes a clean, flat tuple type from a nested function signature

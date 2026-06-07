@@ -180,8 +180,6 @@ library
                           Filehub.Env
                           Filehub.Error
                           Filehub.Handler
-                          Filehub.LinkConf
-                          Filehub.Links
                           Filehub.Locale
                           Filehub.Log
                           Filehub.Monad
@@ -189,6 +187,8 @@ library
                           Filehub.Orphan
                           Filehub.QQ
                           Filehub.Routes
+                          Filehub.Routes.LinkConf
+                          Filehub.Routes.Links
                           Filehub.Server
                           Filehub.Server.File
                           Filehub.Server.File.Paste

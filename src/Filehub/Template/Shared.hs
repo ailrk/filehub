@@ -34,7 +34,7 @@ import Data.Sequence qualified as Seq
 import Data.String.Interpolate (iii)
 import Data.Text (Text)
 import Data.Text qualified as Text
-import Filehub.Links (apiLinks)
+import Filehub.Routes.Links (apiLinks)
 import Filehub.Locale ( Phrase(..), phrase )
 import Filehub.Routes (Api (..))
 import Filehub.Session (TargetView(..))

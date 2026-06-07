@@ -37,14 +37,15 @@ import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as T
 import Data.Time.Format (formatTime, defaultTimeLocale)
-import Filehub.Links ( apiLinks )
 import Filehub.Locale (Locale(..), Phrase (..), phrase)
 import Filehub.Routes (Api(..))
+import Filehub.Routes.Links ( apiLinks )
 import Filehub.Session (TargetView(..))
 import Filehub.Session.Selected qualified as Selected
 import Filehub.Session.Types (Layout(..))
 import Filehub.Size (toReadableSize)
 import Filehub.Template (Template, TemplateContext(..), runTemplate)
+import Filehub.Template.Htmx (asHtmx)
 import Filehub.Template.Shared (bold, sideBarId, viewId, searchBar, tableId)
 import Filehub.Template.Shared qualified as Template
 import Filehub.Theme (Theme (..))
@@ -59,7 +60,6 @@ import Target.File (FileSys, Target (..))
 import Target.S3 (S3, Target (..))
 import Target.Types (targetHandler, AnyTarget, handleTarget)
 import Target.Types qualified as Target
-import Filehub.Template.Htmx (asHtmx)
 
 
 ------------------------------------

@@ -123,9 +123,9 @@ sidebarBtn =
 
 toolBar :: Template (Html ())
 toolBar = do
-  sortTool' <- sortTool
+  sortTool'       <- sortTool
   pathBreadcrumb' <- Template.pathBreadcrumb
-  searchBar' <- searchBar
+  searchBar'      <- searchBar
   pure do
     div_ [ id_ toolBarId ] do
       div_ do
@@ -284,7 +284,6 @@ languagePanel =
     item RU "Русский"
     item PT "Português"
     item IT "Italiano"
-
 
 
 controlPanel :: Template (Html ())
