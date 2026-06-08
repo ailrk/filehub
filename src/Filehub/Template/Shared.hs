@@ -122,7 +122,7 @@ pathBreadcrumb = do
           coerce currentDir
           & splitPath
           & scanl1 (++)
-          & (\path-> if null path then ["/"] else path)
+          & (\path -> if null path then ["/"] else path)
           & fmap newAbsPath
           & catMaybes
           & filter (\(AbsPath path) -> length (splitPath path) >= length (splitPath (coerce root)))

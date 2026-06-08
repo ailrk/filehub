@@ -1,7 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Lucid.Htmx where
 
+import Data.Char (isUpper, toLower)
 import Data.Text (Text)
 import Lucid
 import Lucid.Base (makeAttribute)
@@ -52,6 +54,13 @@ instance Show Trigger where
     show (Every t) = "every " <> T.unpack t
 
 
+-- | Htmx event.
+-- The case is tricky. The htmx conventions is that the event itself is in
+-- camel case, e.g `htmx:BeforeRequest`, but when it's referrered in html, it is
+-- converted into kebab case, e.g `htmx:before-request`.
+--
+-- `htmxEventAsCamel` and `htmxEventAsKebab` are two only ways to convert a
+-- `HtmxEvent` to `Text.
 data HtmxEvent
     = BeforeRequest
     | BeforeSend
@@ -63,22 +72,48 @@ data HtmxEvent
     | OobAfterSwap
     | ResponseError
     | SendError
-    | CustomEvent Text
-    deriving (Eq)
+    deriving (Eq, Show)
 
 
-instance Show HtmxEvent where
-    show BeforeRequest   = "htmx:beforeRequest"
-    show BeforeSend      = "htmx:beforeSend"
-    show AfterOnLoad     = "htmx:afterOnLoad"
-    show AfterRequest    = "htmx:afterRequest"
-    show AfterSettle     = "htmx:afterSettle"
-    show AfterSwap       = "htmx:afterSwap"
-    show OobBeforeSwap   = "htmx:oobBeforeSwap"
-    show OobAfterSwap    = "htmx:oobAfterSwap"
-    show ResponseError   = "htmx:responseError"
-    show SendError       = "htmx:sendError"
-    show (CustomEvent t) = T.unpack t
+-- Custom events should have the same naming convention as the standard htmx
+-- evenst. If we have an event `ThemeToggled`, the event should be referred as
+-- `themeToggled` in js, and `theme-toggled` in htmx.
+newtype HtmxCustomEvent a = HtmxCustomEvent a
+
+
+class IsHtmxCustomEvent a where
+  -- | Convert a custom event to a text that's suitable for htmx.
+  -- The text should be Pascal Case, which is the default Show instance for
+  -- most sum types. These two functions will transform it to the proper
+  -- casing.
+  htmxCustomEventNameToText :: a -> Text
+
+
+asCamelCase :: Text -> Text
+asCamelCase t =
+  case T.uncons t of
+    Just (c, cs) -> T.cons (toLower c) cs
+    Nothing -> t
+
+
+htmxEventAsCamel :: HtmxEvent -> Text
+htmxEventAsCamel e = asCamelCase (T.pack (show e))
+
+
+htmxEventAsKebab :: HtmxEvent -> Text
+htmxEventAsKebab e = toLCKebab (htmxEventAsCamel e)
+
+
+-- | Convert camel case string to lower case kebab case.
+toLCKebab :: Text -> Text
+toLCKebab t =
+  case T.uncons t of
+    Just (c, cs) ->  T.cons (toLower c) (T.foldr trans T.empty cs)
+    Nothing      -> T.empty
+  where
+    trans c acc
+      | isUpper c = T.cons '-' (T.cons (toLower c) acc)
+      | otherwise = T.cons c acc
 
 
 -- | Method Attributes (taking Link)
@@ -127,16 +162,23 @@ instance HxOn Text where
 
 instance HxOn HtmxEvent where
   hxOn event script =
-      let eventName = T.pack (show event)
-          cleanName = T.replace "htmx:" "" eventName
-      in makeAttribute ("hx-on::" <> cleanName) script
+    let eventName = htmxEventAsKebab event
+        cleanName = T.replace "htmx:" "" eventName
+    in makeAttribute ("hx-on::" <> cleanName) script
+
+
+instance IsHtmxCustomEvent evt => HxOn (HtmxCustomEvent evt) where
+  hxOn (HtmxCustomEvent event) script =
+    makeAttribute ("hx-on:" <> toLCKebab (htmxCustomEventNameToText event)) script
 
 
 instance HxOn Trigger where
   hxOn event script =
-      let eventName = T.pack (show event)
-          cleanName = T.replace "htmx:" "" eventName
-      in makeAttribute ("hx-on::" <> cleanName) script
+    let
+        eventName = T.pack (show event)
+        cleanName = T.replace "htmx:" "" eventName
+    in
+        makeAttribute ("hx-on::" <> cleanName) script
 
 
 ------------------------------
@@ -151,7 +193,11 @@ instance HxTrigger Trigger where
 
 
 instance HxTrigger HtmxEvent where
-    hxTrigger e = makeAttribute "hx-trigger" (T.pack $ show e)
+    hxTrigger e = makeAttribute "hx-trigger" (htmxEventAsKebab e)
+
+
+instance IsHtmxCustomEvent evt => HxTrigger (HtmxCustomEvent evt) where
+    hxTrigger (HtmxCustomEvent e) = makeAttribute "hx-trigger" (htmxCustomEventNameToText e)
 
 
 instance HxTrigger Text where

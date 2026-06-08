@@ -231,6 +231,7 @@ library
                           LockManager.Local
                           Lucid.Htmx
                           Network.Mime.Extended
+                          Network.HTTP.Headers.Extended
                           Network.Wai.Middleware.Extended
                           Paths_filehub
                           Servant.Extended

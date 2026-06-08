@@ -25,10 +25,6 @@ export type OpenedTarget
 export type Display = 'Desktop' | 'Mobile' | 'NoDisplay'
 
 
-export type UIComponent = 'UIComponentView' | 'UIComponentSideBar' | 'UIComponentContronPanel' | 'UIComponentIndex'
-
-
-
 export type Rational = { numerator: number, denominator: number }
 
 

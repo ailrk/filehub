@@ -65,7 +65,6 @@ clear sessionId = do
   Copy.clearCopyState sessionId
 
 
-
 selectLayout :: SessionId -> ConfirmLogin -> Maybe Layout -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
 selectLayout sessionId _ layout = do
   modifySession sessionId \s -> pure do
@@ -103,14 +102,14 @@ changeLocale sessionId (Just locale) = do
   addHeader LocaleChanged <$> index sessionId
 
 
-toggleSidebar :: SessionId -> ConfirmLogin -> Filehub (Html ())
+toggleSidebar :: SessionId -> ConfirmLogin -> Filehub (Headers '[ Header "HX-Trigger-After-Settle" FilehubEvent ] NoContent)
 toggleSidebar sessionId _ = do
   withSession_ sessionId \s -> pure
     ( s { sidebarCollapsed = not s.sidebarCollapsed
         }
     , ()
     )
-  index sessionId
+  pure $ addHeader SidebarToggled NoContent
 
 
 selectRows :: SessionId -> ConfirmLogin -> Selected -> Filehub (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))

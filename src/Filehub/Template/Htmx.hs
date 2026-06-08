@@ -10,16 +10,16 @@ import Filehub.Routes.Links (apiLinks)
 import GHC.Records (HasField (..))
 import GHC.TypeLits (Symbol)
 import Lucid (Attribute)
-import Lucid.Htmx (hxTarget, HxSwap (..))
+import Lucid.Htmx (hxTarget, HxSwap (..), HtmxCustomEvent (..), HxOn (..))
 import Servant (Link, AsLink)
 
 
 -- | Computes a clean, flat tuple type from a nested function signature
 type family ArgsTuple f where
-  ArgsTuple Link                  = ()
-  ArgsTuple (a -> Link)           = a
-  ArgsTuple (a -> b -> Link)      = (a, b)
-  ArgsTuple (a -> b -> c -> Link) = (a, b, c)
+  ArgsTuple Link                       = ()
+  ArgsTuple (a -> Link)                = a
+  ArgsTuple (a -> b -> Link)           = (a, b)
+  ArgsTuple (a -> b -> c -> Link)      = (a, b, c)
   ArgsTuple (a -> b -> c -> d -> Link) = (a, b, c, d)
 
 
@@ -43,8 +43,9 @@ instance RunArgs (a -> b -> c -> d -> Link) where
   runArgs f (a, b, c, d) = f a b c d
 
 
-asHtmx :: forall (field :: Symbol) urlFunc.
-     ( HasField field (Api (AsLink Link)) urlFunc
+asHtmx
+  :: forall (field :: Symbol) urlFunc
+   . ( HasField field (Api (AsLink Link)) urlFunc
      , RunArgs urlFunc
      , HasField field (Api AsLinkConf) LinkConf
      )
@@ -60,10 +61,13 @@ asHtmx hxVerb args extraAttrs =
   in
     mconcat
       [ [ hxVerb url
-        , hxSwap config.swap
+        , hxSwap config.hxSwap
         ]
-      , case config.target of
-          Just t -> [ hxTarget t ]
+      , case config.hxTarget of
+          Just t  -> [ hxTarget t ]
           Nothing -> []
+      , case config.hxOn of
+          Just (evt, handler) -> [ hxOn (HtmxCustomEvent evt) handler ]
+          Nothing             -> []
       , extraAttrs
       ]

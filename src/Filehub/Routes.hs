@@ -116,14 +116,6 @@ data Api mode = Api
                           :> Get '[HTML] (Html ())
 
 
-  , refresh               :: mode
-                          :- "refresh"
-                          :> AuthProtect "session"
-                          :> AuthProtect "login"
-                          :> QueryParam "component" UIComponent
-                          :> Get '[HTML] (Html ())
-
-
   , listen                :: mode
                           :- "listen"
                           :> AuthProtect "session"
@@ -444,7 +436,7 @@ data Api mode = Api
                           :> "toggle"
                           :> AuthProtect "session"
                           :> AuthProtect "login"
-                          :> Get '[HTML] (Html ())
+                          :> Get '[HTML] (Headers '[ Header "HX-Trigger-After-Settle" FilehubEvent ] NoContent)
 
   -- Similar to serv      e but only serve image and pdf. Creates thumbnail version for requested image. This is useful for lazy loading image
   -- preview.

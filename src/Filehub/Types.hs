@@ -33,7 +33,7 @@ module Filehub.Types
   )
   where
 
-import Data.Aeson (ToJSON (..), (.=), Value)
+import Data.Aeson (ToJSON (..), (.=), Value, Key)
 import Data.Aeson qualified as Aeson
 import Data.ClientPath (ClientPath(..), RawClientPath(..))
 import Data.Text (Text)
@@ -49,6 +49,9 @@ import GHC.IsList (fromList)
 import Servant ( ToHttpApiData(..), FromHttpApiData(..), Accept (..), MimeRender )
 import Servant.API (MimeRender(..))
 import Web.FormUrlEncoded (FromForm (..), parseUnique, ToForm (..), parseAll)
+import Lucid.Htmx (IsHtmxCustomEvent (..), asCamelCase)
+import Data.Text qualified as T
+import Data.Aeson.Key qualified as Aeson.Key
 
 
 -- | Simple Auth login form
@@ -151,46 +154,40 @@ data FilehubEvent
   | LayoutChanged
   | ThemeChanged
   | LocaleChanged
+  | SidebarToggled
   | FileMoved
   | FileRenamed
   | Canceled -- Action canceled
   | Opened OpenTarget ClientPath -- load a resource into tab/window/iframe. Hook  for window.open
-  | UIComponentReloaded UIComponent
-  | Dummy Text -- dummy event for testing
   deriving (Show)
 
 
+instance IsHtmxCustomEvent FilehubEvent where
+  htmxCustomEventNameToText (ViewerInited {}) = "ViewerInited"
+  htmxCustomEventNameToText (Opened {}) = "Opened"
+  htmxCustomEventNameToText e = T.pack (show e)
+
+
+eventNameAsKey :: FilehubEvent -> Key
+eventNameAsKey = Aeson.Key.fromText . asCamelCase . htmxCustomEventNameToText
+
+
 instance ToJSON FilehubEvent where
-  toJSON (ViewerInited res index) =
+  toJSON e@(ViewerInited res index) =
     Aeson.object
-      [ "ViewerInited" .= Aeson.object
+      [ eventNameAsKey e .= Aeson.object
           [ "resources" .= toJSON res
           , "index"     .= toJSON index
           ]
       ]
-  toJSON TargetChanged  = Aeson.object [ "TargetChanged" .= Aeson.object [] ]
-  toJSON TableSorted    = Aeson.object [ "TableSorted"   .= Aeson.object [] ]
-  toJSON DirChanged     = Aeson.object [ "DirChanged"    .= Aeson.object [] ]
-  toJSON LayoutChanged  = Aeson.object [ "LayoutChanged" .= Aeson.object [] ]
-  toJSON ThemeChanged   = Aeson.object [ "ThemeChanged"  .= Aeson.object [] ]
-  toJSON LocaleChanged  = Aeson.object [ "LocaleChanged" .= Aeson.object [] ]
-  toJSON FileMoved      = Aeson.object [ "FileMoved"     .= Aeson.object [] ]
-  toJSON FileRenamed    = Aeson.object [ "FileRenamed"   .= Aeson.object [] ]
-  toJSON Canceled       = Aeson.object [ "Canceled"      .= Aeson.object [] ]
-  toJSON (Opened target path) =
+  toJSON e@(Opened target path) =
     Aeson.object
-      [ "Opened" .= Aeson.object
+      [ eventNameAsKey e .= Aeson.object
           [ "path" .= toJSON path
           , "tgt"  .= toJSON target
           ]
       ]
-  toJSON (UIComponentReloaded comp) =
-    Aeson.object
-      [ "UIComponentReloaded" .= Aeson.object
-          [ "component" .= toJSON comp
-          ]
-      ]
-  toJSON (Dummy t)  = Aeson.object [ "Dummy" .= Aeson.object [ "msg" .= t ] ]
+  toJSON e = Aeson.object [ eventNameAsKey e .= Aeson.object [] ]
 
 
 instance ToHttpApiData FilehubEvent where

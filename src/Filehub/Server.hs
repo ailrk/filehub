@@ -48,16 +48,15 @@ import Filehub.Server.Notification qualified
 import Filehub.Server.Search qualified
 import Filehub.Server.SharedLink qualified
 import Filehub.Server.Static qualified
-import Filehub.Server.UI (index, clear, controlPanel, sideBar, view)
+import Filehub.Server.UI (index, clear)
 import Filehub.Server.UI qualified
 import Filehub.Server.UI.Platform.Desktop qualified as Server.Desktop
 import Filehub.Server.UI.Platform.Mobile qualified as Server.Mobile
-import Filehub.Server.Util (parseHeader')
 import Filehub.Server.Util (withQueryParam)
 import Filehub.Session (SessionId(..), TargetView (..), getDisplay, getCurrentTarget, setCurrentTarget)
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Template.Shared qualified as Template
-import Filehub.Types (Display (..), Resolution, UIComponent (..), FilehubEvent (..))
+import Filehub.Types (Display (..), Resolution, FilehubEvent (..))
 import Filehub.Types (Session(..))
 import Filehub.UserAgent qualified as UserAgent
 import Log (logAttention)
@@ -80,6 +79,7 @@ import UnliftIO.Exception (SomeException, catch)
 import Web.Cookie (SetCookie (..), defaultSetCookie)
 import Filehub.Session.Pool (withSession_, withSession, extendSession)
 import Control.Monad.Reader (MonadReader(..))
+import Network.HTTP.Headers.Extended (parseHeader')
 
 
 ------------------------------------
@@ -91,7 +91,6 @@ server :: Env -> Api (AsServerT Filehub)
 server env = Api
   { initialize            = initialize
   , home                  = home
-  , refresh               = refresh
   , listen                = Filehub.Server.Notification.listen
   , loginPage             = Filehub.Server.Login.loginPage
   , loginToggleTheme      = Filehub.Server.Login.loginToggleTheme
@@ -196,26 +195,10 @@ home sessionId _  = do
         html `with` [ class_ "hidden fade-in" ]
 
 
--- | Force to refresh a component. It's useful for the client to selectively update ui.
-refresh :: SessionId -> ConfirmLogin -> Maybe UIComponent -> Filehub (Html ())
-refresh sessionId _ mUIComponent = do
-  case mUIComponent of
-    Just UIComponentContronPanel -> do
-      controlPanel sessionId
-    Just UIComponentSideBar -> do
-      sideBar sessionId
-    Just UIComponentView -> do
-      view sessionId
-    Just UIComponentIndex -> do
-      index sessionId
-    Nothing ->
-      throwIO do HTTPError (err400 { errBody = [i|Invalid ui component|]})
-
-
 changeTarget :: SessionId -> ConfirmLogin -> Maybe TargetId
              -> Filehub (Headers '[Header "HX-Trigger-After-Swap" FilehubEvent] (Html ()))
 changeTarget sessionId _ mTargetId = do
-  env <- ask
+  env           <- ask
   savedTargetId <- do
     TargetView saved _ <- withSession sessionId (getCurrentTarget env)
     pure $ Target.getTargetId saved

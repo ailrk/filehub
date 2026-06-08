@@ -1,17 +1,14 @@
 {-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
 module Filehub.Server.Util
   ( withQueryParam
-  , parseHeader'
   , throttle
   )
   where
 
-
-import Data.ByteString (ByteString)
 import Filehub.Error (FilehubError (..))
 import Prelude hiding (elem)
 import Prelude hiding (readFile)
-import Servant ( FromHttpApiData (..) )
 import Servant.Server (err400)
 import Filehub.Monad (Filehub)
 import UnliftIO (throwIO)
@@ -24,10 +21,6 @@ withQueryParam m =
   case m of
     Just a  -> pure a
     Nothing -> throwIO do HTTPError err400
-
-
-parseHeader' :: FromHttpApiData a => ByteString -> Maybe a
-parseHeader' x = either (const Nothing) Just (parseHeader x)
 
 
 throttle :: (Monad m, Integral n) => n -> n -> m () -> m ()

@@ -19,7 +19,6 @@ import Filehub.Handler (ConfirmLogin)
 import Filehub.Locale (Locale (..))
 import Filehub.Monad
 import Filehub.Orphan ()
-import Filehub.Server.Util (parseHeader')
 import Filehub.Session (SessionId(..), Session(..))
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Template (runTemplate, TemplateContext(..), makeTemplateContext)
@@ -31,7 +30,7 @@ import Lucid hiding (for_)
 import Network.HTTP.Types.Header (hLocation)
 import Network.URI qualified as URI
 import Prelude hiding (init, readFile)
-import Servant (Header , Headers , NoContent (..) , addHeader , err301 , err303    , errHeaders , noHeader  )
+import Servant (Header , Headers , NoContent (..) , addHeader , err301 , err303    , errHeaders , noHeader, FromHttpApiData (..)  )
 import UnliftIO (throwIO, atomically)
 import Web.Cookie (SetCookie (..), defaultSetCookie)
 import Filehub.Session.Pool (withSession, modifySession)
@@ -53,6 +52,8 @@ loginPage sessionId cookie Nothing = do
          Nothing -> pure $ runTemplate ctx Template.Login.login
   where
     go = throwIO do HTTPError (err301 { errHeaders = [(hLocation, "/")] })
+    parseHeader' x = either (const Nothing) Just (parseHeader x)
+
 loginPage sessionId _ (Just _) = do
   ctx <- makeTemplateContext sessionId
   pure $ runTemplate ctx Template.Login.login

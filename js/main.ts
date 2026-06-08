@@ -12,7 +12,7 @@ import * as DesktopSelected from './handlers/desktop/selected.js';
 import * as MobileCloseSidebar from './handlers/mobile/closeSidebar.js';
 import * as MobileSelected from './handlers/mobile/selected.js';
 import Viewer from './viewer.js';
-import type { DeleteProgressed, MoveProgressed, Opened, PasteProgressed, TaskCompleted, TaskFailed, UIComponent, UploadProgressed, ViewerInited } from './def.js';
+import type { DeleteProgressed, MoveProgressed, Opened, PasteProgressed, TaskCompleted, TaskFailed, UploadProgressed, ViewerInited } from './def.js';
 import { Display } from './def.js';
 
 
@@ -46,14 +46,19 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* HX-Trigger */
-  document.addEventListener('Dummy', (e: any) => { console.log("testing dummy event", e.detail); });
-  document.addEventListener('ViewerInited', initViewer);
-  document.addEventListener('Opened', open);
-  document.addEventListener('ThemeChanged', reloadTheme);
-  document.addEventListener('UIComponentReloaded', reloadUIComponent);
-
+  (window as any).handleToggleSidebar = handleToggleSidebar;
+  (window as any).handleChangeTheme   = handleChangeTheme;
+  (window as any).handleChangeLocale  = handleChangeLocale;
+  (window as any).handleChangeDir     = handleChangeDir;
+  (window as any).handleRenameFile    = handleRenameFile;
+  (window as any).handleSortTable     = handleSortTable;
+  (window as any).handleChangeLayout  = handleChangeLayout;
+  (window as any).handleMoveFile      = handleMoveFile;
+  document.addEventListener('viewerInited', initViewer);
+  document.addEventListener('opened', open);
   document.body.addEventListener('htmx:responseError', handleError);
   document.addEventListener('htmx:afterSettle', closeDropdowns);
+  document.addEventListener('htmx:beforeProcessNode', convertCustomEventCase);
 
   removeClassOnIndex();
 });
@@ -86,7 +91,7 @@ window.addEventListener("beforeunload", async (_) => {
 startListenSSE();
 
 
-function reloadTheme() {
+function handleChangeTheme() {
   const oldLink = document.querySelector('link[rel="stylesheet"][href*="/theme.css"]') as HTMLLinkElement;
   if (!oldLink) return;
 
@@ -99,6 +104,30 @@ function reloadTheme() {
 
   oldLink.parentNode!.insertBefore(newLink, oldLink.nextSibling);
 }
+
+
+function handleToggleSidebar() {
+  const el = document.querySelector("#index") as HTMLElement;
+  el.classList.toggle('sidebar-collapsed');
+}
+
+
+function handleChangeLocale() { }
+
+
+function handleChangeDir() { }
+
+
+function handleRenameFile() { }
+
+
+function handleSortTable() { }
+
+
+function handleChangeLayout() { }
+
+
+function handleMoveFile() { }
 
 
 function handleError(e: any) {
@@ -223,37 +252,31 @@ function removeClassOnIndex() {
 }
 
 
-function reloadUIComponent (e: any) {
-  let payload = e.detail as UIComponent;
-  switch (payload) {
-    case 'UIComponentView':
-      htmx.ajax('GET', `/refresh?component=UIComponentView`,
-        { target: '#view',
-          source: '#view',
-          swap: 'outerHTML'
-        });
-      break;
-    case 'UIComponentSideBar':
-      htmx.ajax('GET', `/refresh?component=UIComponentSideBar`,
-        { target: '#side-bar',
-          source: '#side-bar',
-          swap: 'outerHTML'
-        });
-      break;
-    case 'UIComponentContronPanel':
-      htmx.ajax('GET', `/refresh?component=UIComponentContronPanel`,
-        { target: '#control-panel',
-          source: '#control-panel',
-          swap: 'outerHTML'
-        });
-      break;
-    case 'UIComponentIndex':
-      htmx.ajax('GET', `/refresh?component=UIComponentIndex`,
-        { target: '#index',
-          source: '#index',
-          swap: 'outerHTML'
-        });
-      break;
+/* The default htmx event name is in camel case, but when you refer them from
+ * html they become kebab case. e.g AfterRequest vs after-request.
+ *
+ * We can say the same for custom events, a camel case event `SidebarToggled`
+ * will be lower cased into `sidebartoggled`. This creates inconsistency.
+ *
+ * This handle is designed to unify these two cases, so we can make the
+ * assuption that any event is camel case in js and kebab case in html.
+ * */
+function convertCustomEventCase(event: Event) {
+  const ele = event.target! as HTMLElement;
+
+  for (let attr of ele.attributes ?? []) {
+    if (attr.name.startsWith('hx-on:')) {
+      const originalEventName = attr.name.slice(6); // Extract event name
+
+      const kebabEventName = originalEventName
+        .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
+        .toLowerCase();
+
+      if (originalEventName !== kebabEventName) {
+        ele.setAttribute(`hx-on:${kebabEventName}`, attr.value);
+        ele.removeAttribute(attr.name);
+      }
+    }
   }
 }
 

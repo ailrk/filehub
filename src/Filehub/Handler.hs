@@ -27,10 +27,9 @@ import Network.Wai
 import Prelude hiding (readFile)
 import Servant
 import Filehub.Cookie qualified as Cookies
-import Filehub.Server.Util (parseHeader')
 import Filehub.Monad (runFilehub, Filehub)
 import UnliftIO (MonadIO(..), atomically)
-import Data.ByteString.Lazy (ByteString)
+import Data.ByteString.Lazy qualified as LBS
 import Control.Monad.Trans.Except (ExceptT(..), withExceptT)
 import Network.HTTP.Types.Header (hLocation)
 import Control.Monad.Trans.Maybe (MaybeT(..))
@@ -41,6 +40,7 @@ import Filehub.SharedLink (SharedLinkPermit)
 import Filehub.Session qualified as Session
 import Filehub.Session.Pool (withSession)
 import Filehub.Session.Handle (getDisplay)
+import Network.HTTP.Headers.Extended (parseHeader')
 
 
 toServantHandler :: Env -> Filehub a -> Handler a
@@ -107,7 +107,7 @@ mobileOnlyHandler =
     "Only allowed for mobile view"
 
 
-displayOnlyHandler :: witness -> (Display -> Bool) -> ByteString -> Env -> AuthHandler Request witness
+displayOnlyHandler :: witness -> (Display -> Bool) -> LBS.ByteString -> Env -> AuthHandler Request witness
 displayOnlyHandler witness predicate msg env =
   mkAuthHandler \req -> do
     sessionId <- maybe (throwError err401 { errBody = "invalid session" }) pure do

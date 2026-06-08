@@ -18,7 +18,6 @@ function register1() {
 function onEnter(e) {
     let target = e.target;
     let dropdown = target.querySelector('.dropdown-content');
-    console.log(target, dropdown);
     if (dropdown) {
         dropdown.style.display = "block";
     }

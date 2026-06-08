@@ -24,7 +24,6 @@ function register1() {
 function onEnter(e: Event) {
   let target = e.target as HTMLElement;
   let dropdown = target.querySelector('.dropdown-content') as HTMLElement | null;
-  console.log(target, dropdown);
   if (dropdown) {
     dropdown.style.display = "block";
   }
