@@ -444,7 +444,7 @@ textarea:focus {
 
 .modal > .modal-content {
   margin-top: 5vh;
-  border: 1px solid var(--border);
+  border: 1px solid color-mix(in srgb, var(--frontground) 28%, transparent);
   border-radius: var(--radius-lg);
   background-color: var(--background1);
   box-shadow: var(--shadow-lg);
