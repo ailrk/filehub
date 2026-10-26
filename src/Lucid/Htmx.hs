@@ -86,7 +86,7 @@ class IsHtmxCustomEvent a where
   -- The text should be Pascal Case, which is the default Show instance for
   -- most sum types. These two functions will transform it to the proper
   -- casing.
-  htmxCustomEventNameToText :: a -> Text
+  htmxCustomEventToText :: a -> Text
 
 
 asCamelCase :: Text -> Text
@@ -169,7 +169,7 @@ instance HxOn HtmxEvent where
 
 instance IsHtmxCustomEvent evt => HxOn (HtmxCustomEvent evt) where
   hxOn (HtmxCustomEvent event) script =
-    makeAttribute ("hx-on:" <> toLCKebab (htmxCustomEventNameToText event)) script
+    makeAttribute ("hx-on:" <> toLCKebab (htmxCustomEventToText event)) script
 
 
 instance HxOn Trigger where
@@ -197,7 +197,7 @@ instance HxTrigger HtmxEvent where
 
 
 instance IsHtmxCustomEvent evt => HxTrigger (HtmxCustomEvent evt) where
-    hxTrigger (HtmxCustomEvent e) = makeAttribute "hx-trigger" (htmxCustomEventNameToText e)
+    hxTrigger (HtmxCustomEvent e) = makeAttribute "hx-trigger" (htmxCustomEventToText e)
 
 
 instance HxTrigger Text where

@@ -1,160 +1,151 @@
-/* Elements */
+/* ---------- Design tokens ---------- */
+
+:root {
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --fast: 120ms;
+  --normal: 200ms;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+
+/* ---------- Elements ---------- */
 
 html, body {
   overscroll-behavior-y: none;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--font);
+  letter-spacing: -0.005em;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--secondary) 35%, transparent);
+}
 
 input {
   font-size: 1em;
   background-color: var(--background3);
   color: var(--frontground);
-  border: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
   outline: none;
+  transition: border-color var(--fast) var(--ease), box-shadow var(--fast) var(--ease);
 }
 
+input::placeholder {
+  color: var(--muted);
+}
 
 input:focus {
-  outline: transparent;
+  outline: none;
+  border-color: var(--secondary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--secondary) 25%, transparent);
 }
 
+:focus-visible {
+  outline: 2px solid var(--secondary);
+  outline-offset: 2px;
+}
 
 .form-control {
-  padding: 0.8rem 1rem;
+  padding: 0.7rem 1rem;
 }
 
-
-input.form-control {
-  width: 100%;
-}
-
-
+input.form-control,
 textarea.form-control {
   width: 100%;
 }
 
-
 hr {
-  background: var(--frontground);
+  background: var(--border);
   border: 0;
   height: 1px;
 }
 
-
-/* Decorators */
-
-
-.fade {
-  animation-name: fadeIn;
-  animation-duration: 100ms;
-  animation-timing-function: ease-in;
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--background3) transparent;
 }
 
+
+/* ---------- Decorators ---------- */
+
+.fade {
+  animation: fadeIn var(--normal) var(--ease);
+}
 
 .hidden { opacity: 0; }
 
+.bold { font-weight: 600 !important; }
 
-.bold {
-  font-weight: bold !important;
-}
+.urgent { color: var(--secondary) !important; }
 
-
-.urgent {
-  color: var(--secondary) !important;
-}
-
-
-.closed {
-  display: none !important;
-}
-
+.closed { display: none !important; }
 
 .selected {
-  background: color-mix(in srgb, var(--background3) 98%, white) !important;
+  background: color-mix(in srgb, var(--secondary) 10%, var(--background2)) !important;
 }
-
 
 .selected.confirmed {
-  background-color: var(--background3) !important;
+  background: color-mix(in srgb, var(--secondary) 18%, var(--background2)) !important;
 }
 
-
-.mr-2 {
-  margin-right: 10px;
-}
+.mr-2 { margin-right: 10px; }
 
 
-/* Dropdown */
-
+/* ---------- Dropdown ---------- */
 
 .dropdown {
   position: relative;
   display: inline-block;
 }
 
-
 .dropdown-content {
   position: absolute;
-  background: var(--background2);
-  border-radius: 0.5rem;
+  background: var(--background1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  padding: 4px;
   text-align: left;
   z-index: 1;
-  border: var(--background3) solid;
-
-  animation-name: fadeIn;
-  animation-duration: 150ms;
-  animation-timing-function: ease;
+  animation: fadeIn 150ms var(--ease);
 }
-
 
 .dropdown-content.closing {
-  animation-name: fadeOut;
-  animation-duration: 150ms;
-  animation-timing-function: ease;
+  animation: fadeOut 150ms var(--ease);
 }
-
 
 .dropdown-item {
   cursor: pointer;
-  padding: 0.7em;
-  padding-right: 2em;
+  padding: 0.6em 1.5em 0.6em 0.7em;
   white-space: nowrap;
+  border-radius: var(--radius-sm);
+  transition: background var(--fast) var(--ease);
 }
 
+.dropdown-item:active { transform: translateY(1px); }
 
-.dropdown-item:active {
-  transform: translateY(2px);
-}
-
-
-.dropdown-item:hover {
-  background: var(--background3);
-}
-
+.dropdown-item:hover { background: var(--background3); }
 
 .dropdown-item span {
   color: var(--frontground);
   display: inline-block;
   text-decoration: none;
-  padding: 0 2rem 0 1rem;
+  padding: 0 1rem;
 }
 
-
-
-.dropdown-item.no-effect {
-  cursor: initial;
-}
-
-
-.dropdown-item.no-effect:hover {
-  background: initial;
-}
-
-
-.dropdown-item.no-effect:active {
-  transform: initial;
-}
-
+.dropdown-item.no-effect { cursor: initial; }
+.dropdown-item.no-effect:hover { background: initial; }
+.dropdown-item.no-effect:active { transform: initial; }
 
 a.dropdown-item {
   color: var(--frontground);
@@ -163,13 +154,12 @@ a.dropdown-item {
 }
 
 
-/* File meta */
+/* ---------- File meta ---------- */
 
 .file-meta {
   display: inline-flex;
-  color: #777; /* dimmer color */
+  color: var(--muted);
 }
-
 
 .file-meta.mobile {
   font-size: 0.85rem;
@@ -177,116 +167,97 @@ a.dropdown-item {
 }
 
 
-/* Boxicon */
+/* ---------- Boxicons ---------- */
 
+.bxs-folder { color: var(--secondary); }
 
-.bxs-folder {
-  color: var(--secondary);
+.bx-caret-right,
+.bx-caret-down {
+  transition: color var(--fast) var(--ease);
 }
 
-
-.bx-caret-right:hover {
-  color: var(--secondary);
-}
-
-
+.bx-caret-right:hover,
 .bx-caret-down:hover {
   color: var(--secondary);
 }
 
 
-/* Ballon */
+/* ---------- Balloons (toasts) ---------- */
 
 .balloon {
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
+  padding: 0.7rem 1rem;
+  border-radius: var(--radius);
   margin-bottom: 0.5rem;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-  animation: fadeInBallon 0.3s ease;
+  box-shadow: var(--shadow-md);
+  animation: fadeInBallon 0.25s var(--ease);
   font-size: 0.9rem;
   z-index: 1500;
   display: flex;
   flex-direction: column;
 }
 
-
 .balloon-err-msg {
   background: var(--secondary);
-  color: var(--frontground);
+  color: var(--on-secondary);
 }
-
 
 .balloon-info-msg {
   background: var(--primary);
-  color: var(--frontground);
+  color: var(--dark);
 }
-
 
 .balloon-progress-msg {
-  background: var(--background2);
+  background: var(--background1);
   color: var(--frontground);
+  border: 1px solid var(--border);
 }
 
 
-/* Progress bar */
+/* ---------- Progress bar ---------- */
 
 .progress-container {
-  width: 300px;         /* total width */
-  height: 5px;         /* thickness */
-  border-radius: 5px;
-  background: #eee;
+  width: 300px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--background3);
   overflow: hidden;
 }
 
 .progress-bar {
   height: 100%;
   width: 0;
-  background: linear-gradient(to right, #4caf50, #81c784);
-  transition: width 0.3s ease;
+  border-radius: inherit;
+  background: linear-gradient(to right, var(--primary), var(--secondary));
+  transition: width 0.3s var(--ease);
 }
 
 
-/* animation */
+/* ---------- Animation ---------- */
 
 .fade-in { animation: fadeIn 0.3s ease-in; }
 
-
-@keyframes fadeIn {
-  0% {opacity: 0;}
-  100% {opacity: 1;}
-}
-
-
-@keyframes fadeOut {
-  0% {opacity: 1;}
-  100% {opacity: 0;}
-}
-
-
-@keyframes zoomIn {
-  0% {transform: scale(0.9);}
-  100% {transform: scale(1);}
-}
-
-
-@keyframes zoomOut {
-  0% {transform: scale(1);}
-  100% {transform: scale(0.9);}
-}
-
-
+@keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+@keyframes zoomIn  { from { transform: scale(0.96); } to { transform: scale(1); } }
+@keyframes zoomOut { from { transform: scale(1); } to { transform: scale(0.96); } }
 
 @keyframes fadeInBallon {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 
-/* Others */
-
+/* ---------- Others ---------- */
 
 .debug {
   position: fixed;
   top: 5px;
-  left: 5px
+  left: 5px;
 }

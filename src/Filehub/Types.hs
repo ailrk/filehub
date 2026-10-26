@@ -163,31 +163,33 @@ data FilehubEvent
 
 
 instance IsHtmxCustomEvent FilehubEvent where
-  htmxCustomEventNameToText (ViewerInited {}) = "ViewerInited"
-  htmxCustomEventNameToText (Opened {}) = "Opened"
-  htmxCustomEventNameToText e = T.pack (show e)
+  htmxCustomEventToText (ViewerInited {}) = "ViewerInited"
+  htmxCustomEventToText (Opened {}) = "Opened"
+  htmxCustomEventToText e = T.pack (show e)
 
 
-eventNameAsKey :: FilehubEvent -> Key
-eventNameAsKey = Aeson.Key.fromText . asCamelCase . htmxCustomEventNameToText
+-- | HTMX event name conventions uses camel case. Filehub custom events starts
+-- with prefix `filehub:`
+customEventNameAsKey :: FilehubEvent -> Key
+customEventNameAsKey evt = "filehub:" <> (Aeson.Key.fromText . asCamelCase . htmxCustomEventToText) evt
 
 
 instance ToJSON FilehubEvent where
   toJSON e@(ViewerInited res index) =
     Aeson.object
-      [ eventNameAsKey e .= Aeson.object
+      [ customEventNameAsKey e .= Aeson.object
           [ "resources" .= toJSON res
           , "index"     .= toJSON index
           ]
       ]
   toJSON e@(Opened target path) =
     Aeson.object
-      [ eventNameAsKey e .= Aeson.object
+      [ customEventNameAsKey e .= Aeson.object
           [ "path" .= toJSON path
           , "tgt"  .= toJSON target
           ]
       ]
-  toJSON e = Aeson.object [ eventNameAsKey e .= Aeson.object [] ]
+  toJSON e = Aeson.object [ customEventNameAsKey e .= Aeson.object [] ]
 
 
 instance ToHttpApiData FilehubEvent where

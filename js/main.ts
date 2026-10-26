@@ -46,16 +46,16 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* HX-Trigger */
-  (window as any).handleToggleSidebar = handleToggleSidebar;
-  (window as any).handleChangeTheme   = handleChangeTheme;
-  (window as any).handleChangeLocale  = handleChangeLocale;
-  (window as any).handleChangeDir     = handleChangeDir;
-  (window as any).handleRenameFile    = handleRenameFile;
-  (window as any).handleSortTable     = handleSortTable;
-  (window as any).handleChangeLayout  = handleChangeLayout;
-  (window as any).handleMoveFile      = handleMoveFile;
-  document.addEventListener('viewerInited', initViewer);
-  document.addEventListener('opened', open);
+  document.addEventListener('filehub:sidebarToggled', handleSidebarToggled);
+  document.addEventListener('filehub:themeChanged', handleThemeChanged);
+  document.addEventListener('filehub:localeChanged', handleLocalChanged);
+  document.addEventListener('filehub:fileMoved', handleFileMoved);
+  document.addEventListener('filehub:dirChanged', handleDirChanged);
+  document.addEventListener('filehub:fileRenamed', handleFileRenamed);
+  document.addEventListener('filehub:tableSorted', handleTableSorted);
+  document.addEventListener('filehub:layoutChanged', handleLayoutChanged);
+  document.addEventListener('filehub:viewerInited', initViewer);
+  document.addEventListener('filehub:opened', open);
   document.body.addEventListener('htmx:responseError', handleError);
   document.addEventListener('htmx:afterSettle', closeDropdowns);
   document.addEventListener('htmx:beforeProcessNode', convertCustomEventCase);
@@ -91,7 +91,7 @@ window.addEventListener("beforeunload", async (_) => {
 startListenSSE();
 
 
-function handleChangeTheme() {
+function handleThemeChanged() {
   const oldLink = document.querySelector('link[rel="stylesheet"][href*="/theme.css"]') as HTMLLinkElement;
   if (!oldLink) return;
 
@@ -106,28 +106,28 @@ function handleChangeTheme() {
 }
 
 
-function handleToggleSidebar() {
+function handleSidebarToggled() {
   const el = document.querySelector("#index") as HTMLElement;
   el.classList.toggle('sidebar-collapsed');
 }
 
 
-function handleChangeLocale() { }
+function handleLocalChanged() { }
 
 
-function handleChangeDir() { }
+function handleDirChanged() { }
 
 
-function handleRenameFile() { }
+function handleFileRenamed() { }
 
 
-function handleSortTable() { }
+function handleTableSorted() { }
 
 
-function handleChangeLayout() { }
+function handleLayoutChanged() { }
 
 
-function handleMoveFile() { }
+function handleFileMoved() { }
 
 
 function handleError(e: any) {

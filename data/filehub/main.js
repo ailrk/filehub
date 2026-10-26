@@ -35,16 +35,16 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
     /* HX-Trigger */
-    window.handleToggleSidebar = handleToggleSidebar;
-    window.handleChangeTheme = handleChangeTheme;
-    window.handleChangeLocale = handleChangeLocale;
-    window.handleChangeDir = handleChangeDir;
-    window.handleRenameFile = handleRenameFile;
-    window.handleSortTable = handleSortTable;
-    window.handleChangeLayout = handleChangeLayout;
-    window.handleMoveFile = handleMoveFile;
-    document.addEventListener('viewerInited', initViewer);
-    document.addEventListener('opened', open);
+    document.addEventListener('filehub:sidebarToggled', handleSidebarToggled);
+    document.addEventListener('filehub:themeChanged', handleThemeChanged);
+    document.addEventListener('filehub:localeChanged', handleLocalChanged);
+    document.addEventListener('filehub:fileMoved', handleFileMoved);
+    document.addEventListener('filehub:dirChanged', handleDirChanged);
+    document.addEventListener('filehub:fileRenamed', handleFileRenamed);
+    document.addEventListener('filehub:tableSorted', handleTableSorted);
+    document.addEventListener('filehub:layoutChanged', handleLayoutChanged);
+    document.addEventListener('filehub:viewerInited', initViewer);
+    document.addEventListener('filehub:opened', open);
     document.body.addEventListener('htmx:responseError', handleError);
     document.addEventListener('htmx:afterSettle', closeDropdowns);
     document.addEventListener('htmx:beforeProcessNode', convertCustomEventCase);
@@ -70,7 +70,7 @@ window.addEventListener("beforeunload", async (_) => {
 });
 /* Start /listen */
 startListenSSE();
-function handleChangeTheme() {
+function handleThemeChanged() {
     const oldLink = document.querySelector('link[rel="stylesheet"][href*="/theme.css"]');
     if (!oldLink)
         return;
@@ -82,16 +82,16 @@ function handleChangeTheme() {
     };
     oldLink.parentNode.insertBefore(newLink, oldLink.nextSibling);
 }
-function handleToggleSidebar() {
+function handleSidebarToggled() {
     const el = document.querySelector("#index");
     el.classList.toggle('sidebar-collapsed');
 }
-function handleChangeLocale() { }
-function handleChangeDir() { }
-function handleRenameFile() { }
-function handleSortTable() { }
-function handleChangeLayout() { }
-function handleMoveFile() { }
+function handleLocalChanged() { }
+function handleDirChanged() { }
+function handleFileRenamed() { }
+function handleTableSorted() { }
+function handleLayoutChanged() { }
+function handleFileMoved() { }
 function handleError(e) {
     const xhr = e.detail.xhr;
     const status = xhr.status;

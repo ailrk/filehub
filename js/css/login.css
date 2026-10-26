@@ -1,129 +1,131 @@
 @import "common.css";
 
-/* Make the whole page take full height */
 html, body {
   height: 100%;
   margin: 0;
-  font-family: sans-serif;
-  background: var(--background1);
+  font-family: var(--font, system-ui, -apple-system, "Segoe UI", sans-serif);
+  background: var(--background2);
+  color: var(--frontground);
 }
 
-
-/* Center the login form in the middle of the page */
 #login-form {
   display: flex;
-  justify-content: center; /* horizontal center */
-  align-items: center;     /* vertical center */
+  justify-content: center;
+  align-items: center;
   height: 100%;
   flex-direction: column;
-  animation-name: fadeIn;
-  animation-duration: 700ms;
-  animation-timing-function: ease;
+  animation: fadeIn 600ms var(--ease, ease);
 }
 
-
-/* Style the form container */
 #login-form .panel {
   user-select: none;
-  width: 60%;
-  max-width: 400px;
+  width: 90%;
+  max-width: 380px;
   display: flex;
   flex-direction: column;
+  padding: 2rem;
+  background: var(--background1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 14px);
+  box-shadow: var(--shadow-md);
 }
-
 
 #login-form .oidc button {
   margin-bottom: 1rem;
-  color: var(--background1);
+  color: var(--dark);
   background: var(--primary);
 }
-
 
 #login-form .oidc button:hover {
   background: color-mix(in srgb, var(--primary) 85%, black);
 }
 
-
 #login-form .or-sep {
-  color: var(--frontground);
-  padding: 4px;
-  margin-bottom: 15px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  padding: 4px 0;
+  margin-bottom: 14px;
   user-select: none;
 }
 
+#login-form .or-sep::before,
+#login-form .or-sep::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
 
-/* Inputs full width */
 #login-form input {
   user-select: none;
-  background: var(--background3);
+  background: var(--background2);
   color: var(--frontground);
-  padding: 0.5rem;
-  border: none;
-  border-radius: 4px;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
   font-size: 1rem;
   width: 100%;
-  margin-bottom: 1rem;
+  margin-bottom: 0.9rem;
   box-sizing: border-box;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
 }
-
 
 #login-form input:focus {
   outline: none;
-  box-shadow: 0 0 0 2px var(--secondary);
+  border-color: var(--secondary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--secondary) 25%, transparent);
 }
 
-
-/* Buttons full width */
 #login-form button {
   user-select: none;
-  padding: 0.5rem;
+  padding: 0.7rem;
   background: var(--secondary);
-  color: var(--frontground);
+  color: var(--on-secondary);
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm, 6px);
   font-size: 1rem;
+  font-weight: 600;
   cursor: pointer;
   width: 100%;
+  transition: background 120ms ease, transform 120ms ease;
 }
-
 
 #login-form button:hover {
-  background: color-mix(in srgb, var(--secondary) 85%, black);
+  background: color-mix(in srgb, var(--secondary) 88%, black);
 }
 
+#login-form button:active { transform: translateY(1px); }
 
 #login-error.show {
   color: var(--secondary);
-  padding-bottom: 20px;
+  font-size: 0.9rem;
+  padding-bottom: 16px;
 }
-
 
 .fade-in { animation: fadeIn 0.3s ease-in; }
-@keyframes fadeIn {
-  from { opacity: 0; } to { opacity: 1; }
-}
 
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
 
 .btn {
   cursor: pointer;
-  padding: 0.5rem 0.5rem;
+  padding: 0.5rem;
   border: none;
-  font-weight: bold;
-  border-radius: 8px;
+  font-weight: 600;
+  border-radius: var(--radius, 10px);
   color: var(--frontground);
+  transition: background 120ms ease;
 
-  &:active {
-    transform: translateY(2px);
-  }
+  &:active { transform: translateY(1px); }
 
-  & i {
-    font-size: 1.2em;
-  }
+  & i { font-size: 1.2em; }
 
-  &:hover {
-    background: var(--background3);
-    cursor: pointer;
-  }
+  &:hover { background: var(--background3); }
 
   &:hover::after {
     cursor: pointer;
@@ -135,40 +137,39 @@ html, body {
     translate: -5px 28px;
     content: attr(data-tooltip);
     background-color: var(--frontground);
-    color: var(--background3);
+    color: var(--background1);
     white-space: nowrap;
     padding: 4px 8px;
-    border-radius: 3px;
-    font-size: 10px;
+    border-radius: var(--radius-sm, 6px);
+    font-size: 11px;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.2s ease, transform 0.2s ease;
+    transition: opacity 0.2s ease;
     z-index: 10;
   }
 }
 
-
 .btn-control {
-  background: var(--background);
+  background: transparent;
   color: var(--frontground);
-  text-transform: uppercase;
-  font-size: 1.2em;
-  padding: 13px;
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 12px 14px;
 }
 
-
-#locale {
-  display: inline-block;
-}
-
-
-#locale .dropdown-content {
-  display: none;
-}
-
+#locale { display: inline-block; }
+#locale .dropdown-content { display: none; }
 
 #top-bar {
   position: fixed;
   top: 0;
   left: 0;
+  padding: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
