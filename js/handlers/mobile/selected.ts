@@ -1,317 +1,281 @@
 declare var htmx: any;
-/* Long hold on a file to enter selection mode
- * on selection mode, click on any file will select it
- * click again will unselect it.
- * scroll down will trigger multiple selections
- * click on toolbar to exit selection mode
+/* Long hold on a file to enter selection mode.
+ * While selecting, tapping a row toggles it, and holding briefly then
+ * dragging selects every row you pass over.
+ * Tap the counter to clear the selection.
  *
- * While there are things selected, we disable any actions on the table.
- * */
+ * Implementation notes:
+ *  - One code path via Pointer Events (mouse, touch and pen).
+ *  - Listeners are tied to an AbortController, so rebinding after an htmx
+ *    swap can never leave stale listeners behind.
+ *  - Selection is optimistic: rows highlight immediately, and one batched
+ *    request syncs the server state.
+ */
 
 import {
   ObservableCell,
   createObservableCell
 } from '../../containers/Observable.js'
 
-/* selectedIds is a local buffer that holds the currently selected entries on the table.
- * Note it DOESN'T hold selected entries across folders nor across targets.
- * The sole purpose is to control the local highlight behavior.
- * The server side selected state is updated through the `X-Filehub-Selected-*` headers. Use
- * that to render the UI instead.
- * */
+
+/* selectedIds is a local buffer holding the currently selected entries on the table.
+ * It does NOT hold selections across folders or targets.
+ * The server side state is updated through the `X-Filehub-Selected-*` headers;
+ * use that to render the UI.
+ */
 const selectedIds: Set<string> = new Set();
 
-const holdTime: number = 600;
-let holdTimer: number | null = null;
-let mousedownHandler: EventListener | null;
-let mouseupHandler: EventListener | null;
-let touchstartHandler: EventListener | null;
-let touchendHandler: EventListener | null;
-let clearSelectedHandler: EventListener = _ => selectedIds.clear();
-let mousePosition: [x: number, y: number, vx: number, vy: number, t: number][] = [];
+const HOLD_TIME = 500;           // ms to hold before selection starts
+const HOLD_TIME_SELECTING = 250; // shorter hold once already selecting (drag-select)
+const SLOP = 10;                 // px of movement that cancels a hold (it's a scroll)
+const SYNC_DELAY = 60;           // ms to batch select requests
+const CLICK_GUARD = 350;         // ms to swallow the click that follows a gesture
 
-/* The number of selected entries, should only be set by `X-File-Selected-Count` */
+let ac = new AbortController();
+let start: { x: number, y: number } | null = null;
+let dragging = false;
+let suppressClick = false;
+let holdTimer: number | undefined;
+let syncTimer: number | undefined;
+let clickGuardTimer: number | undefined;
+let bodyListenersInstalled = false;
+
+/* The number of selected entries, should only be set by `X-Filehub-Selected-Count` */
 let selectedCount: ObservableCell<number> = createObservableCell(0, _ => {});
+
+const clearSelectedHandler: EventListener = _ => { selectedIds.clear() };
 
 
 export function register() {
   if (!document.querySelector('#table')) return;
   if (!document.querySelector('#selected-counter')) return;
 
-  document.body.addEventListener('TargetChanged', clearSelectedHandler)
+  if (!bodyListenersInstalled) {
+    bodyListenersInstalled = true;
 
-  document.body.addEventListener('htmx:afterSettle', e => {
-    let table = document.querySelector('#table')!;
+    document.body.addEventListener('TargetChanged', clearSelectedHandler);
 
-    // update selected count
-    let count: number = parseInt((e as CustomEvent).detail.xhr.getResponseHeader('X-Filehub-Selected-Count'));
-    if (!Number.isNaN(count)) {
-      selectedCount.set(count)
-    }
+    document.body.addEventListener('htmx:afterSettle', e => {
+      const detail = (e as CustomEvent).detail;
+      const table = document.querySelector('#table');
 
-    if ( // only rebind when table's parents is re-rendered.
-        (e as CustomEvent).detail.elt.contains(table) &&
-        // don't need to rebind when rendering modals
-        !(e as CustomEvent).detail.pathInfo.responsePath.startsWith('/modal')) {
-      unregisterAll()
-      registerAll()
-      clearSelectedHandler(e)
-      collectFromHtml()
-    }
+      // update selected count
+      const header = detail?.xhr?.getResponseHeader('X-Filehub-Selected-Count');
+      const count = parseInt(header);
+      if (!Number.isNaN(count)) {
+        selectedCount.set(count);
+      }
 
-    showSelectedCounter(selectedCount.get()) // make sure if selectedCount > 0 the counter stick across page reload.
-  })
-  registerAll()
+      if (table &&
+          // only rebind when the table's parents are re-rendered.
+          detail?.elt?.contains(table) &&
+          // no need to rebind when rendering modals
+          !detail?.pathInfo?.responsePath?.startsWith('/modal')) {
+        unbind();
+        bind();
+        clearSelectedHandler(e);
+        collectFromHtml();
+      }
+
+      // make sure the counter sticks across page reloads
+      showSelectedCounter(selectedCount.get());
+    });
+  }
+
+  unbind();
+  bind();
 }
 
 
-function registerAll() {
-  console.log('register all')
-  let selectedCounter = document.querySelector('#selected-counter')!
-  let table = document.querySelector('#table')!;
-  selectedCounter.addEventListener('click', clearSelectedHandler)
-  table.removeEventListener('click', preventDefault)
-  /* Because the handlers are installed on local elements (#table),
-   * page updates can cause old listeners to be staled.
-   * we need to install new one when there is page update.
-   * */
-  registerTableTouch()
-  registerTableMouse()
+/* ---------- Binding ---------- */
+
+function bind() {
+  const table = document.querySelector<HTMLElement>('#table');
+  const counter = document.querySelector('#selected-counter');
+  if (!table || !counter) return;
+
+  const o = { signal: ac.signal };
+
+  counter.addEventListener('click', clearAll, o);
+
+  table.addEventListener('pointerdown', onDown, o);
+  table.addEventListener('pointermove', onMove, o);
+  table.addEventListener('pointerup', onUp, o);
+  table.addEventListener('pointercancel', cancelPress, o);
+  table.addEventListener('contextmenu', e => e.preventDefault(), o);
+
+  // Non-passive on purpose: this is what stops the page from scrolling
+  // while drag-selecting.
+  table.addEventListener('touchmove', e => {
+    if (dragging) e.preventDefault();
+  }, { ...o, passive: false });
+
+  // Swallow the click that follows a long press or a selection tap, so the
+  // file doesn't open.
+  table.addEventListener('click', e => {
+    if (suppressClick) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }, { ...o, capture: true });
 }
 
 
 /* Fully reset the handlers in the page. */
-function unregisterAll() {
-  console.log('unregister all')
-  let table = document.querySelector('#table')!;
-  let selectedCounter = document.querySelector('#selected-counter')!
-  table.removeEventListener('mousemove', guard)
-  table.removeEventListener('mousemove', drag)
-  table.removeEventListener('touchmove', guard)
-  table.removeEventListener('touchmove', drag)
-  table.removeEventListener('click', preventDefault)
-  selectedCounter.removeEventListener('click', clearSelectedHandler)
-  unregisterTableTouch()
-  unregisterTableMouse()
+function unbind() {
+  ac.abort();
+  ac = new AbortController();
+  cancelPress();
 }
 
 
-function preventDefault(e: Event) {
-  e.preventDefault()
+/* ---------- Gesture handling ---------- */
+
+function rowOf(el: Element | null): HTMLElement | null {
+  return el?.closest<HTMLElement>('tr[data-path]') ?? null;
 }
 
 
-/* mousedown/touchstart */
-function makeStartHandler(table: HTMLElement, movevt: 'mousemove' | 'touchmove') {
-  return (e: Event) => {
-    console.log('start')
-    // If mouse moved before holding is triggerd, cancel the current timer and start a new one.
-    // We want to make sure you have to hold on one place for some time to trigger the selection.
-    table.addEventListener(movevt, guard)
-    table.addEventListener('click', preventDefault, true)
+function onDown(e: PointerEvent) {
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  const tr = rowOf(e.target as Element);
+  if (!tr) return;
 
-    holdTimer = setTimeout(() => {
-      // Entering holding mode
-      table.removeEventListener(movevt, guard);
-      table.addEventListener(movevt, drag);
-      // Suppress the click entirely by preventing mouseup propagation
-      e.stopImmediatePropagation();
-      e.preventDefault();
-      let tr = (e.target as Element).closest('tr');
-      if (tr) {
-        select(tr)
-      }
-    }, holdTime);
+  clearTimeout(holdTimer);
+  start = { x: e.clientX, y: e.clientY };
+  dragging = false;
+  tr.classList.add('pressing');
+
+  const delay = selectedIds.size > 0 ? HOLD_TIME_SELECTING : HOLD_TIME;
+  holdTimer = window.setTimeout(() => {
+    dragging = true;
+    suppressClick = true;
+    tr.classList.remove('pressing');
+    navigator.vibrate?.(15); // Android only; iOS ignores it
+    add(tr);
+  }, delay);
+}
+
+
+function onMove(e: PointerEvent) {
+  if (!start) return;
+
+  if (!dragging) {
+    // Moved before the hold completed: the user is scrolling.
+    if (Math.hypot(e.clientX - start.x, e.clientY - start.y) > SLOP) {
+      cancelPress();
+    }
+    return;
   }
+
+  const tr = rowOf(document.elementFromPoint(e.clientX, e.clientY));
+  if (tr) add(tr);
 }
 
 
-/* mouseup/touchend */
-function makeEndHandler(table: HTMLElement, movevt: string) {
-  return (_: Event) => {
-    console.log('end')
-    if (holdTimer) { clearTimeout(holdTimer) }
-    table.removeEventListener(movevt, guard)
-    table.removeEventListener(movevt, drag)
-    table.classList.remove('no-touch-action')
-    table.removeEventListener('click', preventDefault)
+function onUp(e: PointerEvent) {
+  const wasTap = start !== null && !dragging;
+  const tr = rowOf(e.target as Element);
+
+  // While selecting, a plain tap toggles the row.
+  if (wasTap && selectedIds.size > 0 && tr) {
+    suppressClick = true;
+    selectedIds.has(tr.dataset.path!) ? remove(tr) : add(tr);
   }
+
+  const swallow = suppressClick;
+  cancelPress();
+  if (swallow) armClickGuard();
 }
 
 
-function registerTableMouse() {
-  let table = document.querySelector('#table');
-  mousedownHandler = makeStartHandler(table! as HTMLElement, 'mousemove')
-  mouseupHandler = makeEndHandler(table! as HTMLElement, 'mousemove')
-  table!.addEventListener('mousedown', mousedownHandler, { capture: true })
-  table!.addEventListener('mouseup', mouseupHandler, { capture: true })
+/* Reset the in-progress gesture (not the selection). */
+function cancelPress() {
+  clearTimeout(holdTimer);
+  document.querySelectorAll('#table tr.pressing')
+    .forEach(r => r.classList.remove('pressing'));
+  const wasDragging = dragging;
+  start = null;
+  dragging = false;
+  if (wasDragging) armClickGuard();
 }
 
 
-function unregisterTableMouse() {
-  let table = document.querySelector('#table');
-  if (mousedownHandler) {
-    table!.removeEventListener('mousedown', mousedownHandler)
-  }
-  if (mouseupHandler) {
-    table!.removeEventListener('mouseup', mouseupHandler)
-  }
+function armClickGuard() {
+  clearTimeout(clickGuardTimer);
+  clickGuardTimer = window.setTimeout(() => { suppressClick = false }, CLICK_GUARD);
 }
 
 
-function registerTableTouch() {
-  let table = document.querySelector('#table')!;
-  touchstartHandler = makeStartHandler(table! as HTMLElement, 'touchmove')
-  touchendHandler = makeEndHandler(table! as HTMLElement, 'touchmove')
-  table.addEventListener('touchstart', touchstartHandler, { capture: true, passive: true })
-  table.addEventListener('touchend', touchendHandler, { capture: true })
+/* ---------- Selection state ---------- */
+
+/* Optimistic UI plus one batched request. */
+function add(tr: HTMLElement) {
+  const id = tr.dataset.path!;
+  if (selectedIds.has(id)) return;
+  selectedIds.add(id);
+  tr.classList.add('selected');
+  scheduleSync();
 }
 
 
-function unregisterTableTouch() {
-  let table = document.querySelector('#table');
-  if (touchstartHandler) {
-    table!.removeEventListener('touchstart', touchstartHandler)
-  }
-  if (touchendHandler) {
-    table!.removeEventListener('touchend', touchendHandler)
-  }
+function remove(tr: HTMLElement) {
+  const id = tr.dataset.path!;
+  if (!selectedIds.has(id)) return;
+  selectedIds.delete(id);
+  tr.classList.remove('selected');
+  scheduleSync();
+}
+
+
+function clearAll() {
+  selectedIds.clear();
+  document.querySelectorAll('#table tr.selected')
+    .forEach(r => r.classList.remove('selected'));
+  scheduleSync();
+}
+
+
+function scheduleSync() {
+  clearTimeout(syncTimer);
+  syncTimer = window.setTimeout(() => {
+    const values: Record<string, string[]> = { selected: Array.from(selectedIds) };
+    htmx.ajax('POST', '/table/select', {
+      values,
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      target: '#control-panel',
+      swap: 'outerHTML'
+    }).catch((_: any) => {
+      console.error('failed to select');
+    });
+  }, SYNC_DELAY);
 }
 
 
 /* Only show the counter when there is more than 0 selected item */
 function showSelectedCounter(count: number) {
-  // watch selected id and display selected counter accordingly.
-  let selectedCounter = document.querySelector('#selected-counter')!
+  const selectedCounter = document.querySelector('#selected-counter');
+  if (!selectedCounter) return;
+  const label = selectedCounter.firstChild as HTMLElement | null;
+
   if (count > 0) {
-    (selectedCounter.firstChild as HTMLElement).innerText = count.toString()
-    selectedCounter.classList.add('show')
+    if (label) label.innerText = count.toString();
+    selectedCounter.classList.add('show');
   } else {
-    (selectedCounter.firstChild as HTMLElement).innerText = "0"
-    selectedCounter.classList.remove('show')
+    if (label) label.innerText = '0';
+    selectedCounter.classList.remove('show');
   }
 }
 
 
-/* Collect selected rows to the set `selectedIds`. This is useful when the backend
- * updated selected rows.
+/* Collect selected rows into `selectedIds`. Useful when the backend
+ * updated the selected rows.
  */
 function collectFromHtml() {
-  let rows: NodeListOf<HTMLElement> = document.querySelectorAll('#table tr')
+  const rows: NodeListOf<HTMLElement> = document.querySelectorAll('#table tr[data-path]');
   rows.forEach(row => {
-    let id = row.dataset.path!
     if (row.classList.contains('selected')) {
-      selectedIds.add(id)
+      selectedIds.add(row.dataset.path!);
     }
-  })
-}
-
-
-/* Abort selection timer if acceleration is higher than a thresdshold */
-function guard(e: Event) {
-  console.log('guard')
-  let table = document.querySelector('#table')!; // prevent scrolling
-  table.classList.add('no-touch-action');
-  let x: number = 0;
-  let y: number = 0;
-  if (e instanceof MouseEvent) {
-    x = e.clientX
-    y = e.clientY
-  } else if (e instanceof TouchEvent) {
-    x = e.touches[0].clientX
-    y = e.touches[0].clientY
-  } else {
-    console.error('invalid move event type')
-  }
-
-  let prev = mousePosition.pop()
-  let t = performance.now()
-  let acceleration = 0
-
-  if (prev) {
-    let [xprev, yprev, vxprev, vyprev, tprev] = prev
-    let dx = x - xprev
-    let dy = y - yprev
-    let dt = t - tprev
-    let vx = dx/dt
-    let vy = dy/dt
-    let ax = (vx - vxprev)/dt
-    let ay = (vy - vyprev)/dt
-    let a = Math.sqrt(ax * ax + ay * ay)
-    acceleration = a
-    mousePosition.push([x, y, vx, vy, t])
-  } else {
-    mousePosition.push([x, y, 0, 0, t])
-  }
-
-  if (holdTimer && acceleration > 0.03) {
-    clearTimeout(holdTimer)
-  }
-}
-
-
-
-function drag(e: Event) {
-  console.log('drag')
-  let table = document.querySelector('#table')!; // prevent scrolling
-  table.classList.add('no-touch-action');
-  e.preventDefault()
-
-  let tr: HTMLElement | null = null;
-  if (e instanceof MouseEvent) {
-    tr = (e.target as Element).closest('tr')!;
-  } else if (e instanceof TouchEvent) {
-    let x = e.touches[0].clientX
-    let y = e.touches[0].clientY
-    let ele = document.elementFromPoint(x, y)!;
-    tr = ele.closest('tr')!;
-  } else {
-    console.error('invalid move event type')
-  }
-
-  if (tr) {
-    const id = tr.dataset.path!;
-    if (!selectedIds.has(id))  {
-      select(tr)
-    }
-  }
-}
-
-
-/* Select handler */
-function select(row: HTMLElement) {
-  console.log('select')
-  let id = row.dataset.path!
-  function select(
-    hooks: {
-      prepare: () => void,
-      confirm: () => void,
-      recover: () => void
-    }) {
-    hooks.prepare()
-    let values: Record<string, string[]> = { selected: Array.from(selectedIds.values()) }
-    htmx.ajax('POST',
-      '/table/select',
-      {
-        values,
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        target: '#control-panel',
-        swap: 'outerHTML'
-      }
-    ).then((_: any) => {
-      hooks.confirm()
-    }).catch((_: any) => {
-      hooks.recover()
-      console.error('failed to select')
-    })
-  }
-  if (!selectedIds.has(id)) {
-    select({
-      prepare: () => { selectedIds.add(id) },
-      confirm: () => { row.classList.add('selected') },
-      recover: () => { selectedIds.delete(id) }
-    })
-  }
+  });
 }

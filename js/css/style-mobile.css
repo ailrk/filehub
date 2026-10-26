@@ -56,7 +56,19 @@ tbody td {
   border-bottom: 1px solid var(--border);
 }
 
+tbody tr {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 tbody tr:active { background-color: var(--background2); }
+
+tbody tr.pressing {
+  background: var(--background2);
+  transform: scale(0.985);
+  transition: transform 150ms var(--ease), background 150ms var(--ease);
+}
 
 tbody > tr[data-path] > td > span.field > span {
   scrollbar-width: none;
