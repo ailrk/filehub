@@ -59,8 +59,6 @@ document.addEventListener("DOMContentLoaded", () => {
   document.body.addEventListener('htmx:responseError', handleError);
   document.addEventListener('htmx:afterSettle', closeDropdowns);
   document.addEventListener('htmx:beforeProcessNode', convertCustomEventCase);
-
-  removeClassOnIndex();
 });
 
 
@@ -99,7 +97,6 @@ function handleThemeChanged() {
   newLink.href = '/theme.css?v=' + Date.now(); // cache-busting
   newLink.onload = () => {
     oldLink.remove(); // remove old stylesheet after new one loads
-    removeClassOnIndex(); // remove animation class.
   }
 
   oldLink.parentNode!.insertBefore(newLink, oldLink.nextSibling);
@@ -237,18 +234,6 @@ function closePanel(e: MouseEvent) {
       overlay!.classList.remove('show')
     }
   })
-}
-
-
-/* Remove all class on #index (with some exceptions) */
-function removeClassOnIndex() {
-  const toKeep = new Set(["sidebar-collapsed"]);
-  const el = document.querySelector("#index");
-  if (el) {
-    el.addEventListener("animationend", () => {
-      el.classList.remove(...[...el.classList].filter(cls => !toKeep.has(cls)));
-    });
-  }
 }
 
 

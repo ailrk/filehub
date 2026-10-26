@@ -181,18 +181,14 @@ home sessionId _  = do
   clear sessionId
   case display of
     NoDisplay -> pure Template.bootstrap
-    -- Index is initially hidden, the frontend will play an intro animation, set
-    -- the opacity to 1.
-    -- `home` is the only endpoint that needs to play the animation, so it's important
-    -- that the animation classes are removed from the js.
     Desktop -> do
       html <- Server.Desktop.index sessionId
       pure $ Template.withDefault display background do
-        html `with` [ class_ "hidden fade-in " ]
+        html
     Mobile -> do
       html <- Server.Mobile.index sessionId
       pure $ Template.withDefault display background do
-        html `with` [ class_ "hidden fade-in" ]
+        html
 
 
 changeTarget :: SessionId -> ConfirmLogin -> Maybe TargetId

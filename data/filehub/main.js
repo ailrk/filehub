@@ -48,7 +48,6 @@ document.addEventListener("DOMContentLoaded", () => {
     document.body.addEventListener('htmx:responseError', handleError);
     document.addEventListener('htmx:afterSettle', closeDropdowns);
     document.addEventListener('htmx:beforeProcessNode', convertCustomEventCase);
-    removeClassOnIndex();
 });
 /* Register service worker, required for PWA support. Only run this */
 if ('serviceWorker' in navigator && window.top === window.self) {
@@ -78,7 +77,6 @@ function handleThemeChanged() {
     newLink.href = '/theme.css?v=' + Date.now(); // cache-busting
     newLink.onload = () => {
         oldLink.remove(); // remove old stylesheet after new one loads
-        removeClassOnIndex(); // remove animation class.
     };
     oldLink.parentNode.insertBefore(newLink, oldLink.nextSibling);
 }
@@ -192,16 +190,6 @@ function closePanel(e) {
             overlay.classList.remove('show');
         }
     });
-}
-/* Remove all class on #index (with some exceptions) */
-function removeClassOnIndex() {
-    const toKeep = new Set(["sidebar-collapsed"]);
-    const el = document.querySelector("#index");
-    if (el) {
-        el.addEventListener("animationend", () => {
-            el.classList.remove(...[...el.classList].filter(cls => !toKeep.has(cls)));
-        });
-    }
 }
 /* The default htmx event name is in camel case, but when you refer them from
  * html they become kebab case. e.g AfterRequest vs after-request.
