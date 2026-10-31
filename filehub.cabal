@@ -76,7 +76,154 @@ common shared
 
 library
   import:                 shared
-  hs-source-dirs:         src
+  hs-source-dirs:         filehub
+  build-depends:          aeson
+                        , aeson-pretty
+                        , amazonka
+                        , amazonka-s3
+                        , base64-bytestring
+                        , bcrypt
+                        , binary
+                        , bytestring
+                        , case-insensitive
+                        , conduit
+                        , conduit-extra
+                        , containers
+                        , cookie
+                        , cryptohash-sha256
+                        , cryptonite
+                        , data-default
+                        , directory
+                        , file-embed
+                        , filepath
+                        , filehub-utils
+                        , fuzzy
+                        , generic-lens
+                        , hashable
+                        , hashtables
+                        , http-api-data
+                        , http-client
+                        , http-client-tls
+                        , http-types
+                        , jwt
+                        , log-base
+                        , lucid
+                        , microlens
+                        , microlens-platform
+                        , mime-types
+                        , mtl
+                        , network-uri
+                        , optparse-applicative
+                        , pretty-simple
+                        , psqueues
+                        , random
+                        , resourcet
+                        , retry
+                        , servant
+                        , servant-client
+                        , servant-conduit
+                        , servant-event-stream
+                        , servant-lucid
+                        , servant-multipart
+                        , servant-server
+                        , split
+                        , sqlite-simple
+                        , stm
+                        , string-interpolate
+                        , suspend
+                        , template-haskell
+                        , temporary
+                        , text
+                        , time
+                        , timers
+                        , tomland
+                        , transformers
+                        , transformers-base
+                        , unliftio
+                        , unordered-containers
+                        , uri-encode
+                        , uuid
+                        , vault
+                        , vector
+                        , wai
+                        , wai-app-static
+                        , wai-extra
+                        , warp
+                        , zip
+
+  exposed-modules:        Filehub
+                          Filehub.ActiveUser.Pool
+                          Filehub.ActiveUser.Types
+                          Filehub.Auth.OIDC
+                          Filehub.Auth.Simple
+                          Filehub.Auth.Types
+                          Filehub.Auth.Types.AuthId
+                          Filehub.Auth.Types.OIDC
+                          Filehub.Auth.Types.Simple
+                          Filehub.Config
+                          Filehub.Config.Options
+                          Filehub.Config.Toml
+                          Filehub.Cookie
+                          Filehub.Display
+                          Filehub.Env
+                          Filehub.Error
+                          Filehub.Handler
+                          Filehub.Locale
+                          Filehub.Log
+                          Filehub.Monad
+                          Filehub.Notification.Types
+                          Filehub.Orphan
+                          Filehub.QQ
+                          Filehub.Routes
+                          Filehub.Routes.LinkConf
+                          Filehub.Routes.Links
+                          Filehub.Server
+                          Filehub.Server.File
+                          Filehub.Server.File.Paste
+                          Filehub.Server.File.Delete
+                          Filehub.Server.Login
+                          Filehub.Server.Notification
+                          Filehub.Server.Search
+                          Filehub.Server.SharedLink
+                          Filehub.Server.Static
+                          Filehub.Server.Static.QQ
+                          Filehub.Server.UI
+                          Filehub.Server.UI.Render
+                          Filehub.Server.UI.Action
+                          Filehub.Server.UI.Platform.Desktop
+                          Filehub.Server.UI.Platform.Mobile
+                          Filehub.Server.Util
+                          Filehub.Session
+                          Filehub.Session.Copy
+                          Filehub.Session.Handle
+                          Filehub.Session.Internal
+                          Filehub.Session.Pool
+                          Filehub.Session.Selected
+                          Filehub.Session.Types
+                          Filehub.Session.Types.SessionId
+                          Filehub.SharedLink
+                          Filehub.Size
+                          Filehub.Sort
+                          Filehub.Storage.File
+                          Filehub.Storage.S3
+                          Filehub.Template
+                          Filehub.Template.Desktop
+                          Filehub.Template.Htmx
+                          Filehub.Template.Login
+                          Filehub.Template.Mobile
+                          Filehub.Template.Shared
+                          Filehub.Theme
+                          Filehub.Types
+                          Filehub.UserAgent
+                          Paths_filehub
+                          Target.Dummy
+                          Target.File
+                          Target.S3
+                          Target.Types
+
+library filehub-utils
+  import:                 shared
+  hs-source-dirs:         filehub-utils
   build-depends:          aeson
                         , aeson-pretty
                         , amazonka
@@ -163,70 +310,6 @@ library
                           Data.ClientPath.View
                           Data.File
                           Data.Queue
-                          Filehub
-                          Filehub.ActiveUser.Pool
-                          Filehub.ActiveUser.Types
-                          Filehub.Auth.OIDC
-                          Filehub.Auth.Simple
-                          Filehub.Auth.Types
-                          Filehub.Auth.Types.AuthId
-                          Filehub.Auth.Types.OIDC
-                          Filehub.Auth.Types.Simple
-                          Filehub.Config
-                          Filehub.Config.Options
-                          Filehub.Config.Toml
-                          Filehub.Cookie
-                          Filehub.Display
-                          Filehub.Env
-                          Filehub.Error
-                          Filehub.Handler
-                          Filehub.Locale
-                          Filehub.Log
-                          Filehub.Monad
-                          Filehub.Notification.Types
-                          Filehub.Orphan
-                          Filehub.QQ
-                          Filehub.Routes
-                          Filehub.Routes.LinkConf
-                          Filehub.Routes.Links
-                          Filehub.Server
-                          Filehub.Server.File
-                          Filehub.Server.File.Paste
-                          Filehub.Server.File.Delete
-                          Filehub.Server.Login
-                          Filehub.Server.Notification
-                          Filehub.Server.Search
-                          Filehub.Server.SharedLink
-                          Filehub.Server.Static
-                          Filehub.Server.Static.QQ
-                          Filehub.Server.UI
-                          Filehub.Server.UI.Render
-                          Filehub.Server.UI.Action
-                          Filehub.Server.UI.Platform.Desktop
-                          Filehub.Server.UI.Platform.Mobile
-                          Filehub.Server.Util
-                          Filehub.Session
-                          Filehub.Session.Copy
-                          Filehub.Session.Handle
-                          Filehub.Session.Internal
-                          Filehub.Session.Pool
-                          Filehub.Session.Selected
-                          Filehub.Session.Types
-                          Filehub.Session.Types.SessionId
-                          Filehub.SharedLink
-                          Filehub.Size
-                          Filehub.Sort
-                          Filehub.Storage.File
-                          Filehub.Storage.S3
-                          Filehub.Template
-                          Filehub.Template.Desktop
-                          Filehub.Template.Htmx
-                          Filehub.Template.Login
-                          Filehub.Template.Mobile
-                          Filehub.Template.Shared
-                          Filehub.Theme
-                          Filehub.Types
-                          Filehub.UserAgent
                           LockManager.Key
                           LockManager.Local
                           Lucid.Htmx
@@ -236,10 +319,6 @@ library
                           Paths_filehub
                           Servant.Extended
                           System.FilePath.Extended
-                          Target.Dummy
-                          Target.File
-                          Target.S3
-                          Target.Types
                           Text.Debug
                           Worker.Pool
                           Worker.Task
@@ -297,6 +376,7 @@ test-suite filehub_test_unit
   build-depends:          QuickCheck
                         , bytestring
                         , filehub
+                        , filehub-utils
                         , filepath
                         , hspec
                         , time
@@ -309,6 +389,7 @@ benchmark filehub_bench
   hs-source-dirs:         benchmark
   main-is:                Main.hs
   build-depends:          filehub
+                        , filehub-utils
                         , criterion >=1.6
                         , unliftio
                         , req

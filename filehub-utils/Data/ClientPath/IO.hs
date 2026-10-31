@@ -2,7 +2,6 @@ module Data.ClientPath.IO (validateAbsPath) where
 
 
 import Data.ClientPath (AbsPath(..), newAbsPath)
-import Filehub.Monad (Filehub)
 import UnliftIO (MonadIO)
 
 

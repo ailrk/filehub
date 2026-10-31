@@ -1,7 +1,10 @@
 cradle:
   cabal:
-    - path: "src"
+    - path: "filehub"
       component: "lib:filehub"
+
+    - path: "filehub-utils"
+      component: "lib:filehub-utils"
 
     - path: "app"
       component: "exe:filehub"
