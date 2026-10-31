@@ -66,6 +66,9 @@ common shared
 
   build-depends:          base >=4.16.1.0
                         , breakpoint
+                        , aeson
+                        , bytestring
+                        , text
 
   default-language:       Haskell2010
 
@@ -77,226 +80,53 @@ common shared
 library
   import:                 shared
   hs-source-dirs:         filehub
-  build-depends:          aeson
-                        , aeson-pretty
-                        , amazonka
-                        , amazonka-s3
-                        , base64-bytestring
-                        , bcrypt
-                        , binary
-                        , bytestring
-                        , case-insensitive
-                        , conduit
-                        , conduit-extra
-                        , containers
-                        , cookie
-                        , cryptohash-sha256
-                        , cryptonite
-                        , data-default
-                        , directory
-                        , file-embed
-                        , filepath
-                        , filehub-utils
-                        , fuzzy
-                        , generic-lens
-                        , hashable
-                        , hashtables
-                        , http-api-data
-                        , http-client
-                        , http-client-tls
-                        , http-types
-                        , jwt
-                        , log-base
-                        , lucid
-                        , microlens
-                        , microlens-platform
-                        , mime-types
-                        , mtl
-                        , network-uri
-                        , optparse-applicative
-                        , pretty-simple
-                        , psqueues
-                        , random
-                        , resourcet
-                        , retry
-                        , servant
-                        , servant-client
-                        , servant-conduit
-                        , servant-event-stream
-                        , servant-lucid
-                        , servant-multipart
-                        , servant-server
-                        , split
-                        , sqlite-simple
-                        , stm
-                        , string-interpolate
-                        , suspend
-                        , template-haskell
-                        , temporary
-                        , text
-                        , time
-                        , timers
-                        , tomland
-                        , transformers
-                        , transformers-base
-                        , unliftio
-                        , unordered-containers
-                        , uri-encode
-                        , uuid
-                        , vault
-                        , vector
-                        , wai
-                        , wai-app-static
-                        , wai-extra
-                        , warp
-                        , zip
-
+  build-depends:          filehub:filehub-core,
+                          log-base,
+                          optparse-applicative,
+                          split,
+                          network-uri,
+                          filehub:filehub-utils,
+                          tomland,
+                          string-interpolate,
+                          time,
+                          filehub:filehub-server,
+                          http-client-tls,
+                          warp,
+                          servant-conduit,
+                          unliftio
   exposed-modules:        Filehub
-                          Filehub.ActiveUser.Pool
-                          Filehub.ActiveUser.Types
-                          Filehub.Auth.OIDC
-                          Filehub.Auth.Simple
-                          Filehub.Auth.Types
-                          Filehub.Auth.Types.AuthId
-                          Filehub.Auth.Types.OIDC
-                          Filehub.Auth.Types.Simple
                           Filehub.Config
                           Filehub.Config.Options
                           Filehub.Config.Toml
-                          Filehub.Cookie
-                          Filehub.Display
-                          Filehub.Env
-                          Filehub.Error
-                          Filehub.Handler
-                          Filehub.Locale
-                          Filehub.Log
-                          Filehub.Monad
-                          Filehub.Notification.Types
-                          Filehub.Orphan
-                          Filehub.QQ
-                          Filehub.Routes
-                          Filehub.Routes.LinkConf
-                          Filehub.Routes.Links
-                          Filehub.Server
-                          Filehub.Server.File
-                          Filehub.Server.File.Paste
-                          Filehub.Server.File.Delete
-                          Filehub.Server.Login
-                          Filehub.Server.Notification
-                          Filehub.Server.Search
-                          Filehub.Server.SharedLink
-                          Filehub.Server.Static
-                          Filehub.Server.Static.QQ
-                          Filehub.Server.UI
-                          Filehub.Server.UI.Render
-                          Filehub.Server.UI.Action
-                          Filehub.Server.UI.Platform.Desktop
-                          Filehub.Server.UI.Platform.Mobile
-                          Filehub.Server.Util
-                          Filehub.Session
-                          Filehub.Session.Copy
-                          Filehub.Session.Handle
-                          Filehub.Session.Internal
-                          Filehub.Session.Pool
-                          Filehub.Session.Selected
-                          Filehub.Session.Types
-                          Filehub.Session.Types.SessionId
-                          Filehub.SharedLink
-                          Filehub.Size
-                          Filehub.Sort
-                          Filehub.Storage.File
-                          Filehub.Storage.S3
-                          Filehub.Template
-                          Filehub.Template.Desktop
-                          Filehub.Template.Htmx
-                          Filehub.Template.Login
-                          Filehub.Template.Mobile
-                          Filehub.Template.Shared
-                          Filehub.Theme
-                          Filehub.Types
-                          Filehub.UserAgent
                           Paths_filehub
-                          Target.Dummy
-                          Target.File
-                          Target.S3
-                          Target.Types
 
 library filehub-utils
   import:                 shared
   hs-source-dirs:         filehub-utils
-  build-depends:          aeson
-                        , aeson-pretty
-                        , amazonka
-                        , amazonka-s3
-                        , base64-bytestring
-                        , bcrypt
-                        , binary
-                        , bytestring
-                        , case-insensitive
-                        , conduit
-                        , conduit-extra
-                        , containers
-                        , cookie
-                        , cryptohash-sha256
-                        , cryptonite
-                        , data-default
-                        , directory
-                        , file-embed
-                        , filepath
-                        , fuzzy
-                        , generic-lens
-                        , hashable
-                        , hashtables
-                        , http-api-data
-                        , http-client
-                        , http-client-tls
-                        , http-types
-                        , jwt
-                        , log-base
-                        , lucid
-                        , microlens
-                        , microlens-platform
-                        , mime-types
-                        , mtl
-                        , network-uri
-                        , optparse-applicative
-                        , pretty-simple
-                        , psqueues
-                        , random
-                        , resourcet
-                        , retry
-                        , servant
-                        , servant-client
-                        , servant-conduit
-                        , servant-event-stream
-                        , servant-lucid
-                        , servant-multipart
-                        , servant-server
-                        , split
-                        , sqlite-simple
-                        , stm
-                        , string-interpolate
-                        , suspend
-                        , template-haskell
-                        , temporary
-                        , text
-                        , time
-                        , timers
-                        , tomland
-                        , transformers
-                        , transformers-base
-                        , unliftio
-                        , unordered-containers
-                        , uri-encode
-                        , uuid
-                        , vault
-                        , vector
-                        , wai
-                        , wai-app-static
-                        , wai-extra
-                        , warp
-                        , zip
-
+  build-depends:          hashable,
+                          string-interpolate,
+                          sqlite-simple,
+                          unliftio,
+                          time,
+                          http-api-data,
+                          mime-types,
+                          case-insensitive,
+                          containers,
+                          http-types,
+                          wai,
+                          wai-extra,
+                          servant-server,
+                          servant,
+                          network-uri,
+                          uuid,
+                          jwt,
+                          psqueues,
+                          vector,
+                          lucid,
+                          uri-encode,
+                          filepath,
+                          conduit,
+                          servant-multipart
   exposed-modules:        Cache.InMemory
                           Cache.Key
                           Control.Handle.Cache
@@ -323,6 +153,181 @@ library filehub-utils
                           Worker.Pool
                           Worker.Task
 
+library filehub-core
+  import:                 shared
+  hs-source-dirs:         filehub-core
+  build-depends:          uuid,
+                          hashable,
+                          unliftio,
+                          containers,
+                          filehub:filehub-utils,
+                          generic-lens,
+                          servant-server,
+                          http-api-data,
+                          file-embed,
+                          tomland,
+                          time,
+                          log-base,
+                          aeson-pretty,
+                          servant-event-stream,
+                          lucid,
+                          servant,
+                          network-uri,
+                          template-haskell,
+                          cryptohash-sha256,
+                          vector,
+                          filepath,
+                          string-interpolate,
+                          uri-encode,
+                          servant-conduit,
+                          jwt,
+                          amazonka,
+                          amazonka-core,
+                          amazonka-s3,
+                          hashtables,
+                          timers,
+                          http-client,
+                          stm,
+                          cookie,
+                          mtl,
+                          resourcet,
+                          transformers-base,
+                          zip,
+                          conduit,
+                          microlens,
+                          mime-types,
+                          servant-multipart,
+                          temporary,
+                          conduit-extra,
+                          retry,
+                          suspend,
+                          wai,
+                          transformers,
+                          http-types,
+                          bcrypt,
+                          cryptonite,
+                          base64-bytestring,
+                          servant-client,
+                          servant-lucid,
+                          random
+  exposed-modules:
+                          Filehub.ActiveUser.Pool
+                          Filehub.ActiveUser.Types
+                          Filehub.Auth.OIDC
+                          Filehub.Auth.Simple
+                          Filehub.Auth.Types
+                          Filehub.Auth.Types.AuthId
+                          Filehub.Auth.Types.OIDC
+                          Filehub.Auth.Types.Simple
+                          Filehub.Cookie
+                          Filehub.Display
+                          Filehub.Env
+                          Filehub.Error
+                          Filehub.Handler
+                          Filehub.Locale
+                          Filehub.Log
+                          Filehub.Monad
+                          Filehub.Notification.Types
+                          Filehub.Orphan
+                          Filehub.QQ
+                          Filehub.Routes
+                          Filehub.Routes.LinkConf
+                          Filehub.Routes.Links
+                          Filehub.Session
+                          Filehub.Session.Copy
+                          Filehub.Session.Handle
+                          Filehub.Session.Internal
+                          Filehub.Session.Pool
+                          Filehub.Session.Selected
+                          Filehub.Session.Types
+                          Filehub.Session.Types.SessionId
+                          Filehub.SharedLink
+                          Filehub.Size
+                          Filehub.Sort
+                          Filehub.Storage.File
+                          Filehub.Storage.S3
+                          Filehub.Theme
+                          Filehub.Types
+                          Filehub.UserAgent
+                          Paths_filehub
+                          Target.Dummy
+                          Target.File
+                          Target.S3
+                          Target.Types
+
+library filehub-server
+  import:                 shared
+  hs-source-dirs:         filehub-server
+  build-depends:          string-interpolate,
+                          time,
+                          uuid,
+                          filehub:filehub-core,
+                          filehub:filehub-templates,
+                          log-base,
+                          lucid,
+                          http-types,
+                          network-uri,
+                          servant-server,
+                          unliftio,
+                          cookie,
+                          conduit,
+                          containers,
+                          servant-event-stream,
+                          filehub:filehub-utils,
+                          file-embed,
+                          mtl,
+                          cryptohash-sha256,
+                          base64-bytestring,
+                          mime-types,
+                          filepath,
+                          stm,
+                          zip,
+                          binary,
+                          wai,
+                          servant-multipart,
+                          directory,
+                          temporary,
+                          random,
+                          wai-extra
+  exposed-modules:        Filehub.Server
+                          Filehub.Server.File
+                          Filehub.Server.File.Paste
+                          Filehub.Server.File.Delete
+                          Filehub.Server.Login
+                          Filehub.Server.Notification
+                          Filehub.Server.Search
+                          Filehub.Server.SharedLink
+                          Filehub.Server.Static
+                          Filehub.Server.Static.QQ
+                          Filehub.Server.UI
+                          Filehub.Server.UI.Render
+                          Filehub.Server.UI.Action
+                          Filehub.Server.UI.Platform.Desktop
+                          Filehub.Server.UI.Platform.Mobile
+                          Filehub.Server.Util
+
+
+library filehub-templates
+  import:                 shared
+  hs-source-dirs:         filehub-templates
+  build-depends:          mtl,
+                          filehub:filehub-utils,
+                          filehub:filehub-core,
+                          unliftio,
+                          lucid,
+                          servant-server,
+                          containers,
+                          string-interpolate,
+                          filepath,
+                          fuzzy,
+                          time
+  exposed-modules:        Filehub.Template
+                          Filehub.Template.Desktop
+                          Filehub.Template.Htmx
+                          Filehub.Template.Login
+                          Filehub.Template.Mobile
+                          Filehub.Template.Shared
+
 
 executable filehub
   import:                 shared
@@ -343,7 +348,6 @@ test-suite filehub_test_integration
                           Util.Env
   build-depends:          QuickCheck
                         , bcrypt
-                        , bytestring
                         , containers
                         , cookie
                         , directory
@@ -351,7 +355,6 @@ test-suite filehub_test_integration
                         , filepath
                         , hspec
                         , hspec-wai
-                        , text
                         , http-api-data
                         , http-types
                         , http-client
@@ -364,6 +367,9 @@ test-suite filehub_test_integration
                         , unliftio
                         , wai
                         , wai-extra
+                        , filehub:filehub-utils
+                        , filehub:filehub-core
+                        , filehub:filehub-server
 
 
 test-suite filehub_test_unit
@@ -374,13 +380,13 @@ test-suite filehub_test_unit
   other-modules:          Data.ClientPathSpec
                           EvtLogSpec
   build-depends:          QuickCheck
-                        , bytestring
                         , filehub
                         , filehub-utils
                         , filepath
                         , hspec
                         , time
                         , uri-encode
+                        , filehub:filehub-core
 
 
 benchmark filehub_bench

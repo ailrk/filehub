@@ -6,6 +6,15 @@ cradle:
     - path: "filehub-utils"
       component: "lib:filehub-utils"
 
+    - path: "filehub-core"
+      component: "lib:filehub-core"
+
+    - path: "filehub-server"
+      component: "lib:filehub-server"
+
+    - path: "filehub-templates"
+      component: "lib:filehub-templates"
+
     - path: "app"
       component: "exe:filehub"
 
