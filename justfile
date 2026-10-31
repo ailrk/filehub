@@ -14,7 +14,6 @@ buildjs:
     mv -fT js/dist/ data/filehub
 
 
-
 vis:
     hp2ps -c -M filehub.hp
     ps2pdf filehub.ps
@@ -29,11 +28,11 @@ clean:
     rm -f filehub.aux
 
 
-watch:
+watch: buildjs
   ghcid -c "cabal --flags=DEBUG repl filehub" -T "Filehub.mainDev \"--config-file _cache/config.toml\"" -W
 
 
-run:
+run: buildjs
   just buildjs
   cabal run --flags=DEBUG -- filehub --config-file _cache/config.toml +RTS -s -RTS
 
@@ -46,7 +45,7 @@ test_unit:
   ghcid -c "cabal repl filehub_test_unit filehub"  -T "Main.main" -W
 
 
-release:
+release: build
   #!/usr/bin/env bash
   set -euo pipefail
 
