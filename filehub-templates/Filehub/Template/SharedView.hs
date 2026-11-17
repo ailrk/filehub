@@ -1,6 +1,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Filehub.Template.SharedView
   ( sharedPage
+  , sharedPreviewPage
   , sharedAuthPage
   , shareCreatedModal
   , shareLinksModal
@@ -23,6 +24,7 @@ import Filehub.SharedLink (SharedLink(..), SharedLinkHash(..), SharedLinkType(..
 import Filehub.Template.Shared (icon, sizeElement, modifiedDateElement, withDefault)
 import Filehub.Types (Display(..))
 import Lucid
+import Network.Mime.Extended (isMime)
 import System.FilePath (takeFileName)
 import Target.Dummy (DummyTarget)
 import Target.File (FileSys)
@@ -80,11 +82,24 @@ fileRow link target file = do
       span_ [ class_ "field" ] do
         icon file
         span_ (toHtml displayName)
-        `with` [ title_ (T.pack displayName) ]
+          `with` [ title_ (T.pack displayName) ]
+      case file.isLink of
+        BrokenLink -> mempty
+        _ -> case file.content of
+          Regular ->
+            a_ [ class_ "shared-download-btn"
+               , href_ downloadUrl
+               , term "download" ""
+               , onclick_ "event.stopPropagation()"
+               ] (i_ [ class_ "bx bx-download" ] mempty)
+          Dir -> mempty
     td_ (sizeElement file)
     td_ (modifiedDateElement file)
   where
     SharedLinkHash hashText = link.hash
+    fileClientPath = ClientPath.toClientPath (targetRoot target) file.path
+    ClientPath fileCP = fileClientPath
+    downloadUrl = [iii|/s/#{hashText}/file?file=#{fileCP}|]
     displayName = fromMaybe "-" $ handleTarget target
       [ targetHandler @S3      \_ -> coerce file.path
       , targetHandler @FileSys \_ -> coerce takeFileName file.path
@@ -102,8 +117,54 @@ fileRow link target file = do
                 ]
               Regular ->
                 [ class_ "table-item"
-                , onclick_ [iii|window.location.href='/s/#{hashText}/file?file=#{cp}'|]
+                , onclick_ [iii|window.location.href='/s/#{hashText}/preview?file=#{cp}'|]
                 ]
+
+
+-- | Preview page for a single file in a shared link.
+-- `mTextContent` carries the file text (server-read) for text files; Nothing for binary.
+sharedPreviewPage :: SharedLink -> AnyTarget -> FileInfo -> ClientPath -> Maybe Text -> Html ()
+sharedPreviewPage link target file clientPath mTextContent = do
+  withDefault Desktop "#000000" do
+    div_ [ id_ "shared-preview-index" ] do
+      previewHeader
+      div_ [ id_ "shared-preview-content" ] previewContent
+  where
+    SharedLinkHash hashText = link.hash
+    ClientPath cp = clientPath
+    fileUrl = [iii|/s/#{hashText}/file?file=#{cp}|] :: Text
+    inlineUrl = [iii|/s/#{hashText}/file?inline&file=#{cp}|] :: Text
+    backUrl  = [iii|/s/#{hashText}|] :: Text
+    displayName = fromMaybe "-" $ handleTarget target
+      [ targetHandler @S3          \_ -> coerce file.path
+      , targetHandler @FileSys     \_ -> coerce takeFileName file.path
+      , targetHandler @DummyTarget \_ -> coerce takeFileName file.path
+      ]
+    previewHeader = div_ [ id_ "shared-header" ] do
+      a_ [ href_ backUrl, class_ "btn btn-control" ] do
+        i_ [ class_ "bx bx-arrow-back" ] mempty
+      span_ [ class_ "field shared-title" ] do
+        icon file
+        span_ [ class_ "shared-link-name" ] (toHtml displayName)
+      a_ [ href_ fileUrl, class_ "btn btn-control", term "download" "" ] do
+        i_ [ class_ "bx bx-download" ] mempty
+        " Download"
+    previewContent
+      | file.mimetype `isMime` "image" =
+          img_ [ src_ fileUrl, class_ "shared-preview-img", alt_ (T.pack displayName) ]
+      | file.mimetype `isMime` "video" =
+          video_ [ src_ fileUrl, controls_ "", class_ "shared-preview-video" ] mempty
+      | file.mimetype `isMime` "audio" =
+          audio_ [ src_ fileUrl, controls_ "", class_ "shared-preview-audio" ] mempty
+      | file.mimetype `isMime` "application/pdf" =
+          iframe_ [ src_ inlineUrl, class_ "shared-preview-iframe" ] mempty
+      | Just text <- mTextContent =
+          pre_ [ class_ "shared-preview-text" ] (toHtml text)
+      | otherwise =
+          div_ [ class_ "shared-preview-unsupported" ] do
+            i_ [ class_ "bx bxs-file-blank" ] mempty
+            p_ "No preview available."
+            a_ [ href_ fileUrl, class_ "btn btn-control", term "download" "" ] "Download"
 
 
 -- | Passcode authentication page for a shared link.

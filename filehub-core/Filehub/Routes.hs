@@ -392,10 +392,21 @@ data Api mode = Api
                           :> AuthProtect "sharedlink"
                           :> Capture "hash" SharedLinkHash
                           :> "file"
+                          :> QueryFlag "inline"
                           :> QueryParam "file" ClientPath
                           :> StreamGet NoFraming OctetStream
                                (Headers '[ Header "Content-Disposition" String ]
                                          (ConduitT () ByteString (ResourceT IO) ()))
+
+
+  , sharedPreview         :: mode
+                          :- "s"
+                          :> AuthProtect "session"
+                          :> AuthProtect "sharedlink"
+                          :> Capture "hash" SharedLinkHash
+                          :> "preview"
+                          :> QueryParam "file" ClientPath
+                          :> Get '[HTML] (Html ())
 
 
   , share                 :: mode

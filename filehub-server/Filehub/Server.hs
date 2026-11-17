@@ -122,6 +122,7 @@ server env = Api
   , changeTarget          = changeTarget
   , shared                = Filehub.Server.SharedLink.shared
   , sharedFile            = Filehub.Server.SharedLink.sharedFile
+  , sharedPreview         = Filehub.Server.SharedLink.sharedPreview
   , sharedAuth            = Filehub.Server.SharedLink.sharedAuth
   , sharedAuthPost        = Filehub.Server.SharedLink.sharedAuthPost
   , share                 = Filehub.Server.SharedLink.share

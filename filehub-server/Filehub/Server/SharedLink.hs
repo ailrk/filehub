@@ -2,6 +2,7 @@
 module Filehub.Server.SharedLink
   ( shared
   , sharedFile
+  , sharedPreview
   , sharedAuth
   , sharedAuthPost
   , share
@@ -19,7 +20,9 @@ import Data.List (isPrefixOf)
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text.Encoding qualified as T
+import Data.Text.Encoding.Error (lenientDecode)
 import Data.Time (addUTCTime, getCurrentTime)
+import Network.Mime.Extended (isMime)
 import Data.UUID qualified as UUID
 import Filehub.Cookie qualified as Cookies
 import Control.Handle.Storage (Storage(..))
@@ -100,9 +103,10 @@ renderShared link mClientPath = do
 
 
 -- | Serve a single file from a shared link.
-sharedFile :: SessionId -> Maybe SharedLinkPermit -> SharedLinkHash -> Maybe ClientPath
+-- When `inline` is True, Content-Disposition is set to inline (useful for PDF iframes).
+sharedFile :: SessionId -> Maybe SharedLinkPermit -> SharedLinkHash -> Bool -> Maybe ClientPath
            -> Filehub (Headers '[Header "Content-Disposition" String] (ConduitT () ByteString (ResourceT IO) ()))
-sharedFile sessionId mClientPermit hash mClientPath = do
+sharedFile sessionId mClientPermit hash inline mClientPath = do
   env <- ask
   let pool = env.sharedLinkPool
   mLink <- lookupSharedLink hash pool
@@ -136,7 +140,51 @@ sharedFile sessionId mClientPermit hash mClientPath = do
                   conduit <- storage.download clientPath
                   let ClientPath cp = clientPath
                       filename      = takeFileName (coerce cp)
-                  pure $ addHeader ("attachment; filename=" ++ filename) conduit
+                      disposition   = if inline
+                                        then "inline; filename=" ++ filename
+                                        else "attachment; filename=" ++ filename
+                  pure $ addHeader disposition conduit
+
+
+-- | Render a preview page for a single file in a shared link.
+sharedPreview :: SessionId -> Maybe SharedLinkPermit -> SharedLinkHash -> Maybe ClientPath -> Filehub (Html ())
+sharedPreview sessionId mClientPermit hash mClientPath = do
+  env <- ask
+  let pool = env.sharedLinkPool
+  mLink <- lookupSharedLink hash pool
+  case mLink of
+    Nothing -> throwIO (HTTPError err404 { errBody = "Link not found or expired" })
+    Just link
+      | link.revoked -> throwIO (HTTPError err403 { errBody = "Link revoked" })
+      | otherwise -> do
+          authorized <- checkPermit sessionId mClientPermit hash
+          unless authorized $
+            if singleUseConsumed link
+              then throwIO (HTTPError err403 { errBody = "Single-use link already used" })
+              else goAuth hash
+          clientPath <- case mClientPath of
+            Nothing -> throwIO (HTTPError err400 { errBody = "No file specified" })
+            Just cp -> pure cp
+          targets <- atomically (readTVar env.targets)
+          case lookup link.targetId targets of
+            Nothing -> throwIO (HTTPError err404 { errBody = "Target not found" })
+            Just target -> do
+              let root       = targetRoot target
+                  sharedRoot = link.file.path
+                  absPath    = ClientPath.fromClientPath root clientPath
+              unless (isWithin sharedRoot absPath) $
+                throwIO (HTTPError err403 { errBody = "Path not within shared root" })
+              storage <- makeStorageAt target sharedRoot
+              file    <- storage.get absPath
+              case file.content of
+                Dir -> throwIO (HTTPError err400 { errBody = "Cannot preview a directory" })
+                Regular -> do
+                  mText <- if file.mimetype `isMime` "text"
+                    then do
+                      bytes <- storage.read file
+                      pure (Just (T.decodeUtf8With lenientDecode bytes))
+                    else pure Nothing
+                  pure (Template.Shared.sharedPreviewPage link target file clientPath mText)
 
 
 singleUseConsumed :: SharedLink -> Bool
