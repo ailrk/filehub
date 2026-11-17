@@ -43,12 +43,14 @@ module Filehub.Session
   , getTarget
   , getDisplay
   , getRoot
+  , targetRoot
   , getTargetViews
   , setCurrentTarget
   , makeStorageDummy
   , makeStorage
   , makeStorageForTarget
   , makeStorageCurrentTarget
+  , makeStorageAt
   )
   where
 

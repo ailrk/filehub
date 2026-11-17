@@ -142,19 +142,6 @@ loginHandler env
     redirect = throwError (err307 { errHeaders = [(hLocation, "/login")] })
 
 
--- TODO
--- sharedLinkPermit is stored in session
--- Each sharedLinkPermit is associated with n sharedLinkHash.
 sharedLinkPermitHandler :: Env -> AuthHandler Request (Maybe SharedLinkPermit)
-sharedLinkPermitHandler env = mkAuthHandler \req -> do
-  result <- runMaybeT do
-    cookie           <- MaybeT . pure $ lookup "Cookie" (requestHeaders req)
-    sessionId        <- MaybeT . pure $ parseHeader' cookie >>= fromCookies
-    sharedLinkPermit <- MaybeT . pure $ parseHeader' cookie >>= fromCookies @SharedLinkPermit
-    eSession         <- liftIO $ runFilehub env (Session.Pool.get sessionId >>= atomically)
-    session          <- MaybeT . pure $ either (const Nothing) Just eSession
-    permitSet        <- MaybeT . pure $ session.sharedLinkPermit
-    case req.pathInfo of
-      "s":hash:_ -> undefined
-      _ -> undefined
-  undefined
+sharedLinkPermitHandler _env = mkAuthHandler \req ->
+  pure $ lookup "Cookie" (requestHeaders req) >>= parseHeader' >>= fromCookies @SharedLinkPermit

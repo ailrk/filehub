@@ -30,6 +30,10 @@ module Filehub.Types
   , UIComponent(..)
   , Resource(..)
   , Manifest
+  , SharedLinkAuth(..)
+  , ShareRequest(..)
+  , ShareLinkType(..)
+  , SharedLinkUpdate(..)
   )
   where
 
@@ -44,6 +48,7 @@ import Filehub.Env (Env(..))
 import Filehub.Session.Types (SessionId(..), Session(..), TargetSessionData(..))
 import Filehub.Sort (SortFileBy(..))
 import Filehub.Theme (Theme(..))
+import Filehub.SharedLink (SharedLinkHash)
 import GHC.Generics (Generic)
 import GHC.IsList (fromList)
 import Servant ( ToHttpApiData(..), FromHttpApiData(..), Accept (..), MimeRender )
@@ -234,3 +239,79 @@ instance Accept Manifest where
 
 instance MimeRender Manifest Value where
   mimeRender _ = Aeson.encode
+
+
+-- | Form body for /s/auth POST — submit passcode for a shared link
+data SharedLinkAuth = SharedLinkAuth
+  { hash     :: Text
+  , passcode :: Text
+  }
+  deriving (Show, Eq, Generic)
+
+instance FromForm SharedLinkAuth where
+  fromForm f = SharedLinkAuth
+    <$> parseUnique "hash"     f
+    <*> parseUnique "passcode" f
+
+
+-- | The expiry type chosen when creating a shared link
+data ShareLinkType
+  = ShareSingleUse
+  | ShareExpiry   -- ^ expiry time provided separately
+  | ShareIndefinite
+  deriving (Show, Eq, Generic)
+
+instance FromForm ShareLinkType where
+  fromForm f = do
+    t <- parseUnique @Text "linkType" f
+    case t of
+      "singleuse"  -> pure ShareSingleUse
+      "expiry"     -> pure ShareExpiry
+      "indefinite" -> pure ShareIndefinite
+      _            -> Left "unknown linkType"
+
+
+-- | Form body for POST /share — create a new shared link
+data ShareRequest = ShareRequest
+  { file         :: ClientPath
+  , linkType     :: ShareLinkType
+  , expiryHours  :: Maybe Int   -- used when linkType == ShareExpiry
+  , passcode     :: Maybe Text
+  , readonly     :: Bool
+  }
+  deriving (Show, Eq, Generic)
+
+instance FromForm ShareRequest where
+  fromForm f = do
+    file        <- parseUnique "file"     f
+    linkType    <- fromForm f
+    passTexts   <- parseAll @Text "passcode" f
+    readonlyTxs <- parseAll @Text "readonly" f
+    expiryTxs   <- parseAll @Text "expiryHours" f
+    let passcode    = case passTexts of { t:_ | not (T.null t) -> Just t; _ -> Nothing }
+        readonly    = case readonlyTxs of { "true":_ -> True; _ -> False }
+        expiryHours = case expiryTxs of { t:_ -> either (const Nothing) Just (parseUrlPiece @Int t); _ -> Nothing }
+    pure ShareRequest { file, linkType, expiryHours, passcode, readonly }
+
+
+-- | Form body for POST /share/links/update — edit an existing shared link
+data SharedLinkUpdate = SharedLinkUpdate
+  { hash        :: SharedLinkHash
+  , linkType    :: ShareLinkType
+  , expiryHours :: Maybe Int
+  , passcode    :: Maybe Text
+  , readonly    :: Bool
+  }
+  deriving (Show, Eq, Generic)
+
+instance FromForm SharedLinkUpdate where
+  fromForm f = do
+    hash        <- parseUnique "hash"        f
+    linkType    <- fromForm f
+    passTexts   <- parseAll  @Text "passcode" f
+    readonlyTxs <- parseAll  @Text "readonly" f
+    expiryTxs   <- parseAll  @Text "expiryHours" f
+    let passcode    = case passTexts of { t:_ | not (T.null t) -> Just t; _ -> Nothing }
+        readonly    = case readonlyTxs of { "true":_ -> True; _ -> False }
+        expiryHours = case expiryTxs of { t:_ -> either (const Nothing) Just (parseUrlPiece @Int t); _ -> Nothing }
+    pure SharedLinkUpdate { hash, linkType, expiryHours, passcode, readonly }

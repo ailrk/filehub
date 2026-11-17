@@ -95,6 +95,52 @@ export function showNewFolderModal() {
     htmx.process(modal);
     modal.querySelector('input')?.focus();
 }
+export function showShareModal(path) {
+    const t = i18n();
+    const displayName = decodeURIComponent(path).split('/').filter(Boolean).pop() ?? path;
+    const modal = makeModal('share-modal');
+    const content = modal.querySelector('.modal-content');
+    content.innerHTML = `
+    <div class="modal-title-bar">
+      <span>${esc(t.share)}</span>
+      <div class="modal-title-bar-control">
+        <span class="btn-modal-close" onclick="this.closest('.modal').remove()"><i class="bx bx-x"></i></span>
+      </div>
+    </div>
+    <div style="padding:16px;display:flex;flex-direction:column;gap:14px">
+      <div style="font-size:0.85rem;color:var(--muted);word-break:break-all">${esc(displayName)}</div>
+      <form id="share-form"
+            hx-post="/share"
+            hx-target="#index"
+            hx-swap="beforeend"
+            hx-on::after-request="this.closest('.modal').remove()">
+        <input type="hidden" name="file" value="${esc(path)}">
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div class="share-link-type-group">
+            <label class="share-radio-label">
+              <input type="radio" name="linkType" value="indefinite" checked> ${esc(t.share_link_indefinite)}
+            </label>
+            <label class="share-radio-label">
+              <input type="radio" name="linkType" value="singleuse"> ${esc(t.share_link_singleuse)}
+            </label>
+            <label class="share-radio-label">
+              <input type="radio" name="linkType" value="expiry"> ${esc(t.share_link_expiry)}
+              <input class="form-control share-expiry-input" type="number" name="expiryHours"
+                     min="1" max="8760" value="24" placeholder="hours">
+              <span style="font-size:0.85rem">h</span>
+            </label>
+          </div>
+          <input class="form-control" type="password" name="passcode" placeholder="${esc(t.share_passcode)}">
+          <label style="display:flex;align-items:center;gap:6px;font-size:0.9rem">
+            <input type="checkbox" name="readonly" value="true"> ${esc(t.modal_readonly)}
+          </label>
+          <button class="btn btn-control" type="submit" style="align-self:flex-end">${esc(t.share_create)}</button>
+        </div>
+      </form>
+    </div>`;
+    appendModal(modal);
+    htmx.process(modal);
+}
 export function showFileDetailModal(name, mtime, atime, size, mime) {
     const t = i18n();
     const modal = makeModal('file-detail-modal');

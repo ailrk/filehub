@@ -1,5 +1,25 @@
 {-# LANGUAGE NamedFieldPuns #-}
-module Filehub.SharedLink where
+module Filehub.SharedLink
+  ( SharedLinkType (..)
+  , SharedLinkHash (..)
+  , SharedLinkPasscode (..)
+  , SharedLinkPermit (..)
+  , SharedLinkPermitSet (..)
+  , SharedLink (..)
+  , SharedLinkPool (..)
+  , mkSharedLinkHash
+  , createSharedLink
+  , revokeSharedLink
+  , lookupSharedLink
+  , getSharedLink
+  , getAllSharedLinks
+  , consumeSharedLink
+  , updateSharedLink
+  , addSharedLink
+  , newShareLinkPool
+  , newSharedLinkPermit
+  , issuePermit
+  ) where
 
 import Crypto.Hash.SHA256 qualified as SHA256
 import Data.ByteString (ByteString)
@@ -8,9 +28,11 @@ import Data.ByteString.Char8 qualified as BC
 import Data.ClientPath (AbsPath(..))
 import Data.Coerce (coerce)
 import Data.File (File(..), FileInfo)
+import Target.Types (TargetId)
 import Data.Map (Map)
 import Data.Map.Strict qualified as Map
 import Data.Set (Set)
+import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Time (getCurrentTime, UTCTime)
@@ -66,6 +88,7 @@ data SharedLink = SharedLink
   , passcode    :: Maybe SharedLinkPasscode
   , readonly    :: Bool
   , revoked     :: Bool
+  , targetId    :: TargetId
   }
 
 
@@ -101,10 +124,11 @@ mkSharedLinkHash :: ByteString -> SharedLinkHash
 mkSharedLinkHash input = SharedLinkHash (shortHash input)
 
 
-createSharedLink :: MonadIO m => FileInfo -> SharedLinkType -> Bool -> Maybe SharedLinkPasscode -> m SharedLink
-createSharedLink file linkType readonly mPasscode = do
+createSharedLink :: MonadIO m => FileInfo -> TargetId -> SharedLinkType -> Bool -> Maybe SharedLinkPasscode -> m SharedLink
+createSharedLink file tgtId linkType readonly mPasscode = do
   now <- liftIO getCurrentTime
-  let hash = mkSharedLinkHash (coerce BC.pack file.path)
+  salt <- liftIO UUID.nextRandom
+  let hash = mkSharedLinkHash (coerce BC.pack file.path <> BC.pack (show salt))
   pure SharedLink
     { file        = file
     , hash        = hash
@@ -114,6 +138,7 @@ createSharedLink file linkType readonly mPasscode = do
     , passcode    = mPasscode
     , readonly    = readonly
     , revoked     = False
+    , targetId    = tgtId
     }
 
 
@@ -131,9 +156,7 @@ lookupSharedLink hash (SharedLinkPool pool) = do
     case Map.lookup hash m of
       Just link@SharedLink { linkType, accessCount } -> do
         case linkType of
-          SingleUse -> do
-            writeTVar pool (Map.delete hash m)
-            pure do if accessCount == 0 then (Just link) else Nothing
+          SingleUse -> pure (Just link)
           Expiry date -> do
             if date < now
                then do
@@ -150,6 +173,31 @@ lookupSharedLink hash (SharedLinkPool pool) = do
       Nothing -> pure Nothing
 
 
+getSharedLink :: MonadIO m => SharedLinkHash -> SharedLinkPool -> m (Maybe SharedLink)
+getSharedLink hash (SharedLinkPool pool) =
+  Map.lookup hash <$> atomically (readTVar pool)
+
+
+getAllSharedLinks :: MonadIO m => SharedLinkPool -> m [SharedLink]
+getAllSharedLinks (SharedLinkPool pool) =
+  Map.elems <$> atomically (readTVar pool)
+
+
+consumeSharedLink :: MonadIO m => SharedLinkHash -> SharedLinkPool -> m ()
+consumeSharedLink hash (SharedLinkPool pool) = atomically do
+  modifyTVar' pool $ Map.adjust (\l -> l { accessCount = l.accessCount + 1 }) hash
+
+
+updateSharedLink :: MonadIO m => SharedLinkHash -> (SharedLink -> SharedLink) -> SharedLinkPool -> m ()
+updateSharedLink hash f (SharedLinkPool pool) = atomically do
+  modifyTVar' pool (Map.adjust f hash)
+
+
+addSharedLink :: MonadIO m => SharedLink -> SharedLinkPool -> m ()
+addSharedLink link (SharedLinkPool pool) = atomically do
+  modifyTVar' pool (Map.insert link.hash link)
+
+
 newShareLinkPool :: MonadIO m => m SharedLinkPool
 newShareLinkPool = do
   tvar <- newTVarIO mempty
@@ -160,3 +208,18 @@ newSharedLinkPermit :: MonadIO m => m SharedLinkPermit
 newSharedLinkPermit = do
   uuid <- liftIO UUID.nextRandom
   pure (SharedLinkPermit uuid)
+
+
+-- | Returns a SetCookie value for `sharedlink_permit`.
+-- If the session already has a permit, we reuse the same UUID and add the hash.
+-- Otherwise we create a fresh permit UUID.
+issuePermit :: MonadIO m => Maybe SharedLinkPermitSet -> SharedLinkHash -> m (SharedLinkPermit, SharedLinkPermitSet)
+issuePermit mExisting hash = do
+  permit <- case mExisting of
+    Just (SharedLinkPermitSet p _) -> pure p
+    Nothing                        -> newSharedLinkPermit
+  let hashes = case mExisting of
+        Just (SharedLinkPermitSet _ hs) -> hs
+        Nothing                         -> mempty
+      newSet = SharedLinkPermitSet permit (Set.insert hash hashes)
+  pure (permit, newSet)

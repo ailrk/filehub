@@ -211,6 +211,7 @@ controlPanel = join do
     <*> (Just <$> toggleSidebarBtn)
     <*> (Just <$> layoutBtn)
     <*> pure Nothing
+    <*> (Just <$> shareLinksBtn)
 
 
 uploadBtn :: Template (Html ())
@@ -354,6 +355,20 @@ layoutBtn =  do
                 , term "data-tooltip" control_panel_list
                 ]) do
           i_ [ class_ "bx bx-menu" ] mempty
+
+
+shareLinksBtn :: Template (Html ())
+shareLinksBtn = do
+  Phrase { control_panel_share_links } <- phrase <$> asks (.locale)
+  pure do
+    button_ [ class_ "btn btn-control tooltip"
+            , type_ "button"
+            , term "hx-get" "/share/links"
+            , term "hx-target" "#index"
+            , term "hx-swap" "beforeend"
+            , term "data-tooltip" control_panel_share_links
+            ] do
+      i_ [ class_ "bx bxs-share-alt" ] mempty
 
 
 localeBtn :: Html ()

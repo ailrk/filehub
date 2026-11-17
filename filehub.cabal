@@ -329,6 +329,7 @@ library filehub-templates
                           Filehub.Template.Login
                           Filehub.Template.Mobile
                           Filehub.Template.Shared
+                          Filehub.Template.SharedView
 
 
 executable filehub

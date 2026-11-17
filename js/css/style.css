@@ -543,3 +543,242 @@ hr {
   top: 5px;
   left: 5px;
 }
+
+
+/* ---------- Shared link viewer ---------- */
+
+#shared-index {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+#shared-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.shared-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.shared-link-name {
+  max-width: 400px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shared-readonly-badge {
+  font-size: 0.72rem;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--secondary) 15%, transparent);
+  color: var(--secondary);
+  border: 1px solid color-mix(in srgb, var(--secondary) 30%, transparent);
+}
+
+#shared-view {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 16px;
+}
+
+#shared-table {
+  width: 100%;
+}
+
+#shared-table th {
+  text-align: left;
+}
+
+
+/* ---------- Shared link auth page ---------- */
+
+.shared-auth-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background: var(--background1);
+}
+
+.shared-auth-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 28px;
+  background: var(--background2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  width: 320px;
+}
+
+.shared-auth-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+
+.shared-auth-error {
+  font-size: 0.85rem;
+  color: var(--secondary);
+  padding: 6px 10px;
+  background: color-mix(in srgb, var(--secondary) 10%, transparent);
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, var(--secondary) 25%, transparent);
+}
+
+.shared-auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.shared-auth-field input {
+  padding: 8px 10px;
+  width: 100%;
+}
+
+.shared-auth-submit {
+  width: 100%;
+  justify-content: center;
+}
+
+
+/* ---------- Share creation modal ---------- */
+
+.share-link-type-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.share-radio-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.share-expiry-input {
+  width: 64px;
+  padding: 2px 6px;
+  font-size: 0.85rem;
+}
+
+
+/* ---------- Share links manager modal ---------- */
+
+.share-links-content {
+  width: 520px;
+  max-width: 95vw;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.share-links-body {
+  overflow-y: auto;
+  flex: 1;
+  padding: 4px 0;
+}
+
+.share-links-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.share-links-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.share-link-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  transition: background var(--fast) var(--ease);
+}
+
+.share-link-item:hover {
+  background: var(--hover);
+}
+
+.share-link-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.share-link-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.88rem;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.share-link-name span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.share-link-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--muted);
+  flex-wrap: wrap;
+}
+
+.share-link-type-label {
+  font-weight: 500;
+}
+
+.share-link-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.share-link-actions .btn {
+  padding: 3px 7px;
+  font-size: 0.8rem;
+}
+
+.share-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 16px 8px;
+}
+
+.share-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 16px 14px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}

@@ -10,6 +10,7 @@ import Data.CaseInsensitive qualified as CI
 import Data.List (intersperse)
 import Data.Set qualified as Set
 import Network.HTTP.Types (HeaderName)
+import Network.HTTP.Types.Header (hSetCookie)
 import Network.Wai
 import Network.Wai.Middleware.AddHeaders
 import Prelude hiding (readFile)
@@ -40,5 +41,6 @@ dedupHeadersKeepLast app req respond =
       where
         go _ [] = []
         go seen ((k,v):xs)
+          | k == hSetCookie = (k,v) : go seen xs
           | CI.foldedCase k `Set.member` seen = go seen xs
           | otherwise = (k,v) : go (Set.insert (CI.foldedCase k) seen) xs

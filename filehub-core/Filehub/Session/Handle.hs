@@ -4,6 +4,7 @@ module Filehub.Session.Handle
   , getTarget
   , getDisplay
   , getRoot
+  , targetRoot
   , getTargetViews
   , getControlPanelState
   , setCurrentTarget
@@ -12,6 +13,7 @@ module Filehub.Session.Handle
   , makeStorage
   , makeStorageForTarget
   , makeStorageCurrentTarget
+  , makeStorageAt
   )
   where
 
@@ -45,7 +47,7 @@ import Prelude hiding (read, readFile, writeFile)
 import Target.File (Target(..), FileSys)
 import Target.S3 (S3)
 import Target.Types (handleTarget, targetHandler, AnyTarget (..), HasTargetId (..), TargetId)
-import UnliftIO (throwIO, writeTVar, STM, readTVar, TVar, atomically, newTVar)
+import UnliftIO (throwIO, writeTVar, STM, readTVar, TVar, atomically, newTVar, newTVarIO)
 import UnliftIO.Directory (doesDirectoryExist)
 import Filehub.Session.Pool (withSession, modifySession)
 import Filehub.Session.Selected (AllSelected (..))
@@ -94,6 +96,15 @@ getRoot env s = do
   fromMaybe (pure $ Root (AbsPath "")) . asum $
     [ cast tgt <&> \(x :: Target FileSys) -> pure x.root
     , cast tgt <&> \(_ :: Target S3) -> pure (Root (AbsPath ""))
+    ]
+
+
+-- | Extract the root path of any target without needing a session.
+targetRoot :: AnyTarget -> Root
+targetRoot (AnyTarget tgt) =
+  fromMaybe (Root (AbsPath "")) . asum $
+    [ cast tgt <&> \(x :: Target FileSys) -> x.root
+    , cast tgt <&> \(_ :: Target S3) -> Root (AbsPath "")
     ]
 
 
@@ -314,3 +325,9 @@ makeStorageCurrentTarget sessionId = do
   TargetView target td <- withSession sessionId \s -> do
     getCurrentTarget env s
   makeStorage' target td.currentDir
+
+
+makeStorageAt :: AnyTarget -> AbsPath -> Filehub (Storage Filehub)
+makeStorageAt target dir = do
+  currentDir <- newTVarIO dir
+  makeStorage' target currentDir

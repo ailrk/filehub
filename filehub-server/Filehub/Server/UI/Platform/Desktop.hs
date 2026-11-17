@@ -82,6 +82,7 @@ i18nPayload readOnly p = "window.filehubI18n=" <> obj <> ";"
       , kv "modal_folder"        p.modal_folder
       , kv "modal_create"        p.modal_create
       , kv "modal_confirm"       p.modal_confirm
+      , kv "modal_readonly"      p.modal_readonly
       , kv "modal_detail"        p.modal_detail
       , kv "detail_filename"     p.detail_filename
       , kv "detail_modified"     p.detail_modified
@@ -96,6 +97,13 @@ i18nPayload readOnly p = "window.filehubI18n=" <> obj <> ";"
       , kv "new_folder"          p.control_panel_new_folder
       , kv "upload"              p.control_panel_upload
       , kv "paste"               p.control_panel_paste
+      , kv "share"               p.contextmenu_share
+      , kv "share_link_indefinite" p.share_link_indefinite
+      , kv "share_link_singleuse"  p.share_link_singleuse
+      , kv "share_link_expiry"     p.share_link_expiry
+      , kv "share_passcode"        p.share_passcode
+      , kv "share_create"          p.share_create
+      , kv "modal_readonly"        p.modal_readonly
       , "\"readOnly\":" <> if readOnly then "true" else "false"
       ] <> "}"
     kv key val = "\"" <> key <> "\":\"" <> escape val <> "\""

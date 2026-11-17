@@ -122,6 +122,13 @@ data Phrase = Phrase
   , confirm_delete1          :: Text
   , confirm_delete_local     :: Text
   , confirm_delete_all       :: Text
+  , contextmenu_share        :: Text
+  , share_link_indefinite    :: Text
+  , share_link_singleuse     :: Text
+  , share_link_expiry        :: Text
+  , share_passcode           :: Text
+  , share_create             :: Text
+  , control_panel_share_links :: Text
   }
   deriving (Show)
 
@@ -253,6 +260,13 @@ phraseCodec =
   <*> Toml.text "CONFIRM_DELETE1"          .= (.confirm_delete1)
   <*> Toml.text "CONFIRM_DELETE_LOCAL"     .= (.confirm_delete_local)
   <*> Toml.text "CONFIRM_DELETE_ALL"       .= (.confirm_delete_all)
+  <*> Toml.text "CONTEXTMENU_SHARE"        .= (.contextmenu_share)
+  <*> Toml.text "SHARE_LINK_INDEFINITE"    .= (.share_link_indefinite)
+  <*> Toml.text "SHARE_LINK_SINGLEUSE"     .= (.share_link_singleuse)
+  <*> Toml.text "SHARE_LINK_EXPIRY"        .= (.share_link_expiry)
+  <*> Toml.text "SHARE_PASSCODE"           .= (.share_passcode)
+  <*> Toml.text "SHARE_CREATE"             .= (.share_create)
+  <*> Toml.text "CONTROL_PANEL_SHARE_LINKS" .= (.control_panel_share_links)
 
 
 config :: Text

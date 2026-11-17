@@ -86,6 +86,7 @@ import Filehub.Locale (Locale)
 import Target.Types (TargetId)
 import Filehub.Notification.Types (Notification)
 import Filehub.SharedLink (SharedLinkHash, SharedLinkPermit)
+import Filehub.Types (SharedLinkAuth, ShareRequest, SharedLinkUpdate)
 import Filehub.Session.Types (Selected, Layout)
 
 
@@ -363,6 +364,20 @@ data Api mode = Api
                           :> Get '[HTML] (Headers '[ Header "HX-Trigger-After-Swap" FilehubEvent ] (Html ()))
 
 
+  , sharedAuth            :: mode
+                          :- "s" :> "auth"
+                          :> AuthProtect "session"
+                          :> QueryParam "hash" SharedLinkHash
+                          :> Get '[HTML] (Html ())
+
+
+  , sharedAuthPost        :: mode
+                          :- "s" :> "auth"
+                          :> AuthProtect "session"
+                          :> ReqBody '[FormUrlEncoded] SharedLinkAuth
+                          :> Post '[HTML] (Html ())
+
+
   , shared                :: mode
                           :- "s"
                           :> AuthProtect "session"
@@ -372,10 +387,63 @@ data Api mode = Api
                           :> Get '[HTML] (Html ())
 
 
-  , sharedAuth            :: mode
-                          :- "s" :> "auth"
+  , sharedFile            :: mode
+                          :- "s"
                           :> AuthProtect "session"
+                          :> AuthProtect "sharedlink"
+                          :> Capture "hash" SharedLinkHash
+                          :> "file"
+                          :> QueryParam "file" ClientPath
+                          :> StreamGet NoFraming OctetStream
+                               (Headers '[ Header "Content-Disposition" String ]
+                                         (ConduitT () ByteString (ResourceT IO) ()))
+
+
+  , share                 :: mode
+                          :- "share"
+                          :> AuthProtect "session"
+                          :> AuthProtect "login"
+                          :> ReqBody '[FormUrlEncoded] ShareRequest
+                          :> Post '[HTML] (Html ())
+
+
+  , shareLinks            :: mode
+                          :- "share" :> "links"
+                          :> AuthProtect "session"
+                          :> AuthProtect "login"
                           :> Get '[HTML] (Html ())
+
+
+  , revokeLink            :: mode
+                          :- "share" :> "links" :> "revoke"
+                          :> AuthProtect "session"
+                          :> AuthProtect "login"
+                          :> QueryParam "hash" SharedLinkHash
+                          :> Delete '[HTML] (Html ())
+
+
+  , editLinkForm          :: mode
+                          :- "share" :> "links" :> "edit"
+                          :> AuthProtect "session"
+                          :> AuthProtect "login"
+                          :> QueryParam "hash" SharedLinkHash
+                          :> Get '[HTML] (Html ())
+
+
+  , shareLinkRow          :: mode
+                          :- "share" :> "links" :> "row"
+                          :> AuthProtect "session"
+                          :> AuthProtect "login"
+                          :> QueryParam "hash" SharedLinkHash
+                          :> Get '[HTML] (Html ())
+
+
+  , updateLink            :: mode
+                          :- "share" :> "links" :> "update"
+                          :> AuthProtect "session"
+                          :> AuthProtect "login"
+                          :> ReqBody '[FormUrlEncoded] SharedLinkUpdate
+                          :> Post '[HTML] (Html ())
 
   -- The Raw handler is a wai-static-app, the endpoint has the following format:
   -- /serve?file=<clientpath>

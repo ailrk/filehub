@@ -8,6 +8,7 @@ export const defaultI18n = {
     modal_folder: 'New Folder',
     modal_create: 'Create',
     modal_confirm: 'Rename',
+    modal_readonly: 'Read-only',
     modal_detail: 'Details',
     detail_filename: 'Filename',
     detail_modified: 'Modified',
@@ -22,6 +23,12 @@ export const defaultI18n = {
     new_folder: 'New Folder',
     upload: 'Upload',
     paste: 'Paste',
+    share: 'Share',
+    share_link_indefinite: 'Indefinite',
+    share_link_singleuse: 'Single use',
+    share_link_expiry: 'Expires after',
+    share_passcode: 'Passcode (optional)',
+    share_create: 'Create link',
 };
 export function i18n() {
     return { ...defaultI18n, ...(window.filehubI18n ?? {}) };

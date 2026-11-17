@@ -100,6 +100,10 @@ function buildMenu1(item, readOnly) {
             'hx-swap': 'none', 'hx-confirm': t.confirmDelete1.replace('{}', path),
         }));
     }
+    const shareEl = makeClickItem(t.share, 'bxs-share-alt', () => {
+        ModalBuilder.showShareModal(path);
+    });
+    menu.appendChild(shareEl);
     const detailEl = makeClickItem(t.details, 'bx-detail', () => {
         ModalBuilder.showFileDetailModal(item.dataset.name ?? '', item.dataset.mtime ?? '', item.dataset.atime ?? '', item.dataset.size ?? '0', item.dataset.mime ?? '');
     });

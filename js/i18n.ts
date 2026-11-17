@@ -17,6 +17,7 @@ export interface I18n {
   modal_folder: string;
   modal_create: string;
   modal_confirm: string;
+  modal_readonly: string;
   modal_detail: string;
   detail_filename: string;
   detail_modified: string;
@@ -31,6 +32,12 @@ export interface I18n {
   new_folder: string;
   upload: string;
   paste: string;
+  share: string;
+  share_link_indefinite: string;
+  share_link_singleuse: string;
+  share_link_expiry: string;
+  share_passcode: string;
+  share_create: string;
 }
 
 declare global {
@@ -47,6 +54,7 @@ export const defaultI18n: I18n = {
   modal_folder: 'New Folder',
   modal_create: 'Create',
   modal_confirm: 'Rename',
+  modal_readonly: 'Read-only',
   modal_detail: 'Details',
   detail_filename: 'Filename',
   detail_modified: 'Modified',
@@ -61,6 +69,12 @@ export const defaultI18n: I18n = {
   new_folder: 'New Folder',
   upload: 'Upload',
   paste: 'Paste',
+  share: 'Share',
+  share_link_indefinite: 'Indefinite',
+  share_link_singleuse: 'Single use',
+  share_link_expiry: 'Expires after',
+  share_passcode: 'Passcode (optional)',
+  share_create: 'Create link',
 };
 
 export function i18n(): I18n {

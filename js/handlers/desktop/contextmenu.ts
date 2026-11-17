@@ -110,6 +110,11 @@ function buildMenu1(item: HTMLElement, readOnly: boolean): HTMLElement {
     }));
   }
 
+  const shareEl = makeClickItem(t.share, 'bxs-share-alt', () => {
+    ModalBuilder.showShareModal(path);
+  });
+  menu.appendChild(shareEl);
+
   const detailEl = makeClickItem(t.details, 'bx-detail', () => {
     ModalBuilder.showFileDetailModal(
       item.dataset.name ?? '',

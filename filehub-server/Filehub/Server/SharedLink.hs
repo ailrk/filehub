@@ -1,66 +1,335 @@
-module Filehub.Server.SharedLink where
+{-# LANGUAGE NamedFieldPuns #-}
+module Filehub.Server.SharedLink
+  ( shared
+  , sharedFile
+  , sharedAuth
+  , sharedAuthPost
+  , share
+  , shareLinks
+  , revokeLink
+  , editLinkForm
+  , shareLinkRow
+  , updateLink
+  ) where
 
-import Data.ClientPath (ClientPath (..))
-import Data.Set qualified as S
-import Filehub.Error ( FilehubError(..) )
+import Control.Monad.Reader (MonadReader(..))
+import Data.ClientPath (ClientPath(..), AbsPath(..), Root(..))
+import Data.ClientPath qualified as ClientPath
+import Data.List (isPrefixOf)
+import Data.Set qualified as Set
+import Data.Text (Text)
+import Data.Text.Encoding qualified as T
+import Data.Time (addUTCTime, getCurrentTime)
+import Data.UUID qualified as UUID
+import Filehub.Cookie qualified as Cookies
+import Control.Handle.Storage (Storage(..))
+import Conduit (ConduitT, ResourceT)
+import Data.ByteString (ByteString)
+import Data.Coerce (coerce)
+import Data.File (File(..), FileType(..))
+import System.FilePath (takeFileName)
+import Filehub.Env (Env(..))
+import Filehub.Error (FilehubError(..))
+import Filehub.Handler (ConfirmLogin)
 import Filehub.Monad
-import Filehub.Orphan ()
-import Filehub.Session (SessionId(..))
-import Filehub.SharedLink (SharedLinkHash, SharedLinkPermitSet (..), SharedLinkPermit)
+import Filehub.Session (SessionId(..), makeStorageAt, targetRoot)
+import Filehub.Session.Pool (withSession, modifySession)
+import Filehub.Session.Types (Session(..))
+import Filehub.SharedLink
+import Filehub.Sort (sortFiles, SortFileBy(..))
+import Filehub.Template.SharedView qualified as Template.Shared
+import Filehub.Types (ShareRequest(..), ShareLinkType(..), SharedLinkAuth(..), SharedLinkUpdate(..))
 import Lucid hiding (for_)
+import Network.HTTP.Types.Header (hLocation, hSetCookie)
 import Prelude hiding (init, readFile)
-import Servant (err303    , errHeaders   )
-import UnliftIO (throwIO)
-import Filehub.Session.Pool (withSession)
-import Filehub.Session (Session(..))
+import Servant (addHeader, Header, Headers, err303, err400, err404, err403, errBody, errHeaders)
+import Control.Monad (unless, when)
+import UnliftIO (MonadIO(..), atomically, readTVar, throwIO)
+import Web.Cookie (SetCookie(..), defaultSetCookie)
 
 
--- TODO
--- client has no permit -> auth
--- client as permit
---      session has no permit -> auth
---      session has permit ->
---        sessiono permt != clinet permit -> auth
---        sessiono permt == clinet permit ->
---          link hash is not in permit set -> auth
---          link hash is in permit set ->
---             has client path ->
---                client path is folder index -> render folder
---                client path is file         -> serve file
---             no client path  -> render shared index
---
--- Shared link also have a session?
--- So can we reuse the session?
--- Normally session rely on a target
---
--- but shared link doesn't map to a target
--- so should we create a synthesized target that forwards the link?
+-- | Serve a shared link: show the folder browser or redirect to auth.
 shared :: SessionId -> Maybe SharedLinkPermit -> SharedLinkHash -> Maybe ClientPath -> Filehub (Html ())
 shared sessionId mClientPermit hash mClientPath = do
-  case mClientPermit of
-    Just clientPermit -> do
-      sharedLinkPermit <- withSession sessionId \s -> pure s.sharedLinkPermit
-      case sharedLinkPermit of
-        Just (SharedLinkPermitSet permit hashes)
-          | clientPermit /= permit         -> goAuth
-          | hash `S.member` hashes       -> goAuth
-          | Just clientPath <- mClientPath -> do
-              undefined
-              -- TODO
-              -- convert shared client path to normal storage path from SharedLink
-              -- check if file exist
-              -- check if file is a directory
-              -- render index/serve file accordingly
-          | otherwise -> sharedIndex
-        Nothing -> goAuth
-    Nothing -> goAuth
+  env  <- ask
+  let pool = env.sharedLinkPool
+  mLink <- lookupSharedLink hash pool
+  case mLink of
+    Nothing -> throwIO (HTTPError err404 { errBody = "Link not found or expired" })
+    Just link
+      | link.revoked -> throwIO (HTTPError err403 { errBody = "Link revoked" })
+      | otherwise -> do
+          authorized <- checkPermit sessionId mClientPermit hash
+          if authorized
+            then renderShared link mClientPath
+            else if singleUseConsumed link
+              then throwIO (HTTPError err403 { errBody = "Single-use link already used" })
+              else goAuth hash
+
+
+checkPermit :: SessionId -> Maybe SharedLinkPermit -> SharedLinkHash -> Filehub Bool
+checkPermit sessionId mClientPermit hash = do
+  mPermitSet <- withSession sessionId (pure . (.sharedLinkPermit))
+  case (mClientPermit, mPermitSet) of
+    (Just clientPermit, Just (SharedLinkPermitSet sessionPermit hashes))
+      | clientPermit == sessionPermit && hash `Set.member` hashes -> pure True
+    _ -> pure False
+
+
+renderShared :: SharedLink -> Maybe ClientPath -> Filehub (Html ())
+renderShared link mClientPath = do
+  env <- ask
+  targets <- atomically (readTVar env.targets)
+  case lookup link.targetId targets of
+    Nothing -> throwIO (HTTPError err404 { errBody = "Target not found" })
+    Just target -> do
+      let root       = targetRoot target
+          sharedRoot = link.file.path
+      case link.file.content of
+        Regular ->
+          pure (Template.Shared.sharedPage link target [link.file] mClientPath)
+        Dir -> do
+          let dir = case mClientPath of
+                      Nothing -> sharedRoot
+                      Just cp ->
+                        let p = ClientPath.fromClientPath root cp
+                         in if isWithin sharedRoot p then p else sharedRoot
+          storage <- makeStorageAt target dir
+          files   <- sortFiles ByNameUp <$> storage.ls dir
+          pure (Template.Shared.sharedPage link target files mClientPath)
+
+
+-- | Serve a single file from a shared link.
+sharedFile :: SessionId -> Maybe SharedLinkPermit -> SharedLinkHash -> Maybe ClientPath
+           -> Filehub (Headers '[Header "Content-Disposition" String] (ConduitT () ByteString (ResourceT IO) ()))
+sharedFile sessionId mClientPermit hash mClientPath = do
+  env <- ask
+  let pool = env.sharedLinkPool
+  mLink <- lookupSharedLink hash pool
+  case mLink of
+    Nothing -> throwIO (HTTPError err404 { errBody = "Link not found or expired" })
+    Just link
+      | link.revoked -> throwIO (HTTPError err403 { errBody = "Link revoked" })
+      | otherwise -> do
+          authorized <- checkPermit sessionId mClientPermit hash
+          unless authorized $
+            if singleUseConsumed link
+              then throwIO (HTTPError err403 { errBody = "Single-use link already used" })
+              else goAuth hash
+          clientPath <- case mClientPath of
+            Nothing -> throwIO (HTTPError err400 { errBody = "No file specified" })
+            Just cp -> pure cp
+          targets <- atomically (readTVar env.targets)
+          case lookup link.targetId targets of
+            Nothing -> throwIO (HTTPError err404 { errBody = "Target not found" })
+            Just target -> do
+              let root       = targetRoot target
+                  sharedRoot = link.file.path
+                  absPath    = ClientPath.fromClientPath root clientPath
+              unless (isWithin sharedRoot absPath) $
+                throwIO (HTTPError err403 { errBody = "Path not within shared root" })
+              storage <- makeStorageAt target sharedRoot
+              file    <- storage.get absPath
+              case file.content of
+                Dir     -> throwIO (HTTPError err400 { errBody = "Cannot download a directory" })
+                Regular -> do
+                  conduit <- storage.download clientPath
+                  let ClientPath cp = clientPath
+                      filename      = takeFileName (coerce cp)
+                  pure $ addHeader ("attachment; filename=" ++ filename) conduit
+
+
+singleUseConsumed :: SharedLink -> Bool
+singleUseConsumed link = link.linkType == SingleUse && link.accessCount > 0
+
+
+isWithin :: AbsPath -> AbsPath -> Bool
+isWithin (AbsPath root) (AbsPath path) = root `isPrefixOf` path
+
+
+goAuth :: SharedLinkHash -> Filehub a
+goAuth (SharedLinkHash hashText) =
+  throwIO (HTTPError err303
+    { errHeaders = [(hLocation, "/s/auth?hash=" <> T.encodeUtf8 hashText)] })
+
+
+-- | Show the auth page (passcode form) or auto-issue a permit if no passcode is required.
+sharedAuth :: SessionId -> Maybe SharedLinkHash -> Filehub (Html ())
+sharedAuth sessionId mHash = do
+  case mHash of
+    Nothing -> pure noLinkPage
+    Just hash -> do
+      env <- ask
+      let pool = env.sharedLinkPool
+      mLink <- lookupSharedLink hash pool
+      case mLink of
+        Nothing   -> pure expiredPage
+        Just link
+          | singleUseConsumed link -> pure usedPage
+          | otherwise ->
+              case link.passcode of
+                Nothing -> autoIssue sessionId hash link
+                Just _  -> pure (Template.Shared.sharedAuthPage hash False)
   where
-    goAuth = throwIO do
-      HTTPError err303 { errHeaders = [( "Location" , "/s/auth")] }
-
-    sharedIndex = do
-      pure mempty
+    noLinkPage  = toHtml ("No link specified." :: Text)
+    expiredPage = toHtml ("This link has expired or does not exist." :: Text)
+    usedPage    = toHtml ("This single-use link has already been used." :: Text)
 
 
-sharedAuth :: SessionId -> Filehub (Html ())
-sharedAuth sessionId = undefined
+autoIssue :: SessionId -> SharedLinkHash -> SharedLink -> Filehub (Html ())
+autoIssue sessionId hash link = do
+  cookie <- performIssue sessionId hash
+  when (link.linkType == SingleUse) do
+    env <- ask
+    consumeSharedLink hash env.sharedLinkPool
+  let SharedLinkHash hashText = hash
+  throwIO (HTTPError err303
+    { errHeaders = [ (hLocation, "/s/" <> T.encodeUtf8 hashText)
+                   , (hSetCookie, Cookies.renderSetCookie cookie)
+                   ] })
+
+
+-- | Handle passcode submission for a shared link.
+sharedAuthPost :: SessionId -> SharedLinkAuth -> Filehub (Html ())
+sharedAuthPost sessionId SharedLinkAuth { hash = hashText, passcode = submittedPasscode } = do
+  let hash = SharedLinkHash hashText
+  env <- ask
+  let pool = env.sharedLinkPool
+  mLink <- lookupSharedLink hash pool
+  case mLink of
+    Nothing   -> pure (toHtml ("This link has expired or does not exist." :: Text))
+    Just link ->
+      case link.passcode of
+        Nothing ->
+          autoIssue sessionId hash link
+        Just (SharedLinkPasscode expected) ->
+          if submittedPasscode == expected
+            then do
+              cookie <- performIssue sessionId hash
+              when (link.linkType == SingleUse) do
+                consumeSharedLink hash pool
+              throwIO (HTTPError err303
+                { errHeaders = [ (hLocation, "/s/" <> T.encodeUtf8 hashText)
+                               , (hSetCookie, Cookies.renderSetCookie cookie)
+                               ] })
+            else
+              pure (Template.Shared.sharedAuthPage hash True)
+
+
+performIssue :: SessionId -> SharedLinkHash -> Filehub SetCookie
+performIssue sessionId hash = do
+  mExisting <- withSession sessionId (pure . (.sharedLinkPermit))
+  (SharedLinkPermit permitUuid, newSet) <- issuePermit mExisting hash
+  modifySession sessionId \s ->
+    pure $ s { sharedLinkPermit = Just newSet }
+  pure defaultSetCookie
+    { setCookieName     = "sharedlink_permit"
+    , setCookieValue    = UUID.toASCIIBytes permitUuid
+    , setCookieHttpOnly = False
+    , setCookiePath     = Just "/"
+    , setCookieSecure   = False
+    }
+
+
+-- | Create a new shared link for a file/directory.
+share :: SessionId -> ConfirmLogin -> ShareRequest -> Filehub (Html ())
+share sessionId _ req = do
+  env  <- ask
+  let pool = env.sharedLinkPool
+  targets <- atomically (readTVar env.targets)
+
+  currentTargetId <- withSession sessionId \s ->
+    readTVar s.currentTargetId
+
+  case lookup currentTargetId targets of
+    Nothing -> throwIO (HTTPError err404 { errBody = "Target not found" })
+    Just target -> do
+      let root    = targetRoot target
+          absPath = ClientPath.fromClientPath root req.file
+      storage <- makeStorageAt target absPath
+      file    <- storage.get absPath
+      linkType <- mkLinkType req
+      let mPasscode = SharedLinkPasscode <$> req.passcode
+      link <- createSharedLink file currentTargetId linkType req.readonly mPasscode
+      addSharedLink link pool
+      pure (Template.Shared.shareCreatedModal link.hash)
+  where
+    mkLinkType ShareRequest { linkType, expiryHours } = case linkType of
+      ShareSingleUse  -> pure SingleUse
+      ShareIndefinite -> pure Indefinite
+      ShareExpiry     -> do
+        let hours = maybe 24 id expiryHours
+        now <- liftIO getCurrentTime
+        pure (Expiry (fromIntegral (hours * 3600) `addUTCTime` now))
+
+
+-- | List all currently active shared links.
+shareLinks :: SessionId -> ConfirmLogin -> Filehub (Html ())
+shareLinks _ _ = do
+  env <- ask
+  activeLinks env.sharedLinkPool
+
+
+activeLinks :: SharedLinkPool -> Filehub (Html ())
+activeLinks pool = do
+  now  <- liftIO getCurrentTime
+  all_ <- getAllSharedLinks pool
+  let links = filter (\l -> not l.revoked && case l.linkType of { Expiry t -> t > now; _ -> True }) all_
+  pure (Template.Shared.shareLinksModal links)
+
+
+-- | Revoke a link; return the updated full modal.
+revokeLink :: SessionId -> ConfirmLogin -> Maybe SharedLinkHash -> Filehub (Html ())
+revokeLink _ _ mHash = do
+  env <- ask
+  hash <- case mHash of
+    Nothing -> throwIO (HTTPError err400 { errBody = "Missing hash" })
+    Just h  -> pure h
+  revokeSharedLink hash env.sharedLinkPool
+  activeLinks env.sharedLinkPool
+
+-- | Return the edit form as a full modal replacement.
+editLinkForm :: SessionId -> ConfirmLogin -> Maybe SharedLinkHash -> Filehub (Html ())
+editLinkForm _ _ mHash = do
+  env <- ask
+  hash <- case mHash of
+    Nothing -> throwIO (HTTPError err400 { errBody = "Missing hash" })
+    Just h  -> pure h
+  mLink <- getSharedLink hash env.sharedLinkPool
+  case mLink of
+    Nothing   -> throwIO (HTTPError err404 { errBody = "Link not found" })
+    Just link -> pure (Template.Shared.linkEditModal link)
+
+
+-- | Return the normal row for a link (used by shareLinkRow route).
+shareLinkRow :: SessionId -> ConfirmLogin -> Maybe SharedLinkHash -> Filehub (Html ())
+shareLinkRow _ _ mHash = do
+  env <- ask
+  hash <- case mHash of
+    Nothing -> throwIO (HTTPError err400 { errBody = "Missing hash" })
+    Just h  -> pure h
+  mLink <- getSharedLink hash env.sharedLinkPool
+  case mLink of
+    Nothing   -> throwIO (HTTPError err404 { errBody = "Link not found" })
+    Just link -> pure (Template.Shared.linkRow link)
+
+
+-- | Update a link's attributes; return the updated full modal.
+updateLink :: SessionId -> ConfirmLogin -> SharedLinkUpdate -> Filehub (Html ())
+updateLink _ _ upd = do
+  env <- ask
+  now <- liftIO getCurrentTime
+  newLinkType <- case upd.linkType of
+    ShareSingleUse  -> pure SingleUse
+    ShareIndefinite -> pure Indefinite
+    ShareExpiry     -> do
+      let hours = maybe 24 id upd.expiryHours
+      pure (Expiry (fromIntegral (hours * 3600) `addUTCTime` now))
+  let modifier :: SharedLink -> SharedLink
+      modifier link = link
+        { linkType = newLinkType
+        , passcode = SharedLinkPasscode <$> upd.passcode
+        , readonly = upd.readonly
+        }
+  updateSharedLink upd.hash modifier env.sharedLinkPool
+  activeLinks env.sharedLinkPool
