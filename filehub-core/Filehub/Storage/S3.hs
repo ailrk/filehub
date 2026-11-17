@@ -210,8 +210,9 @@ write s3@S3Backend { targetId } File { content, mimetype, size = mSize, path } =
     case content of
       FileContentRaw bytes -> do
         writePutObject path (toBody bytes)
-        cacheDelete (SomeCacheKey (createCacheKey @"file" @FileInfo targetId (coerce Builder.string8 path)))
-        cacheDelete (SomeCacheKey (createCacheKey @"dir" @[FileInfo] targetId ""))
+        cacheDelete (SomeCacheKey (createCacheKey @"file"        @FileInfo targetId (coerce Builder.string8 path)))
+        cacheDelete (SomeCacheKey (createCacheKey @"dir"         @[FileInfo] targetId ""))
+        cacheDelete (SomeCacheKey (createCacheKey @"bucket-size" @Integer targetId ""))
       FileContentConduit conduit -> do
         case mSize of
           Nothing -> writeMultipart conduit
@@ -220,8 +221,9 @@ write s3@S3Backend { targetId } File { content, mimetype, size = mSize, path } =
                 lazyBytes <- liftIO . runResourceT . runConduit $ conduit .| sinkLazy
                 writePutObject path (toBody lazyBytes)
             | otherwise -> writeMultipart conduit
-        cacheDelete (SomeCacheKey (createCacheKey @"file" @FileInfo targetId (coerce Builder.string8 path)))
-        cacheDelete (SomeCacheKey (createCacheKey @"dir" @[FileInfo] targetId ""))
+        cacheDelete (SomeCacheKey (createCacheKey @"file"        @FileInfo targetId (coerce Builder.string8 path)))
+        cacheDelete (SomeCacheKey (createCacheKey @"dir"         @[FileInfo] targetId ""))
+        cacheDelete (SomeCacheKey (createCacheKey @"bucket-size" @Integer targetId ""))
         where
           threshold = 5 * 1024 * 1024 -- use putObject if it's smaller than single part.
       FileContentDir _ -> pure ()
@@ -359,8 +361,9 @@ delete' s3@S3Backend { targetId } filePath = do
   let bucket = BucketName s3.bucket
       key    = ObjectKey (coerce Text.pack filePath)
   void $ send s3.env (Amazonka.newDeleteObject bucket key)
-  cacheDelete (SomeCacheKey (createCacheKey @"file" @FileInfo targetId (coerce Builder.string8 filePath)))
-  cacheDelete (SomeCacheKey (createCacheKey @"dir" @[FileInfo] targetId ""))
+  cacheDelete (SomeCacheKey (createCacheKey @"file"        @FileInfo targetId (coerce Builder.string8 filePath)))
+  cacheDelete (SomeCacheKey (createCacheKey @"dir"         @[FileInfo] targetId ""))
+  cacheDelete (SomeCacheKey (createCacheKey @"bucket-size" @Integer targetId ""))
 
 
 ls :: Target S3 -> AbsPath -> Filehub [FileInfo]
