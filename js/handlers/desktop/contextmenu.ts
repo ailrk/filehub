@@ -9,12 +9,21 @@ export function register(): void {
 
 function onContextMenu(e: MouseEvent): void {
   e.preventDefault();
+  document.getElementById('contextmenu')?.remove();
+
+  const sidebar = document.getElementById('side-bar');
+  if (sidebar?.contains(e.target as Node)) {
+    const tab = (e.target as Element).closest<HTMLElement>('.target-tab');
+    if (!tab) return;
+    const menu = buildMenuSidebar(tab);
+    document.body.appendChild(menu);
+    initMenuFixed(menu, e.clientX, e.clientY);
+    return;
+  }
 
   const view  = document.getElementById('view');
   const table = document.getElementById('table');
   if (!view?.contains(e.target as Node)) return;
-
-  document.getElementById('contextmenu')?.remove();
 
   if (!table) return;
 
@@ -181,6 +190,35 @@ function buildMenuBackground(): HTMLElement {
 }
 
 
+function buildMenuSidebar(tab: HTMLElement): HTMLElement {
+  const menu = makeMenu();
+  const type = tab.dataset.targetType ?? '';
+
+  if (type === 's3') {
+    const bucket = tab.dataset.targetName ?? '';
+    const copyEl = document.createElement('div');
+    copyEl.className = 'dropdown-item';
+    copyEl.innerHTML = `<i class="bx bxs-copy"></i><span>Copy bucket name</span>`;
+    copyEl.addEventListener('click', () => {
+      navigator.clipboard.writeText(bucket).catch(() => {});
+      menu.dispatchEvent(new Event('Close'));
+    });
+    menu.appendChild(copyEl);
+  }
+
+  const openEl = document.createElement('div');
+  openEl.className = 'dropdown-item';
+  openEl.innerHTML = `<i class="bx bx-link-external"></i><span>Open in new tab</span>`;
+  openEl.addEventListener('click', () => {
+    window.open(location.href, '_blank');
+    menu.dispatchEvent(new Event('Close'));
+  });
+  menu.appendChild(openEl);
+
+  return menu;
+}
+
+
 function makeMenu(): HTMLElement {
   const el = document.createElement('div');
   el.className = 'dropdown-content';
@@ -222,6 +260,26 @@ function initMenu(menu: HTMLElement, pageX: number, pageY: number): void {
     const rect = menu.getBoundingClientRect();
     if (rect.right  > window.innerWidth)  menu.style.left = (pageX - rect.width)  + 'px';
     if (rect.bottom > window.innerHeight) menu.style.top  = (pageY - rect.height) + 'px';
+  });
+
+  menu.addEventListener('Close', () => {
+    menu.classList.add('closing');
+    menu.addEventListener('animationend', () => menu.remove(), { once: true });
+  });
+}
+
+
+function initMenuFixed(menu: HTMLElement, clientX: number, clientY: number): void {
+  menu.style.position = 'fixed';
+  menu.style.display  = 'block';
+  menu.style.left = clientX + 'px';
+  menu.style.top  = clientY + 'px';
+  menu.style.zIndex = '500';
+
+  requestAnimationFrame(() => {
+    const rect = menu.getBoundingClientRect();
+    if (rect.right  > window.innerWidth)  menu.style.left = (clientX - rect.width)  + 'px';
+    if (rect.bottom > window.innerHeight) menu.style.top  = (clientY - rect.height) + 'px';
   });
 
   menu.addEventListener('Close', () => {

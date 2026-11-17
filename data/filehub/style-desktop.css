@@ -74,16 +74,22 @@ textarea:focus {
 
 #side-bar .target-tab {
   width: 220px;
-  height: 40px;
   margin: 2px 0 0 10px;
   border-radius: var(--radius-sm);
-  padding: 0 10px;
+  padding: 6px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow: hidden;
+  transition: background var(--fast) var(--ease), color var(--fast) var(--ease);
+}
+
+#side-bar .target-tab-row1 {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  overflow: scroll;
-  scrollbar-width: none;
-  transition: background var(--fast) var(--ease), color var(--fast) var(--ease);
+  width: 100%;
+  overflow: hidden;
 }
 
 #side-bar .target-tab:hover {

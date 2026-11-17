@@ -57,7 +57,7 @@ import Data.Time (secondsToNominalDiffTime)
 import Filehub.Error (Error'(InvalidPath, CopyError), FilehubError(FilehubError))
 import Filehub.Monad (Filehub)
 import GHC.TypeLits (Symbol)
-import Lens.Micro ( (?~), (^.) )
+import Lens.Micro ( (?~), (.~), (^.) )
 import Log (logAttention_)
 import Network.Mime (defaultMimeLookup)
 import Prelude hiding (read, readFile, writeFile)
@@ -413,6 +413,21 @@ ls s3@S3Backend { targetId } _ = do
 
 lsCwd :: Target S3 -> Filehub [FileInfo]
 lsCwd s3 = ls s3 (AbsPath "")
+
+
+getBucketSize :: Target S3 -> Filehub Integer
+getBucketSize s3 = go 0 Nothing
+  where
+    go acc token = do
+      let req = Amazonka.newListObjectsV2 (BucketName s3.bucket)
+                & Amazonka.listObjectsV2_continuationToken .~ token
+      resp <- send s3.env req
+      let sizes = sum $ maybe [] (fmap (\o -> o ^. Amazonka.object_size))
+                      $ resp ^. Amazonka.listObjectsV2Response_contents
+          nextToken = resp ^. Amazonka.listObjectsV2Response_nextContinuationToken
+      case nextToken of
+        Just t  -> go (acc + sizes) (Just t)
+        Nothing -> pure (acc + sizes)
 
 
 upload :: Target S3 -> FileData Mem -> Filehub ()

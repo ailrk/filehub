@@ -12,7 +12,7 @@ module Filehub.Server.UI.Platform.Desktop
 import Data.ClientPath qualified as ClientPath
 import Data.ClientPath (AbsPath(..), Root(..))
 import Data.Coerce (coerce)
-import Data.DiskUsage (getDiskUsage)
+import Data.DiskUsage (getDiskUsage, DiskUsage(..))
 import Data.Text (Text)
 import Data.Text qualified as T
 import Filehub.Locale (Phrase(..), phrase)
@@ -22,6 +22,7 @@ import Filehub.Session.Pool (withSession)
 import Filehub.Session.Types (TargetSessionData(..), Selected (..))
 import Filehub.Sort (sortFiles)
 import Filehub.Server.Util (withQueryParam)
+import Filehub.Storage.S3 qualified as S3
 import Filehub.Template (TemplateContext(..), runTemplate, makeTemplateContext)
 import Filehub.Template.Desktop qualified as Template.Desktop
 import Filehub.Types ( SessionId(..), ClientPath)
@@ -30,9 +31,10 @@ import Prelude hiding (readFile)
 import System.FilePath (takeFileName)
 import Control.Monad (join)
 import Control.Monad.Reader (MonadReader(..))
-import UnliftIO (readTVarIO)
+import UnliftIO (readTVarIO, tryAny)
 import Data.Traversable (for)
 import Target.File (FileSys, Target(..))
+import Target.S3 (S3)
 import Target.Types (handleTarget, targetHandler)
 
 
@@ -112,9 +114,17 @@ sideBar sessionId = do
         let selCount = case selected' of
               Selected _ sels -> length sels + 1
               NoSelection     -> 0
-        mUsage <- case handleTarget target [ targetHandler @FileSys \(FileBackend { root = Root (AbsPath p) }) -> p ] of
-          Just fsPath -> getDiskUsage fsPath
-          Nothing     -> pure Nothing
+        mUsage <- case handleTarget target
+          [ targetHandler @FileSys \(FileBackend { root = Root (AbsPath p) }) -> Left p
+          , targetHandler @S3      \s3                                         -> Right s3
+          ] of
+            Just (Left fsPath) -> getDiskUsage fsPath
+            Just (Right s3)    -> do
+              result <- tryAny (S3.getBucketSize s3)
+              pure $ case result of
+                Right used -> Just DiskUsage { total = 0, used }
+                Left _     -> Nothing
+            Nothing            -> pure Nothing
         pure (target, selCount, mUsage)
 
       pure $ runTemplate ctx (Template.Desktop.sideBar targets' currentTarget)
