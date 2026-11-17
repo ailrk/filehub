@@ -29,7 +29,7 @@ clean:
 
 
 watch: buildjs
-  ghcid -c "cabal --flags=DEBUG repl filehub" -T "Filehub.mainDev \"--config-file _cache/config.toml\"" -W
+  ghcid -c "cabal --flags=debug repl filehub:lib:filehub filehub:lib:filehub-core filehub:lib:filehub-server filehub:lib:filehub-templates filehub:lib:filehub-utils"
 
 
 run: buildjs
