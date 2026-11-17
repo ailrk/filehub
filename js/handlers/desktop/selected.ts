@@ -120,6 +120,10 @@ function onClick(e: MouseEvent) {
   if ((e.target as Element).closest('.dir')) return;
   if ((e.target as Element).closest('.dropdown-item')) return;
   if (selectedIds.size > 0 && !dragging) {
+    selectedIds.clear();
+    document.querySelectorAll<HTMLElement>('#table .table-item').forEach(el => {
+      el.classList.remove('selected', 'confirmed');
+    });
     htmx.ajax('POST', '/cancel', { target: 'body', swap: 'none' });
   }
 }

@@ -5,7 +5,8 @@ module Filehub.Server.File.Delete (delete) where
 
 import Control.Monad (when)
 import Control.Monad.Reader (MonadReader(..))
-import Data.ClientPath (ClientPath (..))
+import Data.ClientPath (ClientPath (..), Root(..), AbsPath(..))
+import Data.Maybe (fromMaybe)
 import Data.ClientPath.View (ClientPathView(..), asClientPathView)
 import Data.Foldable (for_)
 import Data.Ratio ((%))
@@ -30,6 +31,10 @@ import Filehub.Server.Util (throttle)
 import Control.Concurrent.STM (flushTQueue)
 import UnliftIO (newEmptyMVar, takeMVar, putMVar, finally, onException)
 import Filehub.Session.Pool (withSession)
+import Filehub.Server.UI.Render (runUIPartialUpdate, UIPartialUpdate (..))
+import Target.File (Target(..), FileSys)
+import Target.S3 (S3)
+import Target.Types (handleTarget, targetHandler)
 
 
 -- | Delete files.
@@ -105,7 +110,11 @@ delete sessionId _ _ clientPaths deleteSelected = do
               NoSelection   -> pure ()
 
               Selected x xs -> do
-                let ps = fmap (asClientPathView root) (x:xs)
+                let targetRoot = fromMaybe (Root (AbsPath "")) $ handleTarget target
+                      [ targetHandler @FileSys \(FileBackend { root = r }) -> r
+                      , targetHandler @S3      \_ -> Root (AbsPath "")
+                      ]
+                    ps = fmap (asClientPathView targetRoot) (x:xs)
 
                 forConcurrently_ ps \(ClientPathView { path, clientPath }) -> do
                   storage.delete path
@@ -139,10 +148,11 @@ delete sessionId _ _ clientPaths deleteSelected = do
       `onException` handleErr
       `finally` cleanup
 
+    htmxUpdate <- runUIPartialUpdate sessionId [UpdateView]
     atomically do
       writeTBQueue notifications $ TaskCompleted
         { taskId       = taskId
-        , htmxResponse = Nothing
+        , htmxResponse = Just htmxUpdate
         }
 
   UI.clear sessionId

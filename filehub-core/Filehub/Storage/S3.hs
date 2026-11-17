@@ -68,7 +68,7 @@ import System.IO.Temp qualified as Temp
 import Target.S3 (Target(..), S3)
 import Target.Types (TargetId)
 import Target.Types qualified as Target
-import UnliftIO (MonadIO (..), throwIO)
+import UnliftIO (MonadIO (..), throwIO, onException, catch, SomeException)
 import UnliftIO.Async (forConcurrently_)
 import UnliftIO.Directory (removeFile)
 
@@ -241,28 +241,33 @@ write s3@S3Backend { targetId } File { content, mimetype, size = mSize, path } =
           request  = (Amazonka.newCreateMultipartUpload bucket key) { contentType = Just (Text.decodeUtf8 mimetype) } :: CreateMultipartUpload
       createMultipartUploadResp <- send s3.env request
       let uploadId = createMultipartUploadResp.uploadId
-      let mkCompletedPart = \loop -> do
-            mRes <- await
-            case mRes of
-             Just (partNum, chunkBuilder) -> do
-               let chunk = chunkBuilderToByteString chunkBuilder
-               uploadPartResp <- send s3.env (Amazonka.newUploadPart bucket key partNum uploadId (toBody chunk))
-               let etag = case uploadPartResp.eTag of
-                            Just x -> x
-                            Nothing -> error "handle later"
-               let completedPart = Amazonka.newCompletedPart partNum etag
-               yield completedPart
-               loop
-             Nothing -> pure ()
-      completedParts <- liftIO . runResourceT . runConduit
-        $ conduit
-        .| chunking partSize
-        .| fix mkCompletedPart
-        .| Conduit.sinkList
-      void $ send s3.env
-            (Amazonka.newCompleteMultipartUpload bucket key uploadId)
-              { multipartUpload = Just (CompletedMultipartUpload' (Just (NonEmpty.fromList completedParts)))
-              }
+      let abort = void (send s3.env (Amazonka.newAbortMultipartUpload bucket key uploadId))
+                    `catch` (\(_ :: SomeException) -> pure ())
+      onException
+        (do
+          let mkCompletedPart = \loop -> do
+                mRes <- await
+                case mRes of
+                 Just (partNum, chunkBuilder) -> do
+                   let chunk = chunkBuilderToByteString chunkBuilder
+                   uploadPartResp <- send s3.env (Amazonka.newUploadPart bucket key partNum uploadId (toBody chunk))
+                   let etag = case uploadPartResp.eTag of
+                                Just x -> x
+                                Nothing -> error "handle later"
+                   let completedPart = Amazonka.newCompletedPart partNum etag
+                   yield completedPart
+                   loop
+                 Nothing -> pure ()
+          completedParts <- liftIO . runResourceT . runConduit
+            $ conduit
+            .| chunking partSize
+            .| fix mkCompletedPart
+            .| Conduit.sinkList
+          void $ send s3.env
+                (Amazonka.newCompleteMultipartUpload bucket key uploadId)
+                  { multipartUpload = Just (CompletedMultipartUpload' (Just (NonEmpty.fromList completedParts)))
+                  })
+        abort
 
 
 data ChunkBuilder
@@ -437,11 +442,13 @@ download s3 path = do
         tempDir <- Temp.getCanonicalTemporaryDirectory
         Temp.openTempFile tempDir "DXXXXXX.zip"
 
-      Zip.createArchive zipPath do
-        Zip.packDirRecur
-          Zip.Zstd
-          Zip.mkEntrySelector
-          (coerce path)
+      onException
+        (Zip.createArchive zipPath do
+           Zip.packDirRecur
+             Zip.Zstd
+             Zip.mkEntrySelector
+             (coerce path))
+        (removeFile zipPath)
 
       pure $
         Conduit.bracketP

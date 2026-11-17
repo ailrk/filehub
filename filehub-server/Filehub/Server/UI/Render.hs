@@ -185,8 +185,8 @@ runUIPartialUpdate1 sessionId = \case
     pure (toolBar' `with` [ hxSwapOOB True ])
 
   UpdateEntries files -> do
-    entries' <- entries sessionId files
-    pure (entries' `with` [ hxSwapOOB True ])
+    rs <- traverse (\f -> (`with` [hxSwapOOB True]) <$> entry sessionId f) files
+    pure (mconcat rs)
 
   UpdateEntry target file -> do
     entry'  <- entry sessionId file

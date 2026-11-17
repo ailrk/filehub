@@ -73,6 +73,7 @@ import Worker.Task (newTaskId)
 import Filehub.Session.Pool (withSession)
 import Filehub.Session.Types (TargetSessionData(..))
 import Filehub.Server.UI.Render (runUIPartialUpdate, UIPartialUpdate (..))
+import Log (logAttention_)
 
 
 cd :: SessionId -> ConfirmLogin -> Maybe ClientPath -> Filehub (Headers '[ Header "HX-Trigger-After-Swap" FilehubEvent ] (Html ()))
@@ -126,7 +127,10 @@ newFile' sessionId name create = do
 
     pure ( dir, order, root)
 
-  path    <- validateAbsPath (coerce dir </> T.unpack name) (FilehubError InvalidPath ("<redacted>/" <> show name))
+  let nameStr = T.unpack name
+  when (null nameStr || '/' `elem` nameStr || '\0' `elem` nameStr || nameStr == "..") do
+    throwIO (FilehubError InvalidPath "Invalid filename")
+  path    <- validateAbsPath (coerce dir </> nameStr) (FilehubError InvalidPath ("<redacted>/" <> show name))
   file    <- create path
   files   <- Sort.sortFiles order <$> storage.ls dir
 
@@ -208,7 +212,9 @@ move sessionId _ _ (MoveFile src tgt) = do
     when (srcPath == tgtPath)  do
       throwIO (FilehubError InvalidDir "Can't move to the same directory")
 
-    if | coerce takeDirectory srcPath == tgtPath -> do pure Nothing
+    if | coerce takeDirectory srcPath == tgtPath -> do
+           logAttention_ [i|[k4zm9x] move: skipping #{show srcPath}, already in target directory|]
+           pure Nothing
        | otherwise -> do
            let
                fileName = coerce takeFileName srcPath
@@ -217,7 +223,9 @@ move sessionId _ _ (MoveFile src tgt) = do
            eFile <- try @_ @FilehubError $ storage.get dstPath
 
            case eFile of
-             Right _  -> pure Nothing
+             Right _  -> do
+               logAttention_ [i|[k4zm9x] move: skipping #{show srcPath}, name conflict at #{show dstPath}|]
+               pure Nothing
              Left  _  -> pure $ Just srcPath
 
   forkFilehub_ env $ do

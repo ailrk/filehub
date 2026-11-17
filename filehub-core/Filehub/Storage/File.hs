@@ -56,7 +56,7 @@ import System.FilePath ((</>), takeDirectory, takeFileName)
 import System.IO.Error (isDoesNotExistError)
 import System.IO.Temp qualified as Temp
 import Target.File (Target(..), FileSys)
-import UnliftIO (MonadIO (..), throwIO, tryIO, IOException, Handler (..), catch, withFile, IOMode (..), hClose, withTempFile, SomeException)
+import UnliftIO (MonadIO (..), throwIO, tryIO, onException, IOException, Handler (..), catch, withFile, IOMode (..), hClose, withTempFile, SomeException)
 import UnliftIO.Async (forConcurrently_)
 import UnliftIO.Directory (doesDirectoryExist, pathIsSymbolicLink, removeFile, makeAbsolute, getFileSize, getAccessTime, getModificationTime, doesPathExist, doesFileExist, createDirectoryIfMissing, renameFile, copyFile, listDirectory, removeDirectoryRecursive, withCurrentDirectory)
 import UnliftIO.Retry (recovering, limitRetries, exponentialBackoff)
@@ -66,6 +66,15 @@ class CacheKeyComponent (s :: Symbol) a              where toCacheKeyComponent :
 instance CacheKeyComponent "file"         FileInfo   where toCacheKeyComponent = "f"
 instance CacheKeyComponent "dir"          [FileInfo] where toCacheKeyComponent = "d"
 instance CacheKeyComponent "file-content" ByteString where toCacheKeyComponent = "fc"
+
+
+validateFileName :: String -> Filehub ()
+validateFileName name
+  | null name         = throwIO (FilehubError InvalidPath "Empty filename")
+  | '/' `elem` name  = throwIO (FilehubError InvalidPath "Filename may not contain '/'")
+  | '\0' `elem` name = throwIO (FilehubError InvalidPath "Filename may not contain null byte")
+  | name == ".."     = throwIO (FilehubError InvalidPath "Filename may not be '..'")
+  | otherwise        = pure ()
 
 
 cacheKeyPrefix :: Builder
@@ -211,18 +220,14 @@ write File{ content, path = path } = do
   where
     go performWrite = do
       LockManager.withLock (LockManager.mkLockKey path) do
-        isCreatingNew <- doesFileExist (coerce path)
+        fileExists <- doesFileExist (coerce path)
         let dir = takeDirectory (coerce path)
         let name = takeFileName (coerce path)
         withTempFile dir name \tempFile h -> do
           performWrite tempFile h
-          when (not isCreatingNew) do
-            removeFile (coerce path) `catch` \(e :: IOError) -> do
-              when (not (isDoesNotExistError e)) do -- it's ok if file is not there.
-                throwIO e
           renameFile tempFile (coerce path)
         cacheDelete (SomeCacheKey (createCacheKey @"file" @FileInfo (coerce BB.string8 path)))
-        when (not isCreatingNew) do
+        when (not fileExists) do
           cacheDelete (SomeCacheKey (createCacheKey @"dir" @[FileInfo] (coerce BB.string8 dir)))
 
 
@@ -236,9 +241,17 @@ mv cpPairs = do
                    else (fmap LockManager.mkLockKey [src, dst])
     LockManager.withLocks locks do
       isDir <- isDirectory src
-      if isDir then copyDirectoryRecursive src dst
-      else copyFile (coerce src) (coerce dst)
-      delete' src
+      if isDir
+        then do
+          copyDirectoryRecursive src dst
+          delete' src
+        else do
+          moved <- tryIO (renameFile (coerce src) (coerce dst))
+          case moved of
+            Right () -> pure ()
+            Left _   -> do
+              copyFile (coerce src) (coerce dst)
+              delete' src
       cacheDelete (SomeCacheKey (createCacheKey @"dir" @[FileInfo] (BB.string8 (coerce takeDirectory src))))
       cacheDelete (SomeCacheKey (createCacheKey @"dir" @[FileInfo] (BB.string8 (coerce takeDirectory dst))))
 
@@ -250,6 +263,8 @@ rename oldPath newName = do
 
   when (oldName == newName) do
     throwIO (FilehubError FileExists "Can't rename to itself")
+
+  validateFileName newName
 
   LockManager.withLock (LockManager.mkLockKey oldPath) do
     newPath <- validateAbsPath (dir </> newName) (FilehubError InvalidPath ("<redacted>/" <> newName))
@@ -354,6 +369,7 @@ upload currentDir file = do
   let mimetype = T.encodeUtf8 file.fdFileCType
   let name     = T.unpack file.fdFileName
   let bytes    = BL.toStrict file.fdPayload
+  validateFileName name
   fullPath <- toFilePath currentDir name
   write $ defaultFileWithContent
     { path     = fullPath
@@ -378,11 +394,13 @@ download fileSys clientPath = do
         tempDir <- Temp.getCanonicalTemporaryDirectory
         Temp.openTempFile tempDir "DXXXXXX.zip"
 
-      Zip.createArchive zipPath do
-        Zip.packDirRecur
-          Zip.Zstd
-          Zip.mkEntrySelector
-          (coerce path)
+      onException
+        (Zip.createArchive zipPath do
+           Zip.packDirRecur
+             Zip.Zstd
+             Zip.mkEntrySelector
+             (coerce path))
+        (removeFile zipPath)
 
       pure $
         Conduit.bracketP

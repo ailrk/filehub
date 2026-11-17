@@ -19,15 +19,13 @@ module Filehub.Server.UI.Action
   )
   where
 
-import Control.Monad (join)
 import Control.Monad.Reader (MonadReader(ask))
-import Data.ClientPath (Root, toClientPath)
+import Data.ClientPath (Root)
 import Data.ClientPath qualified as ClientPath
 import Data.Coerce (coerce)
 import Data.File (FileInfo, File(..))
 import Data.List qualified as L
 import Data.Maybe (fromMaybe)
-import Data.Set qualified as S
 import Data.String.Interpolate (i)
 import Data.Text.Encoding qualified as T
 import Filehub.Error (FilehubError(..), Error' (..))
@@ -43,8 +41,7 @@ import Filehub.Session.Copy qualified as Copy
 import Filehub.Session.Pool (withSession, withSession_, modifySession)
 import Filehub.Session.Selected (AllSelected(..))
 import Filehub.Session.Selected qualified as Selected
-import Filehub.Session.Types (Selected (..), Layout (..))
-import Filehub.Session.Types (Storage(..))
+import Filehub.Session.Types (Selected (..), Layout (..), Storage(..))
 import Filehub.Sort qualified as Sort
 import Filehub.Theme qualified as Theme
 import Filehub.Types
@@ -181,32 +178,15 @@ open _ _ mTarget mClientPath = do
 
 cancel :: SessionId -> ConfirmLogin -> Filehub (Headers '[Header "X-Filehub-Selected-Count" Int] (Html ()))
 cancel sessionId _ = do
-  env     <- ask
-  storage <- makeStorageCurrentTarget sessionId
+  env <- ask
 
-  join $ withSession sessionId \s -> do
-    AllSelected
-      { count
-      , allSelected
-      }                   <- Selected.getAllSelected =<< getTargetViews env s
-    TargetView { target } <- getCurrentTarget env s
-    root                  <- getRoot env s
+  count <- withSession sessionId \s -> do
+    AllSelected { count } <- Selected.getAllSelected =<< getTargetViews env s
+    pure count
 
-    pure do
-      let
-          selected = S.fromList case lookup target allSelected of
-                                   Just sel  -> Selected.toList sel
-                                   Nothing -> []
-
-      selectedFiles <- do
-        files <- storage.lsCwd
-        let predicate f = (toClientPath root f.path) `S.member` selected
-        pure $ filter predicate files
-
-
-      clear sessionId
-      addHeader count <$> runUIPartialUpdate sessionId
-        [ UpdateControlPanel
-        , UpdateSideBar
-        , UpdateEntries selectedFiles
-        ]
+  clear sessionId
+  addHeader count <$> runUIPartialUpdate sessionId
+    [ UpdateControlPanel
+    , UpdateSideBar
+    , UpdateView
+    ]

@@ -123,6 +123,8 @@ withDefault display background html = do
     NoDisplay -> link_ [ rel_ "stylesheet", href_ "/static/style-mobile.css" ]
   html
   div_ [ id_ "balloon-container"] mempty
+  div_ [ id_ "global-spinner", class_ "htmx-indicator" ] do
+    i_ [ class_ "bx bx-loader-alt" ] mempty
 
 
 pathBreadcrumb :: Template (Html ())
@@ -321,23 +323,27 @@ open root file = do
           | file.mimetype `isMime` "application/pdf" ->
                [ hxGet (apiLinks.open (Just OpenDOMBlank) (Just clientPath))
                , term "hx-swap" "none"
+               , term "hx-indicator" "#global-spinner"
                ]
           | file.mimetype `isMime` "audio" ->
                [ hxGet (apiLinks.open (Just OpenViewer) (Just clientPath))
                , term "hx-swap" "none"
+               , term "hx-indicator" "#global-spinner"
                ]
           | file.mimetype `isMime` "video" ->
                [ hxGet (apiLinks.open (Just OpenViewer) (Just clientPath))
                , term "hx-swap" "none"
+               , term "hx-indicator" "#global-spinner"
                ]
           | file.mimetype `isMime` "image" ->
                [ hxGet (apiLinks.open (Just OpenViewer) (Just clientPath))
                , term "hx-swap" "none"
+               , term "hx-indicator" "#global-spinner"
                ]
           | file.mimetype `isMime` "text" ->
-               asHtmx @"editorModal" hxGet (Just clientPath) []
+               asHtmx @"editorModal" hxGet (Just clientPath) [ term "hx-indicator" "#global-spinner" ]
           | otherwise ->
-               asHtmx @"editorModal" hxGet (Just clientPath) []
+               asHtmx @"editorModal" hxGet (Just clientPath) [ term "hx-indicator" "#global-spinner" ]
   where
     clientPath = ClientPath.toClientPath root file.path
 

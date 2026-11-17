@@ -436,5 +436,9 @@ textarea:focus {
   top: calc(100% + 4px);
   left: 50%;
   transform: translateX(-50%);
+  animation: none;
 }
-.control-panel-dropdown-btn:hover .dropdown-content { display: block; }
+.control-panel-dropdown-btn:hover .dropdown-content {
+  display: block;
+  animation: controlPanelDropdownIn 120ms var(--ease);
+}

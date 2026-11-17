@@ -112,6 +112,10 @@ function onClick(e) {
     if (e.target.closest('.dropdown-item'))
         return;
     if (selectedIds.size > 0 && !dragging) {
+        selectedIds.clear();
+        document.querySelectorAll('#table .table-item').forEach(el => {
+            el.classList.remove('selected', 'confirmed');
+        });
         htmx.ajax('POST', '/cancel', { target: 'body', swap: 'none' });
     }
 }

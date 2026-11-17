@@ -9,14 +9,19 @@ module Filehub.Session.Copy
 
 import Control.Handle.Storage (Storage(..))
 import Control.Monad (forM_)
+import Data.ClientPath (Root(..), AbsPath(..))
 import Data.ClientPath qualified as ClientPath
 import Data.Function (on, (&))
 import Data.List (nub)
+import Data.Maybe (fromMaybe)
 import Filehub.Error (FilehubError (..), Error' (..))
 import Filehub.Monad (Filehub)
 import Filehub.Session.Selected (AllSelected(..))
 import Filehub.Session.Selected qualified as Selected
 import Filehub.Session.Types (Selected(..), SessionId, CopyState (..))
+import Target.File (FileSys, Target(..))
+import Target.S3 (S3)
+import Target.Types (handleTarget, targetHandler)
 import Target.Types qualified as Target
 import Filehub.Session.Pool (withSession, modifySession, withSession_)
 import Filehub.Session (Session(..), getTargetViews, getRoot, makeStorage, getTarget)
@@ -48,8 +53,11 @@ select sessionId = do
             Left err -> do
               throwSTM err
         Selected x xs -> do
-          root <- getRoot env s
-          pure (s, (x:xs) & fmap (ClientPath.fromClientPath root))
+          let targetRoot = fromMaybe (Root (AbsPath "")) $ handleTarget target
+                [ targetHandler @FileSys \(FileBackend { root }) -> root
+                , targetHandler @S3      \_ -> Root (AbsPath "")
+                ]
+          pure (s, (x:xs) & fmap (ClientPath.fromClientPath targetRoot))
 
     files <- do
       targetView <- withSession sessionId \s -> getTarget env s target
