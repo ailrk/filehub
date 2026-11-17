@@ -348,7 +348,7 @@ upload sessionId _ _ multipart = do
           , htmxResponse = Nothing
           }
 
-    htmx <- runUIPartialUpdate sessionId [UpdateView]
+    htmx <- runUIPartialUpdate sessionId [UpdateView, UpdateSideBar]
 
     atomically do
       writeTBQueue notifications UploadProgressed

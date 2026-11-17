@@ -148,7 +148,7 @@ delete sessionId _ _ clientPaths deleteSelected = do
       `onException` handleErr
       `finally` cleanup
 
-    htmxUpdate <- runUIPartialUpdate sessionId [UpdateView]
+    htmxUpdate <- runUIPartialUpdate sessionId [UpdateView, UpdateSideBar]
     atomically do
       writeTBQueue notifications $ TaskCompleted
         { taskId       = taskId

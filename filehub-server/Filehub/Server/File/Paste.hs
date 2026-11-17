@@ -175,8 +175,11 @@ paste sessionId _ _ = do
         tasks       <- createPasteTasks sessionId currentDir' pasteTo selections
         doPaste tasks (countTasks tasks)
 
-        view' <- UI.view sessionId
-        pure $ Just $ view' `with` [ hxSwapOOB True ]
+        view'    <- UI.view sessionId
+        sideBar' <- UI.sideBar sessionId
+        pure $ Just do
+          view'    `with` [ hxSwapOOB True ]
+          sideBar' `with` [ hxSwapOOB True ]
 
   case state of
     Paste selections -> forkFilehub_ env do
