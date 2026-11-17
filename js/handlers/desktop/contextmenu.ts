@@ -206,11 +206,15 @@ function buildMenuSidebar(tab: HTMLElement): HTMLElement {
     menu.appendChild(copyEl);
   }
 
+  const hxGet    = tab.getAttribute('hx-get') ?? '';
+  const targetId = new URLSearchParams(hxGet.split('?')[1] ?? '').get('target');
+  const url      = targetId ? `/?target=${encodeURIComponent(targetId)}` : '/';
+
   const openEl = document.createElement('div');
   openEl.className = 'dropdown-item';
   openEl.innerHTML = `<i class="bx bx-link-external"></i><span>Open in new tab</span>`;
   openEl.addEventListener('click', () => {
-    window.open(location.href, '_blank');
+    window.open(url, '_blank');
     menu.dispatchEvent(new Event('Close'));
   });
   menu.appendChild(openEl);

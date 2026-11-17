@@ -78,6 +78,7 @@ instance CacheKeyComponent "file"         FileInfo   where toCacheKeyComponent =
 instance CacheKeyComponent "dir"          [FileInfo] where toCacheKeyComponent = "d"
 instance CacheKeyComponent "file-content" ByteString where toCacheKeyComponent = "fc"
 instance CacheKeyComponent "is-directory" Bool       where toCacheKeyComponent = "id"
+instance CacheKeyComponent "bucket-size"  Integer    where toCacheKeyComponent = "bs"
 
 
 cacheKeyPrefix :: Builder
@@ -416,8 +417,16 @@ lsCwd s3 = ls s3 (AbsPath "")
 
 
 getBucketSize :: Target S3 -> Filehub Integer
-getBucketSize s3 = go 0 Nothing
+getBucketSize s3@S3Backend { targetId } = do
+  mCached <- cacheLookup cacheKey
+  case mCached of
+    Just cached -> pure cached
+    Nothing -> do
+      result <- go 0 Nothing
+      cacheInsert cacheKey [] (Just (secondsToNominalDiffTime 60)) result
+      pure result
   where
+    cacheKey = createCacheKey @"bucket-size" @Integer targetId ""
     go acc token = do
       let req = Amazonka.newListObjectsV2 (BucketName s3.bucket)
                 & Amazonka.listObjectsV2_continuationToken .~ token

@@ -164,8 +164,9 @@ initialize sessionId res = do
 --
 -- The frontend js deletes the `display` cookie on `pageunload`, so the backend can
 -- start a full reload from the bootstrap stage.
-home :: SessionId -> ConfirmLogin -> Filehub (Html ())
-home sessionId _  = do
+home :: SessionId -> ConfirmLogin -> Maybe TargetId -> Filehub (Html ())
+home sessionId _ mTargetId = do
+  env     <- ask
   display <- withSession sessionId getDisplay
   m <- Filehub.Server.Static.manifest
   let background
@@ -173,6 +174,9 @@ home sessionId _  = do
         . flip parseMaybe m
         . withObject "manifest"
         $ (.: "theme_color")
+  case mTargetId of
+    Just targetId -> withSession sessionId \s -> setCurrentTarget env s targetId
+    Nothing       -> pure ()
   clear sessionId
   case display of
     NoDisplay -> pure Template.bootstrap

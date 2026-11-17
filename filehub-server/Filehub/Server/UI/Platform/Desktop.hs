@@ -34,6 +34,7 @@ import Control.Monad.Reader (MonadReader(..))
 import UnliftIO (readTVarIO, tryAny)
 import Data.Traversable (for)
 import Target.File (FileSys, Target(..))
+import UnliftIO.Async (forConcurrently)
 import Target.S3 (S3)
 import Target.Types (handleTarget, targetHandler)
 
@@ -109,7 +110,7 @@ sideBar sessionId = do
     currentTarget <- getCurrentTarget env s
     pure do
       ctx <- makeTemplateContext sessionId
-      targets'    <- for targetViews \(TargetView target td) -> do
+      targets'    <- forConcurrently targetViews \(TargetView target td) -> do
         selected' <- readTVarIO td.selected
         let selCount = case selected' of
               Selected _ sels -> length sels + 1

@@ -113,6 +113,7 @@ data Api mode = Api
   , home                  :: mode
                           :- AuthProtect "session"
                           :> AuthProtect "login"
+                          :> QueryParam "target" TargetId
                           :> Get '[HTML] (Html ())
 
 
