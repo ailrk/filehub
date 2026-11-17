@@ -9,7 +9,7 @@ module Filehub.Template.SharedView
   ) where
 
 import Control.Monad (when)
-import Data.ClientPath (ClientPath(..), AbsPath(..), Root(..))
+import Data.ClientPath (ClientPath(..), AbsPath(..))
 import Data.ClientPath qualified as ClientPath
 import Data.Coerce (coerce)
 import Data.File (File(..), FileType(..), FileInfo, IsLink(..))

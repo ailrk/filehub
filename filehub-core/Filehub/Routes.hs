@@ -74,7 +74,6 @@ import Filehub.Types
     , OpenTarget
     , MoveFile
     , RenameFile
-    , UIComponent
     )
 import GHC.Generics (Generic)
 import Filehub.Handler (ConfirmReadOnly, ConfirmMobilOnly, ConfirmDesktopOnly, ConfirmLogin)
