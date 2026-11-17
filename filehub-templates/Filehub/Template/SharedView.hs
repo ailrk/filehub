@@ -262,7 +262,7 @@ linkEditModal link =
                 input_ ([ type_ "radio", name_ "linkType", value_ "expiry" ]
                         <> [ checked_ | isExpiry link.linkType ])
                 " Expires after "
-                input_ [ class_ "form-control share-expiry-input"
+                input_ [ class_ "share-expiry-input"
                        , type_ "number", name_ "expiryHours"
                        , value_ "24", min_ "1", max_ "8760"
                        ]

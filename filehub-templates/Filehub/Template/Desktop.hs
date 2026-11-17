@@ -47,13 +47,11 @@ import Filehub.Template.Shared
   )
 import Filehub.Template.Shared qualified as Template
 import Filehub.Theme (Theme (..))
-import Filehub.Types (SortFileBy(..))
 import Lucid
 import Lucid.Htmx (hxGet, hxEncoding, hxPost, hxTrigger, Trigger (..), hxDelete, hxConfirm, HtmxEvent (..), hxOn)
 import Network.Mime.Extended (isMime)
 import Servant.Extended (linkToText)
 import System.FilePath (takeFileName)
-import Target.Dummy (DummyTarget)
 import Target.File (FileSys, Target (..))
 import Target.S3 (S3, Target (..))
 import Target.Types (targetHandler, AnyTarget, handleTarget)
