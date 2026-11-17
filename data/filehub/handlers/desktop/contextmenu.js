@@ -5,13 +5,23 @@ export function register() {
 }
 function onContextMenu(e) {
     e.preventDefault();
+    const view = document.getElementById('view');
     const table = document.getElementById('table');
-    if (!table?.contains(e.target))
-        return;
-    const item = e.target.closest('.table-item');
-    if (!item)
+    if (!view?.contains(e.target))
         return;
     document.getElementById('contextmenu')?.remove();
+    if (!table)
+        return;
+    const item = e.target.closest('.table-item');
+    if (!item) {
+        if (table.hasAttribute('data-readonly'))
+            return;
+        const menu = buildMenuBackground();
+        table.insertAdjacentElement('afterend', menu);
+        initMenu(menu, e.pageX, e.pageY);
+        table.style.pointerEvents = 'none';
+        return;
+    }
     const readOnly = table.hasAttribute('data-readonly');
     let menu;
     if (item.classList.contains('selected')) {
@@ -114,6 +124,28 @@ function buildMenuMany(paths, readOnly) {
     menu.appendChild(makeItem(t.cancel, 'bx-message-alt-x', {
         'hx-post': '/cancel', 'hx-swap': 'none',
     }));
+    htmx.process(menu);
+    return menu;
+}
+function buildMenuBackground() {
+    const t = i18n();
+    const menu = makeMenu();
+    menu.appendChild(makeClickItem(t.new_folder, 'bxs-folder-plus', () => {
+        ModalBuilder.showNewFolderModal();
+    }));
+    menu.appendChild(makeClickItem(t.new_file, 'bxs-file-plus', () => {
+        ModalBuilder.showNewFileModal();
+    }));
+    menu.appendChild(makeClickItem(t.upload, 'bx-upload', () => {
+        document.getElementById('file-input')?.click();
+    }));
+    const hasPaste = !!document.querySelector('#control-panel [hx-post*="paste"]');
+    if (hasPaste) {
+        menu.appendChild(document.createElement('hr'));
+        menu.appendChild(makeItem(t.paste, 'bxs-paste', {
+            'hx-post': '/files/paste', 'hx-swap': 'none',
+        }));
+    }
     htmx.process(menu);
     return menu;
 }

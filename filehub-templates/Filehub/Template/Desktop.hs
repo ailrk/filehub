@@ -162,8 +162,8 @@ controlPanel :: Template (Html ())
 controlPanel = join do
   Template.controlPanel
     <$> pure localeBtn
-    <*> newFolderBtn
-    <*> newFileBtn
+    <*> pure mempty
+    <*> pure mempty
     <*> uploadBtn
     <*> copyBtn
     <*> pasteBtn
@@ -175,32 +175,6 @@ controlPanel = join do
     <*> (Just <$> toggleSidebarBtn)
     <*> (Just <$> layoutBtn)
     <*> pure Nothing
-
-
-newFolderBtn :: Template (Html ())
-newFolderBtn = do
-  Phrase { control_panel_new_folder } <- phrase <$> asks (.locale)
-  pure do
-    button_ [ class_ "btn btn-control tooltip"
-            , type_ "button"
-            , term "data-action" "new-folder"
-            , term "data-tooltip" control_panel_new_folder
-            ] do
-      span_ [ class_ "field " ] do
-        i_ [ class_ "bx bx-folder-plus" ] mempty
-
-
-newFileBtn :: Template (Html ())
-newFileBtn = do
-  Phrase { control_panel_new_file } <- phrase <$> asks (.locale)
-  pure do
-    button_ [ class_ "btn btn-control tooltip"
-            , type_ "button"
-            , term "data-action" "new-file"
-            , term "data-tooltip" control_panel_new_file
-            ] do
-      span_ [ class_ "field " ] do
-        i_ [ class_ "bx bxs-file-plus" ] mempty
 
 
 uploadBtn :: Template (Html ())

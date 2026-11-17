@@ -10,13 +10,23 @@ export function register(): void {
 function onContextMenu(e: MouseEvent): void {
   e.preventDefault();
 
+  const view  = document.getElementById('view');
   const table = document.getElementById('table');
-  if (!table?.contains(e.target as Node)) return;
-
-  const item = (e.target as Element).closest<HTMLElement>('.table-item');
-  if (!item) return;
+  if (!view?.contains(e.target as Node)) return;
 
   document.getElementById('contextmenu')?.remove();
+
+  if (!table) return;
+
+  const item = (e.target as Element).closest<HTMLElement>('.table-item');
+  if (!item) {
+    if (table.hasAttribute('data-readonly')) return;
+    const menu = buildMenuBackground();
+    table.insertAdjacentElement('afterend', menu);
+    initMenu(menu, e.pageX, e.pageY);
+    table.style.pointerEvents = 'none';
+    return;
+  }
 
   const readOnly = table.hasAttribute('data-readonly');
   let menu: HTMLElement;
@@ -138,6 +148,33 @@ function buildMenuMany(paths: string[], readOnly: boolean): HTMLElement {
   menu.appendChild(makeItem(t.cancel, 'bx-message-alt-x', {
     'hx-post': '/cancel', 'hx-swap': 'none',
   }));
+
+  htmx.process(menu);
+  return menu;
+}
+
+
+function buildMenuBackground(): HTMLElement {
+  const t    = i18n();
+  const menu = makeMenu();
+
+  menu.appendChild(makeClickItem(t.new_folder, 'bxs-folder-plus', () => {
+    ModalBuilder.showNewFolderModal();
+  }));
+  menu.appendChild(makeClickItem(t.new_file, 'bxs-file-plus', () => {
+    ModalBuilder.showNewFileModal();
+  }));
+  menu.appendChild(makeClickItem(t.upload, 'bx-upload', () => {
+    document.getElementById('file-input')?.click();
+  }));
+
+  const hasPaste = !!document.querySelector('#control-panel [hx-post*="paste"]');
+  if (hasPaste) {
+    menu.appendChild(document.createElement('hr'));
+    menu.appendChild(makeItem(t.paste, 'bxs-paste', {
+      'hx-post': '/files/paste', 'hx-swap': 'none',
+    }));
+  }
 
   htmx.process(menu);
   return menu;

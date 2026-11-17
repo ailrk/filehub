@@ -85,6 +85,10 @@ i18nPayload readOnly p = "window.filehubI18n=" <> obj <> ";"
       , kv "placeholder_newfoler" p.placeholder_newfoler
       , kv "control_panel_dark"  p.control_panel_dark
       , kv "control_panel_light" p.control_panel_light
+      , kv "new_file"            p.control_panel_new_file
+      , kv "new_folder"          p.control_panel_new_folder
+      , kv "upload"              p.control_panel_upload
+      , kv "paste"               p.control_panel_paste
       , "\"readOnly\":" <> if readOnly then "true" else "false"
       ] <> "}"
     kv key val = "\"" <> key <> "\":\"" <> escape val <> "\""

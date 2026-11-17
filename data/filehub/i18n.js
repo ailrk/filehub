@@ -18,6 +18,10 @@ export const defaultI18n = {
     placeholder_newfoler: 'folder name',
     control_panel_dark: 'Dark',
     control_panel_light: 'Light',
+    new_file: 'New File',
+    new_folder: 'New Folder',
+    upload: 'Upload',
+    paste: 'Paste',
 };
 export function i18n() {
     return { ...defaultI18n, ...(window.filehubI18n ?? {}) };

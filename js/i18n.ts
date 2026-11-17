@@ -27,6 +27,10 @@ export interface I18n {
   placeholder_newfoler: string;
   control_panel_dark: string;
   control_panel_light: string;
+  new_file: string;
+  new_folder: string;
+  upload: string;
+  paste: string;
 }
 
 declare global {
@@ -53,6 +57,10 @@ export const defaultI18n: I18n = {
   placeholder_newfoler: 'folder name',
   control_panel_dark: 'Dark',
   control_panel_light: 'Light',
+  new_file: 'New File',
+  new_folder: 'New Folder',
+  upload: 'Upload',
+  paste: 'Paste',
 };
 
 export function i18n(): I18n {
