@@ -12,6 +12,12 @@ export function register() {
 function onDocumentClick(e: MouseEvent) {
   const t = e.target as Element;
 
+  if (t.closest('#overlay')) {
+    document.getElementById('control-panel')?.classList.remove('show');
+    document.getElementById('overlay')?.classList.remove('show');
+    return;
+  }
+
   if (t.closest('#control-panel-btn')) {
     toggle('overlay');
     toggle('control-panel');
