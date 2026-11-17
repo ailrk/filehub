@@ -36,7 +36,7 @@ import System.Environment (withArgs)
 import Target.File qualified as FS
 import Target.S3 qualified as S3
 import Target.Types (AnyTarget (..), getTargetId)
-import UnliftIO (catch, hFlush, stdout)
+import UnliftIO (catch, hFlush, stdout, hSetBuffering, BufferMode (..), stderr)
 import Log (logInfo_, runLogT)
 import UnliftIO.STM (newTVarIO)
 import Control.Handle.Cache qualified as Cache
@@ -133,4 +133,7 @@ main = Log.withColoredStdoutLogger \logger -> do
 --   Run `ghciwatch --test-ghci "Filehub.Entry.mainDev <your args for testing>"`
 --   ghciwatch will watch file changes and rerun the server automatically.
 mainDev :: String -> IO ()
-mainDev args = withArgs (words args) main
+mainDev args = do
+  hSetBuffering stdout NoBuffering
+  hSetBuffering stderr NoBuffering
+  withArgs (words args) main

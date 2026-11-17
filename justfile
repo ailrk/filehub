@@ -32,6 +32,10 @@ watch: buildjs
   ghcid -c "cabal --flags=debug repl filehub:lib:filehub filehub:lib:filehub-core filehub:lib:filehub-server filehub:lib:filehub-templates filehub:lib:filehub-utils"
 
 
+repl: buildjs
+  cabal repl all
+
+
 run: buildjs
   just buildjs
   cabal run --flags=DEBUG -- filehub --config-file _cache/config.toml +RTS -s -RTS

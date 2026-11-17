@@ -94,7 +94,6 @@ library
                           warp,
                           servant-conduit,
                           unliftio
-  other-modules:          Dev
   exposed-modules:        Filehub
                           Filehub.Config
                           Filehub.Config.Options
