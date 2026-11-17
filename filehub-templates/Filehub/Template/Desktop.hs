@@ -68,6 +68,23 @@ import Target.Types qualified as Target
 
 
 ------------------------------------
+-- helpers
+------------------------------------
+
+
+fileType :: FileInfo -> Text
+fileType file = case file.content of
+  Dir     -> "dir"
+  Regular
+    | file.mimetype `isMime` "image"           -> "image"
+    | file.mimetype `isMime` "video"           -> "video"
+    | file.mimetype `isMime` "audio"           -> "audio"
+    | file.mimetype `isMime` "application/pdf" -> "pdf"
+    | file.mimetype `isMime` "text"            -> "text"
+    | otherwise                                -> "file"
+
+
+------------------------------------
 -- components
 ------------------------------------
 
@@ -75,12 +92,14 @@ import Target.Types qualified as Target
 index :: Html ()
       -> Html ()
       -> Html ()
+      -> Html ()
       -> Template (Html ())
-index sideBar' view' toolBar' = do
+index i18nScript sideBar' view' toolBar' = do
   controlPanel' <- controlPanel
   sidebarCollapsed <- asks (.sidebarCollapsed)
   pure do
     div_ [ id_ "index" ] do
+      i18nScript
       sideBar'
       controlPanel'
       toolBar'
@@ -562,11 +581,12 @@ listLayout files = do
     , detail_modified
     , detail_size
     } <- phrase <$> asks (.locale)
-  order <- asks (.sortedBy)
-  ctx   <- ask
+  order    <- asks (.sortedBy)
+  readOnly <- asks (.readOnly)
+  ctx      <- ask
 
   pure do
-    table_ [ id_ tableId, class_ "list-view " ] do
+    table_ ([ id_ tableId, class_ "list-view " ] <> [ term "data-readonly" "" | readOnly ]) do
       thead_ do
         tr_ do
           th_ do
@@ -615,6 +635,7 @@ entry file = do
       `with`
         mconcat
           [ [ term "data-path" (T.pack (coerce clientPath)) ]
+          , [ term "data-ftype" (fileType file) ]
           , [ class_ "selected confirmed " | clientPath `Selected.elem` selected]
           , [ id_ [i|tr-#{hashPath}|]
             , class_ "table-item "
@@ -632,9 +653,10 @@ entry file = do
 
 thumbnailLayout :: [FileInfo] -> Template (Html ())
 thumbnailLayout files = do
-  ctx <- ask
+  readOnly <- asks (.readOnly)
+  ctx      <- ask
   pure do
-    div_ [ id_ tableId, class_ "thumbnail-view " ] do
+    div_ ([ id_ tableId, class_ "thumbnail-view " ] <> [ term "data-readonly" "" | readOnly ]) do
       runTemplate ctx (entries files)
 
 
@@ -652,6 +674,7 @@ thumbnail file = do
       fileNameElement file target False `with` [ class_ "thumbnail-name" ])
     `with` mconcat
         [ [ term "data-path" (T.pack (coerce clientPath)) ]
+        , [ term "data-ftype" (fileType file) ]
         , [ class_ "selected confirmed " | clientPath `Selected.elem` selected ]
         , [ id_ [i|tr-#{hashPath}|], class_ "thumbnail table-item ", draggable_ "true" ]
         , case file.content of

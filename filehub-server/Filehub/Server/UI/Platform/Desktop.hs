@@ -12,6 +12,9 @@ module Filehub.Server.UI.Platform.Desktop
   where
 
 import Data.ClientPath qualified as ClientPath
+import Data.Text (Text)
+import Data.Text qualified as T
+import Filehub.Locale (Phrase(..), phrase)
 import Filehub.Session.Types (TargetSessionData(..), Selected (..))
 import Filehub.Session qualified as Session
 import Filehub.Sort (sortFiles)
@@ -71,7 +74,31 @@ index sessionId = do
   sideBar' <- sideBar sessionId
   view'    <- view sessionId
   toolBar' <- toolBar sessionId
-  pure $ runTemplate ctx (Template.Desktop.index sideBar' view' toolBar')
+  let i18nScript = script_ [type_ "text/javascript"] (i18nPayload ctx.readOnly (phrase ctx.locale))
+  pure $ runTemplate ctx (Template.Desktop.index i18nScript sideBar' view' toolBar')
+
+
+i18nPayload :: Bool -> Phrase -> Text
+i18nPayload readOnly p = "window.filehubI18n=" <> obj <> ";"
+  where
+    obj = "{" <> T.intercalate ","
+      [ kv "delete"              p.contextmenu_delete
+      , kv "rename"              p.contextmenu_rename
+      , kv "copy"                p.contextmenu_copy
+      , kv "download"            p.contextmenu_download
+      , kv "details"             p.contextmenu_details
+      , kv "edit"                p.contextmenu_edit
+      , kv "view"                p.contextmenu_view
+      , kv "play"                p.contextmenu_play
+      , kv "open"                p.contextmenu_open
+      , kv "cancel"              p.contextmenu_cancel
+      , kv "selected"            p.contextmenu_selected
+      , kv "confirmDelete1"      p.confirm_delete1
+      , kv "confirmDeleteLocal"  p.confirm_delete_local
+      , "\"readOnly\":" <> if readOnly then "true" else "false"
+      ] <> "}"
+    kv key val = "\"" <> key <> "\":\"" <> escape val <> "\""
+    escape = T.replace "\\" "\\\\" . T.replace "\"" "\\\"" . T.replace "\n" "\\n" . T.replace "\r" "\\r" . T.replace "\t" "\\t"
 
 
 sideBar :: SessionId -> Filehub (Html ())
