@@ -343,11 +343,13 @@ test-suite filehub_test_integration
   main-is:                Main.hs
   other-modules:          Test.Middleware
                           Test.Cache
+                          Test.SharedLink
                           Test.Api.Login
                           Test.Api.File
                           Util.Env
   build-depends:          QuickCheck
                         , bcrypt
+                        , bytestring
                         , containers
                         , cookie
                         , directory
@@ -379,11 +381,14 @@ test-suite filehub_test_unit
   main-is:                Spec.hs
   other-modules:          Data.ClientPathSpec
                           EvtLogSpec
+                          SortSpec
   build-depends:          QuickCheck
                         , filehub
                         , filehub-utils
                         , filepath
                         , hspec
+                        , http-api-data
+                        , text
                         , time
                         , uri-encode
                         , filehub:filehub-core

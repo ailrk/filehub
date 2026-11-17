@@ -23,7 +23,7 @@ testFilehub env action = do
 
 
 spec :: Spec
-spec =
+spec = do
   describe "Cache" $ withEnv $ do
     it "returns Nothing for a missing key" \env ->
       testFilehub env do
@@ -77,3 +77,21 @@ spec =
         -- Should have expired
         r2 <- cacheLookup key
         liftIO (r2 `shouldBe` Nothing)
+
+
+  describe "CacheKey" do
+    it "same segments produce equal keys" do
+      mkCacheKey @Int ["foo", "bar"] `shouldBe` mkCacheKey @Int ["foo", "bar"]
+
+    it "different segment values produce different keys" do
+      mkCacheKey @Int ["foo"] `shouldNotBe` mkCacheKey @Int ["bar"]
+
+    it "segment order matters" do
+      mkCacheKey @Int ["a", "b"] `shouldNotBe` mkCacheKey @Int ["b", "a"]
+
+    it "extra segment produces a different key" do
+      mkCacheKey @Int ["foo"] `shouldNotBe` mkCacheKey @Int ["foo", "bar"]
+
+    it "empty list and single-empty-segment produce the same key" do
+      -- Both collapse to an empty ByteString — documented edge case
+      mkCacheKey @Int [] `shouldBe` mkCacheKey @Int [""]

@@ -5,7 +5,7 @@ import Control.Exception (bracket)
 import Control.Handle.EvtLog
 import Control.Handle.EvtLog qualified as EvtLog
 import Data.ByteString.Lazy.Char8 qualified as LBS
-import Data.Time.Clock (getCurrentTime, addUTCTime)
+
 import Test.Hspec
 
 
@@ -59,17 +59,33 @@ spec = describe "EvtLog" do
     result <- EvtLog.fold h Nothing (\acc e -> acc ++ [e]) []
     result `shouldBe` [evt1, evt2]
 
-  it "fold with time range returns only matching events" $ withMemoryDB \h -> do
-    now <- getCurrentTime
-    let evt1 = MyEvent "early"
-        evt2 = MyEvent "late"
-    emit h evt1
-    emit h evt2
+  it "fold over empty log returns []" $ withMemoryDB \h -> do
+    result <- EvtLog.fold @MyEvent h Nothing (\acc e -> e : acc) []
+    result `shouldBe` []
 
-    let range = Just (now, addUTCTime 3600 now)
-    _ <- EvtLog.fold @MyEvent h range (\acc e -> e : acc) []  -- fold just to make sure no exceptions
-    pure ()
+  it "time range after all events excludes all results" $ withMemoryDB \h -> do
+    emit h (MyEvent "event")
+    -- MyEvent timestamps are fixed at "2025-01-01 00:00:00 UTC"
+    let futureStart = read "2026-01-01 00:00:00 UTC"
+        futureEnd   = read "2027-01-01 00:00:00 UTC"
+    result <- EvtLog.fold @MyEvent h (Just (futureStart, futureEnd)) (\acc e -> e : acc) []
+    result `shouldBe` []
 
+  it "time range spanning event timestamp includes all matching events" $ withMemoryDB \h -> do
+    let evt = MyEvent "in range"
+    emit h evt
+    -- MyEvent timestamps are fixed at "2025-01-01 00:00:00 UTC"
+    let rangeStart = read "2024-06-01 00:00:00 UTC"
+        rangeEnd   = read "2025-06-01 00:00:00 UTC"
+    result <- EvtLog.fold @MyEvent h (Just (rangeStart, rangeEnd)) (\acc e -> acc ++ [e]) []
+    result `shouldBe` [evt]
+
+  it "N < maxSize events are all preserved in insertion order" $ withMemoryDB \h -> do
+    let n      = maxSize - 1
+        events = [ MyEvent ("msg" ++ show i) | i <- [(1 :: Int)..n] ]
+    mapM_ (emit h) events
+    result <- EvtLog.fold @MyEvent h Nothing (\acc e -> acc ++ [e]) []
+    result `shouldBe` events
 
   it "deletes 20% of oldest events when maxSize is exceeded" $ withMemoryDB \h -> do
     -- maxSize + 1 events

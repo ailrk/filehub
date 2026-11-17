@@ -6,6 +6,7 @@ import Test.Api.Login qualified
 import Test.Cache qualified
 import Test.Hspec.Runner
 import Test.Middleware qualified
+import Test.SharedLink qualified
 
 
 main :: IO ()
@@ -19,3 +20,4 @@ main = hspecWith
     Test.Api.Login.spec
     Test.Middleware.spec
     Test.Cache.spec
+    Test.SharedLink.spec
