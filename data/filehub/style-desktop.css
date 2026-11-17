@@ -154,6 +154,17 @@ textarea:focus {
   padding-bottom: 100px;
 }
 
+#view.drop-target { cursor: copy; }
+
+#drop-overlay {
+  position: fixed;
+  border: 2px dashed var(--secondary);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--secondary) 8%, transparent);
+  pointer-events: none;
+  z-index: 50;
+}
+
 
 /* ---------- Thumbnails ---------- */
 
