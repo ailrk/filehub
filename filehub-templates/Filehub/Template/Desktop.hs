@@ -18,6 +18,7 @@ module Filehub.Template.Desktop
 
 import Control.Monad (when, join)
 import Control.Monad.Reader (asks, MonadReader (..))
+import Data.DiskUsage (DiskUsage(..))
 import Data.ByteString (ByteString)
 import Data.ClientPath (ClientPath(..), AbsPath (..), Root (..))
 import Data.ClientPath qualified as ClientPath
@@ -119,15 +120,15 @@ toolBar = do
       searchBar'
 
 
-sideBar :: [(AnyTarget, Int)] -> TargetView -> Template (Html ())
+sideBar :: [(AnyTarget, Int, Maybe DiskUsage)] -> TargetView -> Template (Html ())
 sideBar targets (TargetView currentTarget _) = do
   p <- phrase <$> asks (.locale)
   pure do
     div_ [ id_ sideBarId ] do
       traverse_ (targetTab p) targets
   where
-    targetTab :: Phrase -> (AnyTarget, Int) -> Html ()
-    targetTab Phrase { target_filesystem, target_s3 } (target, selectedCount) = do
+    targetTab :: Phrase -> (AnyTarget, Int, Maybe DiskUsage) -> Html ()
+    targetTab Phrase { target_filesystem, target_s3 } (target, selectedCount, mUsage) = do
       div_ (asHtmx @"changeTarget" hxGet (Just (Target.getTargetId target))
            [ class_ "target-tab" ]) do
         span_ [ class_ "field "] do
@@ -145,6 +146,19 @@ sideBar targets (TargetView currentTarget _) = do
           div_ [ class_ "target-tab-selected-counter" ] do
             (toHtml . T.pack . show) selectedCount
 
+        case mUsage of
+          Nothing -> mempty
+          Just DiskUsage { total, used } ->
+            let pct     = if total > 0 then (used * 100) `div` total else 0 :: Integer
+                urgency = if pct > 90 then " urgent" else if pct > 70 then " warn" else "" :: Text
+            in div_ [ class_ "sidebar-usage" ] do
+                 div_ [ class_ "sidebar-usage-track" ] do
+                   div_ [ class_ [iii|sidebar-usage-bar#{urgency}|]
+                        , style_ [iii|width:#{pct}%|]
+                        ] mempty
+                 span_ [ class_ "sidebar-usage-label" ] do
+                   toHtml (formatBytes used <> " / " <> formatBytes total)
+
       `with` targetAttr target
       `with` tooltipInfo
       where
@@ -156,6 +170,18 @@ sideBar targets (TargetView currentTarget _) = do
             , targetHandler @FileSys \(FileBackend { root = Root (AbsPath root) }) ->
                 [ term "data-target-info" [iii| [#{target_filesystem}] #{takeFileName root} |] ]
             ]
+
+    formatBytes :: Integer -> Text
+    formatBytes b
+      | b >= gb   = fmt (b `div` gb)   "GB"
+      | b >= mb   = fmt (b `div` mb)   "MB"
+      | b >= kb   = fmt (b `div` kb)   "KB"
+      | otherwise = T.pack (show b) <> " B"
+      where
+        kb  = 1024
+        mb  = 1024 * kb
+        gb  = 1024 * mb
+        fmt n unit = T.pack (show n) <> " " <> unit
 
 
 controlPanel :: Template (Html ())

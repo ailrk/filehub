@@ -503,6 +503,39 @@ hr {
 }
 
 
+/* ---------- Sidebar disk usage ---------- */
+
+.sidebar-usage {
+  margin-top: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.sidebar-usage-track {
+  height: 3px;
+  border-radius: 999px;
+  background: var(--background3);
+  overflow: hidden;
+}
+
+.sidebar-usage-bar {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary);
+  transition: width 0.4s var(--ease);
+}
+
+.sidebar-usage-bar.warn   { background: color-mix(in srgb, var(--primary) 50%, orange); }
+.sidebar-usage-bar.urgent { background: var(--secondary); }
+
+.sidebar-usage-label {
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+
 /* ---------- Debug ---------- */
 
 .debug {

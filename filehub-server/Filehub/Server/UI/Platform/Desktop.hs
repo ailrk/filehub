@@ -10,26 +10,30 @@ module Filehub.Server.UI.Platform.Desktop
   where
 
 import Data.ClientPath qualified as ClientPath
+import Data.ClientPath (AbsPath(..), Root(..))
+import Data.Coerce (coerce)
+import Data.DiskUsage (getDiskUsage)
 import Data.Text (Text)
 import Data.Text qualified as T
 import Filehub.Locale (Phrase(..), phrase)
+import Filehub.Monad (Filehub)
+import Filehub.Session (TargetView(..), getTargetViews, getCurrentTarget, makeStorageCurrentTarget, Storage(..))
+import Filehub.Session.Pool (withSession)
 import Filehub.Session.Types (TargetSessionData(..), Selected (..))
 import Filehub.Sort (sortFiles)
-import Filehub.Template.Desktop qualified as Template.Desktop
 import Filehub.Server.Util (withQueryParam)
 import Filehub.Template (TemplateContext(..), runTemplate, makeTemplateContext)
+import Filehub.Template.Desktop qualified as Template.Desktop
 import Filehub.Types ( SessionId(..), ClientPath)
 import Lucid
 import Prelude hiding (readFile)
 import System.FilePath (takeFileName)
-import Filehub.Session (TargetView(..), getTargetViews, getCurrentTarget, makeStorageCurrentTarget, Storage(..))
-import Data.Coerce (coerce)
-import Filehub.Monad (Filehub)
 import Control.Monad (join)
-import Filehub.Session.Pool (withSession)
 import Control.Monad.Reader (MonadReader(..))
 import UnliftIO (readTVarIO)
 import Data.Traversable (for)
+import Target.File (FileSys, Target(..))
+import Target.Types (handleTarget, targetHandler)
 
 
 editorModal :: SessionId -> Maybe ClientPath -> Filehub (Html ())
@@ -105,9 +109,13 @@ sideBar sessionId = do
       ctx <- makeTemplateContext sessionId
       targets'    <- for targetViews \(TargetView target td) -> do
         selected' <- readTVarIO td.selected
-        case selected' of
-          Selected _ sels -> pure (target, length sels + 1)
-          NoSelection     -> pure (target, 0)
+        let selCount = case selected' of
+              Selected _ sels -> length sels + 1
+              NoSelection     -> 0
+        mUsage <- case handleTarget target [ targetHandler @FileSys \(FileBackend { root = Root (AbsPath p) }) -> p ] of
+          Just fsPath -> getDiskUsage fsPath
+          Nothing     -> pure Nothing
+        pure (target, selCount, mUsage)
 
       pure $ runTemplate ctx (Template.Desktop.sideBar targets' currentTarget)
 

@@ -103,6 +103,7 @@ library
 library filehub-utils
   import:                 shared
   hs-source-dirs:         filehub-utils
+  c-sources:              filehub-utils/cbits/disk_usage.c
   build-depends:          hashable,
                           string-interpolate,
                           sqlite-simple,
@@ -127,7 +128,8 @@ library filehub-utils
                           filepath,
                           conduit,
                           servant-multipart
-  exposed-modules:        Cache.InMemory
+  exposed-modules:        Data.DiskUsage
+                          Cache.InMemory
                           Cache.Key
                           Control.Handle.Cache
                           Control.Handle.EvtLog
