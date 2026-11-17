@@ -11,7 +11,7 @@ import Servant
 import Data.Text (Text)
 import Lucid.Htmx (Swap (..))
 import GHC.Generics
-import Filehub.Types (FilehubEvent (..))
+import Filehub.Types (FilehubEvent)
 
 
 data LinkConf = LinkConf
@@ -50,10 +50,7 @@ type family HFromApi api where
 
 apiLinksConf :: Api AsLinkConf
 apiLinksConf = emptyApiConf
-  { cd                = LinkConf { hxTarget = Nothing
-                                 , hxSwap   = None
-                                 , hxOn     = Just (DirChanged, "window.handleChangeDir(event)")
-                                 }
+  { cd                = LinkConf Nothing None Nothing
   , newFile           = LinkConf Nothing None Nothing
   , newFolder         = LinkConf Nothing None Nothing
   , updateFile        = LinkConf Nothing None Nothing
@@ -61,54 +58,24 @@ apiLinksConf = emptyApiConf
   , editorModal       = LinkConf (Just "#index") BeforeEnd Nothing
   , newFolderModal    = LinkConf (Just "#index") BeforeEnd Nothing
   , newFileModal      = LinkConf (Just "#index") BeforeEnd Nothing
-  , changeTarget      = LinkConf { hxTarget = Just "#index"
-                                 , hxSwap   = OuterHTML
-                                 , hxOn     = Just (TargetChanged, "window.handleChangeTarget(even)")
-                                 }
+  , changeTarget      = LinkConf (Just "#index") OuterHTML Nothing
   , upload            = LinkConf (Just "#index") OuterHTML Nothing
   , copy              = LinkConf (Just "#control-panel") OuterHTML Nothing
   , paste             = LinkConf Nothing None Nothing
   , delete            = LinkConf Nothing None Nothing
   , cancel            = LinkConf Nothing None Nothing
-  , toggleSidebar     = LinkConf { hxTarget = Nothing
-                                 , hxSwap   = None
-                                 , hxOn     = Just (SidebarToggled, "window.handleToggleSidebar(event)")
-                                 }
-  , toggleTheme       = LinkConf { hxTarget = (Just "#index")
-                                 , hxSwap   = OuterHTML
-                                 , hxOn     = Just (ThemeChanged, "window.handleChangeTheme(event)")
-                                 }
-  , selectLayout      = LinkConf { hxTarget = Just "#index"
-                                 , hxSwap   = OuterHTML
-                                 , hxOn     = Just (LayoutChanged, "window.handleChangeLayout(event)")
-                                 }
-  , changeLocale      = LinkConf { hxTarget = Just "#index"
-                                 , hxSwap   = OuterHTML
-                                 , hxOn     = Just (LocaleChanged, "window.handleChangeLocale(event)")
-                                 }
-  , rename            = LinkConf { hxTarget = Just "#view"
-                                 , hxSwap   = OuterHTML
-                                 , hxOn     = Just (FileRenamed, "window.handleRenameFile(event)")
-                                 }
-  , sortTable         = LinkConf { hxTarget = Just "#index"
-                                 , hxSwap   = OuterHTML
-                                 , hxOn     = Just (TableSorted, "window.handleSortTable(event)")
-                                 }
+  , toggleSidebar     = LinkConf Nothing None Nothing
+  , toggleTheme       = LinkConf (Just "#index") OuterHTML Nothing
+  , selectLayout      = LinkConf (Just "#index") OuterHTML Nothing
+  , changeLocale      = LinkConf (Just "#index") OuterHTML Nothing
+  , rename            = LinkConf (Just "#view") OuterHTML Nothing
+  , sortTable         = LinkConf (Just "#index") OuterHTML Nothing
   , copy1             = LinkConf (Just "#index") OuterHTML Nothing
   , renameModal       = LinkConf (Just "#index") BeforeEnd Nothing
   , fileDetailModal   = LinkConf (Just "#index") BeforeEnd Nothing
-  , loginChangeLocale = LinkConf { hxTarget = Just "#login"
-                                 , hxSwap   = OuterHTML
-                                 , hxOn     = Just (LocaleChanged, "window.handleChangeLocale(event)")
-                                 }
-  , loginToggleTheme  = LinkConf { hxTarget = Just "#login"
-                                 , hxSwap   = OuterHTML
-                                 , hxOn     = Just (ThemeChanged, "window.handleChangeTheme(event)")
-                                 }
-  , move              = LinkConf { hxTarget = Nothing
-                                 , hxSwap   = None
-                                 , hxOn     = Just (FileMoved, "window.handleMoveFile(event)")
-                                 }
+  , loginChangeLocale = LinkConf (Just "#login") OuterHTML Nothing
+  , loginToggleTheme  = LinkConf (Just "#login") OuterHTML Nothing
+  , move              = LinkConf Nothing None Nothing
   }
 
 

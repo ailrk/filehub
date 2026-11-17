@@ -29,7 +29,12 @@ import Filehub.Session.Selected qualified as Selected
 import Filehub.Size (toReadableSize)
 import Filehub.Template (Template, TemplateContext(..), runTemplate)
 import Filehub.Template.Shared qualified as Template
-import Filehub.Template.Shared (sideBarId, controlPanelId, viewId, searchBar, toolBarId, tableId)
+import Filehub.Template.Shared
+  ( sideBarId, controlPanelId, viewId, searchBar, toolBarId, tableId
+  , fileNameElement
+  , sortControl, sortControlName, sortControlMTime, sortControlSize
+  , sortIconName, sortIconMTime, sortIconSize
+  )
 import Filehub.Theme (Theme(..))
 import Filehub.Types ( SortFileBy(..))
 import Lucid
@@ -43,7 +48,7 @@ import Target.Dummy (DummyTarget)
 import Data.Coerce (coerce)
 import Control.Monad.Reader (asks, MonadReader (..))
 import Data.ClientPath.View (ClientPathView(..), AsClientPathView (..))
-import Lucid.Htmx (hxGet, HxTrigger (..), HxPost (..), hxEncoding, Trigger (..), hxConfirm, hxDelete, HtmxEvent (..), HxOn (..))
+import Lucid.Htmx (hxGet, hxPost, hxTrigger, hxEncoding, Trigger (..), hxConfirm, hxDelete, HtmxEvent (..), hxOn)
 import Filehub.Template.Htmx (asHtmx)
 
 
@@ -100,9 +105,7 @@ sideBar targets (TargetView currentTarget _) = do
 
 controlPanelBtn :: Html ()
 controlPanelBtn =
-  button_ [ id_ controlPanelBtnId
-          , term "_" [i|on click toggle .show on \##{overlayId} toggle .show on \##{controlPanelId}|]
-          ] do
+  button_ [ id_ controlPanelBtnId ] do
     i_ [ class_ "bx bx-plus" ] mempty
 
 
@@ -115,9 +118,7 @@ view table' = do
 
 sidebarBtn :: Html ()
 sidebarBtn =
-  button_ [ id_ sidebarBtnId
-          , term "_" [i|on click toggle .show on \##{overlayId} wait 50ms toggle .show on \##{sideBarId}|]
-          ] do
+  button_ [ id_ sidebarBtnId ] do
     i_ [ class_ "bx bx-menu" ] mempty
 
 
@@ -159,32 +160,6 @@ sortTool = do
         (toHtml detail_size)
         sortIconSize order
         `with` sortControlSize order
-  where
-    sortControl o = asHtmx @"sortTable" hxGet (Just o) []
-    sortControlName = \case
-        ByNameUp   -> sortControl ByNameDown
-        ByNameDown -> sortControl ByNameUp
-        _          -> sortControl ByNameUp
-    sortControlMTime = \case
-        ByModifiedUp   -> sortControl ByModifiedDown
-        ByModifiedDown -> sortControl ByModifiedUp
-        _              -> sortControl ByModifiedUp
-    sortControlSize = \case
-        BySizeUp   -> sortControl BySizeDown
-        BySizeDown -> sortControl BySizeUp
-        _          -> sortControl BySizeUp
-    sortIconName = \case
-        ByNameUp   -> i_ [ class_ "bx bxs-up-arrow"] mempty
-        ByNameDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
-        _          -> i_ [ class_ "bx bx-sort"] mempty
-    sortIconMTime = \case
-        ByModifiedUp   -> i_ [ class_ "bx bxs-up-arrow"] mempty
-        ByModifiedDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
-        _              -> i_ [ class_ "bx bx-sort"] mempty
-    sortIconSize = \case
-        BySizeUp   -> i_ [ class_ "bx bxs-up-arrow"] mempty
-        BySizeDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
-        _          -> i_ [ class_ "bx bx-sort"] mempty
 
 
 table :: [FileInfo] -> Template (Html ())
@@ -216,7 +191,7 @@ entry file = do
   pure do
     tr_ attrs do
       td_  do
-        fileNameElement target file
+        fileNameElement file target True `with` [class_ "field"]
         span_ [class_ "file-meta mobile "] do
           modifiedDateElement file
           i_ [ class_ "bx bx-wifi-0"] mempty
@@ -248,22 +223,6 @@ modifiedDateElement file =
            ]
   where
     displayTime = maybe mempty (formatTime defaultTimeLocale "%Y/%m/%d") file.mtime
-
-
-fileNameElement :: AnyTarget -> FileInfo -> Html ()
-fileNameElement target file = do
-  span_ (Template.icon file >> name)
-    `with` [ class_ "field"
-           , title_ (Text.pack displayName)
-           ]
-  where
-    name = span_ (toHtml displayName)
-    displayName =
-      fromMaybe "-" $ handleTarget target
-        [ targetHandler @S3          \_ -> coerce file.path
-        , targetHandler @FileSys     \_ -> coerce takeFileName file.path
-        , targetHandler @DummyTarget \_ -> coerce takeFileName file.path
-        ]
 
 
 languagePanel :: Html ()
@@ -310,7 +269,6 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
       pure do
         button_ [ class_ "action-btn"
                 , id_ "locale-langauge-btn"
-                , term "_" [i|on click toggle .show on \#locale|]
                 ] do
           span_ [ class_ "field " ] do
             i_ [ class_ "bx bx-world" ] mempty
@@ -322,19 +280,7 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
       Phrase { control_panel_new_folder } <- phrase <$> asks (.locale)
       pure do
         button_ [ class_ "action-btn"
-                , term "_"
-                    [iii|
-                      on click
-                        set name to prompt('New folder')
-                        if name is not null
-                        then call
-                          htmx.ajax('POST',
-                                    '/folders/new',
-                                    { target: '\##{viewId}',
-                                      values: {'new-folder': name},
-                                      swap: 'outerHTML'
-                                    })
-                      |]
+                , id_ "new-folder-btn"
                 ] do
           span_ [ class_ "field " ] do
             i_ [ class_ "bx bx-folder-plus" ] mempty
@@ -346,19 +292,7 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
       Phrase { control_panel_new_file } <- phrase <$> asks (.locale)
       pure do
         button_ [ class_ "action-btn"
-                , term "_"
-                    [iii|
-                      on click
-                        set name to prompt('New file')
-                        if name is not null
-                        then call
-                          htmx.ajax('POST',
-                                    '/files/new',
-                                    { target: '\##{viewId}',
-                                      values: {'new-file': name},
-                                      swap: 'outerHTML'
-                                    })
-                      |]
+                , id_ "new-file-btn"
                 ] do
           span_ [ class_ "field " ] do
             i_ [ class_ "bx bxs-file-plus" ] mempty
@@ -474,7 +408,7 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
       Phrase { control_panel_scroll2top } <- phrase <$> asks (.locale)
       pure do
         button_ [ class_ "action-btn"
-                , term "_" "on click call window.scroll(0, 0)"
+                , id_ "scroll2top-btn"
                 ] do
           span_ [ class_ "field " ] do
             i_ [ class_ "bx bx-vertical-top" ] mempty
@@ -502,17 +436,15 @@ editorModal (ClientPath path, filename) content = do
 
 
   pure do
-    div_ [ id_ editorModalId, closeEditorScript ] do
-
+    div_ [ id_ editorModalId ] do
       form_ (asHtmx @"updateFile" hxPost ()
             [ hxConfirm (Text.replace "{}" (Text.pack filename) confirm_save_edit)
-            , hxOn AfterRequest [i|document.querySelector('\##{editorModalId}').dispatchEvent(new Event('Close'))|]
+            , hxOn AfterRequest "document.getElementById('editor-modal').remove()"
             ]) do
-
         div_ do
           button_ [ class_ "btn btn-modal-close "
                   , type_ "button"
-                  , term "_" [i|on click send Close to \##{editorModalId}|]
+                  , term "data-close-editor" "true"
                   ] do
             span_ [ class_ "field "] do
               i_ [ class_ "bx bx-chevron-left" ] mempty
@@ -522,7 +454,9 @@ editorModal (ClientPath path, filename) content = do
               mempty
 
             False -> do
-              button_ [ class_ "btn btn-modal-confirm mr-2 field " ] (toHtml modal_edit)
+              button_ [ class_ "btn btn-modal-confirm mr-2 field "
+                      , type_ "submit"
+                      ] (toHtml modal_edit)
 
         input_ [ class_ "form-control "
                , type_ "text"
@@ -534,8 +468,7 @@ editorModal (ClientPath path, filename) content = do
 
         textarea_
           (mconcat
-            [
-              [ class_ "form-control "
+            [ [ class_ "form-control "
               , type_ "text"
               , name_ "content"
               , placeholder_ "Empty File"
@@ -544,9 +477,6 @@ editorModal (ClientPath path, filename) content = do
             ]
           )
           (toHtml (Text.decodeUtf8 content))
-
-  where
-    closeEditorScript = term "_" [i| on Close remove me end |]
 
 
 ------------------------------------

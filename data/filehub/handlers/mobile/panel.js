@@ -1,0 +1,55 @@
+/*
+ * Mobile panel / sidebar management — replaces _hyperscript attribute scripts.
+ * Registered once on document at startup; survives all htmx swaps.
+ */
+export function register() {
+    document.addEventListener('click', onDocumentClick);
+}
+function onDocumentClick(e) {
+    const t = e.target;
+    if (t.closest('#control-panel-btn')) {
+        toggle('overlay');
+        toggle('control-panel');
+        return;
+    }
+    if (t.closest('#sidebar-btn')) {
+        toggle('overlay');
+        setTimeout(() => toggle('side-bar'), 50);
+        return;
+    }
+    if (t.closest('#locale-langauge-btn')) {
+        toggle('locale');
+        return;
+    }
+    if (t.closest('#scroll2top-btn')) {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+    }
+    if (t.closest('#new-folder-btn')) {
+        promptNew('folder');
+        return;
+    }
+    if (t.closest('#new-file-btn')) {
+        promptNew('file');
+        return;
+    }
+    if (t.closest('[data-close-editor]')) {
+        document.getElementById('editor-modal')?.remove();
+        return;
+    }
+}
+function toggle(id) {
+    document.getElementById(id)?.classList.toggle('show');
+}
+function promptNew(kind) {
+    const name = prompt(`New ${kind} name`);
+    if (!name)
+        return;
+    const path = kind === 'folder' ? '/folders/new' : '/files/new';
+    const key = kind === 'folder' ? 'new-folder' : 'new-file';
+    htmx.ajax('POST', path, {
+        target: '#view',
+        values: { [key]: name },
+        swap: 'outerHTML',
+    });
+}

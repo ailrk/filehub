@@ -6,365 +6,195 @@ import * as Balloon from './balloon.js';
 import * as Cookie from './cookie.js';
 import * as DesktopContextmenu from './handlers/desktop/contextmenu.js';
 import * as DesktopDrag from './handlers/desktop/drag.js';
-import * as DesktopControlPanel from './handlers/desktop/controlpanel.js';
 import * as DesktopScroll from './handlers/desktop/scroll.js';
 import * as DesktopSelected from './handlers/desktop/selected.js';
 import * as MobileCloseSidebar from './handlers/mobile/closeSidebar.js';
 import * as MobileSelected from './handlers/mobile/selected.js';
+import * as MobilePanel from './handlers/mobile/panel.js';
+import * as Modal from './modal.js';
 import Viewer from './viewer.js';
 import type { DeleteProgressed, MoveProgressed, Opened, PasteProgressed, TaskCompleted, TaskFailed, UploadProgressed, ViewerInited } from './def.js';
 import { Display } from './def.js';
 
-
-// import * as Debug from './debug.js';
-// Debug.init()
-const ballonWaitTime = 2000;
+const balloonWaitTime = 2000;
 let viewer: Viewer | null = null;
-let display: Display = Cookie.getCookie('display')! as Display
+let display: Display = Cookie.getCookie('display')! as Display;
 let evtSource: EventSource | null;
 
-console.log('display', display);
+document.addEventListener('DOMContentLoaded', () => {
+  Modal.register();
 
-document.addEventListener("DOMContentLoaded", () => {
   if (display === 'Desktop') {
-    document.addEventListener('click', closeDropdowns);
     DesktopContextmenu.register();
     DesktopSelected.register();
     DesktopDrag.register();
     DesktopScroll.register();
-    DesktopControlPanel.register();
+    document.addEventListener('click', closeDropdowns);
+    document.addEventListener('htmx:afterSettle', closeDropdowns);
   }
 
   if (display === 'Mobile') {
-    document.addEventListener('click', closePanel)
     MobileCloseSidebar.register();
     MobileSelected.register();
-    const table = document.querySelector('#table');
-    if (table) {
-      table.addEventListener('contextmenu', e => e.preventDefault());
-    }
+    MobilePanel.register();
+    document.querySelector('#table')?.addEventListener('contextmenu', e => e.preventDefault());
   }
 
-  /* HX-Trigger */
   document.addEventListener('filehub:sidebarToggled', handleSidebarToggled);
   document.addEventListener('filehub:themeChanged', handleThemeChanged);
-  document.addEventListener('filehub:localeChanged', handleLocalChanged);
-  document.addEventListener('filehub:fileMoved', handleFileMoved);
-  document.addEventListener('filehub:dirChanged', handleDirChanged);
-  document.addEventListener('filehub:fileRenamed', handleFileRenamed);
-  document.addEventListener('filehub:tableSorted', handleTableSorted);
-  document.addEventListener('filehub:layoutChanged', handleLayoutChanged);
   document.addEventListener('filehub:viewerInited', initViewer);
   document.addEventListener('filehub:opened', open);
   document.body.addEventListener('htmx:responseError', handleError);
-  document.addEventListener('htmx:afterSettle', closeDropdowns);
-  document.addEventListener('htmx:beforeProcessNode', convertCustomEventCase);
+
+  document.body.addEventListener('htmx:afterSettle', () => {
+    if (display === 'Desktop') {
+      DesktopScroll.rebind();
+      DesktopSelected.collectFromHtml();
+    }
+  });
 });
 
 
-/* Register service worker, required for PWA support. Only run this */
 if ('serviceWorker' in navigator && window.top === window.self) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register( '/static/serviceWorker.js', { type: "module" })
+    navigator.serviceWorker.register('/static/serviceWorker.js', { type: 'module' })
       .then(reg => console.log('Service worker registered:', reg))
       .catch(err => console.error('Service worker registration failed:', err));
   });
 }
 
 
-/* Reinitialize the resolution again before refresh the page
- * This happens before the browser sending the request to reload the page,
- * so we can guarantee when the page is reloaded the resolution is up to date.
- * */
-window.addEventListener("beforeunload", async (_) => {
-  await fetch('/init',
-    { method: 'POST',
-      headers: { "Content-Type": "application/x-www-form-urlencoded", },
-      body: new URLSearchParams({ res: window.innerWidth + 'x' + window.innerHeight })
-    })
-})
+window.addEventListener('beforeunload', async () => {
+  await fetch('/init', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ res: window.innerWidth + 'x' + window.innerHeight }),
+  });
+});
 
 
-/* Start /listen */
 startListenSSE();
 
 
 function handleThemeChanged() {
-  const oldLink = document.querySelector('link[rel="stylesheet"][href*="/theme.css"]') as HTMLLinkElement;
+  const oldLink = document.querySelector('link[rel="stylesheet"][href*="/theme.css"]') as HTMLLinkElement | null;
   if (!oldLink) return;
-
   const newLink = oldLink.cloneNode() as HTMLLinkElement;
-  newLink.href = '/theme.css?v=' + Date.now(); // cache-busting
-  newLink.onload = () => {
-    oldLink.remove(); // remove old stylesheet after new one loads
-  }
-
+  newLink.href = '/theme.css?v=' + Date.now();
+  newLink.onload = () => oldLink.remove();
   oldLink.parentNode!.insertBefore(newLink, oldLink.nextSibling);
 }
 
 
 function handleSidebarToggled() {
-  const el = document.querySelector("#index") as HTMLElement;
-  el.classList.toggle('sidebar-collapsed');
+  document.getElementById('index')?.classList.toggle('sidebar-collapsed');
 }
-
-
-function handleLocalChanged() { }
-
-
-function handleDirChanged() { }
-
-
-function handleFileRenamed() { }
-
-
-function handleTableSorted() { }
-
-
-function handleLayoutChanged() { }
-
-
-function handleFileMoved() { }
 
 
 function handleError(e: any) {
   const xhr = e.detail.xhr;
   const status = xhr.status;
-  let message = xhr.responseText;
-  if (message === undefined || message === ""){
-    if (status === 400) {
-      message = "Bad Request"
-    } else if (status === 401) {
-      message = "Unauthorized"
-    } else if (status === 402) {
-      message = "Payment required"
-    } else if (status === 403) {
-      message = "Forbidden resource"
-    } else if (status === 404) {
-      message = "Resource not found"
-    } else if (status === 500) {
-      message = "Server internal error"
-    } else {
-      message = "Something went wrong"
-    }
+  let message = xhr.responseText as string;
+  if (!message) {
+    const statusMessages: Record<number, string> = {
+      400: 'Bad Request', 401: 'Unauthorized', 402: 'Payment required',
+      403: 'Forbidden resource', 404: 'Resource not found', 500: 'Server internal error',
+    };
+    message = statusMessages[status] ?? 'Something went wrong';
   }
-  Balloon.pushBalloon({
-    kind: "ErrorMsg",
-    msg: `${message} ${status}`,
-    duration: ballonWaitTime
-  });
+  Balloon.pushBalloon({ kind: 'ErrorMsg', msg: `${message} ${status}`, duration: balloonWaitTime });
 }
 
 
 function initViewer(e: any) {
-  const o: ViewerInited = e.detail
-  viewer = new Viewer(o.resources, { index: o.index })
-  viewer.show()
-
-  // Make sure the viewer content has context menu enabled.
-  viewer!.currentContent!.addEventListener(
-    "contextmenu", event => {
-      event.stopImmediatePropagation()
-    }, { capture: true }
-  )
+  const o: ViewerInited = e.detail;
+  viewer = new Viewer(o.resources, { index: o.index });
+  viewer.show();
+  viewer.currentContent!.addEventListener('contextmenu', ev => {
+    ev.stopImmediatePropagation();
+  }, { capture: true });
 }
 
 
 function open(e: any) {
-  let payload = e.detail as Opened;
-  let target = null;
-  switch (payload.tgt)
-  {
-    case "OpenDOMSelf":
-      target = "_self";
-      break;
-    case "OpenDOMBlank":
-      target = "_blank";
-      break;
-    case "OpenDOMParent":
-      target = "_parent";
-      break;
-    case "OpenDOMTop":
-      target = "_top";
-      break;
-    case "OpenDOMUnfencedTop":
-      target = "_unfencedTop";
-      break;
-    case "OpenViewer":
-      let query = new URLSearchParams({ file: payload.path });
-      htmx.ajax('GET', `/viewer?${query.toString()}`,
-        { target: 'body',
-          source: 'body',
-          swap: 'none'
-        });
+  const payload = e.detail as Opened;
+  let target: string | null = null;
+  switch (payload.tgt) {
+    case 'OpenDOMSelf':        target = '_self';         break;
+    case 'OpenDOMBlank':       target = '_blank';        break;
+    case 'OpenDOMParent':      target = '_parent';       break;
+    case 'OpenDOMTop':         target = '_top';          break;
+    case 'OpenDOMUnfencedTop': target = '_unfencedTop';  break;
+    case 'OpenViewer': {
+      const query = new URLSearchParams({ file: payload.path });
+      htmx.ajax('GET', `/viewer?${query.toString()}`, { target: 'body', source: 'body', swap: 'none' });
       return;
+    }
   }
-  window.open(`/serve?file=${payload.path}`, target)
+  window.open(`/serve?file=${payload.path}`, target);
 }
 
 
 function closeDropdowns(e: any) {
-  const target = e.target as Element;
-  const table = document.getElementById('table') as HTMLElement
-
-  // only close when dropdown exists.
-  if (document.querySelectorAll('.dropdown *').length == 0 &&
-      document.querySelectorAll('.dropdown-content *').length == 0)
-    return;
-
-  if (!target.matches('.dropdown *') && !target.matches('.dropdown-content *')) {
-    let dropdownContents = document.getElementsByClassName('dropdown-content') // close dropdown
-    for (let i = 0; i < dropdownContents.length; ++i) {
-      let ele = dropdownContents[i];
-      ele.dispatchEvent(new Event('Close'));
-    }
-  }
-  table.style.pointerEvents = "auto"; // restore click event on table.
-}
-
-
-function closePanel(e: MouseEvent) {
-  if ((e.target as Element).closest('#control-panel-btn')) return;
-  if ((e.target as Element).closest('#locale-langauge-btn')) return;
-  let panels = document.querySelectorAll('.panel')
-  let overlay = document.getElementById('overlay')
-  panels.forEach(panel => {
-    if (panel && panel.classList.contains('show')) {
-      panel.classList.remove('show')
-      overlay!.classList.remove('show')
-    }
-  })
-}
-
-
-/* The default htmx event name is in camel case, but when you refer them from
- * html they become kebab case. e.g AfterRequest vs after-request.
- *
- * We can say the same for custom events, a camel case event `SidebarToggled`
- * will be lower cased into `sidebartoggled`. This creates inconsistency.
- *
- * This handle is designed to unify these two cases, so we can make the
- * assuption that any event is camel case in js and kebab case in html.
- * */
-function convertCustomEventCase(event: Event) {
-  const ele = event.target! as HTMLElement;
-
-  for (let attr of ele.attributes ?? []) {
-    if (attr.name.startsWith('hx-on:')) {
-      const originalEventName = attr.name.slice(6); // Extract event name
-
-      const kebabEventName = originalEventName
-        .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
-        .toLowerCase();
-
-      if (originalEventName !== kebabEventName) {
-        ele.setAttribute(`hx-on:${kebabEventName}`, attr.value);
-        ele.removeAttribute(attr.name);
-      }
-    }
-  }
+  const target = e?.target as Element | null;
+  if (target?.matches('.dropdown *') || target?.matches('.dropdown-content *')) return;
+  document.getElementById('contextmenu')?.dispatchEvent(new Event('Close'));
+  const table = document.getElementById('table');
+  if (table) table.style.pointerEvents = 'auto';
 }
 
 
 function htmxProcessOOB(data: { htmxResponse: string | null }) {
-  if (data.htmxResponse !== null && data.htmxResponse !== "") {
-    htmx.swap(document.body, data.htmxResponse, {
-      swapStyle: 'none'
-    });
+  if (data.htmxResponse) {
+    htmx.swap(document.body, data.htmxResponse, { swapStyle: 'none' });
   }
 }
 
 
 function startListenSSE() {
-  console.log('startListenSSE')
-  if (!evtSource) {
-    evtSource = new EventSource("/listen")
-  }
+  if (!evtSource) evtSource = new EventSource('/listen');
 
-  evtSource.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    console.log("New update:", data);
+  evtSource.onmessage = event => {
+    console.log('New update:', JSON.parse(event.data));
   };
 
-  evtSource.addEventListener('Pong', _ => { console.log('pong') });
+  evtSource.addEventListener('Pong', () => console.log('pong'));
 
   evtSource.addEventListener('TaskCompleted', e => {
-    let data = JSON.parse(e.data) as TaskCompleted;
-
-    htmxProcessOOB (data);
-
-    let _remaining = Balloon.deleteLongLivedBalloon(data.taskId)
-
-    Balloon.pushBalloon({
-      kind: "InfoMsg",
-      msg: `Task Completed`,
-      duration: 3000
-    })
-  })
+    const data = JSON.parse(e.data) as TaskCompleted;
+    htmxProcessOOB(data);
+    Balloon.deleteLongLivedBalloon(data.taskId);
+    Balloon.pushBalloon({ kind: 'InfoMsg', msg: 'Task Completed', duration: 3000 });
+  });
 
   evtSource.addEventListener('TaskFailed', e => {
-    let data = JSON.parse(e.data) as TaskFailed;
-
-    htmxProcessOOB (data);
-
-    let _remaining = Balloon.deleteLongLivedBalloon(data.taskId)
-
-    Balloon.pushBalloon({
-      kind: "InfoMsg",
-      msg: `Task Failed`,
-      duration: 3000
-    })
-  })
+    const data = JSON.parse(e.data) as TaskFailed;
+    htmxProcessOOB(data);
+    Balloon.deleteLongLivedBalloon(data.taskId);
+    Balloon.pushBalloon({ kind: 'InfoMsg', msg: 'Task Failed', duration: 3000 });
+  });
 
   evtSource.addEventListener('DeleteProgressed', e => {
-    let data = JSON.parse(e.data) as DeleteProgressed;
-
-    htmxProcessOOB (data);
-
-    Balloon.pushBalloon({
-      kind: "ProgressedMsg",
-      msg: `Deleting`,
-      taskId: data.taskId,
-      progress: data.progress
-    })
-  })
+    const data = JSON.parse(e.data) as DeleteProgressed;
+    htmxProcessOOB(data);
+    Balloon.pushBalloon({ kind: 'ProgressedMsg', msg: 'Deleting', taskId: data.taskId, progress: data.progress });
+  });
 
   evtSource.addEventListener('PasteProgressed', e => {
-    let data = JSON.parse(e.data) as PasteProgressed;
-
-    htmxProcessOOB (data);
-
-    Balloon.pushBalloon({
-      kind: "ProgressedMsg",
-      msg: `Pasting`,
-      taskId: data.taskId,
-      progress: data.progress
-    })
-  })
+    const data = JSON.parse(e.data) as PasteProgressed;
+    htmxProcessOOB(data);
+    Balloon.pushBalloon({ kind: 'ProgressedMsg', msg: 'Pasting', taskId: data.taskId, progress: data.progress });
+  });
 
   evtSource.addEventListener('MoveProgressed', e => {
-    let data = JSON.parse(e.data) as MoveProgressed;
-
-    htmxProcessOOB (data);
-
-    Balloon.pushBalloon({
-      kind: "ProgressedMsg",
-      msg: `Moving`,
-      taskId: data.taskId,
-      progress: data.progress
-    })
-  })
+    const data = JSON.parse(e.data) as MoveProgressed;
+    htmxProcessOOB(data);
+    Balloon.pushBalloon({ kind: 'ProgressedMsg', msg: 'Moving', taskId: data.taskId, progress: data.progress });
+  });
 
   evtSource.addEventListener('UploadProgressed', e => {
-    let data = JSON.parse(e.data) as UploadProgressed;
-
-    htmxProcessOOB (data);
-
-    Balloon.pushBalloon({
-      kind: "ProgressedMsg",
-      msg: `Uploading`,
-      taskId: data.taskId,
-      progress: data.progress
-    })
-  })
+    const data = JSON.parse(e.data) as UploadProgressed;
+    htmxProcessOOB(data);
+    Balloon.pushBalloon({ kind: 'ProgressedMsg', msg: 'Uploading', taskId: data.taskId, progress: data.progress });
+  });
 }

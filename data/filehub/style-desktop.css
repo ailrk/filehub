@@ -37,15 +37,15 @@ textarea:focus {
 
 #index {
   display: grid;
+  height: 100vh;
   --sidebar-width: 245px;
-
   column-gap: 12px;
   grid-template-areas:
     "side-bar control-panel"
     "side-bar tool-bar"
     "side-bar view";
   grid-template-columns: var(--sidebar-width) 1fr;
-  grid-template-rows: auto auto 95vh;
+  grid-template-rows: auto auto 1fr;
   overflow: hidden;
   transition: grid-template-columns 0.3s var(--ease);
 }
@@ -55,6 +55,11 @@ textarea:focus {
 #control-panel {
   grid-area: control-panel;
   background-color: var(--background1);
+  display: flex;
+  align-items: center;
+  padding: 5px 8px;
+  gap: 2px;
+  border-bottom: 1px solid var(--border);
 }
 
 #side-bar {
@@ -84,27 +89,6 @@ textarea:focus {
 #side-bar .target-tab:hover {
   cursor: pointer;
   background-color: var(--background3);
-}
-
-#side-bar .target-tab:hover::after {
-  cursor: pointer;
-  opacity: 1;
-}
-
-#side-bar .target-tab::after {
-  position: absolute;
-  content: attr(data-target-info);
-  background-color: var(--frontground);
-  color: var(--background1);
-  white-space: nowrap;
-  translate: 0 30px;
-  padding: 4px 8px;
-  border-radius: var(--radius-sm);
-  font-size: 11px;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--normal) var(--ease);
-  z-index: 10;
 }
 
 #side-bar .target-tab.current-target {
@@ -137,6 +121,8 @@ textarea:focus {
   justify-content: space-between;
   align-items: center;
   overflow: hidden;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
   transition: box-shadow 0.5s var(--ease);
 }
 
@@ -167,15 +153,22 @@ textarea:focus {
 
 .thumbnail {
   background-color: transparent;
+  border: 1px solid transparent;
   border-radius: var(--radius);
   overflow: hidden;
   display: flex;
   flex-direction: column;
   padding: 10px;
-  transition: background var(--fast) var(--ease);
+  transition: background var(--fast) var(--ease),
+              border-color var(--fast) var(--ease),
+              box-shadow var(--fast) var(--ease);
 }
 
-.thumbnail:hover { background: var(--background2); }
+.thumbnail:hover {
+  background: var(--background2);
+  border-color: var(--border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
 
 .thumbnail-preview {
   width: 100px;
@@ -309,59 +302,21 @@ textarea:focus {
 }
 
 
-/* ---------- Buttons ---------- */
-
-.btn {
-  cursor: pointer;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--frontground);
-  transition: background var(--fast) var(--ease), transform var(--fast) var(--ease);
-}
-
-.btn:active { transform: translateY(1px); }
+/* ---------- Buttons (desktop overrides) ---------- */
 
 .btn i { font-size: 1.2em; }
 
-.btn:hover { background: var(--background3); }
-
-.tooltip:hover::after {
-  cursor: pointer;
-  opacity: 1;
-}
-
-.tooltip::after {
-  position: absolute;
-  translate: -5px 28px;
-  content: attr(data-tooltip);
-  background-color: var(--frontground);
-  color: var(--background1);
-  white-space: nowrap;
-  padding: 4px 8px;
-  border-radius: var(--radius-sm);
-  font-size: 11px;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--normal) var(--ease);
-  z-index: 10;
-}
-
-/* control panel button style */
 .btn-control {
-  background: transparent;
-  color: var(--frontground);
-  font-size: 1rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  padding: 12px 14px;
+  height: 30px;
+  padding: 0 10px;
+  min-width: 30px;
 }
 
 .btn-search::after { padding-right: 10px; }
 
 .btn-layout {
   background: transparent;
-  font-size: 1.5em;
+  font-size: 1.3em;
 }
 
 
@@ -427,94 +382,17 @@ textarea:focus {
 }
 
 
-/* ---------- Modals ---------- */
-
-.modal {
-  position: fixed;
-  inset: 0;
-  background-color: rgba(10, 6, 6, 0.5);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  z-index: 900;
-  animation: fadeIn 120ms var(--ease);
-}
+/* ---------- Modals (desktop sizing) ---------- */
 
 .modal > .modal-content {
   margin-top: 5vh;
   border: 1px solid color-mix(in srgb, var(--frontground) 28%, transparent);
-  border-radius: var(--radius-lg);
-  background-color: var(--background1);
-  box-shadow: var(--shadow-lg);
-  overflow: hidden;
-  animation: zoomIn 140ms var(--ease);
 }
 
-.modal.closing { animation: fadeOut 100ms var(--ease); }
-
-.modal.closing > .modal-content { animation: zoomOut 100ms var(--ease); }
-
-.modal .modal-title-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--border);
-}
-
-.modal .modal-title-bar-control {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-}
-
-.modal .modal-title-bar-confirm {
-  display: flex;
-  color: var(--dark);
-  background: var(--primary);
-  border-radius: 999px;
-  padding: 0 14px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  height: 24px;
-  justify-content: center;
-  align-items: center;
-}
-
-.modal .btn-modal-close {
-  display: flex;
-  background: var(--background3);
-  color: var(--frontground);
-  width: 24px;
-  height: 24px;
-  border-radius: 999px;
-  justify-content: center;
-  align-items: center;
-  cursor: pointer;
-  transition: background var(--fast) var(--ease), color var(--fast) var(--ease);
-}
-
-.modal .btn-modal-close:hover {
-  background: var(--secondary);
-  color: var(--on-secondary);
-}
-
-.modal .btn-modal-confirm {
-  color: var(--dark);
-  background: var(--primary);
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0 !important;
-}
-
-#new-file-modal   { width: 50%; }
-#new-folder-modal { width: 50%; }
-#editor-modal     { width: 80%; }
-
-#rename-modal {
-  width: 100%;
-  max-width: 40%;
-}
+#new-file-modal   { width: 420px; }
+#new-folder-modal { width: 420px; }
+#rename-modal     { width: 420px; }
+#editor-modal     { width: 80%; max-width: 900px; }
 
 #editor-modal textarea {
   height: 60vh;
@@ -522,14 +400,6 @@ textarea:focus {
   border-radius: 0;
   background: var(--background1);
   padding: 1rem;
-}
-
-/* global underlay: closes popups, modals, and menus */
-.modal-underlay {
-  position: absolute;
-  inset: 0;
-  cursor: pointer;
-  z-index: -1;
 }
 
 .file-contextmenu { transform: translateX(10px); }
@@ -543,16 +413,6 @@ textarea:focus {
 
 
 /* ---------- Selection & drag ---------- */
-
-#selection-screen {
-  position: absolute;
-  display: block;
-  background: color-mix(in srgb, var(--secondary) 18%, transparent);
-  border: 1px solid var(--secondary);
-  border-radius: 3px;
-  z-index: 100;
-  pointer-events: none;
-}
 
 .drag-icon .image-wrapper {
   position: absolute;
@@ -570,17 +430,11 @@ textarea:focus {
 .drag-icon .image-wrapper:nth-child(4) { transform: translateX(24px) rotate(12deg); z-index: 2; }
 .drag-icon .image-wrapper:nth-child(5) { transform: translateX(32px) rotate(15deg); z-index: 1; }
 
-.control-panel-dropdown-btn { display: inline-block; }
-.control-panel-dropdown-btn .dropdown-content { display: none; }
-
-#balloon-container {
-  position: fixed;
-  display: flex;
-  padding-right: 20px;
-  width: 500px;
-  right: 0;
-  bottom: 0;
-  flex-direction: column-reverse;
-  align-items: flex-end;
-  overflow: hidden;
+.control-panel-dropdown-btn { display: inline-block; position: relative; }
+.control-panel-dropdown-btn .dropdown-content {
+  display: none;
+  top: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
 }
+.control-panel-dropdown-btn:hover .dropdown-content { display: block; }

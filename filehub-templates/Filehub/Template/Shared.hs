@@ -11,6 +11,17 @@ module Filehub.Template.Shared
   , icon
   , open
   , bold
+  , modal
+  , fileNameElement
+  , sizeElement
+  , modifiedDateElement
+  , sortControl
+  , sortControlName
+  , sortControlMTime
+  , sortControlSize
+  , sortIconName
+  , sortIconMTime
+  , sortIconSize
   , viewId
   , sideBarId
   , controlPanelId
@@ -41,15 +52,17 @@ import Filehub.Session (TargetView(..))
 import Filehub.Session.Types (ControlPanelState(..))
 import Filehub.Sort ( sortFiles )
 import Filehub.Template (Template, TemplateContext(..))
-import Filehub.Types (Display(..), OpenTarget(..), SearchWord(..))
+import Data.Time.Format (formatTime, defaultTimeLocale)
+import Filehub.Size (toReadableSize)
+import Filehub.Types (Display(..), OpenTarget(..), SearchWord(..), SortFileBy (..))
 import Lucid
 import Lucid.Htmx (hxGet, HxTrigger (..), HxPost (..))
 import Network.Mime.Extended (isMime)
-import System.FilePath (splitPath)
+import System.FilePath (splitPath, takeFileName)
 import Target.Dummy (DummyTarget)
 import Target.File (FileSys)
 import Target.S3 (S3)
-import Target.Types (targetHandler, handleTarget)
+import Target.Types (targetHandler, handleTarget, AnyTarget)
 import Text.Fuzzy (simpleFilter)
 import Filehub.Template.Htmx (asHtmx)
 
@@ -83,7 +96,6 @@ offline = do
 
 withDefault :: Display -> Text -> Html () -> Html ()
 withDefault display background html = do
-  script_ [ src_ "/static/_hyperscript0.9.13.js" ] ("" :: Text)
   script_ [ src_ "/static/htmx2.0.3.js" ] ("" :: Text)
   script_ [ src_ "/static/viewer.js", type_ "module" ] ("" :: Text)
   script_ [ src_ "/static/main.js", type_ "module" ] ("" :: Text)
@@ -308,15 +320,19 @@ open root file = do
         Regular
           | file.mimetype `isMime` "application/pdf" ->
                [ hxGet (apiLinks.open (Just OpenDOMBlank) (Just clientPath))
+               , term "hx-swap" "none"
                ]
           | file.mimetype `isMime` "audio" ->
                [ hxGet (apiLinks.open (Just OpenViewer) (Just clientPath))
+               , term "hx-swap" "none"
                ]
           | file.mimetype `isMime` "video" ->
                [ hxGet (apiLinks.open (Just OpenViewer) (Just clientPath))
+               , term "hx-swap" "none"
                ]
           | file.mimetype `isMime` "image" ->
                [ hxGet (apiLinks.open (Just OpenViewer) (Just clientPath))
+               , term "hx-swap" "none"
                ]
           | file.mimetype `isMime` "text" ->
                asHtmx @"editorModal" hxGet (Just clientPath) []
@@ -328,6 +344,98 @@ open root file = do
 
 bold :: Html () -> Html ()
 bold t = span_ [ class_ "bold" ] t
+
+
+modal :: [Attribute] -> Html () -> Html ()
+modal attrs body = do
+  div_ [ class_ "modal " ] do
+    div_ [ class_ "modal-underlay " ] mempty
+    div_ ([ class_ "modal-content " ] <> attrs) do
+      body
+
+
+fileNameElement :: FileInfo -> AnyTarget -> Bool -> Html ()
+fileNameElement file target withIcon = do
+  span_ do
+    if withIcon
+       then icon file
+       else mempty
+    name
+    `with` [ title_ (Text.pack displayName) ]
+  where
+    name = span_ (toHtml displayName)
+    displayName =
+      fromMaybe "-" $ handleTarget target
+        [ targetHandler @S3          \_ -> coerce file.path
+        , targetHandler @FileSys     \_ -> coerce takeFileName file.path
+        , targetHandler @DummyTarget \_ -> coerce takeFileName file.path
+        ]
+
+
+sizeElement :: FileInfo -> Html ()
+sizeElement file =
+  span_ (toHtml displaySize)
+    `with` [ class_ "field file-meta "
+           , title_ (Text.pack displaySize)
+           ]
+  where
+    displaySize = toReadableSize (fromMaybe 0 file.size)
+
+
+modifiedDateElement :: FileInfo -> Html ()
+modifiedDateElement file =
+  span_ (toHtml displayTime)
+    `with` [ class_ "field file-meta "
+           , title_ (Text.pack displayTime)
+           ]
+  where
+    displayTime = maybe mempty (formatTime defaultTimeLocale "%Y/%m/%d") file.mtime
+
+
+sortControl :: SortFileBy -> [Attribute]
+sortControl o = asHtmx @"sortTable" hxGet (Just o) []
+
+
+sortControlName :: SortFileBy -> [Attribute]
+sortControlName = \case
+  ByNameUp   -> sortControl ByNameDown
+  ByNameDown -> sortControl ByNameUp
+  _          -> sortControl ByNameUp
+
+
+sortControlMTime :: SortFileBy -> [Attribute]
+sortControlMTime = \case
+  ByModifiedUp   -> sortControl ByModifiedDown
+  ByModifiedDown -> sortControl ByModifiedUp
+  _              -> sortControl ByModifiedUp
+
+
+sortControlSize :: SortFileBy -> [Attribute]
+sortControlSize = \case
+  BySizeUp   -> sortControl BySizeDown
+  BySizeDown -> sortControl BySizeUp
+  _          -> sortControl BySizeUp
+
+
+sortIconName :: SortFileBy -> Html ()
+sortIconName = \case
+  ByNameUp   -> i_ [ class_ "bx bxs-up-arrow"] mempty
+  ByNameDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
+  _          -> i_ [ class_ "bx bx-sort"] mempty
+
+
+sortIconMTime :: SortFileBy -> Html ()
+sortIconMTime = \case
+  ByModifiedUp   -> i_ [ class_ "bx bxs-up-arrow"] mempty
+  ByModifiedDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
+  _              -> i_ [ class_ "bx bx-sort"] mempty
+
+
+sortIconSize :: SortFileBy -> Html ()
+sortIconSize = \case
+  BySizeUp   -> i_ [ class_ "bx bxs-up-arrow"] mempty
+  BySizeDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
+  _          -> i_ [ class_ "bx bx-sort"] mempty
 
 
 ------------------------------------

@@ -1,40 +1,38 @@
-let ticking = false; // prevent throttling.
+/*
+ * Shadow on the toolbar when the view is scrolled.
+ * scroll events don't bubble, so we must attach directly to #view.
+ * register() attaches once on startup; rebind() re-attaches after htmx
+ * replaces #view — called from main.ts on htmx:afterSettle.
+ */
+
+let ticking = false;
 let scrollTimeout: number;
 
 
-const observer = new MutationObserver(register1);
-
 export function register() {
-  if (!document.querySelector("#view")) return;
-
-  register1();
-  observer.observe(document.body, { childList: true, subtree: true });
+  rebind();
 }
 
 
-function register1() {
-  const view = document.querySelector("#view") as HTMLElement | null;
-  if (view && !view.dataset.scrollBound) {
-    view.addEventListener("scroll", onScroll);
-    view.dataset.scrollBound = "true"; // mark it bound
-  }
+export function rebind() {
+  const view = document.getElementById('view') as HTMLElement | null;
+  if (!view || view.dataset.scrollBound === 'true') return;
+  view.addEventListener('scroll', onScroll);
+  view.dataset.scrollBound = 'true';
 }
+
 
 function onScroll() {
-  function onScrollEnds() {
-    let toolBar = document.querySelector("#tool-bar") as HTMLElement | null;
-    if (toolBar) {
-      toolBar.style.boxShadow = "";
-    }
-  }
   clearTimeout(scrollTimeout);
-  scrollTimeout = setTimeout(onScrollEnds, 150);
+  scrollTimeout = window.setTimeout(() => {
+    const toolbar = document.getElementById('tool-bar');
+    if (toolbar) toolbar.style.boxShadow = '';
+  }, 150);
+
   if (!ticking) {
-    window.requestAnimationFrame(() => {
-      let toolBar = document.querySelector("#tool-bar") as HTMLElement | null;
-      if (toolBar) {
-        toolBar.style.boxShadow = "0 3px 0 0 rgba(0, 0, 0, 0.3)";
-      }
+    requestAnimationFrame(() => {
+      const toolbar = document.getElementById('tool-bar');
+      if (toolbar) toolbar.style.boxShadow = '0 3px 0 0 rgba(0,0,0,0.25)';
       ticking = false;
     });
     ticking = true;

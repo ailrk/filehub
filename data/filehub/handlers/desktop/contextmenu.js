@@ -1,125 +1,70 @@
+/*
+ * Desktop right-click context menu.
+ * Registered once on document — no re-registration after htmx swaps.
+ */
 let currentController = null;
 export function register() {
-    if (!document.querySelector('#table'))
-        return;
-    register1();
-    document.body.addEventListener('htmx:afterSwap', _ => {
-        register1();
-    });
+    document.addEventListener('contextmenu', onContextMenu);
 }
-function register1() {
-    const table = document.querySelector('#table');
-    if (!table)
+function onContextMenu(e) {
+    e.preventDefault();
+    const table = document.getElementById('table');
+    if (!table?.contains(e.target))
         return;
-    document.addEventListener('contextmenu', prevent);
-    table.addEventListener('contextmenu', onContextMenu); // no capture needed
-}
-function prevent(e) { e.preventDefault(); }
-/* 1. fetch contextmenu for the current file
- * 2. show the context menu at the cursor position
- * 3. disable 'click' event handler on the table
- * NOTE: we restore the click event handler in closeDropdown.ts.
- * */
-export function onContextMenu(e) {
-    if (!(e instanceof MouseEvent))
+    const item = e.target.closest('.table-item');
+    if (!item)
         return;
-    const table = e.currentTarget;
-    const target = e.target;
-    if (!target)
-        return;
-    // Find the row (.table-item) nearest to the click
-    const item = target.closest('.table-item');
-    if (!item || !table.contains(item))
-        return;
-    let contextMenu = document.querySelector('#contextmenu');
-    const isSelected = item.classList.contains('selected');
-    if (contextMenu) {
-        contextMenu.remove();
-    }
+    document.getElementById('contextmenu')?.remove();
     const params = new URLSearchParams();
-    if (isSelected) {
-        let selected = document.querySelectorAll('.table-item.selected');
-        selected.forEach(sel => {
-            if (sel instanceof HTMLElement) {
-                const path = sel.dataset.path;
-                params.append('file', path);
-            }
+    if (item.classList.contains('selected')) {
+        document.querySelectorAll('.table-item.selected').forEach(sel => {
+            if (sel.dataset.path)
+                params.append('file', sel.dataset.path);
         });
     }
     else {
-        const path = item.dataset.path;
-        params.append('file', path);
+        if (item.dataset.path)
+            params.append('file', item.dataset.path);
     }
     fetchWithCancel(`/contextmenu?${params.toString()}`)
         .then(res => res.text())
         .then(html => {
-        const table = document.getElementById('table');
-        if (table) {
-            table.insertAdjacentHTML('afterend', html);
-        }
-        else {
-            console.error('no table');
-        }
-        contextMenu = document.querySelector('#contextmenu');
-        if (contextMenu) {
-            init(contextMenu);
-            const event = new CustomEvent('Show', {
-                detail: {
-                    pageX: e.pageX,
-                    pageY: e.pageY,
-                }
-            });
-            contextMenu.dispatchEvent(event);
-            // disable click events on table.
-            // it's re-enabled when the dropdown is closed.
-            table.style.pointerEvents = "none";
-        }
-        else {
-            console.error('contextmenu is not added');
-        }
-    });
+        const tableEl = document.getElementById('table');
+        if (!tableEl)
+            return;
+        tableEl.insertAdjacentHTML('afterend', html);
+        const menu = document.getElementById('contextmenu');
+        if (!menu)
+            return;
+        initMenu(menu, e.pageX, e.pageY);
+        tableEl.style.pointerEvents = 'none';
+    })
+        .catch(() => { });
 }
-function init(menu) {
+function initMenu(menu, pageX, pageY) {
     htmx.process(menu);
-    menu.addEventListener('Show', (e) => {
-        let { pageX, pageY, path } = e.detail;
-        menu.style.left = `${pageX}px`;
-        menu.style.top = `${pageY}px`;
-        menu.style.position = 'absolute';
-        menu.style.display = 'block';
-        menu.dataset.path = path;
+    // Clamp to viewport so menu never goes off-screen
+    menu.style.position = 'absolute';
+    menu.style.display = 'block';
+    menu.style.left = pageX + 'px';
+    menu.style.top = pageY + 'px';
+    requestAnimationFrame(() => {
+        const rect = menu.getBoundingClientRect();
+        if (rect.right > window.innerWidth)
+            menu.style.left = (pageX - rect.width) + 'px';
+        if (rect.bottom > window.innerHeight)
+            menu.style.top = (pageY - rect.height) + 'px';
     });
-    // wait for animation to end
-    menu.addEventListener('Close', _ => {
+    menu.addEventListener('Close', () => {
         menu.classList.add('closing');
-        menu.addEventListener('animationend', function h() {
-            menu.removeEventListener('animationend', h); // Clean up the listener
-            menu.remove();
-        });
+        menu.addEventListener('animationend', () => menu.remove(), { once: true });
     });
 }
-/* Try fetch the url. Cancel any inflight request sent by this function */
 async function fetchWithCancel(url, options = {}) {
-    // Cancel previous request if still pending
-    if (currentController) {
-        currentController.abort();
-    }
-    // Create a new controller for this request
+    currentController?.abort();
     currentController = new AbortController();
-    const { signal } = currentController;
-    try {
-        const response = await fetch(url, { ...options, signal });
-        if (!response.ok)
-            throw new Error(`HTTP error: ${response.status}`);
-        return response;
-    }
-    catch (err) {
-        if (err.name === "AbortError") {
-            console.log("Request aborted");
-        }
-        else {
-            console.error("Fetch error:", err);
-        }
-        throw err;
-    }
+    const response = await fetch(url, { ...options, signal: currentController.signal });
+    if (!response.ok)
+        throw new Error(`HTTP ${response.status}`);
+    return response;
 }

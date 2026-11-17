@@ -1,140 +1,79 @@
 declare var htmx: any;
 
+/*
+ * Desktop right-click context menu.
+ * Registered once on document — no re-registration after htmx swaps.
+ */
 
 let currentController: AbortController | null = null;
 
 
 export function register() {
-  if (!document.querySelector('#table')) return;
-
-  register1();
-  document.body.addEventListener('htmx:afterSwap', _ => {
-    register1();
-  });
+  document.addEventListener('contextmenu', onContextMenu);
 }
 
 
-function register1() {
-  const table = document.querySelector('#table');
-  if (!table) return;
+function onContextMenu(e: MouseEvent) {
+  e.preventDefault();
 
-  document.addEventListener('contextmenu', prevent);
-  table.addEventListener('contextmenu', onContextMenu); // no capture needed
-}
+  const table = document.getElementById('table');
+  if (!table?.contains(e.target as Node)) return;
 
+  const item = (e.target as Element).closest<HTMLElement>('.table-item');
+  if (!item) return;
 
-function prevent(e: Event) { e.preventDefault() }
+  document.getElementById('contextmenu')?.remove();
 
-
-/* 1. fetch contextmenu for the current file
- * 2. show the context menu at the cursor position
- * 3. disable 'click' event handler on the table
- * NOTE: we restore the click event handler in closeDropdown.ts.
- * */
-export function onContextMenu(e: Event) {
-  if (!(e instanceof MouseEvent)) return;
-  const table = e.currentTarget as HTMLElement;
-  const target = e.target as Element | null;
-  if (!target) return;
-
-  // Find the row (.table-item) nearest to the click
-  const item = target.closest<HTMLElement>('.table-item');
-  if (!item || !table.contains(item)) return;
-
-  let contextMenu = document.querySelector('#contextmenu')
-  const isSelected = item.classList.contains('selected');
-  if (contextMenu) {
-    contextMenu.remove();
-  }
   const params = new URLSearchParams();
-
-  if (isSelected) {
-    let selected = document.querySelectorAll('.table-item.selected');
-    selected.forEach(sel => {
-      if (sel instanceof HTMLElement) {
-        const path = sel.dataset.path!;
-        params.append('file', path)
-      }
+  if (item.classList.contains('selected')) {
+    document.querySelectorAll<HTMLElement>('.table-item.selected').forEach(sel => {
+      if (sel.dataset.path) params.append('file', sel.dataset.path);
     });
   } else {
-    const path = item.dataset.path!;
-    params.append('file', path);
+    if (item.dataset.path) params.append('file', item.dataset.path);
   }
-
 
   fetchWithCancel(`/contextmenu?${params.toString()}`)
     .then(res => res.text())
     .then(html => {
-      const table = document.getElementById('table') as HTMLElement
-      if (table) {
-        table.insertAdjacentHTML('afterend', html)
-      } else {
-        console.error('no table')
-      }
-      contextMenu = document.querySelector('#contextmenu')
-      if (contextMenu) {
-        init(contextMenu as HTMLElement)
-        const event = new CustomEvent('Show', {
-          detail: {
-            pageX: e.pageX,
-            pageY: e.pageY,
-          }
-        })
-        contextMenu.dispatchEvent(event)
-        // disable click events on table.
-        // it's re-enabled when the dropdown is closed.
-        table.style.pointerEvents = "none";
-      } else {
-        console.error('contextmenu is not added')
-      }
+      const tableEl = document.getElementById('table');
+      if (!tableEl) return;
+      tableEl.insertAdjacentHTML('afterend', html);
+      const menu = document.getElementById('contextmenu') as HTMLElement | null;
+      if (!menu) return;
+      initMenu(menu, e.pageX, e.pageY);
+      tableEl.style.pointerEvents = 'none';
     })
+    .catch(() => {});
 }
 
 
-function init(menu: HTMLElement) {
+function initMenu(menu: HTMLElement, pageX: number, pageY: number) {
   htmx.process(menu);
-  menu.addEventListener('Show', (e: any) => {
-    let { pageX, pageY, path } = e.detail
-    menu.style.left = `${pageX}px`;
-    menu.style.top = `${pageY}px`;
-    menu.style.position = 'absolute';
-    menu.style.display = 'block';
-    menu.dataset.path = path;
-  })
 
-  // wait for animation to end
-  menu.addEventListener('Close', _ => {
-    menu.classList.add('closing')
-    menu.addEventListener('animationend', function h() {
-      menu.removeEventListener('animationend', h) // Clean up the listener
-      menu.remove()
-    })
-  })
+  // Clamp to viewport so menu never goes off-screen
+  menu.style.position = 'absolute';
+  menu.style.display  = 'block';
+  menu.style.left = pageX + 'px';
+  menu.style.top  = pageY + 'px';
+
+  requestAnimationFrame(() => {
+    const rect = menu.getBoundingClientRect();
+    if (rect.right  > window.innerWidth)  menu.style.left = (pageX - rect.width)  + 'px';
+    if (rect.bottom > window.innerHeight) menu.style.top  = (pageY - rect.height) + 'px';
+  });
+
+  menu.addEventListener('Close', () => {
+    menu.classList.add('closing');
+    menu.addEventListener('animationend', () => menu.remove(), { once: true });
+  });
 }
 
 
-
-/* Try fetch the url. Cancel any inflight request sent by this function */
-async function fetchWithCancel(url: string, options = {}) {
-  // Cancel previous request if still pending
-  if (currentController) {
-    currentController.abort();
-  }
-
-  // Create a new controller for this request
+async function fetchWithCancel(url: string, options: RequestInit = {}) {
+  currentController?.abort();
   currentController = new AbortController();
-  const { signal } = currentController;
-
-  try {
-    const response = await fetch(url, { ...options, signal });
-    if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
-    return response;
-  } catch (err) {
-    if ((err as any).name === "AbortError") {
-      console.log("Request aborted");
-    } else {
-      console.error("Fetch error:", err);
-    }
-    throw err;
-  }
+  const response = await fetch(url, { ...options, signal: currentController.signal });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return response;
 }

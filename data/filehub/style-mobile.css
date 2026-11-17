@@ -391,7 +391,7 @@ tfoot td {
   top: 160px;
   right: 10px;
   gap: 6px;
-  z-index: 900;
+  z-index: 1200;
 }
 
 #selected-counter.show i { font-size: larger; }

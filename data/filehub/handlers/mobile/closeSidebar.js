@@ -1,14 +1,17 @@
+/*
+ * Close the sidebar when clicking outside it.
+ * panel.ts handles toggling it open.
+ */
 export function register() {
     document.addEventListener('click', handle);
 }
 function handle(e) {
-    if (e.target.closest('#sidebar-btn')) {
+    if (e.target.closest('#sidebar-btn'))
         return;
-    }
-    let sidebar = document.getElementById('side-bar');
-    let overlay = document.getElementById('overlay');
-    if (sidebar && sidebar.classList.contains('show')) {
+    const sidebar = document.getElementById('side-bar');
+    const overlay = document.getElementById('overlay');
+    if (sidebar?.classList.contains('show')) {
         sidebar.classList.remove('show');
-        overlay.classList.remove('show');
+        overlay?.classList.remove('show');
     }
 }

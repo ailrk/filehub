@@ -46,12 +46,17 @@ import Filehub.Session.Types (Layout(..))
 import Filehub.Size (toReadableSize)
 import Filehub.Template (Template, TemplateContext(..), runTemplate)
 import Filehub.Template.Htmx (asHtmx)
-import Filehub.Template.Shared (bold, sideBarId, viewId, searchBar, tableId)
+import Filehub.Template.Shared
+  ( bold, modal, sideBarId, viewId, searchBar, tableId
+  , fileNameElement, sizeElement, modifiedDateElement
+  , sortControl, sortControlName, sortControlMTime, sortControlSize
+  , sortIconName, sortIconMTime, sortIconSize
+  )
 import Filehub.Template.Shared qualified as Template
 import Filehub.Theme (Theme (..))
 import Filehub.Types (SortFileBy(..))
 import Lucid
-import Lucid.Htmx (hxGet, hxEncoding, hxPost, hxTrigger, Trigger (..), hxDelete, hxConfirm)
+import Lucid.Htmx (hxGet, hxEncoding, hxPost, hxTrigger, Trigger (..), hxDelete, hxConfirm, HtmxEvent (..), hxOn)
 import Network.Mime.Extended (isMime)
 import Servant.Extended (linkToText)
 import System.FilePath (takeFileName)
@@ -374,11 +379,12 @@ newFileModal = do
     modal [ id_ newFileModalId ] do
       span_ [ class_ "modal-title-bar " ] do
         bold (toHtml modal_file)
-        div_ [ class_ "title-bar-btn btn-modal-close "
-             , term "_" "on click trigger Close"
+        div_ [ class_ "btn-modal-close "
+             , term "data-close-modal" "true"
              ] do
           i_ [ class_ "bx bx-x"] mempty
-      form_ (asHtmx @"newFile" hxPost () []) do
+      form_ (asHtmx @"newFile" hxPost ()
+            [ hxOn AfterRequest "this.closest('.modal').dispatchEvent(new Event('Close'))" ]) do
         div_ [ style_ "display: flex" ] do
           input_ [ class_ "form-control "
                  , type_ "text"
@@ -387,7 +393,6 @@ newFileModal = do
                  ]
           button_ [ class_ "btn btn-modal-confirm "
                   , type_ "submit"
-                  , term "_" "on click trigger Close"
                   ] (toHtml modal_create)
 
 
@@ -404,12 +409,13 @@ newFolderModal = do
     modal [ id_ newFolderModalId ] do
       span_ [ class_ "modal-title-bar " ] do
         bold (toHtml modal_folder)
-        div_ [ class_ "title-bar-btn btn-modal-close "
-             , term "_" "on click trigger Close"
+        div_ [ class_ "btn-modal-close "
+             , term "data-close-modal" "true"
              ] do
           i_ [ class_ "bx bx-x"] mempty
 
-      form_ (asHtmx @"newFolder" hxPost () []) do
+      form_ (asHtmx @"newFolder" hxPost ()
+            [ hxOn AfterRequest "this.closest('.modal').dispatchEvent(new Event('Close'))" ]) do
         div_ [ style_ "display: flex" ] do
           input_ [ class_ "form-control "
                  , type_ "text"
@@ -418,7 +424,6 @@ newFolderModal = do
                  ]
           button_ [ class_ "btn btn-modal-confirm "
                   , type_ "submit"
-                  , term "_" "on click trigger Close"
                   ] (toHtml modal_create)
 
 
@@ -433,7 +438,8 @@ renameModal oldPath = do
 
   pure do
     modal [ id_ renameModalId ] do
-      form_ (asHtmx @"rename" hxPost () []) do
+      form_ (asHtmx @"rename" hxPost ()
+            [ hxOn AfterRequest "this.closest('.modal').dispatchEvent(new Event('Close'))" ]) do
         input_ [ type_ "hidden", name_ "old", value_ (c2t oldClientPath) ]
         div_ [ style_ "display: flex" ] do
           input_ [ class_ "form-control "
@@ -443,7 +449,6 @@ renameModal oldPath = do
                  ]
           button_ [ class_ "btn btn-modal-confirm "
                   , type_ "submit"
-                  , term "_" "on click trigger Close"
                   ] (toHtml modal_confirm)
 
 
@@ -493,31 +498,27 @@ editorModal (ClientPath path, filename) content = do
 
   pure do
     modal [ id_ editorModalId ] do
-
-      case readOnly of
-        True -> bold (toHtml modal_readonly)
-        False ->  do
-          span_ [ class_ "modal-title-bar " ] do
-            div_ mempty
-            bold (toHtml filename)
-            div_ [ class_ "modal-title-bar-control " ] do
-              div_ [ class_ "btn modal-title-bar-confirm "
-                   , term "_" "on click trigger Close"
-                   ] (toHtml modal_edit)
-              div_ [ class_ "btn-modal-close "
-                   , term "_" "on click trigger Close"
-                   ] do
-                i_ [ class_ "bx bx-x"] mempty
-
       form_ (asHtmx @"updateFile" hxPost ()
             [ hxConfirm (T.replace "{}" (T.pack filename) confirm_save_edit)
+            , hxOn AfterRequest "this.closest('.modal').dispatchEvent(new Event('Close'))"
             ]) do
+        span_ [ class_ "modal-title-bar " ] do
+          bold (toHtml filename)
+          div_ [ class_ "modal-title-bar-control " ] do
+            case readOnly of
+              True  -> bold (toHtml modal_readonly)
+              False ->
+                button_ [ class_ "btn modal-title-bar-confirm "
+                        , type_ "submit"
+                        ] (toHtml modal_edit)
+            div_ [ class_ "btn-modal-close "
+                 , term "data-close-modal" "true"
+                 ] do
+              i_ [ class_ "bx bx-x"] mempty
         input_ [ class_ "form-control ", type_ "hidden", name_ "path", value_ (T.pack path) ]
-
         textarea_
           (mconcat
-            [
-              [ class_ "form-control "
+            [ [ class_ "form-control "
               , type_ "text"
               , name_ "content"
               , placeholder_ placeholder_empty_file
@@ -532,34 +533,6 @@ editorModal (ClientPath path, filename) content = do
 ------------------------------------
 -- elements
 ------------------------------------
-
-
-modal :: [Attribute] -> Html () -> Html ()
-modal attrs body = do
-  div_ [ class_ "modal ", closeModalScript ] do
-    underlay
-    div_ ([ class_ "modal-content " ] <> attrs) do
-      body
-  where
-    closeModalScript = term "_"
-      [iii|
-        on Close
-          add .closing
-          then wait for animationend
-          then remove .closing
-          then remove me
-        end
-      |]
-
-    underlay = do
-        div_ [ class_ "modal-underlay "
-             , term "_"
-                [iii|
-                  on click
-                  send Close to .modal
-                  end
-                |]
-             ] mempty
 
 
 -----------------------------------------------------------------------------------------
@@ -662,7 +635,7 @@ thumbnailLayout files = do
   ctx <- ask
   pure do
     div_ [ id_ tableId, class_ "thumbnail-view " ] do
-      tbody_ $ (runTemplate ctx (entries files))
+      runTemplate ctx (entries files)
 
 
 thumbnail :: FileInfo -> Template (Html ())
@@ -673,26 +646,23 @@ thumbnail file = do
 
   let ClientPathView { clientPath, hashPath } = asClientPathView root file.path
 
-  pure do
-    div_ do
+  pure $
+    (div_ do
       previewElement root file
-      fileNameElement file target False `with` [ class_ "thumbnail-name" ]
-      `with` mconcat
-          [ [ term "data-path" (T.pack (coerce clientPath)) ]
-          , [ class_ "selected confirmed " | clientPath `Selected.elem` selected ]
-          , [ id_ [i|tr-#{hashPath}|]
-                         , class_ "thumbnail table-item "
-                         , draggable_ "true"
-            ]
-          , case file.content of
-              Dir        -> [ class_ "dir "]
-              Regular    -> mempty
-          , case file.isLink of
-              Link       -> [ class_ "symlink " ]
-              BrokenLink -> [ class_ "broken-symlink "]
-              NotLink    -> []
-          ]
-        `with` Template.open root file
+      fileNameElement file target False `with` [ class_ "thumbnail-name" ])
+    `with` mconcat
+        [ [ term "data-path" (T.pack (coerce clientPath)) ]
+        , [ class_ "selected confirmed " | clientPath `Selected.elem` selected ]
+        , [ id_ [i|tr-#{hashPath}|], class_ "thumbnail table-item ", draggable_ "true" ]
+        , case file.content of
+            Dir     -> [ class_ "dir "]
+            Regular -> mempty
+        , case file.isLink of
+            Link       -> [ class_ "symlink " ]
+            BrokenLink -> [ class_ "broken-symlink "]
+            NotLink    -> []
+        ]
+    `with` Template.open root file
 
 
 previewElement :: Root -> FileInfo -> Html ()
@@ -706,50 +676,6 @@ previewElement root file = do
                 , draggable_ "false"
                 ]
          | otherwise -> Template.icon file
-
-
-fileNameElement :: FileInfo -> AnyTarget -> Bool -> Html ()
-fileNameElement file target withIcon = do
-  span_ do
-    if withIcon
-       then Template.icon file
-       else mempty
-    name
-    `with` [ title_ (T.pack displayName)
-           ]
-  where
-    name = span_ (toHtml displayName)
-
-    displayName =
-      fromMaybe "-" $ handleTarget target
-        [ targetHandler @S3      \_ -> coerce file.path
-        , targetHandler @FileSys \_ -> coerce takeFileName file.path
-        , targetHandler @DummyTarget \_ -> coerce takeFileName file.path
-        ]
-
-
-sizeElement :: FileInfo -> Html ()
-sizeElement file =
-  span_ (toHtml displaySize)
-    `with` [ class_ "field file-meta "
-           , title_ (T.pack displaySize)
-           ]
-  where
-    displaySize = toReadableSize (fromMaybe 0 file.size)
-
-
-modifiedDateElement :: FileInfo -> Html ()
-modifiedDateElement file =
-  span_ (toHtml displayTime)
-    `with` [ class_ "field file-meta "
-           , title_ (T.pack displayTime)
-           ]
-  where
-    displayTime = maybe mempty (formatTime defaultTimeLocale "%Y/%m/%d") file.mtime
-
-
-sortControl :: SortFileBy -> [Attribute]
-sortControl o = asHtmx @"sortTable" hxGet (Just o) []
 
 
 ------------------------------------
@@ -781,17 +707,22 @@ contextMenu1 file = do
       let dropDownItem = div_ [ class_ "dropdown-item" ]
       case file.content of
         Regular
-          | file.mimetype `isMime` "application/pdf" -> dropDownItem do i_ [ class_ "bx bx-show" ] mempty >> span_ (toHtml contextmenu_view)
-          | file.mimetype `isMime` "audio"           -> dropDownItem do i_ [ class_ "bx bx-play" ] mempty >> span_ (toHtml contextmenu_play)
-          | file.mimetype `isMime` "video"           -> dropDownItem do i_ [ class_ "bx bx-play" ] mempty >> span_ (toHtml contextmenu_play)
-          | file.mimetype `isMime` "image"           -> dropDownItem do i_ [ class_ "bx bx-show" ] mempty >> span_ (toHtml contextmenu_view)
-          | file.mimetype `isMime` "text"            -> dropDownItem do i_ [ class_ "bx bxs-edit" ] mempty >> span_ (toHtml contextmenu_edit)
+          | file.mimetype `isMime` "application/pdf" -> (dropDownItem do i_ [ class_ "bx bx-show" ] mempty >> span_ (toHtml contextmenu_view))
+              `with` Template.open root file
+          | file.mimetype `isMime` "audio"           -> (dropDownItem do i_ [ class_ "bx bx-play" ] mempty >> span_ (toHtml contextmenu_play))
+              `with` Template.open root file
+          | file.mimetype `isMime` "video"           -> (dropDownItem do i_ [ class_ "bx bx-play" ] mempty >> span_ (toHtml contextmenu_play))
+              `with` Template.open root file
+          | file.mimetype `isMime` "image"           -> (dropDownItem do i_ [ class_ "bx bx-show" ] mempty >> span_ (toHtml contextmenu_view))
+              `with` Template.open root file
+          | file.mimetype `isMime` "text"            -> (dropDownItem do i_ [ class_ "bx bxs-edit" ] mempty >> span_ (toHtml contextmenu_edit))
+              `with` Template.open root file
           | otherwise -> mempty
         Dir        -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bxs-folder-open" ] mempty >> span_ (toHtml contextmenu_open)
-        `with` Template.open root file
+          `with` Template.open root file
 
       div_ (asHtmx @"copy1" hxGet (Just clientPath) [ class_ "dropdown-item" ]) do
-        i_ [ class_ "bx bx-detail" ] mempty
+        i_ [ class_ "bx bxs-copy-alt" ] mempty
         span_ (toHtml contextmenu_copy)
 
       a_ [ class_ "dropdown-item" ,  href_ (linkToText (apiLinks.download [clientPath])) ] do
@@ -846,7 +777,7 @@ contextMenuMany clientPaths = do
             span_ (toHtml contextmenu_delete_local)
 
           div_ (asHtmx @"copy" hxGet () [ class_ "dropdown-item" ]) do
-            i_ [ class_ "bx bx-detail" ] mempty
+            i_ [ class_ "bx bxs-copy-alt" ] mempty
             span_ (toHtml contextmenu_copy)
 
       a_ [ class_ "dropdown-item" ,  href_ (linkToText (apiLinks.download clientPaths)) ] do
@@ -879,48 +810,6 @@ sortBtn = do
         item (toHtml detail_filename) (sortIconName order)  `with` sortControlName order
         item (toHtml detail_modified) (sortIconMTime order) `with` sortControlMTime order
         item (toHtml detail_size)     (sortIconSize order)  `with` sortControlSize order
-
-
-sortIconName :: SortFileBy -> Html ()
-sortIconName = \case
-  ByNameUp   -> i_ [ class_ "bx bxs-up-arrow"] mempty
-  ByNameDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
-  _          -> i_ [ class_ "bx bx-sort"] mempty
-
-
-sortIconMTime :: SortFileBy -> Html ()
-sortIconMTime = \case
-  ByModifiedUp   -> i_ [ class_ "bx bxs-up-arrow"] mempty
-  ByModifiedDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
-  _              -> i_ [ class_ "bx bx-sort"] mempty
-
-
-sortIconSize :: SortFileBy -> Html ()
-sortIconSize = \case
-  BySizeUp   -> i_ [ class_ "bx bxs-up-arrow"] mempty
-  BySizeDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
-  _          -> i_ [ class_ "bx bx-sort"] mempty
-
-
-sortControlName :: SortFileBy -> [Attribute]
-sortControlName = \case
-  ByNameUp   -> sortControl ByNameDown
-  ByNameDown -> sortControl ByNameUp
-  _          -> sortControl ByNameUp
-
-
-sortControlMTime :: SortFileBy -> [Attribute]
-sortControlMTime = \case
-  ByModifiedUp   -> sortControl ByModifiedDown
-  ByModifiedDown -> sortControl ByModifiedUp
-  _              -> sortControl ByModifiedUp
-
-
-sortControlSize :: SortFileBy -> [Attribute]
-sortControlSize = \case
-  BySizeUp   -> sortControl BySizeDown
-  BySizeDown -> sortControl BySizeUp
-  _          -> sortControl BySizeUp
 
 
 ------------------------------------
