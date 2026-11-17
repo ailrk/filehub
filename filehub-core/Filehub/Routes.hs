@@ -263,16 +263,6 @@ data Api mode = Api
                           :> Post '[HTML] (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
 
 
-  , renameModal           :: mode
-                          :- "modal" :> "rename"
-                          :> AuthProtect "session"
-                          :> AuthProtect "login"
-                          :> AuthProtect "desktop-only"
-                          :> AuthProtect "readonly"
-                          :> QueryParam "old" ClientPath
-                          :> Get '[HTML] (Html ())
-
-
   , newFolder             :: mode
                           :- "folders" :> "new"
                           :> AuthProtect "session"
@@ -280,33 +270,6 @@ data Api mode = Api
                           :> AuthProtect "readonly"
                           :> ReqBody '[FormUrlEncoded] NewFolder
                           :> Post '[HTML] (Html ())
-
-
-  , newFileModal          :: mode
-                          :- "modal" :> "new-file"
-                          :> AuthProtect "session"
-                          :> AuthProtect "login"
-                          :> AuthProtect "desktop-only"
-                          :> AuthProtect "readonly"
-                          :> Get '[HTML] (Html ())
-
-
-  , newFolderModal        :: mode
-                          :- "modal" :> "new-folder"
-                          :> AuthProtect "session"
-                          :> AuthProtect "login"
-                          :> AuthProtect "desktop-only"
-                          :> AuthProtect "readonly"
-                          :> Get '[HTML] (Html ())
-
-
-  , fileDetailModal       :: mode
-                          :- "modal" :> "file" :> "detail"
-                          :> AuthProtect "session"
-                          :> AuthProtect "login"
-                          :> AuthProtect "desktop-only"
-                          :> QueryParam "file" ClientPath
-                          :> Get '[HTML] (Html ())
 
 
   , editorModal           :: mode
@@ -330,7 +293,7 @@ data Api mode = Api
                           :> AuthProtect "session"
                           :> AuthProtect "login"
                           :> QueryParam "by" SortFileBy
-                          :> Get '[HTML] (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
+                          :> Get '[HTML] NoContent
 
 
   , selectLayout          :: mode
@@ -371,15 +334,6 @@ data Api mode = Api
                           :> AuthProtect "session"
                           :> AuthProtect "login"
                           :> Post '[HTML] (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))
-
-
-  , contextMenu           :: mode
-                          :- "contextmenu"
-                          :> AuthProtect "session"
-                          :> AuthProtect "login"
-                          :> AuthProtect "desktop-only"
-                          :> QueryParams "file" ClientPath
-                          :> Get '[HTML] (Html ())
 
 
   , initViewer            :: mode
@@ -436,7 +390,7 @@ data Api mode = Api
                           :> "toggle"
                           :> AuthProtect "session"
                           :> AuthProtect "login"
-                          :> Get '[HTML] (Headers '[ Header "HX-Trigger-After-Settle" FilehubEvent ] NoContent)
+                          :> Get '[HTML] NoContent
 
   -- Similar to serv      e but only serve image and pdf. Creates thumbnail version for requested image. This is useful for lazy loading image
   -- preview.
@@ -462,7 +416,7 @@ data Api mode = Api
                           :- "theme" :> "toggle"
                           :> AuthProtect "session"
                           :> AuthProtect "login"
-                          :> Get '[HTML] (Headers '[ Header "HX-Trigger-After-Settle" FilehubEvent ] (Html ()))
+                          :> Get '[HTML] NoContent
 
 
   , changeLocale          :: mode

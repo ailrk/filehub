@@ -70,26 +70,25 @@ selectLayout sessionId _ layout = do
   addHeader LayoutChanged <$> index sessionId
 
 
-sortTable :: SessionId -> ConfirmLogin -> Maybe SortFileBy -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
+sortTable :: SessionId -> ConfirmLogin -> Maybe SortFileBy -> Filehub NoContent
 sortTable sessionId _ order = do
   env <- ask
   withSession sessionId \s -> do
     TargetView _ td <- getCurrentTarget env s
     writeTVar td.sortedFileBy (fromMaybe ByNameUp order)
-  addHeader TableSorted <$> index sessionId
+  pure NoContent
 
 
 -- | Toggle the frontend theme by triggering the event handler of `ThemeChanged`
 -- in the frontend. A fade-in animation is played when the theme toggled, and it needs
 -- to be removed by the frontend.
-toggleTheme :: SessionId -> ConfirmLogin -> Filehub (Headers '[ Header "HX-Trigger-After-Settle" FilehubEvent ] (Html ()))
+toggleTheme :: SessionId -> ConfirmLogin -> Filehub NoContent
 toggleTheme sessionId _ = do
   withSession_ sessionId \s -> pure
     case s.theme of
       Theme.Light -> ( s { theme = Dark }, ())
       Theme.Dark  -> ( s { theme = Light }, ())
-  html <- index sessionId
-  pure $ addHeader ThemeChanged (html `with` [ class_ "fade-in " ])
+  pure NoContent
 
 
 changeLocale :: SessionId -> Maybe Locale -> Filehub (Headers '[ Header "HX-Trigger-After-Settle" FilehubEvent ] (Html ()))
@@ -99,14 +98,14 @@ changeLocale sessionId (Just locale) = do
   addHeader LocaleChanged <$> index sessionId
 
 
-toggleSidebar :: SessionId -> ConfirmLogin -> Filehub (Headers '[ Header "HX-Trigger-After-Settle" FilehubEvent ] NoContent)
+toggleSidebar :: SessionId -> ConfirmLogin -> Filehub NoContent
 toggleSidebar sessionId _ = do
   withSession_ sessionId \s -> pure
     ( s { sidebarCollapsed = not s.sidebarCollapsed
         }
     , ()
     )
-  pure $ addHeader SidebarToggled NoContent
+  pure NoContent
 
 
 selectRows :: SessionId -> ConfirmLogin -> Selected -> Filehub (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))

@@ -32,8 +32,7 @@ import Filehub.Template.Shared qualified as Template
 import Filehub.Template.Shared
   ( sideBarId, controlPanelId, viewId, searchBar, toolBarId, tableId
   , fileNameElement
-  , sortControl, sortControlName, sortControlMTime, sortControlSize
-  , sortIconName, sortIconMTime, sortIconSize
+  , sortIconName, sortIconMTime, sortIconSize, sortByText
   )
 import Filehub.Theme (Theme(..))
 import Filehub.Types ( SortFileBy(..))
@@ -148,25 +147,23 @@ sortTool = do
 
   pure do
     div_ [ id_ sortControlId ] do
-      span_ [ class_ "field " ] do
+      span_ [ class_ "field ", term "data-sort-field" "name" ] do
         (toHtml detail_filename)
         sortIconName order
-        `with` sortControlName order
-      span_ [ class_ "field " ] do
+      span_ [ class_ "field ", term "data-sort-field" "mtime" ] do
         (toHtml detail_modified)
         sortIconMTime order
-        `with` sortControlMTime order
-      span_ [ class_ "field " ] do
+      span_ [ class_ "field ", term "data-sort-field" "size" ] do
         (toHtml detail_size)
         sortIconSize order
-        `with` sortControlSize order
 
 
 table :: [FileInfo] -> Template (Html ())
 table files = do
   ctx <- ask
+  order <- asks (.sortedBy)
   pure do
-    table_ [ id_ tableId, class_ "list-view " ] do
+    table_ [ id_ tableId, class_ "list-view ", term "data-sort-by" (sortByText order) ] do
       tbody_ $ runTemplate ctx (entries files)
 
 
@@ -180,11 +177,22 @@ entry file = do
   TargetView { target } <- asks (.currentTarget)
   selected              <- asks (.selected)
 
-  let attrs :: [Attribute]
+  let fileName = Text.pack (coerce takeFileName file.path)
+      mtimeStr = maybe "" (Text.pack . formatTime defaultTimeLocale "%Y-%m-%dT%H:%M:%S") file.mtime
+      atimeStr = maybe "" (Text.pack . formatTime defaultTimeLocale "%Y-%m-%dT%H:%M:%S") file.atime
+      sizeStr  = Text.pack (show (fromMaybe 0 file.size))
+      mimeStr  = Text.decodeUtf8 file.mimetype
+      attrs :: [Attribute]
       attrs = mconcat
         [ [ term "data-path" (Text.pack (coerce clientPath)) ]
         , [class_ "selected " | clientPath `Selected.elem` selected]
         , [id_ [i|tr-#{hashPath}|], class_ "table-item " ]
+        , [ term "data-name" fileName
+          , term "data-mtime" mtimeStr
+          , term "data-atime" atimeStr
+          , term "data-size" sizeStr
+          , term "data-mime" mimeStr
+          ]
         ]
       ClientPathView { clientPath, hashPath  } = asClientPathView root file.path
 

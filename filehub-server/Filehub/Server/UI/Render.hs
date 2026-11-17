@@ -11,12 +11,7 @@ module Filehub.Server.UI.Render
   , sideBar
   , toolBar
   , controlPanel
-  , newFileModal
-  , newFolderModal
-  , fileDetailModal
   , editorModal
-  , renameModal
-  , contextMenu
   , entry
   , entries
   , UIPartialUpdate(..)
@@ -24,17 +19,14 @@ module Filehub.Server.UI.Render
   )
   where
 
-import Control.Monad.Reader (MonadReader(ask))
-import Data.ClientPath qualified as ClientPath
 import Data.File (FileInfo)
-import Filehub.Handler (ConfirmLogin, ConfirmReadOnly, ConfirmDesktopOnly)
+import Filehub.Handler (ConfirmLogin)
 import Filehub.Monad
 import Filehub.Orphan ()
 import Filehub.Orphan ()
 import Filehub.Server.UI.Platform.Desktop qualified as Server.Desktop
 import Filehub.Server.UI.Platform.Mobile qualified as Server.Mobile
-import Filehub.Server.Util (withQueryParam)
-import Filehub.Session (getDisplay, getRoot)
+import Filehub.Session (getDisplay)
 import Filehub.Session.Pool (withSession)
 import Filehub.Session.Types (Layout (..))
 import Filehub.Template (runTemplate, makeTemplateContext)
@@ -123,31 +115,6 @@ toolBar sessionId = do
     _       -> Server.Mobile.toolBar sessionId
 
 
-renameModal :: SessionId -> ConfirmLogin -> ConfirmDesktopOnly -> ConfirmReadOnly -> Maybe ClientPath -> Filehub (Html ())
-renameModal sessionId _ _ _ mClientPath = do
-  root <- withSession sessionId . getRoot =<< ask
-  clientPath <- withQueryParam mClientPath
-  ctx        <- makeTemplateContext sessionId
-  pure $ runTemplate ctx (Template.Desktop.renameModal (ClientPath.fromClientPath root clientPath))
-
-
-newFileModal :: SessionId -> ConfirmLogin -> ConfirmDesktopOnly -> ConfirmReadOnly -> Filehub (Html ())
-newFileModal sessionId _ _ _ = do
-  ctx <- makeTemplateContext sessionId
-  pure $ runTemplate ctx Template.Desktop.newFileModal
-
-
-newFolderModal :: SessionId -> ConfirmLogin -> ConfirmDesktopOnly -> ConfirmReadOnly -> Filehub (Html ())
-newFolderModal sessionId  _ _ _ = do
-  ctx <- makeTemplateContext sessionId
-  pure $ runTemplate ctx Template.Desktop.newFolderModal
-
-
-fileDetailModal :: SessionId -> ConfirmLogin -> ConfirmDesktopOnly -> Maybe ClientPath -> Filehub (Html ())
-fileDetailModal sessionId _ _ mPath = do
-  Server.Desktop.fileDetailModal sessionId mPath
-
-
 editorModal :: SessionId -> ConfirmLogin -> Maybe ClientPath -> Filehub (Html ())
 editorModal sessionId _ mClientPath = do
   display <- withSession sessionId getDisplay
@@ -155,10 +122,6 @@ editorModal sessionId _ mClientPath = do
     Mobile    -> Server.Mobile.editorModal sessionId mClientPath
     Desktop   -> Server.Desktop.editorModal sessionId mClientPath
     NoDisplay -> error "impossible"
-
-
-contextMenu :: SessionId -> ConfirmLogin -> ConfirmDesktopOnly -> [ClientPath] -> Filehub (Html ())
-contextMenu sessionId _ _ paths = Server.Desktop.contextMenu sessionId paths
 
 
 data UIPartialUpdate

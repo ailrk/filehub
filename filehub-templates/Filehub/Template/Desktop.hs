@@ -11,13 +11,7 @@ module Filehub.Template.Desktop
   , entry
   , entries
   , thumbnail
-  , renameModal
-  , newFileModal
-  , newFolderModal
-  , fileDetailModal
   , editorModal
-  , contextMenu1
-  , contextMenuMany
   , table
   )
   where
@@ -43,14 +37,12 @@ import Filehub.Routes.Links ( apiLinks )
 import Filehub.Session (TargetView(..))
 import Filehub.Session.Selected qualified as Selected
 import Filehub.Session.Types (Layout(..))
-import Filehub.Size (toReadableSize)
 import Filehub.Template (Template, TemplateContext(..), runTemplate)
 import Filehub.Template.Htmx (asHtmx)
 import Filehub.Template.Shared
   ( bold, modal, sideBarId, viewId, searchBar, tableId
   , fileNameElement, sizeElement, modifiedDateElement
-  , sortControl, sortControlName, sortControlMTime, sortControlSize
-  , sortIconName, sortIconMTime, sortIconSize
+  , sortIconName, sortIconMTime, sortIconSize, sortByText
   )
 import Filehub.Template.Shared qualified as Template
 import Filehub.Theme (Theme (..))
@@ -82,6 +74,7 @@ fileType file = case file.content of
     | file.mimetype `isMime` "application/pdf" -> "pdf"
     | file.mimetype `isMime` "text"            -> "text"
     | otherwise                                -> "file"
+
 
 
 ------------------------------------
@@ -188,11 +181,11 @@ newFolderBtn :: Template (Html ())
 newFolderBtn = do
   Phrase { control_panel_new_folder } <- phrase <$> asks (.locale)
   pure do
-    button_ (asHtmx @"newFolderModal" hxGet ()
-            [ class_ "btn btn-control tooltip"
-            , type_ "submit"
+    button_ [ class_ "btn btn-control tooltip"
+            , type_ "button"
+            , term "data-action" "new-folder"
             , term "data-tooltip" control_panel_new_folder
-            ]) do
+            ] do
       span_ [ class_ "field " ] do
         i_ [ class_ "bx bx-folder-plus" ] mempty
 
@@ -201,11 +194,11 @@ newFileBtn :: Template (Html ())
 newFileBtn = do
   Phrase { control_panel_new_file } <- phrase <$> asks (.locale)
   pure do
-    button_ (asHtmx @"newFileModal" hxGet ()
-            [ class_ "btn btn-control tooltip"
-            , type_ "submit"
+    button_ [ class_ "btn btn-control tooltip"
+            , type_ "button"
+            , term "data-action" "new-file"
             , term "data-tooltip" control_panel_new_file
-            ]) do
+            ] do
       span_ [ class_ "field " ] do
         i_ [ class_ "bx bxs-file-plus" ] mempty
 
@@ -293,11 +286,11 @@ toggleSidebarBtn :: Template (Html ())
 toggleSidebarBtn = do
   Phrase { toggle_sidebar } <- phrase <$> asks (.locale)
   pure do
-    button_ (asHtmx @"toggleSidebar" hxGet ()
-            [ class_ "btn btn-control tooltip"
-            , type_ "submit"
+    button_ [ class_ "btn btn-control tooltip"
+            , type_ "button"
+            , term "data-action" "toggle-sidebar"
             , term "data-tooltip" toggle_sidebar
-            ]) do
+            ] do
       i_ [ class_ "bx bx-sidebar" ] mempty
 
 
@@ -319,21 +312,16 @@ themeBtn = do
   Phrase { control_panel_dark, control_panel_light } <- phrase <$> asks (.locale)
   theme <- asks (.theme)
   pure do
-    case theme of
-      Light -> do
-        button_ (asHtmx @"toggleTheme" hxGet ()
-                [ class_ "btn btn-control tooltip"
-                , type_ "submit"
-                , term "data-tooltip" control_panel_dark
-                ]) do
-          i_ [ class_ "bx bxs-moon" ] mempty
-      Dark -> do
-        button_ (asHtmx @"toggleTheme" hxGet ()
-                [ class_ "btn btn-control tooltip"
-                , type_ "submit"
-                , term "data-tooltip" control_panel_light
-                ]) do
-          i_ [ class_ "bx bxs-sun" ] mempty
+    let (tooltip, iconClass, themeName) = case theme of
+          Light -> (control_panel_dark,  "bx bxs-moon", "light" :: T.Text)
+          Dark  -> (control_panel_light, "bx bxs-sun",  "dark"  :: T.Text)
+    button_ [ class_ "btn btn-control tooltip"
+            , type_ "button"
+            , term "data-action" "toggle-theme"
+            , term "data-current-theme" themeName
+            , term "data-tooltip" tooltip
+            ] do
+      i_ [ class_ iconClass ] mempty
 
 
 layoutBtn :: Template (Html ())
@@ -385,124 +373,6 @@ localeBtn =
 ------------------------------------
 -- modals
 ------------------------------------
-
-
-newFileModal :: Template (Html ())
-newFileModal = do
-  Phrase
-    { modal_file
-    , modal_create
-    , placeholder_newfile
-    } <- phrase <$> asks (.locale)
-  pure do
-    modal [ id_ newFileModalId ] do
-      span_ [ class_ "modal-title-bar " ] do
-        bold (toHtml modal_file)
-        div_ [ class_ "btn-modal-close "
-             , term "data-close-modal" "true"
-             ] do
-          i_ [ class_ "bx bx-x"] mempty
-      form_ (asHtmx @"newFile" hxPost ()
-            [ hxOn AfterRequest "this.closest('.modal').dispatchEvent(new Event('Close'))" ]) do
-        div_ [ style_ "display: flex" ] do
-          input_ [ class_ "form-control "
-                 , type_ "text"
-                 , name_ "new-file"
-                 , placeholder_ placeholder_newfile
-                 ]
-          button_ [ class_ "btn btn-modal-confirm "
-                  , type_ "submit"
-                  ] (toHtml modal_create)
-
-
-
-
-newFolderModal :: Template (Html ())
-newFolderModal = do
-  Phrase
-    { modal_create
-    , modal_folder
-    , placeholder_newfoler
-    } <- phrase <$> asks (.locale)
-  pure do
-    modal [ id_ newFolderModalId ] do
-      span_ [ class_ "modal-title-bar " ] do
-        bold (toHtml modal_folder)
-        div_ [ class_ "btn-modal-close "
-             , term "data-close-modal" "true"
-             ] do
-          i_ [ class_ "bx bx-x"] mempty
-
-      form_ (asHtmx @"newFolder" hxPost ()
-            [ hxOn AfterRequest "this.closest('.modal').dispatchEvent(new Event('Close'))" ]) do
-        div_ [ style_ "display: flex" ] do
-          input_ [ class_ "form-control "
-                 , type_ "text"
-                 , name_ "new-folder"
-                 , placeholder_ placeholder_newfoler
-                 ]
-          button_ [ class_ "btn btn-modal-confirm "
-                  , type_ "submit"
-                  ] (toHtml modal_create)
-
-
-renameModal :: AbsPath -> Template (Html ())
-renameModal oldPath = do
-  root <- asks (.root)
-  Phrase { modal_confirm } <- phrase <$> asks (.locale)
-
-  let c2t           = T.pack . coerce
-      fileName      = T.pack (coerce takeFileName oldPath)
-      oldClientPath = ClientPath.toClientPath root oldPath
-
-  pure do
-    modal [ id_ renameModalId ] do
-      form_ (asHtmx @"rename" hxPost ()
-            [ hxOn AfterRequest "this.closest('.modal').dispatchEvent(new Event('Close'))" ]) do
-        input_ [ type_ "hidden", name_ "old", value_ (c2t oldClientPath) ]
-        div_ [ style_ "display: flex" ] do
-          input_ [ class_ "form-control "
-                 , type_ "text"
-                 , name_ "new"
-                 , value_ fileName
-                 ]
-          button_ [ class_ "btn btn-modal-confirm "
-                  , type_ "submit"
-                  ] (toHtml modal_confirm)
-
-
-fileDetailModal :: FileInfo -> Template (Html ())
-fileDetailModal file = do
-  Phrase
-    { modal_detail
-    , detail_filename
-    , detail_modified
-    , detail_accessed
-    , detail_size
-    , detail_content_type
-    } <- phrase <$> asks (.locale)
-
-  pure do
-    modal [ id_ fileDetailModalId ] do
-      bold (toHtml modal_detail)
-      br_ mempty
-      table_ do
-        tbody_ do
-          tr_ do
-            td_ (toHtml detail_filename)
-            td_ (toHtml (takeFileName (coerce file.path)))
-          tr_ do
-            td_ (toHtml detail_modified)
-            td_ (toHtml (maybe mempty (formatTime defaultTimeLocale "%F %R") file.mtime))
-          tr_ do
-            td_ (toHtml detail_accessed)
-            td_ (toHtml (maybe mempty (formatTime defaultTimeLocale "%F %R") file.atime))
-          tr_ do
-            td_ (toHtml detail_size)
-            td_ ((toHtml . toReadableSize) (fromMaybe 0 file.size))
-          tr_ do
-            td_ (toHtml detail_content_type)
-            td_ (toHtml file.mimetype)
 
 
 editorModal :: (ClientPath, String) -> ByteString -> Template (Html ())
@@ -586,24 +456,21 @@ listLayout files = do
   ctx      <- ask
 
   pure do
-    table_ ([ id_ tableId, class_ "list-view " ] <> [ term "data-readonly" "" | readOnly ]) do
+    table_ ([ id_ tableId, class_ "list-view ", term "data-sort-by" (sortByText order) ] <> [ term "data-readonly" "" | readOnly ]) do
       thead_ do
         tr_ do
           th_ do
-            span_ [ class_ "field " ] do
-              (toHtml detail_filename)
+            span_ [ class_ "field ", term "data-sort-field" "name" ] do
+              toHtml detail_filename
               sortIconName order
-            `with` sortControlName order
           th_ do
-            span_ [ class_ "field " ] do
-              (toHtml detail_modified)
+            span_ [ class_ "field ", term "data-sort-field" "mtime" ] do
+              toHtml detail_modified
               sortIconMTime order
-              `with` sortControlMTime order
           th_ do
-            span_ [ class_ "field " ] do
-              (toHtml detail_size)
+            span_ [ class_ "field ", term "data-sort-field" "size" ] do
+              toHtml detail_size
               sortIconSize order
-              `with` sortControlSize order
       tbody_ $ (runTemplate ctx (entries files))
 
 
@@ -623,6 +490,11 @@ entry file = do
   TargetView target _ <- asks (.currentTarget)
 
   let ClientPathView { clientPath, hashPath } = asClientPathView root file.path
+      fileName = T.pack (coerce takeFileName file.path)
+      mtimeStr = maybe "" (T.pack . formatTime defaultTimeLocale "%Y-%m-%dT%H:%M:%S") file.mtime
+      atimeStr = maybe "" (T.pack . formatTime defaultTimeLocale "%Y-%m-%dT%H:%M:%S") file.atime
+      sizeStr  = T.pack (show (fromMaybe 0 file.size))
+      mimeStr  = T.decodeUtf8 file.mimetype
 
   pure do
     tr_ do
@@ -636,6 +508,11 @@ entry file = do
         mconcat
           [ [ term "data-path" (T.pack (coerce clientPath)) ]
           , [ term "data-ftype" (fileType file) ]
+          , [ term "data-name" fileName ]
+          , [ term "data-mtime" mtimeStr ]
+          , [ term "data-atime" atimeStr ]
+          , [ term "data-size" sizeStr ]
+          , [ term "data-mime" mimeStr ]
           , [ class_ "selected confirmed " | clientPath `Selected.elem` selected]
           , [ id_ [i|tr-#{hashPath}|]
             , class_ "table-item "
@@ -654,9 +531,10 @@ entry file = do
 thumbnailLayout :: [FileInfo] -> Template (Html ())
 thumbnailLayout files = do
   readOnly <- asks (.readOnly)
+  order    <- asks (.sortedBy)
   ctx      <- ask
   pure do
-    div_ ([ id_ tableId, class_ "thumbnail-view " ] <> [ term "data-readonly" "" | readOnly ]) do
+    div_ ([ id_ tableId, class_ "thumbnail-view ", term "data-sort-by" (sortByText order) ] <> [ term "data-readonly" "" | readOnly ]) do
       runTemplate ctx (entries files)
 
 
@@ -667,6 +545,11 @@ thumbnail file = do
   selected            <- asks (.selected)
 
   let ClientPathView { clientPath, hashPath } = asClientPathView root file.path
+      fileName = T.pack (coerce takeFileName file.path)
+      mtimeStr = maybe "" (T.pack . formatTime defaultTimeLocale "%Y-%m-%dT%H:%M:%S") file.mtime
+      atimeStr = maybe "" (T.pack . formatTime defaultTimeLocale "%Y-%m-%dT%H:%M:%S") file.atime
+      sizeStr  = T.pack (show (fromMaybe 0 file.size))
+      mimeStr  = T.decodeUtf8 file.mimetype
 
   pure $
     (div_ do
@@ -675,6 +558,11 @@ thumbnail file = do
     `with` mconcat
         [ [ term "data-path" (T.pack (coerce clientPath)) ]
         , [ term "data-ftype" (fileType file) ]
+        , [ term "data-name" fileName ]
+        , [ term "data-mtime" mtimeStr ]
+        , [ term "data-atime" atimeStr ]
+        , [ term "data-size" sizeStr ]
+        , [ term "data-mime" mimeStr ]
         , [ class_ "selected confirmed " | clientPath `Selected.elem` selected ]
         , [ id_ [i|tr-#{hashPath}|], class_ "thumbnail table-item ", draggable_ "true" ]
         , case file.content of
@@ -701,117 +589,6 @@ previewElement root file = do
          | otherwise -> Template.icon file
 
 
-------------------------------------
--- context menu
-------------------------------------
-
-
-contextMenu1 :: FileInfo -> Template (Html ())
-contextMenu1 file = do
-  root     <- asks (.root)
-  readOnly <- asks (.readOnly)
-  Phrase
-    { contextmenu_delete
-    , contextmenu_details
-    , contextmenu_open
-    , contextmenu_view
-    , contextmenu_play
-    , contextmenu_copy
-    , contextmenu_edit
-    , contextmenu_rename
-    , contextmenu_download
-    , confirm_delete1
-    } <- phrase <$> asks (.locale)
-  pure do
-    let clientPath@(ClientPath cp)  = ClientPath.toClientPath root file.path
-    let textClientPath = T.pack cp
-
-    div_ [ class_ "dropdown-content " , id_ contextMenuId ] do
-      let dropDownItem = div_ [ class_ "dropdown-item" ]
-      case file.content of
-        Regular
-          | file.mimetype `isMime` "application/pdf" -> (dropDownItem do i_ [ class_ "bx bx-show" ] mempty >> span_ (toHtml contextmenu_view))
-              `with` Template.open root file
-          | file.mimetype `isMime` "audio"           -> (dropDownItem do i_ [ class_ "bx bx-play" ] mempty >> span_ (toHtml contextmenu_play))
-              `with` Template.open root file
-          | file.mimetype `isMime` "video"           -> (dropDownItem do i_ [ class_ "bx bx-play" ] mempty >> span_ (toHtml contextmenu_play))
-              `with` Template.open root file
-          | file.mimetype `isMime` "image"           -> (dropDownItem do i_ [ class_ "bx bx-show" ] mempty >> span_ (toHtml contextmenu_view))
-              `with` Template.open root file
-          | file.mimetype `isMime` "text"            -> (dropDownItem do i_ [ class_ "bx bxs-edit" ] mempty >> span_ (toHtml contextmenu_edit))
-              `with` Template.open root file
-          | otherwise -> mempty
-        Dir        -> div_ [ class_ "dropdown-item" ] do i_ [ class_ "bx bxs-folder-open" ] mempty >> span_ (toHtml contextmenu_open)
-          `with` Template.open root file
-
-      div_ (asHtmx @"copy1" hxGet (Just clientPath) [ class_ "dropdown-item" ]) do
-        i_ [ class_ "bx bxs-copy-alt" ] mempty
-        span_ (toHtml contextmenu_copy)
-
-      a_ [ class_ "dropdown-item" ,  href_ (linkToText (apiLinks.download [clientPath])) ] do
-        i_ [ class_ "bx bx-download" ] mempty
-        span_ (toHtml contextmenu_download)
-
-      case readOnly of
-        True -> mempty
-        False -> do
-          div_ (asHtmx @"renameModal" hxGet (Just clientPath) [ class_ "dropdown-item" ]) do
-            i_ [ class_ "bx bxs-rename" ] mempty
-            span_ (toHtml contextmenu_rename)
-
-          div_ (asHtmx @"delete" hxDelete ([clientPath], False)
-               [ class_ "dropdown-item"
-               , hxConfirm (T.replace "{}" textClientPath confirm_delete1)
-               ]) do
-            i_ [ class_ "bx bxs-trash" ] mempty
-            span_ (toHtml contextmenu_delete)
-
-      div_ (asHtmx @"fileDetailModal" hxGet (Just clientPath) [ class_ "dropdown-item" ]) do
-        i_ [ class_ "bx bx-detail" ] mempty
-        span_ (toHtml contextmenu_details)
-
-
-contextMenuMany :: [ClientPath] -> Template (Html ())
-contextMenuMany clientPaths = do
-  readOnly <- asks (.readOnly)
-  Phrase
-    { contextmenu_delete_local
-    , contextmenu_selected
-    , contextmenu_copy
-    , contextmenu_cancel
-    , contextmenu_download
-    , confirm_delete_local
-    } <- phrase <$> asks (.locale)
-
-  pure do
-    div_ [ class_ "dropdown-content " , id_ contextMenuId ] do
-      div_ [ class_ "dropdown-item no-effect" ] do
-        i_ [ class_ "bx bx-select-multiple" ] mempty
-        span_ [i|#{length clientPaths} #{contextmenu_selected}|]
-      hr_ []
-      case readOnly of
-        True -> mempty
-        False -> do
-          div_ (asHtmx @"delete" hxDelete (clientPaths, False)
-               [ class_ "dropdown-item"
-               , hxConfirm (T.replace "{}" (T.pack (show (length clientPaths))) confirm_delete_local)
-               ]) do
-            i_ [ class_ "bx bxs-trash" ] mempty
-            span_ (toHtml contextmenu_delete_local)
-
-          div_ (asHtmx @"copy" hxGet () [ class_ "dropdown-item" ]) do
-            i_ [ class_ "bx bxs-copy-alt" ] mempty
-            span_ (toHtml contextmenu_copy)
-
-      a_ [ class_ "dropdown-item" ,  href_ (linkToText (apiLinks.download clientPaths)) ] do
-        i_ [ class_ "bx bx-download" ] mempty
-        span_ (toHtml contextmenu_download)
-
-      div_ (asHtmx @"cancel" hxPost () [ class_ "dropdown-item" ]) do
-        i_ [ class_ "bx bx-message-alt-x" ] mempty
-        span_ (toHtml contextmenu_cancel)
-
-
 sortBtn :: Template (Html ())
 sortBtn = do
   order <- asks (.sortedBy)
@@ -826,13 +603,13 @@ sortBtn = do
         span_ [ class_ "field " ] do
           i_ [ class_ "bx bx-sort-alt-2" ] mempty
       div_ [ class_ "dropdown-content " ] do
-        let item :: Html () -> Html () -> Html ()
-            item label ico = div_ [ class_ "dropdown-item" ] do
+        let item :: Html () -> Html () -> Text -> Html ()
+            item label ico field = div_ [ class_ "dropdown-item ", term "data-sort-field" field ] do
               ico
               span_ label
-        item (toHtml detail_filename) (sortIconName order)  `with` sortControlName order
-        item (toHtml detail_modified) (sortIconMTime order) `with` sortControlMTime order
-        item (toHtml detail_size)     (sortIconSize order)  `with` sortControlSize order
+        item (toHtml detail_filename) (sortIconName order)  "name"
+        item (toHtml detail_modified) (sortIconMTime order) "mtime"
+        item (toHtml detail_size)     (sortIconSize order)  "size"
 
 
 ------------------------------------
@@ -840,20 +617,5 @@ sortBtn = do
 ------------------------------------
 
 
-newFileModalId :: Text
-newFileModalId = "new-file-modal"
-
-newFolderModalId :: Text
-newFolderModalId = "new-folder-modal"
-
-fileDetailModalId :: Text
-fileDetailModalId = "file-detail-modal"
-
-renameModalId :: Text
-renameModalId = "rename-modal"
-
 editorModalId :: Text
 editorModalId = "editor-modal"
-
-contextMenuId :: Text
-contextMenuId = "contextmenu"

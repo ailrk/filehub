@@ -1,9 +1,7 @@
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE NamedFieldPuns #-}
 module Filehub.Server.UI.Platform.Desktop
-  ( fileDetailModal
-  , editorModal
-  , contextMenu
+  ( editorModal
   , index
   , sideBar
   , view
@@ -16,7 +14,6 @@ import Data.Text (Text)
 import Data.Text qualified as T
 import Filehub.Locale (Phrase(..), phrase)
 import Filehub.Session.Types (TargetSessionData(..), Selected (..))
-import Filehub.Session qualified as Session
 import Filehub.Sort (sortFiles)
 import Filehub.Template.Desktop qualified as Template.Desktop
 import Filehub.Server.Util (withQueryParam)
@@ -25,7 +22,7 @@ import Filehub.Types ( SessionId(..), ClientPath)
 import Lucid
 import Prelude hiding (readFile)
 import System.FilePath (takeFileName)
-import Filehub.Session (TargetView(..), getTargetViews, getCurrentTarget, makeStorageCurrentTarget)
+import Filehub.Session (TargetView(..), getTargetViews, getCurrentTarget, makeStorageCurrentTarget, Storage(..))
 import Data.Coerce (coerce)
 import Filehub.Monad (Filehub)
 import Control.Monad (join)
@@ -33,15 +30,6 @@ import Filehub.Session.Pool (withSession)
 import Control.Monad.Reader (MonadReader(..))
 import UnliftIO (readTVarIO)
 import Data.Traversable (for)
-
-
-fileDetailModal :: SessionId -> Maybe ClientPath -> Filehub (Html ())
-fileDetailModal sessionId mClientPath = do
-  ctx@TemplateContext{ root } <- makeTemplateContext sessionId
-  storage    <- makeStorageCurrentTarget sessionId
-  clientPath <- withQueryParam mClientPath
-  file       <- storage.get (ClientPath.fromClientPath root clientPath)
-  pure $ runTemplate ctx (Template.Desktop.fileDetailModal file)
 
 
 editorModal :: SessionId -> Maybe ClientPath -> Filehub (Html ())
@@ -54,18 +42,6 @@ editorModal sessionId mClientPath = do
   content      <- storage.read file
   let filename =  coerce takeFileName p
   pure $ runTemplate ctx (Template.Desktop.editorModal (clientPath, filename) content)
-
-
-contextMenu :: SessionId -> [ClientPath] -> Filehub (Html ())
-contextMenu sessionId clientPaths = do
-  storage <- makeStorageCurrentTarget sessionId
-  ctx@TemplateContext { root } <- makeTemplateContext sessionId
-  case clientPaths of
-    [clientPath] -> do
-      file <- storage.get (ClientPath.fromClientPath root clientPath)
-      pure $ runTemplate ctx (Template.Desktop.contextMenu1 file)
-    _ -> do
-      pure $ runTemplate ctx (Template.Desktop.contextMenuMany clientPaths)
 
 
 index :: SessionId -> Filehub (Html ())
@@ -95,6 +71,20 @@ i18nPayload readOnly p = "window.filehubI18n=" <> obj <> ";"
       , kv "selected"            p.contextmenu_selected
       , kv "confirmDelete1"      p.confirm_delete1
       , kv "confirmDeleteLocal"  p.confirm_delete_local
+      , kv "modal_file"          p.modal_file
+      , kv "modal_folder"        p.modal_folder
+      , kv "modal_create"        p.modal_create
+      , kv "modal_confirm"       p.modal_confirm
+      , kv "modal_detail"        p.modal_detail
+      , kv "detail_filename"     p.detail_filename
+      , kv "detail_modified"     p.detail_modified
+      , kv "detail_accessed"     p.detail_accessed
+      , kv "detail_size"         p.detail_size
+      , kv "detail_content_type" p.detail_content_type
+      , kv "placeholder_newfile"  p.placeholder_newfile
+      , kv "placeholder_newfoler" p.placeholder_newfoler
+      , kv "control_panel_dark"  p.control_panel_dark
+      , kv "control_panel_light" p.control_panel_light
       , "\"readOnly\":" <> if readOnly then "true" else "false"
       ] <> "}"
     kv key val = "\"" <> key <> "\":\"" <> escape val <> "\""

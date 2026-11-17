@@ -459,6 +459,14 @@ hr {
 }
 
 .control-panel-dropdown-btn { display: inline-block; position: relative; }
+.control-panel-dropdown-btn::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 0;
+  right: 0;
+  height: 8px;
+}
 .control-panel-dropdown-btn .dropdown-content {
   display: none;
   top: calc(100% + 4px);

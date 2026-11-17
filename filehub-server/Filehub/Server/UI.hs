@@ -12,18 +12,13 @@ module Filehub.Server.UI
   , sideBar
   , toolBar
   , controlPanel
-  , newFileModal
-  , newFolderModal
-  , fileDetailModal
   , editorModal
   , selectLayout
   , sortTable
   , toggleTheme
   , changeLocale
   , toggleSidebar
-  , renameModal
   , selectRows
-  , contextMenu
   , entry
   , entries
   , initViewer

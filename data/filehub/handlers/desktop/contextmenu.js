@@ -1,15 +1,5 @@
-const defaultI18n = {
-    delete: 'Delete', rename: 'Rename', copy: 'Copy', download: 'Download',
-    details: 'Details', edit: 'Edit', view: 'View', play: 'Play', open: 'Open',
-    cancel: 'Cancel', selected: 'selected',
-    confirmDelete1: 'Delete {}?', confirmDeleteLocal: 'Delete {} items?',
-    readOnly: false,
-};
-function i18n() { return window.filehubI18n ?? defaultI18n; }
-/*
- * Desktop right-click context menu — built client-side from data-ftype/data-path
- * on each .table-item. No server round-trip needed.
- */
+import { i18n } from '../../i18n.js';
+import * as ModalBuilder from '../../modal-builder.js';
 export function register() {
     document.addEventListener('contextmenu', onContextMenu);
 }
@@ -31,14 +21,16 @@ function onContextMenu(e) {
         menu = buildMenuMany(paths, readOnly);
     }
     else {
-        menu = buildMenu1(item.dataset.path, item.dataset.ftype, readOnly);
+        menu = buildMenu1(item, readOnly);
     }
     table.insertAdjacentElement('afterend', menu);
     initMenu(menu, e.pageX, e.pageY);
     table.style.pointerEvents = 'none';
 }
-function buildMenu1(path, ftype, readOnly) {
+function buildMenu1(item, readOnly) {
     const t = i18n();
+    const path = item.dataset.path;
+    const ftype = item.dataset.ftype;
     const enc = encodeURIComponent(path);
     const menu = makeMenu();
     if (ftype === 'dir') {
@@ -79,17 +71,19 @@ function buildMenu1(path, ftype, readOnly) {
     dl.innerHTML = `<i class="bx bx-download"></i><span>${t.download}</span>`;
     menu.appendChild(dl);
     if (!readOnly) {
-        menu.appendChild(makeItem(t.rename, 'bxs-rename', {
-            'hx-get': `/modal/rename?old=${enc}`, 'hx-target': '#index', 'hx-swap': 'beforeend',
-        }));
+        const renameEl = makeClickItem(t.rename, 'bxs-rename', () => {
+            ModalBuilder.showRenameModal(path);
+        });
+        menu.appendChild(renameEl);
         menu.appendChild(makeItem(t.delete, 'bxs-trash', {
             'hx-delete': `/files/delete?file=${enc}`,
             'hx-swap': 'none', 'hx-confirm': t.confirmDelete1.replace('{}', path),
         }));
     }
-    menu.appendChild(makeItem(t.details, 'bx-detail', {
-        'hx-get': `/modal/file/detail?file=${enc}`, 'hx-target': '#index', 'hx-swap': 'beforeend',
-    }));
+    const detailEl = makeClickItem(t.details, 'bx-detail', () => {
+        ModalBuilder.showFileDetailModal(item.dataset.name ?? '', item.dataset.mtime ?? '', item.dataset.atime ?? '', item.dataset.size ?? '0', item.dataset.mime ?? '');
+    });
+    menu.appendChild(detailEl);
     htmx.process(menu);
     return menu;
 }
@@ -135,6 +129,19 @@ function makeItem(label, icon, attrs) {
     el.innerHTML = `<i class="bx ${icon}"></i><span>${label}</span>`;
     for (const [k, v] of Object.entries(attrs))
         el.setAttribute(k, v);
+    return el;
+}
+function makeClickItem(label, icon, onClick) {
+    const el = document.createElement('div');
+    el.className = 'dropdown-item';
+    el.innerHTML = `<i class="bx ${icon}"></i><span>${label}</span>`;
+    el.addEventListener('click', () => {
+        document.getElementById('contextmenu')?.dispatchEvent(new Event('Close'));
+        const table = document.getElementById('table');
+        if (table)
+            table.style.pointerEvents = 'auto';
+        onClick();
+    });
     return el;
 }
 function initMenu(menu, pageX, pageY) {

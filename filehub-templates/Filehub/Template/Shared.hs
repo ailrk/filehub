@@ -15,13 +15,10 @@ module Filehub.Template.Shared
   , fileNameElement
   , sizeElement
   , modifiedDateElement
-  , sortControl
-  , sortControlName
-  , sortControlMTime
-  , sortControlSize
   , sortIconName
   , sortIconMTime
   , sortIconSize
+  , sortByText
   , viewId
   , sideBarId
   , controlPanelId
@@ -398,31 +395,6 @@ modifiedDateElement file =
     displayTime = maybe mempty (formatTime defaultTimeLocale "%Y/%m/%d") file.mtime
 
 
-sortControl :: SortFileBy -> [Attribute]
-sortControl o = asHtmx @"sortTable" hxGet (Just o) []
-
-
-sortControlName :: SortFileBy -> [Attribute]
-sortControlName = \case
-  ByNameUp   -> sortControl ByNameDown
-  ByNameDown -> sortControl ByNameUp
-  _          -> sortControl ByNameUp
-
-
-sortControlMTime :: SortFileBy -> [Attribute]
-sortControlMTime = \case
-  ByModifiedUp   -> sortControl ByModifiedDown
-  ByModifiedDown -> sortControl ByModifiedUp
-  _              -> sortControl ByModifiedUp
-
-
-sortControlSize :: SortFileBy -> [Attribute]
-sortControlSize = \case
-  BySizeUp   -> sortControl BySizeDown
-  BySizeDown -> sortControl BySizeUp
-  _          -> sortControl BySizeUp
-
-
 sortIconName :: SortFileBy -> Html ()
 sortIconName = \case
   ByNameUp   -> i_ [ class_ "bx bxs-up-arrow"] mempty
@@ -442,6 +414,16 @@ sortIconSize = \case
   BySizeUp   -> i_ [ class_ "bx bxs-up-arrow"] mempty
   BySizeDown -> i_ [ class_ "bx bxs-down-arrow"] mempty
   _          -> i_ [ class_ "bx bx-sort"] mempty
+
+
+sortByText :: SortFileBy -> Text
+sortByText = \case
+  ByNameUp       -> "nameUp"
+  ByNameDown     -> "nameDown"
+  ByModifiedUp   -> "modifiedUp"
+  ByModifiedDown -> "modifiedDown"
+  BySizeUp       -> "sizeUp"
+  BySizeDown     -> "sizeDown"
 
 
 ------------------------------------

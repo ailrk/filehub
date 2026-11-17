@@ -5,11 +5,14 @@ import * as DesktopContextmenu from './handlers/desktop/contextmenu.js';
 import * as DesktopDrag from './handlers/desktop/drag.js';
 import * as DesktopScroll from './handlers/desktop/scroll.js';
 import * as DesktopSelected from './handlers/desktop/selected.js';
+import * as DesktopSort from './handlers/desktop/sort.js';
 import * as MobileCloseSidebar from './handlers/mobile/closeSidebar.js';
 import * as MobileSelected from './handlers/mobile/selected.js';
 import * as MobilePanel from './handlers/mobile/panel.js';
 import * as Modal from './modal.js';
+import * as ModalBuilder from './modal-builder.js';
 import Viewer from './viewer.js';
+import { i18n } from './i18n.js';
 const balloonWaitTime = 2000;
 let viewer = null;
 let display = Cookie.getCookie('display');
@@ -22,16 +25,18 @@ document.addEventListener('DOMContentLoaded', () => {
         DesktopSelected.register();
         DesktopDrag.register();
         DesktopScroll.register();
+        DesktopSort.register();
         document.addEventListener('click', closeDropdowns);
+        document.addEventListener('click', onActionClick);
         document.addEventListener('htmx:afterSettle', closeDropdowns);
     }
     if (display === 'Mobile') {
         MobileCloseSidebar.register();
         MobileSelected.register();
         MobilePanel.register();
+        DesktopSort.register();
         document.querySelector('#table')?.addEventListener('contextmenu', e => e.preventDefault());
     }
-    document.addEventListener('filehub:sidebarToggled', handleSidebarToggled);
     document.addEventListener('filehub:themeChanged', handleThemeChanged);
     document.addEventListener('filehub:viewerInited', initViewer);
     document.addEventListener('filehub:opened', open);
@@ -67,8 +72,40 @@ function handleThemeChanged() {
     newLink.onload = () => oldLink.remove();
     oldLink.parentNode.insertBefore(newLink, oldLink.nextSibling);
 }
-function handleSidebarToggled() {
+function onActionClick(e) {
+    const btn = e.target.closest('[data-action]');
+    if (!btn)
+        return;
+    switch (btn.dataset.action) {
+        case 'new-folder':
+            ModalBuilder.showNewFolderModal();
+            break;
+        case 'new-file':
+            ModalBuilder.showNewFileModal();
+            break;
+        case 'toggle-theme':
+            handleToggleTheme(btn);
+            break;
+        case 'toggle-sidebar':
+            handleToggleSidebar();
+            break;
+    }
+}
+async function handleToggleTheme(btn) {
+    const current = btn.dataset.currentTheme;
+    const next = current === 'light' ? 'dark' : 'light';
+    btn.dataset.currentTheme = next;
+    const icon = btn.querySelector('i');
+    if (icon)
+        icon.className = next === 'dark' ? 'bx bxs-sun' : 'bx bxs-moon';
+    const t = i18n();
+    btn.dataset.tooltip = next === 'dark' ? t.control_panel_light : t.control_panel_dark;
+    await fetch('/theme/toggle');
+    document.dispatchEvent(new Event('filehub:themeChanged'));
+}
+function handleToggleSidebar() {
     document.getElementById('index')?.classList.toggle('sidebar-collapsed');
+    fetch('/sidebar/toggle');
 }
 function handleError(e) {
     const xhr = e.detail.xhr;
