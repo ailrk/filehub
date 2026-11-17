@@ -60,7 +60,10 @@ import Target.Dummy (DummyTarget)
 import Target.File (FileSys)
 import Target.S3 (S3)
 import Target.Types (targetHandler, handleTarget, AnyTarget)
-import Text.Fuzzy (simpleFilter)
+import Data.List (sortBy)
+import Data.Ord (comparing, Down (..))
+import System.FilePath (takeFileName)
+import Text.Fuzzy qualified as Fuzzy
 import Filehub.Template.Htmx (asHtmx)
 
 
@@ -163,11 +166,9 @@ pathBreadcrumb = do
 
 search :: SearchWord -> [FileInfo] -> ([FileInfo] -> Template (Html ())) -> Template (Html ())
 search (SearchWord searchWord) files table = do
-  let matched = files <&> coerce Text.pack . (.path) & simpleFilter searchWord
-      isMatched file = coerce Text.pack file.path `elem` matched
-
-  order <- asks (.sortedBy)
-  table (sortFiles order (filter isMatched files))
+  let scored = Fuzzy.filter searchWord files "" "" (\f -> Text.pack (takeFileName (coerce f.path))) False
+      sorted = sortBy (comparing (Down . Fuzzy.score)) scored
+  table (map Fuzzy.original sorted)
 
 
 searchBar :: Template (Html ())
