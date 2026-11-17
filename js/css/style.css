@@ -175,7 +175,7 @@ hr {
   position: fixed;
   display: flex;
   padding-right: 20px;
-  width: 360px;
+  width: 560px;
   right: 0;
   bottom: 16px;
   flex-direction: column-reverse;
@@ -189,32 +189,40 @@ hr {
 .balloon {
   padding: 0.65rem 1rem;
   border-radius: var(--radius);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-md);
   animation: slideInBalloon 0.22s var(--ease);
   font-size: 0.875rem;
   display: flex;
   flex-direction: column;
   pointer-events: auto;
-  max-width: 320px;
-  min-width: 200px;
+  max-width: 560px;
+  min-width: 300px;
+  border: 1px solid var(--muted);
+  border-left: 3px solid var(--primary);
+}
+
+.balloon-err-msg i,
+.balloon-info-msg i {
+  margin-right: 0.35rem;
+  font-size: 1rem;
+  vertical-align: middle;
 }
 
 .balloon-err-msg {
-  background: var(--secondary);
-  color: var(--on-secondary);
-  border: 1px solid var(--border);
+  background: var(--background2);
+  color: var(--frontground);
+  border-color: var(--secondary);
+  border-left-color: var(--secondary);
 }
 
 .balloon-info-msg {
-  background: var(--background1);
+  background: var(--background2);
   color: var(--frontground);
-  border: 1px solid var(--border);
 }
 
 .balloon-progress-msg {
-  background: var(--background1);
+  background: var(--background2);
   color: var(--frontground);
-  border: 1px solid var(--border);
 }
 
 

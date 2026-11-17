@@ -20,6 +20,7 @@ const balloonWaitTime = 2000;
 let viewer: Viewer | null = null;
 let display: Display = Cookie.getCookie('display')! as Display;
 let evtSource: EventSource | null;
+const taskLabels: Map<number, string> = new Map();
 
 document.addEventListener('DOMContentLoaded', () => {
   Modal.register();
@@ -162,38 +163,46 @@ function startListenSSE() {
 
   evtSource.addEventListener('TaskCompleted', e => {
     const data = JSON.parse(e.data) as TaskCompleted;
+    const label = taskLabels.get(data.taskId) ?? 'Task';
+    taskLabels.delete(data.taskId);
     htmxProcessOOB(data);
     Balloon.deleteLongLivedBalloon(data.taskId);
-    Balloon.pushBalloon({ kind: 'InfoMsg', msg: 'Task Completed', duration: 3000 });
+    Balloon.pushBalloon({ kind: 'InfoMsg', msg: `${label} complete`, duration: 3000 });
   });
 
   evtSource.addEventListener('TaskFailed', e => {
     const data = JSON.parse(e.data) as TaskFailed;
+    const label = taskLabels.get(data.taskId) ?? 'Task';
+    taskLabels.delete(data.taskId);
     htmxProcessOOB(data);
     Balloon.deleteLongLivedBalloon(data.taskId);
-    Balloon.pushBalloon({ kind: 'InfoMsg', msg: 'Task Failed', duration: 3000 });
+    Balloon.pushBalloon({ kind: 'ErrorMsg', msg: `${label} failed`, duration: 5000 });
   });
 
   evtSource.addEventListener('DeleteProgressed', e => {
     const data = JSON.parse(e.data) as DeleteProgressed;
+    taskLabels.set(data.taskId, 'Delete');
     htmxProcessOOB(data);
     Balloon.pushBalloon({ kind: 'ProgressedMsg', msg: 'Deleting', taskId: data.taskId, progress: data.progress });
   });
 
   evtSource.addEventListener('PasteProgressed', e => {
     const data = JSON.parse(e.data) as PasteProgressed;
+    taskLabels.set(data.taskId, 'Paste');
     htmxProcessOOB(data);
     Balloon.pushBalloon({ kind: 'ProgressedMsg', msg: 'Pasting', taskId: data.taskId, progress: data.progress });
   });
 
   evtSource.addEventListener('MoveProgressed', e => {
     const data = JSON.parse(e.data) as MoveProgressed;
+    taskLabels.set(data.taskId, 'Move');
     htmxProcessOOB(data);
     Balloon.pushBalloon({ kind: 'ProgressedMsg', msg: 'Moving', taskId: data.taskId, progress: data.progress });
   });
 
   evtSource.addEventListener('UploadProgressed', e => {
     const data = JSON.parse(e.data) as UploadProgressed;
+    taskLabels.set(data.taskId, 'Upload');
     htmxProcessOOB(data);
     Balloon.pushBalloon({ kind: 'ProgressedMsg', msg: 'Uploading', taskId: data.taskId, progress: data.progress });
   });

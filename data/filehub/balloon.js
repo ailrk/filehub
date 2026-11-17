@@ -20,7 +20,7 @@ function pushErrorMsgBalloon(message, duration = 3000) {
     const balloon = document.createElement('div');
     balloon.classList.add('balloon');
     balloon.classList.add('balloon-err-msg');
-    balloon.textContent = message;
+    balloon.innerHTML = `<i class="bx bx-error-circle"></i> ${message}`;
     container.appendChild(balloon);
     setTimeout(() => {
         balloon.style.opacity = '0';
@@ -33,7 +33,7 @@ function pushInfoMsgBalloon(message, duration = 3000) {
     const balloon = document.createElement('div');
     balloon.classList.add('balloon');
     balloon.classList.add('balloon-info-msg');
-    balloon.textContent = message;
+    balloon.innerHTML = `<i class="bx bx-check-circle"></i> ${message}`;
     container.appendChild(balloon);
     setTimeout(() => {
         balloon.style.opacity = '0';
