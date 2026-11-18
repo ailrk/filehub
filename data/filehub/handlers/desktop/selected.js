@@ -32,10 +32,11 @@ function onMouseDown(e) {
     const view = document.getElementById('view');
     if (!view?.contains(e.target))
         return;
-    if (e.target.closest('.thumbnail'))
-        return;
     isMouseDown = true;
     dragging = false;
+    // Thumbnails don't use rubber-band selection, but ctrl+click still needs isMouseDown=true.
+    if (e.target.closest('.thumbnail'))
+        return;
     selectionScreen?.elt.remove();
     const table = document.getElementById('table');
     if (!table)
@@ -87,6 +88,8 @@ async function onMouseUp(e) {
                 return;
             // Block the click that fires immediately after mouseup on this cycle.
             view.addEventListener('click', prevent, { capture: true, once: true });
+            selectionScreen?.elt.remove();
+            selectionScreen = null;
             const item = e.target.closest('.table-item');
             if (!item)
                 return;
@@ -104,6 +107,8 @@ async function onMouseUp(e) {
     }
 }
 function onClick(e) {
+    if (e.ctrlKey || e.metaKey)
+        return;
     const view = document.getElementById('view');
     if (!view?.contains(e.target))
         return;

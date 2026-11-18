@@ -38,10 +38,13 @@ export function collectFromHtml() {
 function onMouseDown(e: MouseEvent) {
   const view = document.getElementById('view');
   if (!view?.contains(e.target as Node)) return;
-  if ((e.target as Element).closest('.thumbnail')) return;
 
   isMouseDown = true;
   dragging = false;
+
+  // Thumbnails don't use rubber-band selection, but ctrl+click still needs isMouseDown=true.
+  if ((e.target as Element).closest('.thumbnail')) return;
+
   selectionScreen?.elt.remove();
 
   const table = document.getElementById('table');
@@ -99,6 +102,8 @@ async function onMouseUp(e: MouseEvent) {
       if (!view?.contains(e.target as Node)) return;
       // Block the click that fires immediately after mouseup on this cycle.
       view.addEventListener('click', prevent, { capture: true, once: true });
+      selectionScreen?.elt.remove();
+      selectionScreen = null;
       const item = (e.target as Element).closest<HTMLElement>('.table-item');
       if (!item) return;
       await selectByClicking(item);
@@ -115,6 +120,7 @@ async function onMouseUp(e: MouseEvent) {
 
 
 function onClick(e: MouseEvent) {
+  if (e.ctrlKey || e.metaKey) return;
   const view = document.getElementById('view');
   if (!view?.contains(e.target as Node)) return;
   if ((e.target as Element).closest('.dir')) return;
