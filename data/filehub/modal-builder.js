@@ -39,7 +39,7 @@ function toReadableSize(bytes) {
 }
 export function showRenameModal(path) {
     const t = i18n();
-    const filename = path.split('/').pop() ?? path;
+    const filename = decodeURIComponent(path).split('/').pop() ?? path;
     const modal = makeModal('rename-modal');
     const content = modal.querySelector('.modal-content');
     content.innerHTML = `

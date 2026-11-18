@@ -3,13 +3,30 @@
  * scroll events don't bubble, so we must attach directly to #view.
  * register() attaches once on startup; rebind() re-attaches after htmx
  * replaces #view — called from main.ts on htmx:afterSettle.
+ *
+ * Scroll position is saved before OOB swaps that replace #view (cancel,
+ * delete) and restored on htmx:afterSettle. Navigation via cd does a
+ * main swap, not OOB, so it intentionally resets scroll to the top.
  */
 
 let ticking = false;
 let scrollTimeout: number;
+let savedScroll: number | undefined;
 
 
 export function register() {
+  document.addEventListener('htmx:oobBeforeSwap', (e: any) => {
+    if (e.detail?.target?.id === 'view') {
+      savedScroll = e.detail.target.scrollTop;
+    }
+  });
+  document.body.addEventListener('htmx:afterSettle', () => {
+    if (savedScroll !== undefined) {
+      const view = document.getElementById('view');
+      if (view) view.scrollTop = savedScroll;
+      savedScroll = undefined;
+    }
+  });
   rebind();
 }
 
