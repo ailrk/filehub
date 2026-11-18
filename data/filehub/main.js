@@ -124,9 +124,6 @@ function initViewer(e) {
     const o = e.detail;
     viewer = new Viewer(o.resources, { index: o.index });
     viewer.show();
-    viewer.currentContent.addEventListener('contextmenu', ev => {
-        ev.stopImmediatePropagation();
-    }, { capture: true });
 }
 function open(e) {
     const payload = e.detail;

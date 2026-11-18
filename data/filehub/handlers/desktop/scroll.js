@@ -5,8 +5,10 @@
  * replaces #view — called from main.ts on htmx:afterSettle.
  *
  * Scroll position is saved before OOB swaps that replace #view (cancel,
- * delete) and restored on htmx:afterSettle. Navigation via cd does a
- * main swap, not OOB, so it intentionally resets scroll to the top.
+ * delete) and restored in htmx:oobAfterSwap, which fires synchronously in
+ * the same task as the DOM swap — before the browser can paint the
+ * intermediate scrollTop=0 state. Navigation via cd does a main swap, not
+ * OOB, so it intentionally resets scroll to the top.
  */
 let ticking = false;
 let scrollTimeout;
@@ -17,8 +19,8 @@ export function register() {
             savedScroll = e.detail.target.scrollTop;
         }
     });
-    document.body.addEventListener('htmx:afterSettle', () => {
-        if (savedScroll !== undefined) {
+    document.addEventListener('htmx:oobAfterSwap', (e) => {
+        if (savedScroll !== undefined && e.detail?.target?.id === 'view') {
             const view = document.getElementById('view');
             if (view)
                 view.scrollTop = savedScroll;

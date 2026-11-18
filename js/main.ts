@@ -142,9 +142,6 @@ function initViewer(e: any) {
   const o: ViewerInited = e.detail;
   viewer = new Viewer(o.resources, { index: o.index });
   viewer.show();
-  viewer.currentContent!.addEventListener('contextmenu', ev => {
-    ev.stopImmediatePropagation();
-  }, { capture: true });
 }
 
 
