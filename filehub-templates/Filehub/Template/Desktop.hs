@@ -210,6 +210,7 @@ controlPanel = join do
     <*> (Just <$> layoutBtn)
     <*> pure Nothing
     <*> (Just <$> shareLinksBtn)
+    <*> (Just <$> historyBtn)
 
 
 uploadBtn :: Template (Html ())
@@ -367,6 +368,18 @@ shareLinksBtn = do
             , term "data-tooltip" control_panel_share_links
             ] do
       i_ [ class_ "bx bxs-share-alt" ] mempty
+
+
+historyBtn :: Template (Html ())
+historyBtn = pure do
+  button_ [ class_ "btn btn-control tooltip"
+          , type_ "button"
+          , term "hx-get" "/history"
+          , term "hx-target" "#index"
+          , term "hx-swap" "beforeend"
+          , term "data-tooltip" "History"
+          ] do
+    i_ [ class_ "bx bx-history" ] mempty
 
 
 localeBtn :: Html ()

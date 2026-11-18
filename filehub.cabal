@@ -227,6 +227,8 @@ library filehub-core
                           Filehub.Env
                           Filehub.Error
                           Filehub.Handler
+                          Filehub.History
+                          Filehub.History.Types
                           Filehub.Locale
                           Filehub.Log
                           Filehub.Monad
@@ -291,11 +293,13 @@ library filehub-server
                           directory,
                           temporary,
                           random,
+                          uri-encode,
                           wai-extra
   exposed-modules:        Filehub.Server
                           Filehub.Server.File
                           Filehub.Server.File.Paste
                           Filehub.Server.File.Delete
+                          Filehub.Server.History
                           Filehub.Server.Login
                           Filehub.Server.Notification
                           Filehub.Server.Search
@@ -326,6 +330,7 @@ library filehub-templates
                           time
   exposed-modules:        Filehub.Template
                           Filehub.Template.Desktop
+                          Filehub.Template.History
                           Filehub.Template.Htmx
                           Filehub.Template.Login
                           Filehub.Template.Mobile

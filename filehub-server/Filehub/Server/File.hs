@@ -25,7 +25,7 @@ import Control.Monad.Reader (MonadReader(..))
 import Data.Binary.Builder qualified as BB
 import Data.ByteString (ByteString)
 import Data.ByteString.Char8 qualified as BC
-import Data.ClientPath (ClientPath (..), AbsPath (..), (<./>), Root (..))
+import Data.ClientPath (ClientPath (..), AbsPath (..), (<./>), Root (..), toClientPath)
 import Data.ClientPath qualified as ClientPath
 import Data.ClientPath.IO (validateAbsPath)
 import Data.ClientPath.View (ClientPathView(..), asClientPathView)
@@ -48,9 +48,12 @@ import Filehub.Server.File.Paste (paste)
 import Filehub.Server.File.Delete (delete)
 import Filehub.Server.UI qualified as UI
 import Filehub.Server.Util (withQueryParam)
+import Filehub.History (Operation(..), withHistory, recordHistory)
+import Network.URI.Encode qualified as URI.Encode
+import Target.Types qualified
 import Filehub.Session (SessionId(..), Session(..), Storage(..), getRoot, TargetView (..), getCurrentTarget, makeStorageCurrentTarget)
 import Filehub.Session.Copy qualified as Copy
-import Filehub.Session.Types (Selected(..))
+import Filehub.Session.Types (Selected(..), CopyState(..))
 import Filehub.Sort qualified as Sort
 import Filehub.Types ( NewFile(..) , NewFolder(..), UpdatedFile(..) , UpdatedFile(..) , FilehubEvent (..), RenameFile (..), MoveFile (..), Env)
 import Lucid hiding (for_)
@@ -60,7 +63,7 @@ import Network.Mime.Extended (isMime)
 import Network.Wai (Request(..), responseLBS, responseStream)
 import Prelude hiding (init, readFile)
 import Servant (Header , Headers  , addHeader, Tagged (..), Application, ServerError (..), FromHttpApiData (..), err404)
-import Servant.Multipart (MultipartData(..), Mem)
+import Servant.Multipart (MultipartData(..), Mem, FileData(..))
 import System.Directory (removeFile)
 import System.FilePath (takeFileName, (</>), makeRelative, takeDirectory)
 import System.IO.Temp qualified as Temp
@@ -91,14 +94,16 @@ cd sessionId _ mClientPath = do
 rename :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> RenameFile
   -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
 rename sessionId _ _ (RenameFile old new) = do
+  env     <- ask
   storage <- makeStorageCurrentTarget sessionId
-  root    <- withSession sessionId . getRoot =<< ask
-  storage.rename
-    (ClientPath.fromClientPath root old)
-    new
-  addHeader FileRenamed <$> runUIPartialUpdate sessionId
-    [ UpdateView
-    ]
+  root    <- withSession sessionId . getRoot $ env
+  targetId <- withSession sessionId \s -> do
+    TargetView t _ <- getCurrentTarget env s
+    pure (Target.Types.getTargetId t)
+  let newPath = ClientPath . URI.Encode.encode $ new
+  withHistory sessionId (OpRename targetId old newPath) do
+    storage.rename (ClientPath.fromClientPath root old) new
+  addHeader FileRenamed <$> runUIPartialUpdate sessionId [ UpdateView ]
 
 
 updateFile :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> UpdatedFile -> Filehub (Html ())
@@ -153,20 +158,44 @@ newFile' sessionId name create = do
 
 newFile :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> NewFile -> Filehub (Html ())
 newFile sessionId _ _ (NewFile name) = do
+  env     <- ask
   storage <- makeStorageCurrentTarget sessionId
-  newFile' sessionId name storage.new
+  (targetId, root, dir) <- withSession sessionId \s -> do
+    TargetView t td <- getCurrentTarget env s
+    root            <- getRoot env s
+    dir             <- readTVar td.currentDir
+    pure (Target.Types.getTargetId t, root, dir)
+  let clientPath = ClientPath.toClientPath root (AbsPath (coerce dir </> T.unpack name))
+  withHistory sessionId (OpNewFile targetId clientPath) do
+    newFile' sessionId name storage.new
 
 
 newFolder :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> NewFolder -> Filehub (Html ())
 newFolder sessionId _ _ (NewFolder name) = do
+  env     <- ask
   storage <- makeStorageCurrentTarget sessionId
-  newFile' sessionId name storage.newFolder
+  (targetId, root, dir) <- withSession sessionId \s -> do
+    TargetView t td <- getCurrentTarget env s
+    root            <- getRoot env s
+    dir             <- readTVar td.currentDir
+    pure (Target.Types.getTargetId t, root, dir)
+  let clientPath = ClientPath.toClientPath root (AbsPath (coerce dir </> T.unpack name))
+  withHistory sessionId (OpNewFolder targetId clientPath) do
+    newFile' sessionId name storage.newFolder
 
 
 copy :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> Filehub (Html ())
 copy sessionId _ _ = do
+  env <- ask
   Copy.select sessionId
   Copy.copy sessionId
+  (targetId, count) <- withSession sessionId \s -> do
+    TargetView t _ <- getCurrentTarget env s
+    let n = case s.copyState of
+              Paste sels -> sum (map (length . snd) sels)
+              _          -> 0
+    pure (Target.Types.getTargetId t, n)
+  recordHistory sessionId (OpCopy targetId count) True
   UI.controlPanel sessionId
 
 
@@ -182,6 +211,13 @@ copy1 sessionId _ _ mClientPath = do
 
   Copy.select sessionId
   Copy.copy sessionId
+  (targetId, count) <- withSession sessionId \s -> do
+    TargetView t _ <- getCurrentTarget env s
+    let n = case s.copyState of
+              Paste sels -> sum (map (length . snd) sels)
+              _          -> 0
+    pure (Target.Types.getTargetId t, n)
+  recordHistory sessionId (OpCopy targetId count) True
   UI.index sessionId
 
 
@@ -191,10 +227,12 @@ move sessionId _ _ (MoveFile src tgt) = do
   env     <- ask
   storage <- makeStorageCurrentTarget sessionId
 
-  (notifications, root) <- withSession sessionId \s -> do
-    root <- getRoot env s
+  (notifications, root, targetId) <- withSession sessionId \s -> do
+    TargetView t _ <- getCurrentTarget env s
+    root           <- getRoot env s
     pure ( s.notifications
          , root
+         , Target.Types.getTargetId t
          )
 
   taskId <- newTaskId
@@ -242,6 +280,8 @@ move sessionId _ _ (MoveFile src tgt) = do
           check a = (a, merge a)
        in
           fmap check checkedSrcPaths
+
+    recordHistory sessionId (OpMove targetId src tgt) True
 
     htmx <- runUIPartialUpdate sessionId [UpdateView]
 
@@ -322,6 +362,11 @@ upload sessionId _ _ multipart = do
   env           <- ask
   taskId        <- newTaskId
   notifications <- withSession sessionId (pure . (.notifications))
+  (targetId, root, dir) <- withSession sessionId \s -> do
+    TargetView t td <- getCurrentTarget env s
+    root            <- getRoot env s
+    dir             <- readTVar td.currentDir
+    pure (Target.Types.getTargetId t, root, dir)
   let taskCount =  fromIntegral $ length multipart.files
 
   uploadCounter <- newTVarIO @_ @Integer 0
@@ -339,6 +384,8 @@ upload sessionId _ _ multipart = do
     storage   <- makeStorageCurrentTarget sessionId
     forConcurrently_ multipart.files \filedata -> do
       storage.upload filedata
+      let clientPath = ClientPath.toClientPath root (AbsPath (coerce dir </> T.unpack filedata.fdFileName))
+      recordHistory sessionId (OpUpload targetId clientPath) True
       atomically do
         modifyTVar' uploadCounter (+ 1)
         n <- readTVar uploadCounter

@@ -5,6 +5,7 @@ import Control.Monad (void)
 import Control.Monad.Fix (fix)
 import Control.Monad.Reader (MonadReader(..))
 import Data.ClientPath (AbsPath (..))
+import Data.Text qualified as T
 import Data.ClientPath.IO (validateAbsPath)
 import Data.Coerce (coerce)
 import Data.File (FileType(..), File(..), FileContent (..), withContent, FileInfo, IsLink (..))
@@ -14,11 +15,13 @@ import Data.String.Interpolate (i)
 import Data.Traversable (for)
 import Filehub.Error ( FilehubError(..), Error' (..) )
 import Filehub.Handler (ConfirmLogin, ConfirmReadOnly)
+import Filehub.History (Operation(..), recordHistory)
 import Filehub.Monad
 import Filehub.Notification.Types (Notification(..))
 import Filehub.Server.UI qualified as UI
 import Filehub.Server.Util (throttle)
-import Filehub.Session (Session(..), makeStorageForTarget)
+import Data.ClientPath qualified as ClientPath
+import Filehub.Session (Session(..), makeStorageForTarget, targetRoot)
 import Filehub.Session (SessionId(..), TargetView (..), getCurrentTarget, getTargetViews, getTarget, makeStorage)
 import Filehub.Session.Pool (withSession, withSession_)
 import Filehub.Session.Selected (AllSelected(..))
@@ -31,7 +34,7 @@ import Lucid.Htmx (HxSwapOOB(..))
 import Prelude hiding (init, readFile)
 import Servant (Header , Headers  , addHeader)
 import System.FilePath (takeFileName, (</>))
-import Target.Types (AnyTarget)
+import Target.Types (AnyTarget, getTargetId)
 import UnliftIO (throwIO, newEmptyMVar, takeMVar, putMVar, finally, readTVarIO, catch, SomeException)
 import UnliftIO.Async (pooledForConcurrentlyN_)
 import UnliftIO.STM (atomically, modifyTVar', readTVar, newTVarIO, writeTBQueue)
@@ -188,6 +191,12 @@ paste sessionId _ _ = do
       response <- go selections
         `catch` handleErr
         `finally`  cleanup
+
+      currentDir' <- readTVarIO sdata.currentDir
+      let fileNames = [ T.pack (takeFileName (coerce f.path))
+                      | (_, files) <- selections, f <- files ]
+          dstCP = ClientPath.toClientPath (targetRoot pasteTo) currentDir'
+      recordHistory sessionId (OpPaste (getTargetId pasteTo) dstCP fileNames) True
 
       withSession sessionId \s -> do
         TargetView currentTarget _ <- getCurrentTarget env s

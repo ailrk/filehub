@@ -189,6 +189,7 @@ controlPanel
      Html () -> Html () ->
      Maybe (Html()) -> Maybe (Html ()) -> Maybe (Html ()) ->
      Maybe (Html ()) ->
+     Maybe (Html ()) ->
      Maybe (Html ())
   -> Template (Html ())
 controlPanel
@@ -206,7 +207,8 @@ controlPanel
   mToggleSidebarBtn
   mLayoutBtn
   mScroll2TopBtn
-  mShareLinksBtn = do
+  mShareLinksBtn
+  mHistoryBtn = do
     readOnly              <- asks (.readOnly)
     noLogin               <- asks (.noLogin)
     state                 <- asks (.state)
@@ -222,6 +224,7 @@ controlPanel
             localeBtn
             when (not noLogin) logoutBtn
             fromMaybe mempty mShareLinksBtn
+            fromMaybe mempty mHistoryBtn
             fromMaybe mempty mScroll2TopBtn
             span_ [ class_ "btn-like field " ] do i_ [ class_ "bx bx-lock-alt" ] mempty >> span_ "Read-only"
         False ->
@@ -237,6 +240,7 @@ controlPanel
                 sep
                 newBtnGroup target
                 fromMaybe mempty mShareLinksBtn
+                fromMaybe mempty mHistoryBtn
                 uploadBtn
                 fromMaybe mempty mScroll2TopBtn
             ControlPanelSelecting ->
@@ -250,6 +254,7 @@ controlPanel
                 sep
                 newBtnGroup target
                 fromMaybe mempty mShareLinksBtn
+                fromMaybe mempty mHistoryBtn
                 uploadBtn
                 copyBtn
                 deleteBtn
@@ -266,6 +271,7 @@ controlPanel
                 sep
                 newBtnGroup target
                 fromMaybe mempty mShareLinksBtn
+                fromMaybe mempty mHistoryBtn
                 uploadBtn
                 pasteBtn
                 cancelBtn

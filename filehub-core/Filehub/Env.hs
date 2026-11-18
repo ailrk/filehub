@@ -28,6 +28,7 @@ import Control.Concurrent.STM (TVar)
 import Control.Handle.Cache (Cache)
 import Control.Handle.LockManager (LockManager)
 import Control.Handle.EvtLog (EvtLog)
+import Filehub.History.Types (History)
 
 
 data Env = Env
@@ -72,6 +73,8 @@ data Env = Env
   , customThemeDark   :: Maybe CustomTheme
     -- light custom theme
   , customThemeLight  :: Maybe CustomTheme
+    -- global operation history (capped at 500 entries)
+  , history           :: History
   }
 
 

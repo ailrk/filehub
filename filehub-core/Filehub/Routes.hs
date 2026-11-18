@@ -521,6 +521,12 @@ data Api mode = Api
   , offline               :: mode :- "offline" :> Get '[HTML] (Html ())
 
 
+  , history               :: mode
+                          :- "history"
+                          :> AuthProtect "session"
+                          :> AuthProtect "login"
+                          :> Get '[HTML] (Html ())
+
   , healthz               :: mode :- "healthz" :> AuthProtect "session" :> Get '[PlainText] Text
   }
   deriving Generic

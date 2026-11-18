@@ -12,11 +12,13 @@ import Data.Foldable (for_)
 import Data.Ratio ((%))
 import Data.String.Interpolate (i)
 import Filehub.Handler (ConfirmLogin, ConfirmReadOnly)
+import Filehub.History (Operation(..), recordHistory)
 import Filehub.Monad
 import Filehub.Notification.Types (Notification(..))
 import Filehub.Orphan ()
 import Filehub.Server.UI qualified as UI
-import Filehub.Session (SessionId(..), Session(..), getRoot, getTargetViews, makeStorageCurrentTarget, makeStorageForTarget)
+import Filehub.Session (SessionId(..), Session(..), TargetView(..), getRoot, getTargetViews, makeStorageCurrentTarget, makeStorageForTarget, getCurrentTarget)
+import Target.Types (AnyTarget(..), getTargetId)
 import Filehub.Session.Selected qualified as Selected
 import Filehub.Session.Selected (AllSelected(..))
 import Filehub.Session.Types (Selected(..), Storage(..))
@@ -52,12 +54,15 @@ delete sessionId _ _ clientPaths deleteSelected = do
   ( notifications
     , root
     , AllSelected { count , allSelected }
+    , targetId
     ) <- withSession sessionId \s -> do
-    root        <- getRoot env s
-    allSelected <- Selected.getAllSelected =<< getTargetViews env s
+    TargetView t _ <- getCurrentTarget env s
+    root            <- getRoot env s
+    allSelected     <- Selected.getAllSelected =<< getTargetViews env s
     pure ( s.notifications
          , root
          , allSelected
+         , getTargetId t
          )
 
   -- States
@@ -147,6 +152,14 @@ delete sessionId _ _ clientPaths deleteSelected = do
     doDelete
       `onException` handleErr
       `finally` cleanup
+
+    when (not (null clientPaths)) do
+      recordHistory sessionId (OpDelete targetId clientPaths) True
+    when deleteSelected do
+      for_ allSelected \(anyTarget, selected) ->
+        case selected of
+          NoSelection   -> pure ()
+          Selected x xs -> recordHistory sessionId (OpDelete (getTargetId anyTarget) (x:xs)) True
 
     htmxUpdate <- runUIPartialUpdate sessionId [UpdateView, UpdateSideBar]
     atomically do

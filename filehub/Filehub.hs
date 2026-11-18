@@ -22,6 +22,7 @@ import Filehub.Config.Options (Options(..))
 import Filehub.Config.Options qualified as Config.Options
 import Filehub.Config.Toml qualified as Config.Toml
 import Filehub.Env (Env(..))
+import Filehub.History qualified as History
 import Filehub.Log qualified as Log
 import Filehub.Orphan ()
 import Filehub.Server (application)
@@ -90,6 +91,7 @@ main = Log.withColoredStdoutLogger \logger -> do
     cache            <- Cache.makeInMemoryCache <$> Cache.InMemory.new 5000
     httpManager      <- newTlsManager
     evtLogHandle     <- EvtLog.initialize "" 100
+    history          <- History.newHistory
     pure Env
       { port              = port
       , theme             = theme
@@ -111,6 +113,7 @@ main = Log.withColoredStdoutLogger \logger -> do
       , cache             = cache
       , lockManager       = lockManager
       , evtLogHandle      = evtLogHandle
+      , history           = history
       }
 
   go env `catch` handler

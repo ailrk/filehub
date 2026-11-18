@@ -34,6 +34,7 @@ import System.FilePath (takeFileName)
 import Filehub.Env (Env(..))
 import Filehub.Error (FilehubError(..))
 import Filehub.Handler (ConfirmLogin)
+import Filehub.History (Operation(..), recordHistory)
 import Filehub.Monad
 import Filehub.Session (SessionId(..), makeStorageAt, targetRoot)
 import Filehub.Session.Pool (withSession, modifySession)
@@ -300,6 +301,7 @@ share sessionId _ req = do
       let mPasscode = SharedLinkPasscode <$> req.passcode
       link <- createSharedLink file currentTargetId linkType req.readonly mPasscode
       addSharedLink link pool
+      recordHistory sessionId (OpShare currentTargetId req.file link.hash) True
       pure (Template.Shared.shareCreatedModal link.hash)
   where
     mkLinkType ShareRequest { linkType, expiryHours } = case linkType of
@@ -328,12 +330,16 @@ activeLinks pool = do
 
 -- | Revoke a link; return the updated full modal.
 revokeLink :: SessionId -> ConfirmLogin -> Maybe SharedLinkHash -> Filehub (Html ())
-revokeLink _ _ mHash = do
-  env <- ask
+revokeLink sessionId _ mHash = do
+  env  <- ask
   hash <- case mHash of
     Nothing -> throwIO (HTTPError err400 { errBody = "Missing hash" })
     Just h  -> pure h
+  mLink <- getSharedLink hash env.sharedLinkPool
   revokeSharedLink hash env.sharedLinkPool
+  case mLink of
+    Just link -> recordHistory sessionId (OpRevokeLink link.targetId link.hash) True
+    Nothing   -> pure ()
   activeLinks env.sharedLinkPool
 
 -- | Return the edit form as a full modal replacement.

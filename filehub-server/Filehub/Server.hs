@@ -46,6 +46,7 @@ import Filehub.Server.File qualified
 import Filehub.Server.Login qualified
 import Filehub.Server.Notification qualified
 import Filehub.Server.Search qualified
+import Filehub.Server.History qualified
 import Filehub.Server.SharedLink qualified
 import Filehub.Server.Static qualified
 import Filehub.Server.UI (index, clear)
@@ -141,6 +142,7 @@ server env = Api
   , favicon               = pure $(FileEmbed.embedFile "data/filehub/favicon.ico")
   , static                = Filehub.Server.Static.static
   , offline               = pure Template.offline
+  , history               = Filehub.Server.History.history
   , healthz               = healthz
   }
 

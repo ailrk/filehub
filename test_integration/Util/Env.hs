@@ -13,6 +13,7 @@ import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
 import Filehub.Auth.Types.OIDC (OIDCAuthProviders(..))
 import Filehub.Auth.Types.Simple (SimpleAuthUserDB(..))
 import Filehub.Env (Env(..))
+import Filehub.History qualified as History
 import Filehub.Locale (Locale(..))
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.SharedLink qualified as SharedLink
@@ -43,6 +44,7 @@ defaultEnv = do
                               ]
   sharedLinkPool <- SharedLink.newShareLinkPool
   evtLogHandle   <- EvtLog.initialize ":memory:" 100
+  history        <- History.newHistory
   let env =
         Env
           { port              = 0
@@ -65,6 +67,7 @@ defaultEnv = do
           , lockManager       = lockManager
           , activeUsers       = activeUserPool
           , evtLogHandle      = evtLogHandle
+          , history           = history
           }
   pure env
 
