@@ -294,7 +294,8 @@ library filehub-server
                           temporary,
                           random,
                           uri-encode,
-                          wai-extra
+                          wai-extra,
+                          hashable
   exposed-modules:        Filehub.Server
                           Filehub.Server.File
                           Filehub.Server.File.Paste

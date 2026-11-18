@@ -47,7 +47,7 @@ import Prelude hiding (read, readFile, writeFile)
 import Target.File (Target(..), FileSys)
 import Target.S3 (S3)
 import Target.Types (handleTarget, targetHandler, AnyTarget (..), HasTargetId (..), TargetId)
-import UnliftIO (throwIO, writeTVar, STM, readTVar, TVar, atomically, newTVar, newTVarIO)
+import UnliftIO (throwIO, writeTVar, STM, readTVar, TVar, atomically, newTVar, newTVarIO, tryIO)
 import UnliftIO.Directory (doesDirectoryExist)
 import Filehub.Session.Pool (withSession, modifySession)
 import Filehub.Session.Selected (AllSelected (..))
@@ -182,6 +182,10 @@ makeStorageDummy mockFS =
           Just (File { content = FileContentDir _ }) -> pure True
           _                                          -> pure False
 
+    , doesExist = \path -> pure $ case lookup path mockFS of
+        Just _  -> True
+        Nothing -> False
+
     , write       = error "not implemented"
     , mv          = error "not implemented"
     , rename      = error "not implemented"
@@ -251,6 +255,14 @@ makeStorageS3 target =
     , isDirectory = \filePath -> do
         s3 <- getS3
         S3.isDirectory s3 filePath
+    , doesExist = \filePath -> do
+        s3 <- getS3
+        isDir <- S3.isDirectory s3 filePath
+        if isDir
+          then pure True
+          else do
+            eFile <- tryIO (S3.get s3 filePath)
+            pure (either (const False) (const True) eFile)
     }
   where
     getS3 :: Filehub (Target S3)
@@ -274,6 +286,7 @@ makeStorageFileSys target currentDir =
                         throwIO (FilehubError InvalidDir "Can't enter, not a directory")
                       atomically do writeTVar currentDir dir
     , isDirectory = File.isDirectory
+    , doesExist   = File.doesExist
     , write       = File.write
     , mv          = File.mv
     , rename      = File.rename

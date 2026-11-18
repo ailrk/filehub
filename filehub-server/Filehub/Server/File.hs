@@ -20,12 +20,12 @@ module Filehub.Server.File
 import Codec.Archive.Zip qualified as Zip
 import Conduit (ConduitT, ResourceT, MonadIO (..), runResourceT, runConduit, (.|))
 import Conduit qualified
-import Control.Monad (when, replicateM, join)
+import Control.Monad (when, unless, replicateM, join)
 import Control.Monad.Reader (MonadReader(..))
 import Data.Binary.Builder qualified as BB
 import Data.ByteString (ByteString)
 import Data.ByteString.Char8 qualified as BC
-import Data.ClientPath (ClientPath (..), AbsPath (..), (<./>), Root (..), toClientPath)
+import Data.ClientPath (ClientPath (..), AbsPath (..), (<./>), Root (..))
 import Data.ClientPath qualified as ClientPath
 import Data.ClientPath.IO (validateAbsPath)
 import Data.ClientPath.View (ClientPathView(..), asClientPathView)
@@ -69,7 +69,9 @@ import System.FilePath (takeFileName, (</>), makeRelative, takeDirectory)
 import System.IO.Temp qualified as Temp
 import System.Random (randomRIO)
 import Text.Printf (printf)
-import UnliftIO (throwIO, try, newEmptyMVar, takeMVar, putMVar, writeTVar)
+import Data.List (isPrefixOf)
+import Data.Set qualified as Set
+import UnliftIO (throwIO, newEmptyMVar, takeMVar, putMVar, writeTVar, onException)
 import UnliftIO.Async (forConcurrently_)
 import UnliftIO.STM (atomically, modifyTVar', readTVar, newTVarIO, writeTBQueue)
 import Worker.Task (newTaskId)
@@ -236,6 +238,7 @@ move sessionId _ _ (MoveFile src tgt) = do
          )
 
   taskId <- newTaskId
+  withSession sessionId \s -> modifyTVar' s.pendingTasks (Set.insert taskId)
   lk     <- newEmptyMVar
 
   let srcPaths = fmap (ClientPath.fromClientPath root) src
@@ -250,7 +253,13 @@ move sessionId _ _ (MoveFile src tgt) = do
     when (srcPath == tgtPath)  do
       throwIO (FilehubError InvalidDir "Can't move to the same directory")
 
-    if | coerce takeDirectory srcPath == tgtPath -> do
+    let srcStr = coerce srcPath :: FilePath
+        tgtStr = coerce tgtPath :: FilePath
+
+    if | (srcStr ++ "/") `isPrefixOf` (tgtStr ++ "/") -> do
+           logAttention_ [i|[k4zm9x] move: circular move detected, skipping #{show srcPath}|]
+           pure Nothing
+       | coerce takeDirectory srcPath == tgtPath -> do
            logAttention_ [i|[k4zm9x] move: skipping #{show srcPath}, already in target directory|]
            pure Nothing
        | otherwise -> do
@@ -258,38 +267,41 @@ move sessionId _ _ (MoveFile src tgt) = do
                fileName = coerce takeFileName srcPath
                dstPath = tgtPath <./> fileName
 
-           eFile <- try @_ @FilehubError $ storage.get dstPath
-
-           case eFile of
-             Right _  -> do
+           exists <- storage.doesExist dstPath
+           if exists
+             then do
                logAttention_ [i|[k4zm9x] move: skipping #{show srcPath}, name conflict at #{show dstPath}|]
                pure Nothing
-             Left  _  -> pure $ Just srcPath
+             else pure $ Just srcPath
+
+  let handleMoveFailed =
+        atomically $ writeTBQueue notifications TaskFailed { taskId, htmxResponse = Nothing }
 
   forkFilehub_ env $ do
     _ <- takeMVar lk
+    flip onException handleMoveFailed do
+      unless (null checkedSrcPaths) do
+        storage.mv
+          let
+              merge srcPath =
+                let
+                    fileName = coerce takeFileName srcPath
+                 in
+                    tgtPath <./> fileName
 
-    storage.mv
-      let
-          merge srcPath =
-            let
-                fileName = coerce takeFileName srcPath
-             in
-                tgtPath <./> fileName
+              check a = (a, merge a)
+           in
+              fmap check checkedSrcPaths
 
-          check a = (a, merge a)
-       in
-          fmap check checkedSrcPaths
+      recordHistory sessionId (OpMove targetId src tgt) True
 
-    recordHistory sessionId (OpMove targetId src tgt) True
+      htmx <- runUIPartialUpdate sessionId [UpdateView]
 
-    htmx <- runUIPartialUpdate sessionId [UpdateView]
-
-    atomically do
-      writeTBQueue notifications TaskCompleted
-        { taskId       = taskId
-        , htmxResponse = Just htmx
-        }
+      atomically do
+        writeTBQueue notifications TaskCompleted
+          { taskId       = taskId
+          , htmxResponse = Just htmx
+          }
 
   UI.clear sessionId
 
@@ -361,6 +373,7 @@ upload :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> MultipartData Mem
 upload sessionId _ _ multipart = do
   env           <- ask
   taskId        <- newTaskId
+  withSession sessionId \s -> modifyTVar' s.pendingTasks (Set.insert taskId)
   notifications <- withSession sessionId (pure . (.notifications))
   (targetId, root, dir) <- withSession sessionId \s -> do
     TargetView t td <- getCurrentTarget env s

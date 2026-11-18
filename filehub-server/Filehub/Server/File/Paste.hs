@@ -4,7 +4,8 @@ module Filehub.Server.File.Paste (paste) where
 import Control.Monad (void)
 import Control.Monad.Fix (fix)
 import Control.Monad.Reader (MonadReader(..))
-import Data.ClientPath (AbsPath (..))
+import Data.ClientPath (AbsPath (..), toClientPath)
+import Data.Hashable (hash)
 import Data.Text qualified as T
 import Data.ClientPath.IO (validateAbsPath)
 import Data.Coerce (coerce)
@@ -40,6 +41,7 @@ import UnliftIO.Async (pooledForConcurrentlyN_)
 import UnliftIO.STM (atomically, modifyTVar', readTVar, newTVarIO, writeTBQueue)
 import Worker.Task (newTaskId)
 import UnliftIO.Concurrent (getNumCapabilities)
+import Data.Set qualified as Set
 
 
 data PasteTask
@@ -106,6 +108,7 @@ paste sessionId _ _ = do
   env    <- ask
   taskId <- newTaskId
   nCores <- getNumCapabilities
+  withSession sessionId \s -> modifyTVar' s.pendingTasks (Set.insert taskId)
 
   ( notifications
     , state
@@ -180,9 +183,22 @@ paste sessionId _ _ = do
 
         view'    <- UI.view sessionId
         sideBar' <- UI.sideBar sessionId
+
+        let root      = targetRoot pasteTo
+            hashPaths = [ show (fromIntegral @_ @Word (hash cp))
+                        | (_, files) <- selections
+                        , f          <- files
+                        , let cp = toClientPath root (AbsPath (coerce currentDir' </> takeFileName (coerce f.path)))
+                        ]
+            idsJs     = T.intercalate "," (map (\h -> [i|'tr-#{h}'|]) hashPaths)
+            hlScript  = [i|requestAnimationFrame(function(){[#{idsJs}].forEach(function(id){var el=document.getElementById(id);if(el){el.classList.add('pasted-new');}});});|] :: T.Text
+            hlTrigger = div_ [ id_ "paste-hl", hxSwapOOB True ] do
+                          script_ hlScript
+
         pure $ Just do
           view'    `with` [ hxSwapOOB True ]
           sideBar' `with` [ hxSwapOOB True ]
+          hlTrigger
 
   case state of
     Paste selections -> forkFilehub_ env do

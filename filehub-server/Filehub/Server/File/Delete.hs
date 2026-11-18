@@ -28,6 +28,7 @@ import Prelude hiding (init, readFile)
 import Servant (Header , Headers  , addHeader)
 import UnliftIO.Async (forConcurrently_)
 import UnliftIO.STM (atomically, modifyTVar', readTVar, newTVarIO, writeTBQueue, newTQueueIO, writeTQueue)
+import Data.Set qualified as Set
 import Worker.Task (newTaskId)
 import Filehub.Server.Util (throttle)
 import Control.Concurrent.STM (flushTQueue)
@@ -51,6 +52,7 @@ delete :: SessionId -> ConfirmLogin -> ConfirmReadOnly
 delete sessionId _ _ clientPaths deleteSelected = do
   taskId    <- newTaskId
   env       <- ask
+  withSession sessionId \s -> modifyTVar' s.pendingTasks (Set.insert taskId)
   ( notifications
     , root
     , AllSelected { count , allSelected }

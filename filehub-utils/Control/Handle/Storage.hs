@@ -40,4 +40,6 @@ data Storage m = Storage
   , download    :: ClientPath -> m (ConduitT () ByteString (ResourceT IO) ())
 
   , isDirectory :: AbsPath -> m Bool
+
+  , doesExist   :: AbsPath -> m Bool
   }

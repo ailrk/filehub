@@ -120,6 +120,7 @@ withDefault display background html = do
     NoDisplay -> link_ [ rel_ "stylesheet", href_ "/static/style-mobile.css" ]
   html
   div_ [ id_ "balloon-container"] mempty
+  div_ [ id_ "paste-hl" ] mempty
   div_ [ id_ "global-spinner", class_ "htmx-indicator" ] do
     i_ [ class_ "bx bx-loader-alt" ] mempty
 

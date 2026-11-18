@@ -33,3 +33,5 @@ staticFiles = unsafePerformIO $ M.fromList <$> FileEmbed.getDir "data/filehub"
 #else
 staticFiles = M.fromList $(FileEmbed.embedDir "data/filehub")
 #endif
+
+

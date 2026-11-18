@@ -494,6 +494,9 @@ hr {
 @keyframes popIn          { from { transform: scale(0.95) translateY(-4px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
 @keyframes popOut         { from { transform: scale(1);    opacity: 1; } to { transform: scale(0.95); opacity: 0; } }
 @keyframes slideInBalloon { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes pastedFlash    { 0% { background-color: color-mix(in srgb, var(--primary) 30%, transparent); } 100% { background-color: transparent; } }
+
+tr.pasted-new td, div.pasted-new { animation: pastedFlash 2s ease-out forwards; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

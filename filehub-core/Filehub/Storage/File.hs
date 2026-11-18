@@ -152,6 +152,10 @@ isDirectory filePath = do
     cacheKey = createCacheKey @"file" @FileInfo (coerce BB.string8 filePath)
 
 
+doesExist :: AbsPath -> Filehub Bool
+doesExist filePath = liftIO $ doesPathExist (coerce filePath)
+
+
 read :: FileInfo -> Filehub ByteString
 read File { path = AbsPath path } = do
   logTrace_ [i|[8sc2z] file read|]
@@ -286,18 +290,18 @@ rename oldPath newName = do
 
 
 -- | Copy all files and subdirectories from src to dst.
+-- Callers are responsible for locking src and dst before calling this.
 copyDirectoryRecursive :: AbsPath -> AbsPath -> Filehub ()
 copyDirectoryRecursive (AbsPath src) (AbsPath dst) = do
-  LockManager.withLock (LockManager.mkLockKey dst) do
-    createDirectoryIfMissing True dst
-    contents <- listDirectory src
-    forM_ contents \name -> do
-        srcPath <- validateAbsPath (src </> name) (FilehubError InvalidPath ("<redacted>/" <> name))
-        dstPath <- validateAbsPath (dst </> name) (FilehubError InvalidPath ("<redacted>/" <> name))
-        isDir <- doesDirectoryExist (coerce srcPath)
-        if isDir
-           then copyDirectoryRecursive srcPath dstPath
-           else copyFile (coerce srcPath) (coerce dstPath)
+  createDirectoryIfMissing True dst
+  contents <- listDirectory src
+  forM_ contents \name -> do
+      srcPath <- validateAbsPath (src </> name) (FilehubError InvalidPath ("<redacted>/" <> name))
+      dstPath <- validateAbsPath (dst </> name) (FilehubError InvalidPath ("<redacted>/" <> name))
+      isDir <- doesDirectoryExist (coerce srcPath)
+      if isDir
+         then copyDirectoryRecursive srcPath dstPath
+         else copyFile (coerce srcPath) (coerce dstPath)
 
 
 delete :: AbsPath -> Filehub ()
