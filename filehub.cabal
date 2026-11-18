@@ -62,6 +62,7 @@ common shared
                           -Wno-safe
                           -Wno-unsafe
                           -Wno-unticked-promoted-constructors
+                          -Wno-x-partial
                           -threaded
 
   build-depends:          base >=4.16.1.0

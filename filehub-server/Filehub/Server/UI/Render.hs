@@ -39,7 +39,6 @@ import Prelude hiding (elem, readFile, init)
 import Prelude hiding (init, readFile)
 import Data.Text (Text)
 import Lucid.Htmx (HxSwapOOB(..), HxOn (..), Trigger (..))
-import Debug.Trace
 
 
 entry :: SessionId -> FileInfo -> Filehub (Html ())

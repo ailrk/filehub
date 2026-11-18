@@ -30,12 +30,11 @@ import Filehub.Size (toReadableSize)
 import Filehub.Template (Template, TemplateContext(..), runTemplate)
 import Filehub.Template.Shared qualified as Template
 import Filehub.Template.Shared
-  ( sideBarId, controlPanelId, viewId, searchBar, toolBarId, tableId
+  ( sideBarId, viewId, searchBar, toolBarId, tableId
   , fileNameElement
   , sortIconName, sortIconMTime, sortIconSize, sortByText
   )
 import Filehub.Theme (Theme(..))
-import Filehub.Types ( SortFileBy(..))
 import Lucid
 import System.FilePath (takeFileName)
 import Target.File (Target (..), FileSys)

@@ -14,7 +14,7 @@ module Filehub.Server.SharedLink
   ) where
 
 import Control.Monad.Reader (MonadReader(..))
-import Data.ClientPath (ClientPath(..), AbsPath(..), Root(..))
+import Data.ClientPath (ClientPath(..), AbsPath(..))
 import Data.ClientPath qualified as ClientPath
 import Data.List (isPrefixOf)
 import Data.Set qualified as Set

@@ -24,7 +24,7 @@ import Target.S3 (S3)
 import Target.Types (handleTarget, targetHandler)
 import Target.Types qualified as Target
 import Filehub.Session.Pool (withSession, modifySession, withSession_)
-import Filehub.Session (Session(..), getTargetViews, getRoot, makeStorage, getTarget)
+import Filehub.Session (Session(..), getTargetViews, makeStorage, getTarget)
 import Control.Monad.Reader (MonadReader(ask))
 import Control.Concurrent.STM (throwSTM)
 

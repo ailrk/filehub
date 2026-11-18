@@ -3,7 +3,6 @@
 module Filehub.Server.Static where
 
 import Control.Applicative (Alternative((<|>)))
-import Control.Monad (join)
 import Control.Monad.Reader (asks)
 import Crypto.Hash.SHA256 qualified as SHA256
 import Data.Aeson (object, KeyValue (..), Value)
