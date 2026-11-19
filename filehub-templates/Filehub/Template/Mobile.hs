@@ -173,6 +173,7 @@ entries files = mconcat <$> traverse entry files
 entry :: FileInfo -> Template (Html ())
 entry file = do
   root                  <- asks (.root)
+  plugins               <- asks (.plugins)
   TargetView { target } <- asks (.currentTarget)
   selected              <- asks (.selected)
 
@@ -203,7 +204,7 @@ entry file = do
           modifiedDateElement file
           i_ [ class_ "bx bx-wifi-0"] mempty
           sizeElement file
-        `with` Template.open root file
+        `with` Template.open plugins root file
         `with` [ class_ "entry-preview " ]
       `with` [ case file.isLink of
                  Link       -> class_ "symlink "

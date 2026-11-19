@@ -41,8 +41,8 @@ import Log (LogLevel (..))
 
 data Options = Options
   { optionConfig :: Config Maybe
-  , configFile :: Maybe FilePath
-  -- ^ Path of the toml configuration file.
+  , configFiles :: [FilePath]
+  -- ^ Paths of toml configuration files (merged in order, last wins for scalars).
   }
 
 
@@ -125,12 +125,13 @@ readonly = switch
            ]
 
 
-configFile :: Parser FilePath
-configFile = option str
-           $ mconcat
-           $ [ long "config-file"
-             , help "Config file"
-             ]
+configFilePath :: Parser FilePath
+configFilePath = option str
+               $ mconcat
+               $ [ long "config"
+                 , metavar "PATH"
+                 , help "Config file (can be specified multiple times; later files override scalars, lists concatenate)"
+                 ]
 
 
 locale :: Parser Locale
@@ -156,10 +157,11 @@ config =
   <*> (pure mempty <|> (Targets <$> some targetConfig))
   <*> simpleAuthUserRecords
   <*> pure mempty
+  <*> pure mempty
 
 
 options :: Parser Options
-options = Options <$> config <*> optional configFile
+options = Options <$> config <*> many configFilePath
 
 
 parseOptions :: IO Options

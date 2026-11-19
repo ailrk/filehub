@@ -17,6 +17,7 @@ import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
 import Filehub.Auth.Types.OIDC (OIDCAuthProviders(..))
 import Filehub.Auth.Simple qualified as Auth.Simple
 import Filehub.Config (Config(..), TargetConfig (..))
+import Filehub.Plugin.Types (StaticPlugins(..))
 import Filehub.Config qualified as Config
 import Filehub.Config.Options (Options(..))
 import Filehub.Config.Options qualified as Config.Options
@@ -48,10 +49,11 @@ import Control.Handle.LockManager qualified as LockManager
 main :: IO ()
 main = Log.withColoredStdoutLogger \logger -> do
   Options
-    { configFile = configFile
+    { configFiles = configFiles
     , optionConfig
     } <- Config.Options.parseOptions
-  config <- Config.Toml.parseConfigFile configFile
+  fileConfigs <- traverse (Config.Toml.parseConfigFile . Just) configFiles
+  let fileConfig = mconcat fileConfigs
   Config
     { port                  = Identity port
     , theme                 = Identity theme
@@ -63,11 +65,12 @@ main = Log.withColoredStdoutLogger \logger -> do
     , targets               = targetConfigs
     , simpleAuthUserRecords = simpleAuthLoginUsers
     , oidcAuthProviders     = oidcAuthProviders
+    , plugins               = plugins
     } <-
       either
         (\err -> throwIO (userError err))
         pure
-        (Config.merge optionConfig config)
+        (Config.merge optionConfig fileConfig)
 
   runLogT "main" logger verbosity do
     logInfo_ [i|port:      #{port}|]
@@ -114,6 +117,7 @@ main = Log.withColoredStdoutLogger \logger -> do
       , lockManager       = lockManager
       , evtLogHandle      = evtLogHandle
       , history           = history
+      , plugins           = plugins.unStaticPlugins
       }
 
   go env `catch` handler

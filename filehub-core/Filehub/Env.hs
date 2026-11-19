@@ -29,6 +29,7 @@ import Control.Handle.Cache (Cache)
 import Control.Handle.LockManager (LockManager)
 import Control.Handle.EvtLog (EvtLog)
 import Filehub.History.Types (History)
+import Filehub.Plugin.Types (StaticPlugin)
 
 
 data Env = Env
@@ -75,6 +76,8 @@ data Env = Env
   , customThemeLight  :: Maybe CustomTheme
     -- global operation history (capped at 500 entries)
   , history           :: History
+    -- declarative (static) plugins loaded from config
+  , plugins           :: [StaticPlugin]
   }
 
 

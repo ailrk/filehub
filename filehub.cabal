@@ -234,6 +234,7 @@ library filehub-core
                           Filehub.Monad
                           Filehub.Notification.Types
                           Filehub.Orphan
+                          Filehub.Plugin.Types
                           Filehub.QQ
                           Filehub.Routes
                           Filehub.Routes.LinkConf

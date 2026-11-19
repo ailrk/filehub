@@ -16,6 +16,7 @@ import Data.Functor.Identity
 import Filehub.Auth.Types.OIDC qualified as Auth.OIDC
 import Filehub.Auth.Types.Simple qualified as Auth.Simple
 import Filehub.Locale (Locale (..))
+import Filehub.Plugin.Types (StaticPlugins)
 import Filehub.Theme (Theme (..), CustomTheme)
 import Target.File (FileSys)
 import Target.Types qualified as Target
@@ -34,6 +35,7 @@ data Config f = Config
   , targets               :: Targets
   , simpleAuthUserRecords :: SimpleAuthUserRecords
   , oidcAuthProviders     :: OidcAuthProviders
+  , plugins               :: StaticPlugins
   }
 
 
@@ -51,6 +53,26 @@ data TargetConfig
   deriving (Show, Eq)
 
 
+-- | Later config wins for scalar fields; list fields concatenate.
+instance Semigroup (Config Maybe) where
+  a <> b = Config
+    { port                  = b.port <|> a.port
+    , theme                 = b.theme <|> a.theme
+    , verbosity             = b.verbosity <|> a.verbosity
+    , readOnly              = b.readOnly <|> a.readOnly
+    , locale                = b.locale <|> a.locale
+    , customThemeDark       = b.customThemeDark <|> a.customThemeDark
+    , customThemeLight      = b.customThemeLight <|> a.customThemeLight
+    , targets               = a.targets <> b.targets
+    , simpleAuthUserRecords = a.simpleAuthUserRecords <> b.simpleAuthUserRecords
+    , oidcAuthProviders     = a.oidcAuthProviders <> b.oidcAuthProviders
+    , plugins               = a.plugins <> b.plugins
+    }
+
+instance Monoid (Config Maybe) where
+  mempty = Config Nothing Nothing Nothing Nothing Nothing Nothing Nothing mempty mempty mempty mempty
+
+
 -- | The second config overrides the first one.
 merge :: Config Maybe -> Config Maybe -> Either String (Config Identity)
 merge cfg1 cfg2 = do
@@ -64,6 +86,7 @@ merge cfg1 cfg2 = do
   let targets              = mconcat [cfg1.targets, cfg2.targets]
   let simpleAuthLoginUsers = mconcat [cfg1.simpleAuthUserRecords, cfg2.simpleAuthUserRecords]
   let oidcAuthProviders    = mconcat [cfg1.oidcAuthProviders , cfg2.oidcAuthProviders]
+  let plugins              = mconcat [cfg1.plugins, cfg2.plugins]
   pure
     Config
       { port                  = Identity port
@@ -76,4 +99,5 @@ merge cfg1 cfg2 = do
       , targets               = targets
       , simpleAuthUserRecords = simpleAuthLoginUsers
       , oidcAuthProviders     = oidcAuthProviders
+      , plugins               = plugins
       }

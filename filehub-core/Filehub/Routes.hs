@@ -455,6 +455,22 @@ data Api mode = Api
                           :> ReqBody '[FormUrlEncoded] SharedLinkUpdate
                           :> Post '[HTML] (Html ())
 
+  -- Look up an active no-passcode share link for a file; returns the hash as plain text or 404.
+  , shareForFile          :: mode
+                          :- "share" :> "for-file"
+                          :> AuthProtect "session"
+                          :> AuthProtect "login"
+                          :> QueryParam "file" ClientPath
+                          :> Get '[PlainText] Text
+
+  -- Create (or return existing) no-passcode indefinite readonly share link; returns hash as plain text.
+  , shareAuto             :: mode
+                          :- "share" :> "auto"
+                          :> AuthProtect "session"
+                          :> AuthProtect "login"
+                          :> QueryParam "file" ClientPath
+                          :> Post '[PlainText] Text
+
   -- The Raw handler is a wai-static-app, the endpoint has the following format:
   -- /serve?file=<clientpath>
   , serve                 :: mode

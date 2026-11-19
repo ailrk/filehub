@@ -522,6 +522,7 @@ entries files = do
 entry :: FileInfo -> Template (Html ())
 entry file = do
   root                <- asks (.root)
+  plugins             <- asks (.plugins)
   selected            <- asks (.selected)
   TargetView target _ <- asks (.currentTarget)
 
@@ -536,7 +537,7 @@ entry file = do
     tr_ do
       td_ [ class_ "entry-preview " ] do
         fileNameElement file target True
-          `with` Template.open root file
+          `with` Template.open plugins root file
           `with`  [ class_ "field "]
       td_ $ modifiedDateElement file
       td_ $ sizeElement file
@@ -578,6 +579,7 @@ thumbnail :: FileInfo -> Template (Html ())
 thumbnail file = do
   TargetView target _ <- asks (.currentTarget)
   root                <- asks (.root)
+  plugins             <- asks (.plugins)
   selected            <- asks (.selected)
 
   let ClientPathView { clientPath, hashPath } = asClientPathView root file.path
@@ -609,7 +611,7 @@ thumbnail file = do
             BrokenLink -> [ class_ "broken-symlink "]
             NotLink    -> []
         ]
-    `with` Template.open root file
+    `with` Template.open plugins root file
 
 
 previewElement :: Root -> FileInfo -> Html ()

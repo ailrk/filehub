@@ -1,5 +1,9 @@
 declare var htmx: any;
 
+interface ContextMenuEntry { mime: string; label: string; url: string; }
+interface FilehubPlugin   { name: string; contextMenu: ContextMenuEntry[]; }
+declare var filehubPlugins: FilehubPlugin[] | undefined;
+
 import { i18n } from '../../i18n.js';
 import * as ModalBuilder from '../../modal-builder.js';
 
@@ -126,6 +130,12 @@ function buildMenu1(item: HTMLElement, readOnly: boolean): HTMLElement {
   });
   menu.appendChild(detailEl);
 
+  const pluginItems = buildPluginItems(path, item.dataset.name ?? '', item.dataset.mime ?? '');
+  if (pluginItems.length > 0) {
+    menu.appendChild(document.createElement('hr'));
+    for (const el of pluginItems) menu.appendChild(el);
+  }
+
   htmx.process(menu);
   return menu;
 }
@@ -225,6 +235,62 @@ function buildMenuSidebar(tab: HTMLElement): HTMLElement {
   menu.appendChild(openEl);
 
   return menu;
+}
+
+
+function buildPluginItems(filePath: string, fileName: string, fileMime: string): HTMLElement[] {
+  const plugins: FilehubPlugin[] = (typeof filehubPlugins !== 'undefined' && filehubPlugins) ? filehubPlugins : [];
+  const items: HTMLElement[] = [];
+  for (const plugin of plugins) {
+    for (const entry of plugin.contextMenu) {
+      if (!fileMime.startsWith(entry.mime)) continue;
+      const needsShare = entry.url.includes('{share_url}');
+      const el = makeClickItem(entry.label, 'bx-link-external', () => {
+        if (needsShare) {
+          openWithShare(filePath, fileName, fileMime, entry.url);
+        } else {
+          const url = substituteUrl(entry.url, filePath, fileName, fileMime, '');
+          window.open(url, '_blank');
+        }
+      });
+      items.push(el);
+    }
+  }
+  return items;
+}
+
+
+async function openWithShare(filePath: string, fileName: string, fileMime: string, urlTemplate: string): Promise<void> {
+  const enc = encodeURIComponent(filePath);
+
+  // Check if a no-passcode share link already exists for this file.
+  const lookupRes = await fetch(`/share/for-file?file=${enc}`);
+  let hash: string;
+
+  if (lookupRes.ok) {
+    hash = await lookupRes.text();
+  } else {
+    // No existing link — ask the user before creating one.
+    if (!confirm(`"${fileName}" is not shared. Create a public share link to open it in this app?`)) return;
+    const createRes = await fetch(`/share/auto?file=${enc}`, { method: 'POST' });
+    if (!createRes.ok) { alert('Failed to create share link.'); return; }
+    hash = await createRes.text();
+  }
+
+  const shareUrl = `${window.location.origin}/s/${hash}/file?file=${enc}`;
+  const url = substituteUrl(urlTemplate, filePath, fileName, fileMime, shareUrl);
+  window.open(url, '_blank');
+}
+
+
+function substituteUrl(template: string, filePath: string, fileName: string, fileMime: string, shareUrl: string): string {
+  const downloadUrl = `${window.location.origin}/download?file=${encodeURIComponent(filePath)}`;
+  return template
+    .replace('{file_path}',   encodeURIComponent(filePath))
+    .replace('{file_name}',   encodeURIComponent(fileName))
+    .replace('{mime_type}',   encodeURIComponent(fileMime))
+    .replace('{download_url}', encodeURIComponent(downloadUrl))
+    .replace('{share_url}',   encodeURIComponent(shareUrl));
 }
 
 

@@ -15,6 +15,7 @@ import Filehub.Auth.Types.Simple (SimpleAuthUserDB)
 import Filehub.Env qualified as Env
 import Filehub.Locale (Locale)
 import Filehub.Monad (Filehub)
+import Filehub.Plugin.Types (StaticPlugin)
 import Filehub.Session (Session(..), getRoot, getCurrentTarget, getTargetViews)
 import Filehub.Session (TargetView(..), SessionId)
 import Filehub.Session.Types (Selected, Layout, ControlPanelState)
@@ -52,6 +53,7 @@ data TemplateContext = TemplateContext
   , root              :: ~Root
   , simpleAuthUserDB  :: ~SimpleAuthUserDB
   , oidcAuthProviders :: ~OIDCAuthProviders
+  , plugins           :: ~[StaticPlugin]
   }
 
 
@@ -69,6 +71,7 @@ makeTemplateContext sessionId = do
   noLogin           <- Env.hasNoLogin <$> ask @Env
   simpleAuthUserDB  <- asks (.simpleAuthUserDB)
   oidcAuthProviders <- asks (.oidcAuthProviders)
+  plugins           <- asks (.plugins)
 
   withSession sessionId \s -> do
     display       <- getDisplay s
@@ -96,4 +99,5 @@ makeTemplateContext sessionId = do
       , currentTarget      = currentTarget
       , simpleAuthUserDB   = simpleAuthUserDB
       , oidcAuthProviders  = oidcAuthProviders
+      , plugins            = plugins
       }

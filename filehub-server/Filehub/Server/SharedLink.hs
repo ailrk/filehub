@@ -6,6 +6,8 @@ module Filehub.Server.SharedLink
   , sharedAuth
   , sharedAuthPost
   , share
+  , shareForFile
+  , shareAuto
   , shareLinks
   , revokeLink
   , editLinkForm
@@ -13,15 +15,17 @@ module Filehub.Server.SharedLink
   , updateLink
   ) where
 
+import Control.Concurrent.STM (throwSTM)
 import Control.Monad.Reader (MonadReader(..))
 import Data.ClientPath (ClientPath(..), AbsPath(..))
 import Data.ClientPath qualified as ClientPath
 import Data.List (isPrefixOf)
+import Data.Maybe (isNothing)
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text.Encoding qualified as T
 import Data.Text.Encoding.Error (lenientDecode)
-import Data.Time (addUTCTime, getCurrentTime)
+import Data.Time (addUTCTime, getCurrentTime, UTCTime)
 import Network.Mime.Extended (isMime)
 import Data.UUID qualified as UUID
 import Filehub.Cookie qualified as Cookies
@@ -48,7 +52,7 @@ import Network.HTTP.Types.Header (hLocation, hSetCookie)
 import Prelude hiding (init, readFile)
 import Servant (addHeader, Header, Headers, err303, err400, err404, err403, errBody, errHeaders)
 import Control.Monad (unless, when)
-import UnliftIO (MonadIO(..), atomically, readTVar, throwIO)
+import UnliftIO (MonadIO(..), atomically, readTVar, throwIO, tryIO, tryAny)
 import Web.Cookie (SetCookie(..), defaultSetCookie)
 
 
@@ -114,13 +118,13 @@ sharedFile sessionId mClientPermit hash inline mClientPath = do
   case mLink of
     Nothing -> throwIO (HTTPError err404 { errBody = "Link not found or expired" })
     Just link
-      | link.revoked -> throwIO (HTTPError err403 { errBody = "Link revoked" })
+      | link.revoked        -> throwIO (HTTPError err403 { errBody = "Link revoked" })
+      | singleUseConsumed link -> throwIO (HTTPError err403 { errBody = "Single-use link already used" })
       | otherwise -> do
-          authorized <- checkPermit sessionId mClientPermit hash
-          unless authorized $
-            if singleUseConsumed link
-              then throwIO (HTTPError err403 { errBody = "Single-use link already used" })
-              else goAuth hash
+          authorized <- case link.passcode of
+            Nothing -> pure True  -- no passcode = public link, skip permit check
+            Just _  -> checkPermit sessionId mClientPermit hash
+          unless authorized $ goAuth hash
           clientPath <- case mClientPath of
             Nothing -> throwIO (HTTPError err400 { errBody = "No file specified" })
             Just cp -> pure cp
@@ -311,6 +315,58 @@ share sessionId _ req = do
         let hours = maybe 24 id expiryHours
         now <- liftIO getCurrentTime
         pure (Expiry (fromIntegral (hours * 3600) `addUTCTime` now))
+
+
+-- | Return the hash of an active no-passcode share link for the given file, or 404.
+shareForFile :: SessionId -> ConfirmLogin -> Maybe ClientPath -> Filehub Text
+shareForFile sessionId _ mClientPath = do
+  clientPath <- case mClientPath of
+    Nothing -> throwIO (HTTPError err400 { errBody = "No file specified" })
+    Just cp -> pure cp
+  env <- ask
+  currentTargetId <- withSession sessionId \s -> readTVar s.currentTargetId
+  absPath <- atomically $ do
+    targets <- readTVar env.targets
+    case lookup currentTargetId targets of
+      Nothing -> throwSTM (HTTPError err404 { errBody = "Target not found" })
+      Just tgt -> pure $ ClientPath.fromClientPath (targetRoot tgt) clientPath
+  now <- liftIO getCurrentTime
+  all_ <- getAllSharedLinks env.sharedLinkPool
+  let active l = not l.revoked
+              && l.targetId == currentTargetId
+              && l.file.path == absPath
+              && isNothing l.passcode
+              && case l.linkType of { Expiry t -> t > now; _ -> True }
+  case filter active all_ of
+    SharedLink { hash = SharedLinkHash h } : _ -> pure h
+    []                                         -> throwIO (HTTPError err404 { errBody = "No share link found" })
+
+
+-- | Return existing or create new indefinite readonly no-passcode share link; returns hash.
+shareAuto :: SessionId -> ConfirmLogin -> Maybe ClientPath -> Filehub Text
+shareAuto sessionId confirmLogin mClientPath = do
+  clientPath <- case mClientPath of
+    Nothing -> throwIO (HTTPError err400 { errBody = "No file specified" })
+    Just cp -> pure cp
+  result <- tryAny (shareForFile sessionId confirmLogin mClientPath)
+  case result of
+    Right h -> pure h
+    Left _  -> do
+      env <- ask
+      currentTargetId <- withSession sessionId \s -> readTVar s.currentTargetId
+      targets <- atomically (readTVar env.targets)
+      case lookup currentTargetId targets of
+        Nothing -> throwIO (HTTPError err404 { errBody = "Target not found" })
+        Just target -> do
+          let root    = targetRoot target
+              absPath = ClientPath.fromClientPath root clientPath
+          storage <- makeStorageAt target absPath
+          file    <- storage.get absPath
+          link    <- createSharedLink file currentTargetId Indefinite True Nothing
+          addSharedLink link env.sharedLinkPool
+          recordHistory sessionId (OpShare currentTargetId clientPath link.hash) True
+          let SharedLinkHash h = link.hash
+          pure h
 
 
 -- | List all currently active shared links.

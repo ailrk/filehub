@@ -35,12 +35,15 @@ import Data.Coerce (coerce)
 import Data.File (File(..), FileType(..), FileInfo, IsLink (..))
 import Data.Foldable (Foldable(..))
 import Data.Function ((&))
+import Data.List (find)
 import Data.Maybe (fromMaybe, catMaybes)
 import Data.Sequence (Seq(..))
 import Data.Sequence qualified as Seq
 import Data.String.Interpolate (iii)
 import Data.Text (Text)
 import Data.Text qualified as Text
+import Data.Text.Encoding qualified as Text
+import Filehub.Plugin.Types (StaticPlugin(..), ViewerEntry(..), UrlTemplate(..))
 import Filehub.Routes.Links (apiLinks)
 import Filehub.Locale ( Phrase(..), phrase )
 import Filehub.Routes (Api (..))
@@ -320,14 +323,18 @@ icon file =
           | otherwise                                                      -> i_ [ class_ "bx bxs-file-blank "] mempty
 
 
-open :: Root -> FileInfo -> [Attribute]
-open root file = do
+open :: [StaticPlugin] -> Root -> FileInfo -> [Attribute]
+open plugins root file = do
   case file.isLink of
     BrokenLink -> []
     _          ->
       case file.content of
         Dir        -> asHtmx @"cd" hxGet (Just clientPath) []
         Regular
+          | Just entry <- findPluginViewer plugins file.mimetype ->
+               [ href_ (substituteViewerUrl entry.url file root)
+               , target_ "_blank"
+               ]
           | file.mimetype `isMime` "application/pdf" ->
                [ hxGet (apiLinks.open (Just OpenDOMBlank) (Just clientPath))
                , term "hx-swap" "none"
@@ -354,6 +361,22 @@ open root file = do
                asHtmx @"editorModal" hxGet (Just clientPath) [ term "hx-indicator" "#global-spinner" ]
   where
     clientPath = ClientPath.toClientPath root file.path
+
+    findPluginViewer ps mime =
+      let allViewers = concatMap (.viewer) ps
+          -- skip viewer entries that need {share_url} — those require async JS handling
+          usable e = mime `isMime` e.mime && not ("{share_url}" `Text.isInfixOf` e.url.unUrlTemplate)
+      in  find usable allViewers
+
+    substituteViewerUrl (UrlTemplate tmpl) f r =
+      let cp       = ClientPath.toClientPath r f.path
+          filePath = Text.pack (show cp)
+          fileName = Text.pack (takeFileName (coerce f.path))
+          mimeType = Text.decodeUtf8 f.mimetype
+      in  tmpl
+            & Text.replace "{file_path}" filePath
+            & Text.replace "{file_name}" fileName
+            & Text.replace "{mime_type}" mimeType
 
 
 bold :: Html () -> Html ()

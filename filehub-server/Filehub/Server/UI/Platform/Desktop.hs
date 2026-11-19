@@ -17,6 +17,7 @@ import Data.Text (Text)
 import Data.Text qualified as T
 import Filehub.Locale (Phrase(..), phrase)
 import Filehub.Monad (Filehub)
+import Filehub.Plugin.Types (StaticPlugin(..), ContextMenuEntry(..), UrlTemplate(..))
 import Filehub.Session (TargetView(..), getTargetViews, getCurrentTarget, makeStorageCurrentTarget, Storage(..))
 import Filehub.Session.Pool (withSession)
 import Filehub.Session.Types (TargetSessionData(..), Selected (..))
@@ -56,7 +57,9 @@ index sessionId = do
   sideBar' <- sideBar sessionId
   view'    <- view sessionId
   toolBar' <- toolBar sessionId
-  let i18nScript = script_ [type_ "text/javascript"] (i18nPayload ctx.readOnly (phrase ctx.locale))
+  let i18nScript = script_ [type_ "text/javascript"] $
+        i18nPayload ctx.readOnly (phrase ctx.locale)
+        <> pluginsPayload ctx.plugins
   pure $ runTemplate ctx (Template.Desktop.index i18nScript sideBar' view' toolBar')
 
 
@@ -106,6 +109,23 @@ i18nPayload readOnly p = "window.filehubI18n=" <> obj <> ";"
       , "\"readOnly\":" <> if readOnly then "true" else "false"
       ] <> "}"
     kv key val = "\"" <> key <> "\":\"" <> escape val <> "\""
+    escape = T.replace "\\" "\\\\" . T.replace "\"" "\\\"" . T.replace "\n" "\\n" . T.replace "\r" "\\r" . T.replace "\t" "\\t"
+
+
+pluginsPayload :: [StaticPlugin] -> Text
+pluginsPayload ps = "window.filehubPlugins=" <> arr <> ";"
+  where
+    arr = "[" <> T.intercalate "," (map encodePlugin ps) <> "]"
+    encodePlugin p =
+      "{\"name\":" <> str p.name <>
+      ",\"contextMenu\":[" <> T.intercalate "," (map encodeContextMenu p.contextMenu) <> "]" <>
+      "}"
+    encodeContextMenu e =
+      "{\"mime\":" <> str e.mime <>
+      ",\"label\":" <> str e.label <>
+      ",\"url\":" <> str (e.url.unUrlTemplate) <>
+      "}"
+    str t = "\"" <> escape t <> "\""
     escape = T.replace "\\" "\\\\" . T.replace "\"" "\\\"" . T.replace "\n" "\\n" . T.replace "\r" "\\r" . T.replace "\t" "\\t"
 
 
