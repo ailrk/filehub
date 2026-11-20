@@ -68,6 +68,7 @@ defaultEnv = do
           , activeUsers       = activeUserPool
           , evtLogHandle      = evtLogHandle
           , history           = history
+          , plugins           = []
           }
   pure env
 
