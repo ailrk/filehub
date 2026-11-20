@@ -15,7 +15,7 @@ import * as MobilePanel from './handlers/mobile/panel.js';
 import * as Modal from './modal.js';
 import * as ModalBuilder from './modal-builder.js';
 import Viewer from './viewer.js';
-import type { DeleteProgressed, MoveProgressed, Opened, PasteProgressed, TaskCompleted, TaskFailed, UploadProgressed, ViewerInited } from './def.js';
+import type { DeleteProgressed, MoveProgressed, Opened, PasteProgressed, Resource, TaskCompleted, TaskFailed, UploadProgressed, ViewerInited } from './def.js';
 import { Display } from './def.js';
 import { i18n } from './i18n.js';
 
@@ -146,7 +146,22 @@ function handleError(e: any) {
 
 function initViewer(e: any) {
   const o: ViewerInited = e.detail;
-  viewer = new Viewer(o.resources, { index: o.index });
+  const clickedUrl = o.resources[0][0];
+  const clickedPath = new URL(clickedUrl, window.location.origin).searchParams.get('file') ?? '';
+
+  const isMedia = (mime: string) =>
+    mime.startsWith('image') || mime.startsWith('video') || mime.startsWith('audio');
+
+  const items = Array.from(document.querySelectorAll<HTMLElement>('#table .table-item'))
+    .filter(el => el.dataset.ftype !== 'dir' && isMedia(el.dataset.mime ?? ''));
+
+  const resources: Resource[] = items.map(el => [
+    `/serve?file=${el.dataset.path ?? ''}`,
+    el.dataset.mime ?? '',
+  ]);
+
+  const idx = items.findIndex(el => el.dataset.path === clickedPath);
+  viewer = new Viewer(resources.length > 0 ? resources : o.resources, { index: idx >= 0 ? idx : 0 });
   viewer.show();
 }
 

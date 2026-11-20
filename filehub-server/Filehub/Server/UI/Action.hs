@@ -27,6 +27,8 @@ import Data.File (FileInfo, File(..))
 import Data.List qualified as L
 import Data.Maybe (fromMaybe)
 import Data.String.Interpolate (i)
+import Data.Text (Text)
+import Data.Text qualified as Text
 import Data.Text.Encoding qualified as T
 import Filehub.Error (FilehubError(..), Error' (..))
 import Filehub.Handler (ConfirmLogin)
@@ -46,12 +48,12 @@ import Filehub.Sort qualified as Sort
 import Filehub.Theme qualified as Theme
 import Filehub.Types
 import Lucid hiding ()
-import Network.Mime (MimeType)
+import Network.Mime (MimeType, defaultMimeLookup)
 import Network.Mime.Extended (isMime)
 import Prelude hiding (elem, readFile, init)
 import Prelude hiding (init, readFile)
 import Servant (Header , Headers  , addHeader, NoContent (..))
-import System.FilePath (takeDirectory)
+import System.FilePath (takeDirectory, takeFileName)
 import UnliftIO (throwIO, writeTVar, readTVar)
 
 
@@ -134,52 +136,17 @@ selectRows sessionId _ selected = do
 initViewer :: SessionId -> ConfirmLogin -> Maybe ClientPath
            -> Filehub (Headers '[Header "HX-Trigger" FilehubEvent] NoContent)
 initViewer sessionId _ mClientPath = do
-  env <- ask
-  storage <- makeStorageCurrentTarget sessionId
-  (root, order) <- withSession sessionId \s -> do
-    TargetView _ td <- getCurrentTarget env s
-    root            <- getRoot env s
-    order           <- readTVar td.sortedFileBy
-    pure (root, order)
-
+  env  <- ask
+  root <- withSession sessionId \s -> getRoot env s
   clientPath <- withQueryParam mClientPath
-  payload <- do
-    let filePath  =  ClientPath.fromClientPath root clientPath
-    let dir       =  coerce takeDirectory filePath
-    allFiles      <- takeResourceFiles . Sort.sortFiles order <$> (storage.ls dir)
-    let files     =  filter (inSameDir dir) allFiles
-    let idx       =  fromMaybe 0 $ L.elemIndex filePath (fmap (.path) files)
-    let resources =  fmap (toResource root) (windowAround maxViewerResources idx files)
-    pure $ ViewerInited resources (min idx (maxViewerResources - 1))
-  pure $ addHeader payload NoContent
-  where
-    maxViewerResources :: Int
-    maxViewerResources = 50
-
-    windowAround :: Int -> Int -> [a] -> [a]
-    windowAround n idx' xs =
-      let half   = n `div` 2
-          start  = max 0 (idx' - half)
-          end    = min (length xs) (start + n)
-          start' = max 0 (end - n)
-      in take n (drop start' xs)
-
-    isResource :: MimeType -> Bool
-    isResource s = any (s `isMime`)  ["image", "video", "audio"]
-
-    takeResourceFiles :: [FileInfo] -> [FileInfo]
-    takeResourceFiles = filter (isResource . (.mimetype))
-
-    inSameDir :: AbsPath -> FileInfo -> Bool
-    inSameDir dir f = coerce takeDirectory f.path == dir
-
-    toResource :: Root -> FileInfo -> Resource
-    toResource root f =
-      Resource
-        { url = let ClientPath path = ClientPath.toClientPath root f.path
-                 in ClientPath.RawClientPath [i|/serve?file=#{path}|]
-                                                  , mimetype = T.decodeUtf8 f.mimetype
+  let ClientPath rawPath = clientPath
+      absPath            = ClientPath.fromClientPath root clientPath
+      mime               = defaultMimeLookup (Text.pack (takeFileName (coerce absPath)))
+      resource           = Resource
+        { url      = ClientPath.RawClientPath [i|/serve?file=#{rawPath}|]
+        , mimetype = T.decodeUtf8 mime
         }
+  pure $ addHeader (ViewerInited [resource] 0) NoContent
 
 
 open :: SessionId -> ConfirmLogin -> Maybe OpenTarget -> Maybe ClientPath

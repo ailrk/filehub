@@ -127,7 +127,17 @@ function handleError(e) {
 }
 function initViewer(e) {
     const o = e.detail;
-    viewer = new Viewer(o.resources, { index: o.index });
+    const clickedUrl = o.resources[0][0];
+    const clickedPath = new URL(clickedUrl, window.location.origin).searchParams.get('file') ?? '';
+    const isMedia = (mime) => mime.startsWith('image') || mime.startsWith('video') || mime.startsWith('audio');
+    const items = Array.from(document.querySelectorAll('#table .table-item'))
+        .filter(el => el.dataset.ftype !== 'dir' && isMedia(el.dataset.mime ?? ''));
+    const resources = items.map(el => [
+        `/serve?file=${el.dataset.path ?? ''}`,
+        el.dataset.mime ?? '',
+    ]);
+    const idx = items.findIndex(el => el.dataset.path === clickedPath);
+    viewer = new Viewer(resources.length > 0 ? resources : o.resources, { index: idx >= 0 ? idx : 0 });
     viewer.show();
 }
 function open(e) {
