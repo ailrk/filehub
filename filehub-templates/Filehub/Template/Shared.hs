@@ -343,21 +343,13 @@ open plugins root file = do
                , target_ "_blank"
                ]
           | file.mimetype `isMime` "application/pdf" ->
-               [ term "data-action" "open-blank"
-               , term "data-path"   (Text.pack (coerce clientPath))
-               ]
+               [ term "data-action" "open-blank" ]
           | file.mimetype `isMime` "audio" ->
-               [ term "data-action" "open-viewer"
-               , term "data-path"   (Text.pack (coerce clientPath))
-               ]
+               [ term "data-action" "open-viewer" ]
           | file.mimetype `isMime` "video" ->
-               [ term "data-action" "open-viewer"
-               , term "data-path"   (Text.pack (coerce clientPath))
-               ]
+               [ term "data-action" "open-viewer" ]
           | file.mimetype `isMime` "image" ->
-               [ term "data-action" "open-viewer"
-               , term "data-path"   (Text.pack (coerce clientPath))
-               ]
+               [ term "data-action" "open-viewer" ]
           | file.mimetype `isMime` "text" ->
                asHtmx @"editorModal" hxGet (Just clientPath) [ term "hx-indicator" "#global-spinner" ]
           | otherwise ->

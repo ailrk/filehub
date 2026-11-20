@@ -167,7 +167,7 @@ function handleError(e: any) {
 function openViewerOnClick(e: MouseEvent) {
   const el = (e.target as Element).closest<HTMLElement>('[data-action="open-viewer"]');
   if (!el) return;
-  const path = el.dataset.path ?? '';
+  const path = (el.closest<HTMLElement>('[data-path]') ?? el).dataset.path ?? '';
   if (!path) return;
   viewer = new Viewer(path);
   viewer.show();
@@ -177,7 +177,7 @@ function openViewerOnClick(e: MouseEvent) {
 function openBlankOnClick(e: MouseEvent) {
   const el = (e.target as Element).closest<HTMLElement>('[data-action="open-blank"]');
   if (!el) return;
-  const path = el.dataset.path ?? '';
+  const path = (el.closest<HTMLElement>('[data-path]') ?? el).dataset.path ?? '';
   if (path) window.open(`/serve?file=${path}`, '_blank');
 }
 

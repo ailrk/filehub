@@ -145,7 +145,7 @@ function openViewerOnClick(e) {
     const el = e.target.closest('[data-action="open-viewer"]');
     if (!el)
         return;
-    const path = el.dataset.path ?? '';
+    const path = (el.closest('[data-path]') ?? el).dataset.path ?? '';
     if (!path)
         return;
     viewer = new Viewer(path);
@@ -155,7 +155,7 @@ function openBlankOnClick(e) {
     const el = e.target.closest('[data-action="open-blank"]');
     if (!el)
         return;
-    const path = el.dataset.path ?? '';
+    const path = (el.closest('[data-path]') ?? el).dataset.path ?? '';
     if (path)
         window.open(`/serve?file=${path}`, '_blank');
 }

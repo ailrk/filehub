@@ -294,7 +294,7 @@ textarea:focus {
   line-height: 40px;
   text-align: center;
   pointer-events: none;
-  z-index: 1;
+  z-index: 0;
   transition: opacity var(--fast) var(--ease);
 }
 
