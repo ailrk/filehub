@@ -14,7 +14,6 @@ module Filehub.Server.File
   , download
   , upload
   , serve
-  , thumbnail
   ) where
 
 import Codec.Archive.Zip qualified as Zip
@@ -490,28 +489,3 @@ serve env sessionId _ = Tagged $ \req respond -> do
                 .| Conduit.mapM_C \chunk -> liftIO do send (BB.fromByteString chunk); flush
 
 
-thumbnail :: SessionId -> ConfirmLogin -> Maybe ClientPath
-          -> Filehub (Headers '[ Header "Content-Type" String
-                               , Header "Content-Disposition" String
-                               , Header "Cache-Control" String
-                               ]
-                               (ConduitT () ByteString (ResourceT IO) ()))
-thumbnail sessionId _ mFile = do
-  storage    <- makeStorageCurrentTarget sessionId
-  root       <- withSession sessionId . getRoot =<< ask
-  clientPath <- withQueryParam mFile
-  let path   =  ClientPath.fromClientPath root clientPath
-  file       <- storage.get path
-  conduit    <- serveOriginal storage file
-
-  pure
-    . addHeader (BC.unpack file.mimetype)
-    . addHeader (printf "inline; filename=%s" (coerce takeFileName path :: String))
-    . addHeader "public, max-age=31536000, immutable"
-    $ conduit
-
-  where
-    serveOriginal storage file =
-      if
-        | file.mimetype `isMime` "image" -> storage.readStream file Nothing Nothing
-        | otherwise                      -> throwIO (FilehubError FormatError "Invalid mime type for thumbnail")

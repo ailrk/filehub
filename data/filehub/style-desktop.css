@@ -209,7 +209,8 @@ textarea:focus {
 
 .image-wrapper i { font-size: 5em; }
 
-.image-wrapper img {
+.image-wrapper img,
+.image-wrapper video {
   display: block;
   width: 100%;
   height: 100%;
@@ -272,6 +273,33 @@ textarea:focus {
 .dir {
   cursor: pointer;
   color: var(--tertiary);
+}
+
+
+/* ---------- Video play overlay ---------- */
+
+.thumbnail-preview:has(video)::before {
+  font-family: 'boxicons' !important;
+  content: '\ebbe';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 2rem;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  line-height: 40px;
+  text-align: center;
+  pointer-events: none;
+  z-index: 1;
+  transition: opacity var(--fast) var(--ease);
+}
+
+.thumbnail:hover .thumbnail-preview:has(video)::before {
+  opacity: 0;
 }
 
 

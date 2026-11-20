@@ -2,6 +2,10 @@
 
 declare var htmx: any;
 
+declare global {
+  interface HTMLVideoElement { _hoverInited?: boolean; }
+}
+
 import * as Balloon from './balloon.js';
 import * as Cookie from './cookie.js';
 import * as DesktopContextmenu from './handlers/desktop/contextmenu.js';
@@ -74,10 +78,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     initTomlEditors();
     initPluginToggles();
+    if (display === 'Desktop') initVideoHover();
   });
 
   initTomlEditors();
   initPluginToggles();
+  if (display === 'Desktop') initVideoHover();
 });
 
 
@@ -173,6 +179,18 @@ function openBlankOnClick(e: MouseEvent) {
   if (!el) return;
   const path = el.dataset.path ?? '';
   if (path) window.open(`/serve?file=${path}`, '_blank');
+}
+
+
+function initVideoHover() {
+  document.querySelectorAll<HTMLVideoElement>('video.thumbnail-video').forEach(video => {
+    if (video._hoverInited) return;
+    video._hoverInited = true;
+    const thumb = video.closest('.thumbnail');
+    if (!thumb) return;
+    thumb.addEventListener('mouseenter', () => { video.play().catch(() => {}); });
+    thumb.addEventListener('mouseleave', () => { video.pause(); video.currentTime = 0; });
+  });
 }
 
 

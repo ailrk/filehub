@@ -61,9 +61,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         initTomlEditors();
         initPluginToggles();
+        if (display === 'Desktop')
+            initVideoHover();
     });
     initTomlEditors();
     initPluginToggles();
+    if (display === 'Desktop')
+        initVideoHover();
 });
 if ('serviceWorker' in navigator && window.top === window.self) {
     window.addEventListener('load', () => {
@@ -154,6 +158,18 @@ function openBlankOnClick(e) {
     const path = el.dataset.path ?? '';
     if (path)
         window.open(`/serve?file=${path}`, '_blank');
+}
+function initVideoHover() {
+    document.querySelectorAll('video.thumbnail-video').forEach(video => {
+        if (video._hoverInited)
+            return;
+        video._hoverInited = true;
+        const thumb = video.closest('.thumbnail');
+        if (!thumb)
+            return;
+        thumb.addEventListener('mouseenter', () => { video.play().catch(() => { }); });
+        thumb.addEventListener('mouseleave', () => { video.pause(); video.currentTime = 0; });
+    });
 }
 function closeDropdowns(e) {
     const target = e?.target;

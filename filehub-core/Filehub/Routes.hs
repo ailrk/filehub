@@ -472,17 +472,6 @@ data Api mode = Api
                           :> AuthProtect "login"
                           :> Get '[HTML] NoContent
 
-  -- Similar to serv      e but only serve image and pdf. Creates thumbnail version for requested image. This is useful for lazy loading image
-  -- preview.
-  , thumbnail             :: mode
-                          :- "thumbnail"
-                          :> AuthProtect "session"
-                          :> AuthProtect "login"
-                          :> QueryParam "file" ClientPath
-                          :> StreamGet NoFraming OctetStream (Headers '[ Header "Content-Type" String
-                                                                       , Header "Content-Disposition" String
-                                                                       , Header "Cache-Control" String
-                                                                       ] (ConduitT () ByteString (ResourceT IO) ()))
 
 
   , themeCss              :: mode

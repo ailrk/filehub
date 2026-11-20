@@ -138,7 +138,6 @@ server env = Api
   , changeLocale          = Filehub.Server.UI.changeLocale
   , serve                 = Filehub.Server.File.serve env
   , toggleSidebar         = Filehub.Server.UI.toggleSidebar
-  , thumbnail             = Filehub.Server.File.thumbnail
   , manifest              = Filehub.Server.Static.manifest
   , favicon               = pure $(FileEmbed.embedFile "data/filehub/favicon.ico")
   , static                = Filehub.Server.Static.static

@@ -631,12 +631,23 @@ previewElement :: Root -> FileInfo -> Html ()
 previewElement root file = do
   div_ [ class_ "thumbnail-preview " ] do
     div_ [  class_ "image-wrapper " ] do
+      let ClientPath cp = ClientPath.toClientPath root file.path
+          serveUrl      = "/serve?file=" <> T.pack cp
       if
          | file.mimetype `isMime` "image" ->
            img_ [ loading_ "lazy"
-                , src_ (linkToText (apiLinks.thumbnail (Just (ClientPath.toClientPath root file.path))))
+                , src_ serveUrl
                 , draggable_ "false"
                 ]
+         | file.mimetype `isMime` "video" ->
+           video_ [ src_ serveUrl
+                  , term "muted" ""
+                  , term "preload" "metadata"
+                  , term "loop" ""
+                  , term "playsinline" ""
+                  , class_ "thumbnail-video"
+                  , draggable_ "false"
+                  ] mempty
          | otherwise -> Template.icon file
 
 
