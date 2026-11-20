@@ -13,6 +13,7 @@ module Filehub.Env
   where
 
 import Data.Map.Strict qualified as M
+import Data.Set (Set)
 import Data.Time (NominalDiffTime)
 import Filehub.ActiveUser.Types qualified as ActiveUser
 import Filehub.Locale (Locale)
@@ -35,8 +36,8 @@ import Filehub.Plugin.Types (StaticPlugin)
 data Env = Env
   { -- The port number the filehub listens on.
     port              :: !Int
-    -- The initial theme. Each session has there own theme as well.
-  , theme             :: Theme
+    -- Default theme for new sessions (mutable so settings UI can change it live).
+  , theme             :: TVar Theme
     -- The session pool that maps from `SessionId` to `session`
   , sessionPool       :: Session.Pool
     -- Session duration setting. An idle session will expire after the duration.
@@ -51,8 +52,8 @@ data Env = Env
   , logLevel          :: LogLevel
     -- Turn on/off the HTTP logging.
   , enableWAILog      :: Bool
-    -- Locale. e.g EN/ZH_CN
-  , locale            :: Locale
+    -- Default locale for new sessions (mutable so settings UI can change it live).
+  , locale            :: TVar Locale
     -- User credentials for simple auth login mechanism.
   , simpleAuthUserDB  :: SimpleAuthUserDB
     -- OIDC configurations for OIDC loging mechanism
@@ -76,8 +77,21 @@ data Env = Env
   , customThemeLight  :: Maybe CustomTheme
     -- global operation history (capped at 500 entries)
   , history           :: History
-    -- declarative (static) plugins loaded from config
-  , plugins           :: [StaticPlugin]
+    -- Plugins from the static config (immutable after startup).
+  , basePlugins       :: [StaticPlugin]
+    -- Merged plugin list (base + dynamic); updated by settings UI without restart.
+  , plugins           :: TVar [StaticPlugin]
+    -- Dynamic-only plugins added via the settings UI.
+  , dynamicPlugins    :: TVar [StaticPlugin]
+    -- Dynamic targets added via the settings UI (also present in `targets`).
+  , dynamicTargets    :: TVar [AnyTarget]
+    -- TargetIds present at startup (from file/CLI config); cannot be removed via UI.
+  , staticTargetIds   :: Set TargetId
+    -- Serialise and flush the current dynamic state to --dynamic-config PATH.
+    -- No-op when the flag was not supplied.
+  , persistDynConfig  :: IO ()
+    -- Path of the writable dynamic config file (Nothing if flag was not set).
+  , dynamicConfigPath :: Maybe FilePath
   }
 
 

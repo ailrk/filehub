@@ -46,6 +46,7 @@ type family HFromApi api where
   HFromApi ("login" :> "theme" :> r)  = LinkConf
   HFromApi ("login" :> "locale" :> r) = LinkConf
   HFromApi ("locale" :> r)            = LinkConf
+  HFromApi ("settings" :> r)          = LinkConf
   HFromApi x                          = ()
 
 

@@ -2,6 +2,7 @@ module Filehub.Plugin.Types
   ( StaticPlugin(..)
   , ContextMenuEntry(..)
   , ViewerEntry(..)
+  , ToolbarEntry(..)
   , UrlTemplate(..)
   , StaticPlugins(..)
   ) where
@@ -23,10 +24,17 @@ data ViewerEntry = ViewerEntry
   , url  :: UrlTemplate
   } deriving (Show, Eq)
 
+data ToolbarEntry = ToolbarEntry
+  { mime  :: Text
+  , label :: Text
+  , url   :: UrlTemplate
+  } deriving (Show, Eq)
+
 data StaticPlugin = StaticPlugin
   { name        :: Text
   , contextMenu :: [ContextMenuEntry]
   , viewer      :: [ViewerEntry]
+  , toolbar     :: [ToolbarEntry]
   } deriving (Show, Eq)
 
 newtype StaticPlugins = StaticPlugins { unStaticPlugins :: [StaticPlugin] }

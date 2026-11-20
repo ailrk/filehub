@@ -40,9 +40,11 @@ import Log (LogLevel (..))
 
 
 data Options = Options
-  { optionConfig :: Config Maybe
-  , configFiles :: [FilePath]
+  { optionConfig      :: Config Maybe
+  , configFiles       :: [FilePath]
   -- ^ Paths of toml configuration files (merged in order, last wins for scalars).
+  , dynamicConfigPath :: Maybe FilePath
+  -- ^ Path to the writable dynamic-config file managed by the settings UI.
   }
 
 
@@ -134,6 +136,15 @@ configFilePath = option str
                  ]
 
 
+dynamicConfigPath :: Parser (Maybe FilePath)
+dynamicConfigPath = optional $ option str
+                  $ mconcat
+                  $ [ long "dynamic-config"
+                    , metavar "PATH"
+                    , help "Writable TOML file for settings managed via the UI (created on first change)"
+                    ]
+
+
 locale :: Parser Locale
 locale = option auto
       $ mconcat
@@ -161,7 +172,7 @@ config =
 
 
 options :: Parser Options
-options = Options <$> config <*> many configFilePath
+options = Options <$> config <*> many configFilePath <*> dynamicConfigPath
 
 
 parseOptions :: IO Options

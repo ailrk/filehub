@@ -211,6 +211,7 @@ controlPanel = join do
     <*> pure Nothing
     <*> (Just <$> shareLinksBtn)
     <*> (Just <$> historyBtn)
+    <*> pure (Just settingsBtn)
 
 
 uploadBtn :: Template (Html ())
@@ -380,6 +381,18 @@ historyBtn = pure do
           , term "data-tooltip" "History"
           ] do
     i_ [ class_ "bx bx-history" ] mempty
+
+
+settingsBtn :: Html ()
+settingsBtn =
+  button_ [ class_ "btn btn-control tooltip"
+          , type_ "button"
+          , term "hx-get" (linkToText apiLinks.settingsPanel)
+          , term "hx-target" "body"
+          , term "hx-swap" "beforeend"
+          , term "data-tooltip" "Settings"
+          ] do
+    i_ [ class_ "bx bx-cog" ] mempty
 
 
 localeBtn :: Html ()

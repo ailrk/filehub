@@ -6,6 +6,7 @@ module Filehub.Server.UI.Platform.Desktop
   , sideBar
   , view
   , toolBar
+  , pluginsDataEl
   )
   where
 
@@ -17,7 +18,7 @@ import Data.Text (Text)
 import Data.Text qualified as T
 import Filehub.Locale (Phrase(..), phrase)
 import Filehub.Monad (Filehub)
-import Filehub.Plugin.Types (StaticPlugin(..), ContextMenuEntry(..), UrlTemplate(..))
+import Filehub.Plugin.Types (StaticPlugin(..), ContextMenuEntry(..), ToolbarEntry(..), UrlTemplate(..))
 import Filehub.Session (TargetView(..), getTargetViews, getCurrentTarget, makeStorageCurrentTarget, Storage(..))
 import Filehub.Session.Pool (withSession)
 import Filehub.Session.Types (TargetSessionData(..), Selected (..))
@@ -59,8 +60,7 @@ index sessionId = do
   toolBar' <- toolBar sessionId
   let i18nScript = script_ [type_ "text/javascript"] $
         i18nPayload ctx.readOnly (phrase ctx.locale)
-        <> pluginsPayload ctx.plugins
-  pure $ runTemplate ctx (Template.Desktop.index i18nScript sideBar' view' toolBar')
+  pure $ runTemplate ctx (Template.Desktop.index (i18nScript <> pluginsDataEl ctx.plugins) sideBar' view' toolBar')
 
 
 i18nPayload :: Bool -> Phrase -> Text
@@ -119,6 +119,12 @@ pluginsPayload ps = "window.filehubPlugins=" <> arr <> ";"
     encodePlugin p =
       "{\"name\":" <> str p.name <>
       ",\"contextMenu\":[" <> T.intercalate "," (map encodeContextMenu p.contextMenu) <> "]" <>
+      ",\"toolbar\":[" <> T.intercalate "," (map encodeToolbar p.toolbar) <> "]" <>
+      "}"
+    encodeToolbar (ToolbarEntry { mime, label, url }) =
+      "{\"mime\":" <> str mime <>
+      ",\"label\":" <> str label <>
+      ",\"url\":" <> str url.unUrlTemplate <>
       "}"
     encodeContextMenu e =
       "{\"mime\":" <> str e.mime <>
@@ -127,6 +133,12 @@ pluginsPayload ps = "window.filehubPlugins=" <> arr <> ";"
       "}"
     str t = "\"" <> escape t <> "\""
     escape = T.replace "\\" "\\\\" . T.replace "\"" "\\\"" . T.replace "\n" "\\n" . T.replace "\r" "\\r" . T.replace "\t" "\\t"
+
+
+pluginsDataEl :: [StaticPlugin] -> Html ()
+pluginsDataEl ps =
+  div_ [id_ "filehub-plugins"] $
+    script_ [type_ "text/javascript"] (pluginsPayload ps)
 
 
 sideBar :: SessionId -> Filehub (Html ())

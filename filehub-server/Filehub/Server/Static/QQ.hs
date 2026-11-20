@@ -35,3 +35,4 @@ staticFiles = M.fromList $(FileEmbed.embedDir "data/filehub")
 #endif
 
 
+

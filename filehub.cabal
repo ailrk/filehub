@@ -94,6 +94,9 @@ library
                           http-client-tls,
                           warp,
                           servant-conduit,
+                          directory,
+                          stm,
+                          containers,
                           unliftio
   exposed-modules:        Filehub
                           Filehub.Config
@@ -235,6 +238,7 @@ library filehub-core
                           Filehub.Notification.Types
                           Filehub.Orphan
                           Filehub.Plugin.Types
+                          Filehub.Plugin.Toml
                           Filehub.QQ
                           Filehub.Routes
                           Filehub.Routes.LinkConf
@@ -314,6 +318,7 @@ library filehub-server
                           Filehub.Server.UI.Platform.Desktop
                           Filehub.Server.UI.Platform.Mobile
                           Filehub.Server.Util
+                          Filehub.Server.Settings
 
 
 library filehub-templates
@@ -325,6 +330,7 @@ library filehub-templates
                           unliftio,
                           lucid,
                           servant-server,
+                          http-api-data,
                           containers,
                           string-interpolate,
                           filepath,
@@ -336,6 +342,7 @@ library filehub-templates
                           Filehub.Template.Htmx
                           Filehub.Template.Login
                           Filehub.Template.Mobile
+                          Filehub.Template.Settings
                           Filehub.Template.Shared
                           Filehub.Template.SharedView
 

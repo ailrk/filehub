@@ -41,6 +41,7 @@ import Servant
       FormUrlEncoded,
       OctetStream,
       Delete,
+      Put,
       QueryFlag,
       Header,
       Headers,
@@ -74,6 +75,9 @@ import Filehub.Types
     , OpenTarget
     , MoveFile
     , RenameFile
+    , PluginsTextForm
+    , AddTargetForm
+    , AppearanceForm
     )
 import GHC.Generics (Generic)
 import Filehub.Handler (ConfirmReadOnly, ConfirmMobilOnly, ConfirmDesktopOnly, ConfirmLogin)
@@ -544,6 +548,73 @@ data Api mode = Api
                           :> Get '[HTML] (Html ())
 
   , healthz               :: mode :- "healthz" :> AuthProtect "session" :> Get '[PlainText] Text
+
+  -- Settings panel (dynamic config UI).
+  -- Literal segments declared before captures to satisfy the NamedRoutes router.
+  , settingsPanel         :: mode
+                          :- "settings"
+                          :> AuthProtect "session"
+                          :> AuthProtect "login"
+                          :> Get '[HTML] (Html ())
+
+  , settingsExport        :: mode
+                          :- "settings" :> "export"
+                          :> AuthProtect "session"
+                          :> AuthProtect "login"
+                          :> Get '[PlainText] Text
+
+  -- Literal segments before Capture to avoid ambiguity
+  , settingsGetNewPlugin  :: mode
+                          :- "settings" :> "plugins" :> "new"
+                          :> AuthProtect "session"
+                          :> AuthProtect "login"
+                          :> Get '[HTML] (Html ())
+
+  , settingsCancelNewPlugin :: mode
+                            :- "settings" :> "plugins" :> "cancel"
+                            :> AuthProtect "session"
+                            :> AuthProtect "login"
+                            :> Get '[HTML] (Html ())
+
+  , settingsAddPlugin     :: mode
+                          :- "settings" :> "plugins"
+                          :> AuthProtect "session"
+                          :> AuthProtect "login"
+                          :> ReqBody '[FormUrlEncoded] PluginsTextForm
+                          :> Post '[HTML] (Html ())
+
+  , settingsUpdatePlugin  :: mode
+                          :- "settings" :> "plugins" :> Capture "name" Text
+                          :> AuthProtect "session"
+                          :> AuthProtect "login"
+                          :> ReqBody '[FormUrlEncoded] PluginsTextForm
+                          :> Put '[HTML] (Html ())
+
+  , settingsDeletePlugin  :: mode
+                          :- "settings" :> "plugins" :> Capture "name" Text
+                          :> AuthProtect "session"
+                          :> AuthProtect "login"
+                          :> Delete '[HTML] (Html ())
+
+  , settingsAddTarget     :: mode
+                          :- "settings" :> "targets"
+                          :> AuthProtect "session"
+                          :> AuthProtect "login"
+                          :> ReqBody '[FormUrlEncoded] AddTargetForm
+                          :> Post '[HTML] (Html ())
+
+  , settingsDeleteTarget  :: mode
+                          :- "settings" :> "targets" :> Capture "id" TargetId
+                          :> AuthProtect "session"
+                          :> AuthProtect "login"
+                          :> Delete '[HTML] (Html ())
+
+  , settingsUpdateAppearance :: mode
+                             :- "settings" :> "appearance"
+                             :> AuthProtect "session"
+                             :> AuthProtect "login"
+                             :> ReqBody '[FormUrlEncoded] AppearanceForm
+                             :> Post '[HTML] (Headers '[Header "HX-Refresh" Text] (Html ()))
   }
   deriving Generic
 

@@ -6,7 +6,7 @@
 -- from the config file will be combined with options to create the final `Config`.
 -- Note, there are some configurations only available in the config file. e.g
 -- OIDC doesn't have an cli option.
-module Filehub.Config.Toml (parseConfigFile) where
+module Filehub.Config.Toml (parseConfigFile, serializeConfig) where
 
 import Control.Applicative ((<|>))
 import Control.Category ((>>>))
@@ -18,7 +18,8 @@ import Filehub.Auth.Types.OIDC qualified as Auth.OIDC
 import Filehub.Auth.Types.Simple qualified as Auth.Simple
 import Filehub.Config
 import Filehub.Locale (Locale(..))
-import Filehub.Plugin.Types (UrlTemplate(..), ContextMenuEntry(..), ViewerEntry(..), StaticPlugin(..), StaticPlugins(..))
+import Filehub.Plugin.Types (StaticPlugins(..))
+import Filehub.Plugin.Toml qualified as Plugin.Toml
 import Filehub.Theme (Theme (..), CustomTheme(..))
 import Network.URI (URI)
 import Network.URI qualified as URI
@@ -163,35 +164,6 @@ dioptional2 :: TomlCodec a -> TomlCodec (Maybe (Maybe a))
 dioptional2 = Toml.dioptional . Toml.dioptional
 
 
-urlTemplate :: Key -> TomlCodec UrlTemplate
-urlTemplate key = Toml.dimap (.unUrlTemplate) UrlTemplate (Toml.text key)
-
-
-contextMenuEntry :: TomlCodec ContextMenuEntry
-contextMenuEntry =
-  ContextMenuEntry
-  <$> Toml.text        "mime"  .= (.mime)
-  <*> Toml.text        "label" .= (.label)
-  <*> urlTemplate      "url"   .= (.url)
-
-
-viewerEntry :: TomlCodec ViewerEntry
-viewerEntry =
-  ViewerEntry
-  <$> Toml.text   "mime" .= (.mime)
-  <*> urlTemplate "url"  .= (.url)
-
-
-staticPlugin :: TomlCodec StaticPlugin
-staticPlugin =
-  StaticPlugin
-  <$> Toml.text                          "name"         .= (.name)
-  <*> Toml.list contextMenuEntry         "context_menu" .= (.contextMenu)
-  <*> Toml.list viewerEntry              "viewer"       .= (.viewer)
-
-
-staticPlugins :: Key -> TomlCodec StaticPlugins
-staticPlugins key = Toml.dimap (.unStaticPlugins) StaticPlugins (Toml.list staticPlugin key)
 
 
 config :: TomlCodec (Config Maybe)
@@ -206,7 +178,11 @@ config = Config
   <*> (targetConfigs                       "target")      .= (.targets)
   <*> (simpleAuthUserRecords               "login")       .= (.simpleAuthUserRecords)
   <*> (oidcAuthProviders                   "oidc")        .= (.oidcAuthProviders)
-  <*> (staticPlugins                       "plugin")      .= (.plugins)
+  <*> (Plugin.Toml.pluginsCodec             "plugin")      .= (.plugins)
+
+
+serializeConfig :: Config Maybe -> Text
+serializeConfig = Toml.encode config
 
 
 -- | It should be called at the top level, let it throw if we failed to decode.

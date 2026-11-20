@@ -34,10 +34,15 @@ module Filehub.Types
   , ShareRequest(..)
   , ShareLinkType(..)
   , SharedLinkUpdate(..)
+  -- Settings forms
+  , PluginsTextForm(..)
+  , AddTargetForm(..)
+  , AppearanceForm(..)
   )
   where
 
 import Data.Aeson (ToJSON (..), (.=), Value, Key)
+import Data.Maybe (listToMaybe)
 import Data.Aeson qualified as Aeson
 import Data.ClientPath (ClientPath(..), RawClientPath(..))
 import Data.Text (Text)
@@ -315,3 +320,38 @@ instance FromForm SharedLinkUpdate where
         readonly    = case readonlyTxs of { "true":_ -> True; _ -> False }
         expiryHours = case expiryTxs of { t:_ -> either (const Nothing) Just (parseUrlPiece @Int t); _ -> Nothing }
     pure SharedLinkUpdate { hash, linkType, expiryHours, passcode, readonly }
+
+
+------------------------------------
+-- Settings forms
+------------------------------------
+
+
+newtype PluginsTextForm = PluginsTextForm { pluginsToml :: Text }
+
+instance FromForm PluginsTextForm where
+  fromForm f = PluginsTextForm <$> parseUnique "pluginsToml" f
+
+
+data AddTargetForm = AddTargetForm
+  { targetType :: Text    -- "fs" or "s3"
+  , targetPath :: Text    -- filesystem path or S3 bucket name
+  }
+
+instance FromForm AddTargetForm where
+  fromForm f = AddTargetForm
+    <$> parseUnique "type" f
+    <*> parseUnique "path" f
+
+
+data AppearanceForm = AppearanceForm
+  { appTheme  :: Maybe Text
+  , appLocale :: Maybe Text
+  }
+
+instance FromForm AppearanceForm where
+  fromForm f = AppearanceForm
+    <$> (listToMaybe <$> parseAll @Text "theme"  f)
+    <*> (listToMaybe <$> parseAll @Text "locale" f)
+    where listToMaybe []    = Nothing
+          listToMaybe (x:_) = if T.null x then Nothing else Just x

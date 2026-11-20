@@ -5,6 +5,7 @@ import Control.Handle.Cache qualified as Cache
 import Control.Handle.LockManager qualified as LockManager
 import Data.ClientPath (Root(..), AbsPath(..))
 import Data.Maybe (fromJust)
+import Data.Set qualified as Set
 import Data.Text qualified as Text
 import Data.Time (secondsToNominalDiffTime)
 import Data.UUID qualified as UUID
@@ -17,7 +18,7 @@ import Filehub.History qualified as History
 import Filehub.Locale (Locale(..))
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.SharedLink qualified as SharedLink
-import Filehub.Types ( Theme(..) )
+import Filehub.Theme (Theme(..))
 import GHC.Conc (newTVarIO)
 import LockManager.Local qualified
 import Log (mkLogger, LogMessage(..), Logger, LogLevel (..))
@@ -45,16 +46,21 @@ defaultEnv = do
   sharedLinkPool <- SharedLink.newShareLinkPool
   evtLogHandle   <- EvtLog.initialize ":memory:" 100
   history        <- History.newHistory
+  themeVar       <- newTVarIO Dark
+  localeVar      <- newTVarIO EN
+  pluginsVar     <- newTVarIO []
+  dynPluginsVar  <- newTVarIO []
+  dynTargetsVar  <- newTVarIO []
   let env =
         Env
           { port              = 0
-          , theme             = Dark
+          , theme             = themeVar
           , sessionPool       = sessionPool
           , sessionDuration   = secondsToNominalDiffTime (60 * 60)
           , sharedLinkPool    = sharedLinkPool
           , targets           = targets
           , readOnly          = False
-          , locale            = EN
+          , locale            = localeVar
           , logger            = logger
           , logLevel          = LogTrace
           , enableWAILog      = False
@@ -68,7 +74,13 @@ defaultEnv = do
           , activeUsers       = activeUserPool
           , evtLogHandle      = evtLogHandle
           , history           = history
-          , plugins           = []
+          , basePlugins       = []
+          , plugins           = pluginsVar
+          , dynamicPlugins    = dynPluginsVar
+          , dynamicTargets    = dynTargetsVar
+          , staticTargetIds   = Set.singleton tid
+          , persistDynConfig  = pure ()
+          , dynamicConfigPath = Nothing
           }
   pure env
 

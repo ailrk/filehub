@@ -9,39 +9,50 @@ module Filehub (main , mainDev)
   where
 
 import Cache.InMemory
+import Control.Concurrent.STM (TVar)
 import Control.Exception (SomeException, throwIO)
 import Control.Monad (when)
+import Data.ClientPath (Root(..), AbsPath(..))
 import Data.Functor.Identity (Identity(..))
+import Data.Set qualified as Set
 import Data.String.Interpolate (i)
+import Data.Text qualified as T
+import Data.Text.IO qualified as T
 import Data.Time (secondsToNominalDiffTime)
 import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
 import Filehub.Auth.Types.OIDC (OIDCAuthProviders(..))
 import Filehub.Auth.Simple qualified as Auth.Simple
-import Filehub.Config (Config(..), TargetConfig (..))
-import Filehub.Plugin.Types (StaticPlugins(..))
+import Filehub.Config (Config(..), TargetConfig (..), Targets(..))
+import Filehub.Plugin.Types (StaticPlugins(..), StaticPlugin)
 import Filehub.Config qualified as Config
 import Filehub.Config.Options (Options(..))
 import Filehub.Config.Options qualified as Config.Options
 import Filehub.Config.Toml qualified as Config.Toml
 import Filehub.Env (Env(..))
 import Filehub.History qualified as History
+import Filehub.Locale (Locale)
 import Filehub.Log qualified as Log
 import Filehub.Orphan ()
 import Filehub.Server (application)
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.SharedLink qualified as SharedLink
+import Filehub.Theme (Theme)
 import LockManager.Local qualified
 import Network.HTTP.Client.TLS (newTlsManager)
 import Network.Wai.Handler.Warp (setPort, defaultSettings, runSettings)
+import Data.Maybe (fromMaybe)
 import Prelude hiding (init, readFile)
 import Servant.Conduit ()
+import System.Directory (doesFileExist)
 import System.Environment (withArgs)
 import Target.File qualified as FS
+import Target.File (Target(..), FileSys)
 import Target.S3 qualified as S3
-import Target.Types (AnyTarget (..), getTargetId)
+import Target.S3 (Target(..), S3)
+import Target.Types (AnyTarget (..), getTargetId, handleTarget, targetHandler)
 import UnliftIO (catch, hFlush, stdout, hSetBuffering, BufferMode (..), stderr)
 import Log (logInfo_, runLogT)
-import UnliftIO.STM (newTVarIO)
+import UnliftIO.STM (newTVarIO, readTVarIO)
 import Control.Handle.Cache qualified as Cache
 import Control.Handle.EvtLog qualified as EvtLog
 import Control.Handle.LockManager qualified as LockManager
@@ -50,11 +61,18 @@ import Control.Handle.LockManager qualified as LockManager
 main :: IO ()
 main = Log.withColoredStdoutLogger \logger -> do
   Options
-    { configFiles = configFiles
+    { configFiles        = configFiles
     , optionConfig
+    , dynamicConfigPath
     } <- Config.Options.parseOptions
+
+  -- Load static config files (merged, later wins for scalars)
   fileConfigs <- traverse (Config.Toml.parseConfigFile . Just) configFiles
   let fileConfig = mconcat fileConfigs
+
+  -- Load dynamic config (created/managed by settings UI); empty if file doesn't exist
+  dynFileConfig <- parseDynamicConfig dynamicConfigPath
+
   Config
     { port                  = Identity port
     , theme                 = Identity theme
@@ -71,7 +89,7 @@ main = Log.withColoredStdoutLogger \logger -> do
       either
         (\err -> throwIO (userError err))
         pure
-        (Config.merge optionConfig fileConfig)
+        (Config.merge optionConfig (fileConfig <> dynFileConfig))
 
   when (null targetConfigs.unTargets) do
     throwIO (userError "No target specified")
@@ -87,11 +105,28 @@ main = Log.withColoredStdoutLogger \logger -> do
 #endif
 
   env <- do
-    sessionPool      <- Session.Pool.new
-    activeUserPool   <- ActiveUser.Pool.new
-    targets          <- runLogT "targets" logger verbosity do
-                          ts <- fromTargetConfig targetConfigs.unTargets
-                          newTVarIO ts
+    sessionPool    <- Session.Pool.new
+    activeUserPool <- ActiveUser.Pool.new
+
+    -- Static targets from CLI + file config
+    targetsList    <- runLogT "targets" logger verbosity
+                        $ fromTargetConfig targetConfigs.unTargets
+    let staticTids = Set.fromList (fst <$> targetsList)
+
+    -- Dynamic targets previously saved by the settings UI
+    dynTargetsList <- runLogT "targets" logger verbosity
+                        $ fromTargetConfig dynFileConfig.targets.unTargets
+    targetsVar     <- newTVarIO (targetsList ++ dynTargetsList)
+    dynTargetsVar  <- newTVarIO (snd <$> dynTargetsList)
+
+    let basePlugins = plugins.unStaticPlugins
+    let dynPlugins  = dynFileConfig.plugins.unStaticPlugins
+    pluginsVar      <- newTVarIO (basePlugins ++ dynPlugins)
+    dynPluginsVar   <- newTVarIO dynPlugins
+
+    themeVar   <- newTVarIO theme
+    localeVar  <- newTVarIO locale
+
     simpleAuthUserDB <- Auth.Simple.createSimpleAuthUserDB simpleAuthLoginUsers.unSimpleAuthUserRecords
     sharedLinkPool   <- SharedLink.newShareLinkPool
     lockManager      <- LockManager.makeLocalLockManager <$> LockManager.Local.new
@@ -99,14 +134,18 @@ main = Log.withColoredStdoutLogger \logger -> do
     httpManager      <- newTlsManager
     evtLogHandle     <- EvtLog.initialize "" 100
     history          <- History.newHistory
+
+    let persistCallback = buildPersistCallback
+          dynamicConfigPath themeVar localeVar dynPluginsVar dynTargetsVar
+
     pure Env
       { port              = port
-      , theme             = theme
+      , theme             = themeVar
       , sessionPool       = sessionPool
       , sessionDuration   = secondsToNominalDiffTime (60 * 60)
-      , targets           = targets
+      , targets           = targetsVar
       , readOnly          = readOnly
-      , locale            = locale
+      , locale            = localeVar
       , logger            = logger
       , logLevel          = verbosity
       , enableWAILog      = True
@@ -121,7 +160,13 @@ main = Log.withColoredStdoutLogger \logger -> do
       , lockManager       = lockManager
       , evtLogHandle      = evtLogHandle
       , history           = history
-      , plugins           = plugins.unStaticPlugins
+      , basePlugins       = basePlugins
+      , plugins           = pluginsVar
+      , dynamicPlugins    = dynPluginsVar
+      , dynamicTargets    = dynTargetsVar
+      , staticTargetIds   = staticTids
+      , persistDynConfig  = persistCallback
+      , dynamicConfigPath = dynamicConfigPath
       }
 
   go env `catch` handler
@@ -138,6 +183,51 @@ main = Log.withColoredStdoutLogger \logger -> do
         transform (S3TargetConfig c) = toAssocItem <$> S3.initialize c
 
         toAssocItem backend = (getTargetId (AnyTarget backend), AnyTarget backend)
+
+
+-- | Load the dynamic config file; return mempty if the file does not exist yet.
+parseDynamicConfig :: Maybe FilePath -> IO (Config Maybe)
+parseDynamicConfig Nothing     = pure mempty
+parseDynamicConfig (Just path) = do
+  exists <- doesFileExist path
+  if exists
+    then Config.Toml.parseConfigFile (Just path)
+    else pure mempty
+
+
+-- | Build the callback that serialises the current dynamic state to disk.
+buildPersistCallback
+  :: Maybe FilePath
+  -> TVar Theme
+  -> TVar Locale
+  -> TVar [StaticPlugin]
+  -> TVar [AnyTarget]
+  -> IO ()
+buildPersistCallback Nothing _ _ _ _ = pure ()
+buildPersistCallback (Just path) themeVar localeVar dynPluginsVar dynTargetsVar = do
+  themeVal   <- readTVarIO themeVar
+  localeVal  <- readTVarIO localeVar
+  dynPlugins <- readTVarIO dynPluginsVar
+  dynTargets <- readTVarIO dynTargetsVar
+  let dynCfg = (mempty :: Config Maybe)
+        { theme   = Just themeVal
+        , locale  = Just localeVal
+        , plugins = StaticPlugins dynPlugins
+        , targets = Targets (extractTargetConfig <$> dynTargets)
+        }
+  T.writeFile path (Config.Toml.serializeConfig dynCfg)
+
+
+-- | Reconstruct a TargetConfig from an initialised AnyTarget for persistence.
+extractTargetConfig :: AnyTarget -> TargetConfig
+extractTargetConfig t =
+  fromMaybe (error "extractTargetConfig: unrecognised target backend") $
+    handleTarget t
+      [ targetHandler @FileSys \(FileBackend { root = Root (AbsPath fp) }) ->
+            FSTargetConfig (FS.Config { root = fp })
+      , targetHandler @S3 \(S3Backend { bucket = b }) ->
+            S3TargetConfig (S3.Config { bucket = T.unpack b })
+      ]
 
 
 -- | For developement with ghciwatch

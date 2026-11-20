@@ -26,7 +26,7 @@ import Filehub.Session.Pool (withSession)
 import Filehub.Session.Handle (getDisplay, getControlPanelState)
 import Filehub.Session.Types (TargetSessionData(..))
 import Filehub.Session.Selected (getAllSelected)
-import UnliftIO (readTVar)
+import UnliftIO (readTVar, readTVarIO)
 
 
 -- | A Template context type that capture all useful information to render
@@ -71,7 +71,7 @@ makeTemplateContext sessionId = do
   noLogin           <- Env.hasNoLogin <$> ask @Env
   simpleAuthUserDB  <- asks (.simpleAuthUserDB)
   oidcAuthProviders <- asks (.oidcAuthProviders)
-  plugins           <- asks (.plugins)
+  plugins           <- readTVarIO =<< asks (.plugins)
 
   withSession sessionId \s -> do
     display       <- getDisplay s

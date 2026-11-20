@@ -120,6 +120,7 @@ textarea:focus {
 }
 
 #tool-bar {
+  grid-area: tool-bar;
   position: sticky;
   top: 0;
   background: var(--background1);
@@ -132,6 +133,8 @@ textarea:focus {
   transition: box-shadow 0.5s var(--ease);
 }
 
+#filehub-plugins { display: none; }
+
 #tool-bar #path-breadcrumb {
   white-space: nowrap;
   scrollbar-width: none;
@@ -141,6 +144,13 @@ textarea:focus {
 }
 
 #tool-bar #tool-bar-right { display: flex; }
+
+.plugin-toolbar-btn {
+  padding: 0 10px;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  height: 30px;
+}
 
 #tool-bar #search-bar {
   padding-right: 2rem;

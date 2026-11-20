@@ -194,6 +194,7 @@ controlPanel
      Maybe (Html()) -> Maybe (Html ()) -> Maybe (Html ()) ->
      Maybe (Html ()) ->
      Maybe (Html ()) ->
+     Maybe (Html ()) ->
      Maybe (Html ())
   -> Template (Html ())
 controlPanel
@@ -212,7 +213,8 @@ controlPanel
   mLayoutBtn
   mScroll2TopBtn
   mShareLinksBtn
-  mHistoryBtn = do
+  mHistoryBtn
+  mSettingsBtn = do
     readOnly              <- asks (.readOnly)
     noLogin               <- asks (.noLogin)
     state                 <- asks (.state)
@@ -227,6 +229,7 @@ controlPanel
             themeBtn
             localeBtn
             when (not noLogin) logoutBtn
+            fromMaybe mempty mSettingsBtn
             fromMaybe mempty mShareLinksBtn
             fromMaybe mempty mHistoryBtn
             fromMaybe mempty mScroll2TopBtn
@@ -241,6 +244,7 @@ controlPanel
                 themeBtn
                 localeBtn
                 when (not noLogin) logoutBtn
+                fromMaybe mempty mSettingsBtn
                 sep
                 newBtnGroup target
                 fromMaybe mempty mShareLinksBtn
@@ -255,6 +259,7 @@ controlPanel
                 themeBtn
                 localeBtn
                 when (not noLogin) logoutBtn
+                fromMaybe mempty mSettingsBtn
                 sep
                 newBtnGroup target
                 fromMaybe mempty mShareLinksBtn
@@ -262,6 +267,7 @@ controlPanel
                 uploadBtn
                 copyBtn
                 deleteBtn
+                div_ [id_ "plugin-toolbar-actions"] mempty
                 cancelBtn
                 fromMaybe mempty mScroll2TopBtn
             ControlPanelCopied ->
@@ -272,6 +278,7 @@ controlPanel
                 themeBtn
                 localeBtn
                 when (not noLogin) logoutBtn
+                fromMaybe mempty mSettingsBtn
                 sep
                 newBtnGroup target
                 fromMaybe mempty mShareLinksBtn

@@ -1,7 +1,8 @@
 declare var htmx: any;
 
 interface ContextMenuEntry { mime: string; label: string; url: string; }
-interface FilehubPlugin   { name: string; contextMenu: ContextMenuEntry[]; }
+interface ToolbarEntry    { mime: string; label: string; url: string; }
+interface FilehubPlugin   { name: string; contextMenu: ContextMenuEntry[]; toolbar: ToolbarEntry[]; }
 declare var filehubPlugins: FilehubPlugin[] | undefined;
 
 import { i18n } from '../../i18n.js';

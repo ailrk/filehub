@@ -272,6 +272,7 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
     <*> (Just <$> scroll2TopBtn)
     <*> pure Nothing
     <*> pure Nothing
+    <*> pure Nothing
   where
     localeBtn :: Template (Html ())
     localeBtn = do

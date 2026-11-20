@@ -45,8 +45,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (display === 'Desktop') {
             DesktopScroll.rebind();
             DesktopSelected.collectFromHtml();
+            updatePluginToolbarActions();
         }
+        initTomlEditors();
+        initPluginToggles();
     });
+    initTomlEditors();
+    initPluginToggles();
 });
 if ('serviceWorker' in navigator && window.top === window.self) {
     window.addEventListener('load', () => {
@@ -166,6 +171,152 @@ function htmxProcessOOB(data) {
         htmx.swap(document.body, data.htmxResponse, { swapStyle: 'none' });
     }
 }
+// ─── TOML editor ─────────────────────────────────────────────────────────────
+function highlightToml(raw) {
+    const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const hlValue = (val) => {
+        const t = val.trim();
+        if (t.startsWith('"') || t.startsWith("'"))
+            return `<span class="hl-string">${esc(val)}</span>`;
+        if (t === 'true' || t === 'false')
+            return `<span class="hl-bool">${esc(val)}</span>`;
+        if (/^-?\d/.test(t))
+            return `<span class="hl-number">${esc(val)}</span>`;
+        return esc(val);
+    };
+    return raw.split('\n').map(line => {
+        if (/^\s*#/.test(line))
+            return `<span class="hl-comment">${esc(line)}</span>`;
+        if (/^\s*\[/.test(line))
+            return `<span class="hl-section">${esc(line)}</span>`;
+        const eqIdx = line.indexOf('=');
+        if (eqIdx !== -1) {
+            const keyPart = line.slice(0, eqIdx);
+            const valPart = line.slice(eqIdx + 1);
+            return `<span class="hl-key">${esc(keyPart)}</span>=${hlValue(valPart)}`;
+        }
+        return esc(line);
+    }).join('\n') + '\n';
+}
+function autoResizeTextarea(textarea) {
+    textarea.style.height = 'auto';
+    textarea.style.height = textarea.scrollHeight + 'px';
+}
+function initTomlEditor(textarea) {
+    if (textarea._tomlInited)
+        return;
+    textarea._tomlInited = true;
+    const pre = textarea.previousElementSibling;
+    if (!pre?.classList.contains('toml-highlight'))
+        return;
+    const update = () => {
+        pre.innerHTML = highlightToml(textarea.value);
+        autoResizeTextarea(textarea);
+    };
+    textarea.addEventListener('input', update);
+    textarea.addEventListener('keydown', (e) => {
+        if (e.key === 's' && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            textarea.closest('form')?.requestSubmit();
+        }
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            textarea.value = textarea.value.slice(0, start) + '  ' + textarea.value.slice(end);
+            textarea.selectionStart = textarea.selectionEnd = start + 2;
+            update();
+        }
+    });
+    update();
+}
+function initTomlEditors() {
+    document.querySelectorAll('textarea.toml-textarea')
+        .forEach(initTomlEditor);
+}
+function updatePluginToolbarActions() {
+    const container = document.getElementById('plugin-toolbar-actions');
+    if (!container)
+        return;
+    const plugins = (typeof filehubPlugins !== 'undefined' && filehubPlugins) ? filehubPlugins : [];
+    const selected = Array.from(document.querySelectorAll('#table .table-item.selected'));
+    const files = selected.filter(el => el.dataset.ftype !== 'dir');
+    container.innerHTML = '';
+    if (files.length !== 1)
+        return;
+    const file = files[0];
+    const filePath = file.dataset.path ?? '';
+    const fileName = file.dataset.name ?? '';
+    const fileMime = file.dataset.mime ?? '';
+    for (const plugin of plugins) {
+        for (const entry of plugin.toolbar) {
+            if (!fileMime.startsWith(entry.mime))
+                continue;
+            const btn = document.createElement('button');
+            btn.className = 'btn btn-control plugin-toolbar-btn';
+            btn.textContent = entry.label;
+            btn.addEventListener('click', async () => {
+                const needsShare = entry.url.includes('{share_url}');
+                const enc = encodeURIComponent(filePath);
+                const downloadUrl = `${window.location.origin}/download?file=${enc}`;
+                if (needsShare) {
+                    const lookupRes = await fetch(`/share/for-file?file=${enc}`);
+                    let hash;
+                    if (lookupRes.ok) {
+                        hash = await lookupRes.text();
+                    }
+                    else {
+                        if (!confirm(`"${fileName}" is not shared. Create a public share link?`))
+                            return;
+                        const createRes = await fetch(`/share/auto?file=${enc}`, { method: 'POST' });
+                        if (!createRes.ok) {
+                            alert('Failed to create share link.');
+                            return;
+                        }
+                        hash = await createRes.text();
+                    }
+                    const shareUrl = `${window.location.origin}/s/${hash}/file?file=${enc}`;
+                    const url = entry.url
+                        .replace('{file_path}', encodeURIComponent(filePath))
+                        .replace('{file_name}', encodeURIComponent(fileName))
+                        .replace('{mime_type}', encodeURIComponent(fileMime))
+                        .replace('{download_url}', encodeURIComponent(downloadUrl))
+                        .replace('{share_url}', encodeURIComponent(shareUrl));
+                    window.open(url, '_blank');
+                }
+                else {
+                    const url = entry.url
+                        .replace('{file_path}', encodeURIComponent(filePath))
+                        .replace('{file_name}', encodeURIComponent(fileName))
+                        .replace('{mime_type}', encodeURIComponent(fileMime))
+                        .replace('{download_url}', encodeURIComponent(downloadUrl))
+                        .replace('{share_url}', '');
+                    window.open(url, '_blank');
+                }
+            });
+            container.appendChild(btn);
+        }
+    }
+}
+function initPluginToggles() {
+    document.querySelectorAll('.plugin-item-header').forEach(header => {
+        if (header._toggleInited)
+            return;
+        header._toggleInited = true;
+        header.addEventListener('click', (e) => {
+            if (e.target.closest('button'))
+                return;
+            const item = header.closest('.plugin-item');
+            if (!item)
+                return;
+            item.classList.toggle('expanded');
+            if (item.classList.contains('expanded')) {
+                initTomlEditors();
+            }
+        });
+    });
+}
+// ─────────────────────────────────────────────────────────────────────────────
 function startListenSSE() {
     if (!evtSource)
         evtSource = new EventSource('/listen');

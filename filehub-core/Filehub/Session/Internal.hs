@@ -40,8 +40,8 @@ createExpireDate = do
 createSession :: Filehub Session
 createSession = do
   ts              <- asks (.targets) >>= readTVarIO
-  theme           <- asks (.theme)
-  locale          <- asks (.locale)
+  theme           <- readTVarIO =<< asks (.theme)
+  locale          <- readTVarIO =<< asks (.locale)
   sessionId       <- createSessionId
   expireDate      <- createExpireDate
   notifications   <- liftIO (newTBQueueIO 16)

@@ -34,11 +34,14 @@ import Filehub.Template.Desktop qualified as Template.Desktop
 import Filehub.Template.Mobile qualified as Template.Mobile
 import Filehub.Template.Shared qualified as Template
 import Filehub.Types
+import Filehub.Env (Env(..))
 import Lucid hiding ()
 import Prelude hiding (elem, readFile, init)
 import Prelude hiding (init, readFile)
 import Data.Text (Text)
 import Lucid.Htmx (HxSwapOOB(..), HxOn (..), Trigger (..))
+import Control.Monad.Reader (ask)
+import UnliftIO (readTVarIO)
 
 
 entry :: SessionId -> FileInfo -> Filehub (Html ())
@@ -131,6 +134,7 @@ data UIPartialUpdate
   | UpdateEntries [FileInfo]
   | UpdateEntry { target :: Text, file :: FileInfo }
   | UpdateView
+  | UpdatePlugins
 
 
 runUIPartialUpdate1 :: SessionId -> UIPartialUpdate -> Filehub (Html ())
@@ -161,6 +165,11 @@ runUIPartialUpdate1 sessionId = \case
   UpdateView -> do
     view' <- view sessionId
     pure (view' `with` [ hxSwapOOB True ])
+
+  UpdatePlugins -> do
+    env <- ask
+    ps  <- readTVarIO env.plugins
+    pure (Server.Desktop.pluginsDataEl ps `with` [ hxSwapOOB True ])
 
 
 runUIPartialUpdate :: SessionId -> [UIPartialUpdate] -> Filehub (Html ())
