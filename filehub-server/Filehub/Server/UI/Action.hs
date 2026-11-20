@@ -20,7 +20,7 @@ module Filehub.Server.UI.Action
   where
 
 import Control.Monad.Reader (MonadReader(ask))
-import Data.ClientPath (Root)
+import Data.ClientPath (Root, AbsPath)
 import Data.ClientPath qualified as ClientPath
 import Data.Coerce (coerce)
 import Data.File (FileInfo, File(..))
@@ -146,22 +146,37 @@ initViewer sessionId _ mClientPath = do
   payload <- do
     let filePath  =  ClientPath.fromClientPath root clientPath
     let dir       =  coerce takeDirectory filePath
-    files         <- takeResourceFiles . Sort.sortFiles order <$> (storage.ls dir)
+    allFiles      <- takeResourceFiles . Sort.sortFiles order <$> (storage.ls dir)
+    let files     =  filter (inSameDir dir) allFiles
     let idx       =  fromMaybe 0 $ L.elemIndex filePath (fmap (.path) files)
-    let resources =  fmap (toResource root) files
-    pure $ ViewerInited resources idx
+    let resources =  fmap (toResource root) (windowAround maxViewerResources idx files)
+    pure $ ViewerInited resources (min idx (maxViewerResources - 1))
   pure $ addHeader payload NoContent
   where
+    maxViewerResources :: Int
+    maxViewerResources = 50
+
+    windowAround :: Int -> Int -> [a] -> [a]
+    windowAround n idx' xs =
+      let half   = n `div` 2
+          start  = max 0 (idx' - half)
+          end    = min (length xs) (start + n)
+          start' = max 0 (end - n)
+      in take n (drop start' xs)
+
     isResource :: MimeType -> Bool
     isResource s = any (s `isMime`)  ["image", "video", "audio"]
 
     takeResourceFiles :: [FileInfo] -> [FileInfo]
     takeResourceFiles = filter (isResource . (.mimetype))
 
+    inSameDir :: AbsPath -> FileInfo -> Bool
+    inSameDir dir f = coerce takeDirectory f.path == dir
+
     toResource :: Root -> FileInfo -> Resource
     toResource root f =
       Resource
-        { url = let ClientPath path = ClientPath.toClientPath root f.path -- encode path url
+        { url = let ClientPath path = ClientPath.toClientPath root f.path
                  in ClientPath.RawClientPath [i|/serve?file=#{path}|]
                                                   , mimetype = T.decodeUtf8 f.mimetype
         }
