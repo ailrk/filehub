@@ -1413,3 +1413,12 @@ tr.pasted-new td, div.pasted-new { animation: pastedFlash 2s ease-out forwards; 
 }
 
 .appearance-row select { flex: 1; }
+
+
+/* ---------- View loading ---------- */
+
+#view.view-loading {
+  opacity: 0.35;
+  pointer-events: none;
+  transition: opacity 0.15s var(--ease);
+}

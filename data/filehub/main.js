@@ -41,6 +41,18 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('click', openViewerOnClick);
     document.addEventListener('click', openBlankOnClick);
     document.body.addEventListener('htmx:responseError', handleError);
+    document.body.addEventListener('htmx:beforeRequest', (e) => {
+        if (e.detail.target?.id !== 'index')
+            return;
+        document.getElementById('view')?.classList.add('view-loading');
+        document.getElementById('global-spinner')?.classList.add('htmx-request');
+    });
+    const clearViewLoading = () => {
+        document.getElementById('view')?.classList.remove('view-loading');
+        document.getElementById('global-spinner')?.classList.remove('htmx-request');
+    };
+    document.body.addEventListener('htmx:afterSwap', clearViewLoading);
+    document.body.addEventListener('htmx:responseError', clearViewLoading);
     document.body.addEventListener('htmx:afterSettle', () => {
         if (display === 'Desktop') {
             DesktopScroll.rebind();
