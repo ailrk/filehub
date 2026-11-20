@@ -52,7 +52,7 @@ import Filehub.Session.Types (ControlPanelState(..))
 import Filehub.Template (Template, TemplateContext(..))
 import Data.Time.Format (formatTime, defaultTimeLocale)
 import Filehub.Size (toReadableSize)
-import Filehub.Types (Display(..), OpenTarget(..), SearchWord(..), SortFileBy (..))
+import Filehub.Types (Display(..), SearchWord(..), SortFileBy (..))
 import Lucid
 import Lucid.Htmx (hxGet, HxTrigger (..), HxPost (..))
 import Network.Mime.Extended (isMime)
@@ -343,25 +343,13 @@ open plugins root file = do
                , target_ "_blank"
                ]
           | file.mimetype `isMime` "application/pdf" ->
-               [ hxGet (apiLinks.open (Just OpenDOMBlank) (Just clientPath))
-               , term "hx-swap" "none"
-               , term "hx-indicator" "#global-spinner"
-               ]
+               [ term "data-action" "open-blank" ]
           | file.mimetype `isMime` "audio" ->
-               [ hxGet (apiLinks.open (Just OpenViewer) (Just clientPath))
-               , term "hx-swap" "none"
-               , term "hx-indicator" "#global-spinner"
-               ]
+               [ term "data-action" "open-viewer" ]
           | file.mimetype `isMime` "video" ->
-               [ hxGet (apiLinks.open (Just OpenViewer) (Just clientPath))
-               , term "hx-swap" "none"
-               , term "hx-indicator" "#global-spinner"
-               ]
+               [ term "data-action" "open-viewer" ]
           | file.mimetype `isMime` "image" ->
-               [ hxGet (apiLinks.open (Just OpenViewer) (Just clientPath))
-               , term "hx-swap" "none"
-               , term "hx-indicator" "#global-spinner"
-               ]
+               [ term "data-action" "open-viewer" ]
           | file.mimetype `isMime` "text" ->
                asHtmx @"editorModal" hxGet (Just clientPath) [ term "hx-indicator" "#global-spinner" ]
           | otherwise ->

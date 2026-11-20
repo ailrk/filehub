@@ -15,7 +15,7 @@ import * as MobilePanel from './handlers/mobile/panel.js';
 import * as Modal from './modal.js';
 import * as ModalBuilder from './modal-builder.js';
 import Viewer from './viewer.js';
-import type { DeleteProgressed, MoveProgressed, Opened, PasteProgressed, Resource, TaskCompleted, TaskFailed, UploadProgressed, ViewerInited } from './def.js';
+import type { DeleteProgressed, MoveProgressed, PasteProgressed, TaskCompleted, TaskFailed, UploadProgressed } from './def.js';
 import { Display } from './def.js';
 import { i18n } from './i18n.js';
 
@@ -48,8 +48,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   document.addEventListener('filehub:themeChanged', handleThemeChanged);
-  document.addEventListener('filehub:viewerInited', initViewer);
-  document.addEventListener('filehub:opened', open);
+  document.addEventListener('click', openViewerOnClick);
+  document.addEventListener('click', openBlankOnClick);
   document.body.addEventListener('htmx:responseError', handleError);
 
   document.body.addEventListener('htmx:afterSettle', () => {
@@ -144,44 +144,21 @@ function handleError(e: any) {
 }
 
 
-function initViewer(e: any) {
-  const o: ViewerInited = e.detail;
-  const clickedUrl = o.resources[0][0];
-  const clickedPath = new URL(clickedUrl, window.location.origin).searchParams.get('file') ?? '';
-
-  const isMedia = (mime: string) =>
-    mime.startsWith('image') || mime.startsWith('video') || mime.startsWith('audio');
-
-  const items = Array.from(document.querySelectorAll<HTMLElement>('#table .table-item'))
-    .filter(el => el.dataset.ftype !== 'dir' && isMedia(el.dataset.mime ?? ''));
-
-  const resources: Resource[] = items.map(el => [
-    `/serve?file=${el.dataset.path ?? ''}`,
-    el.dataset.mime ?? '',
-  ]);
-
-  const idx = items.findIndex(el => el.dataset.path === clickedPath);
-  viewer = new Viewer(resources.length > 0 ? resources : o.resources, { index: idx >= 0 ? idx : 0 });
+function openViewerOnClick(e: MouseEvent) {
+  const el = (e.target as Element).closest<HTMLElement>('[data-action="open-viewer"]');
+  if (!el) return;
+  const path = el.dataset.path ?? '';
+  if (!path) return;
+  viewer = new Viewer(path);
   viewer.show();
 }
 
 
-function open(e: any) {
-  const payload = e.detail as Opened;
-  let target: string | null = null;
-  switch (payload.tgt) {
-    case 'OpenDOMSelf':        target = '_self';         break;
-    case 'OpenDOMBlank':       target = '_blank';        break;
-    case 'OpenDOMParent':      target = '_parent';       break;
-    case 'OpenDOMTop':         target = '_top';          break;
-    case 'OpenDOMUnfencedTop': target = '_unfencedTop';  break;
-    case 'OpenViewer': {
-      const query = new URLSearchParams({ file: payload.path });
-      htmx.ajax('GET', `/viewer?${query.toString()}`, { target: 'body', source: 'body', swap: 'none' });
-      return;
-    }
-  }
-  window.open(`/serve?file=${payload.path}`, target);
+function openBlankOnClick(e: MouseEvent) {
+  const el = (e.target as Element).closest<HTMLElement>('[data-action="open-blank"]');
+  if (!el) return;
+  const path = el.dataset.path ?? '';
+  if (path) window.open(`/serve?file=${path}`, '_blank');
 }
 
 

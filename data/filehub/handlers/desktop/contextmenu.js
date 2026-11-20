@@ -1,5 +1,10 @@
 import { i18n } from '../../i18n.js';
 import * as ModalBuilder from '../../modal-builder.js';
+import Viewer from '../../viewer.js';
+function openViewer(path) {
+    const v = new Viewer(path);
+    v.show();
+}
 export function register() {
     document.addEventListener('contextmenu', onContextMenu);
 }
@@ -59,22 +64,13 @@ function buildMenu1(item, readOnly) {
         }));
     }
     else if (ftype === 'image') {
-        menu.appendChild(makeItem(t.view, 'bx-show', {
-            'hx-get': `/files/open?target=OpenViewer&file=${enc}`,
-            'hx-swap': 'none', 'hx-indicator': '#global-spinner',
-        }));
+        menu.appendChild(makeClickItem(t.view, 'bx-show', () => openViewer(path)));
     }
     else if (ftype === 'video' || ftype === 'audio') {
-        menu.appendChild(makeItem(t.play, 'bx-play', {
-            'hx-get': `/files/open?target=OpenViewer&file=${enc}`,
-            'hx-swap': 'none', 'hx-indicator': '#global-spinner',
-        }));
+        menu.appendChild(makeClickItem(t.play, 'bx-play', () => openViewer(path)));
     }
     else if (ftype === 'pdf') {
-        menu.appendChild(makeItem(t.view, 'bx-show', {
-            'hx-get': `/files/open?target=OpenDOMBlank&file=${enc}`,
-            'hx-swap': 'none', 'hx-indicator': '#global-spinner',
-        }));
+        menu.appendChild(makeClickItem(t.view, 'bx-show', () => window.open(`/serve?file=${enc}`, '_blank')));
     }
     else {
         menu.appendChild(makeItem(t.edit, 'bxs-edit', {

@@ -26,9 +26,7 @@ module Filehub.Types
   , RenameFile(..)
   , Theme(..)
   , FilehubEvent(..)
-  , OpenTarget (..)
   , UIComponent(..)
-  , Resource(..)
   , Manifest
   , SharedLinkAuth(..)
   , ShareRequest(..)
@@ -117,16 +115,6 @@ instance FromForm UpdatedFile where
     pure (UpdatedFile path content)
 
 
-data Resource = Resource
-  { url :: RawClientPath
-  , mimetype :: Text
-  }
-  deriving (Show, Eq)
-
-
-instance ToJSON Resource where
-  toJSON (Resource { url = RawClientPath path, mimetype }) = toJSON [ toJSON path , toJSON mimetype ]
-
 
 data UIComponent
   = UIComponentView
@@ -157,8 +145,7 @@ instance FromHttpApiData UIComponent where
 -- When adding a new event, as long as you don't plan to handle the event yet, you don't need to
 -- touch the frontend code.
 data FilehubEvent
-  = ViewerInited [Resource] Int -- Update image list and show the viewer
-  | TargetChanged
+  = TargetChanged
   | TableSorted
   | DirChanged
   | LayoutChanged
@@ -168,13 +155,10 @@ data FilehubEvent
   | FileMoved
   | FileRenamed
   | Canceled -- Action canceled
-  | Opened OpenTarget ClientPath -- load a resource into tab/window/iframe. Hook  for window.open
   deriving (Show)
 
 
 instance IsHtmxCustomEvent FilehubEvent where
-  htmxCustomEventToText (ViewerInited {}) = "ViewerInited"
-  htmxCustomEventToText (Opened {}) = "Opened"
   htmxCustomEventToText e = T.pack (show e)
 
 
@@ -185,54 +169,11 @@ customEventNameAsKey evt = "filehub:" <> (Aeson.Key.fromText . asCamelCase . htm
 
 
 instance ToJSON FilehubEvent where
-  toJSON e@(ViewerInited res index) =
-    Aeson.object
-      [ customEventNameAsKey e .= Aeson.object
-          [ "resources" .= toJSON res
-          , "index"     .= toJSON index
-          ]
-      ]
-  toJSON e@(Opened target path) =
-    Aeson.object
-      [ customEventNameAsKey e .= Aeson.object
-          [ "path" .= toJSON path
-          , "tgt"  .= toJSON target
-          ]
-      ]
   toJSON e = Aeson.object [ customEventNameAsKey e .= Aeson.object [] ]
 
 
 instance ToHttpApiData FilehubEvent where
   toUrlPiece v = (TL.toStrict $ TL.decodeUtf8 $ Aeson.encode $ v)
-
-
--- | The target for windows.open().
-data OpenTarget
-  = OpenDOMSelf
-  | OpenDOMBlank
-  | OpenDOMParent
-  | OpenDOMTop
-  | OpenDOMUnfencedTop
-  | OpenViewer
-  deriving Show
-
-
-instance ToHttpApiData OpenTarget where
-  toUrlPiece = toUrlPiece . show
-
-
-instance FromHttpApiData OpenTarget where
-  parseUrlPiece "OpenDOMSelf"        = pure OpenDOMSelf
-  parseUrlPiece "OpenDOMBlank"       = pure OpenDOMBlank
-  parseUrlPiece "OpenDOMParent"      = pure OpenDOMParent
-  parseUrlPiece "OpenDOMTop"         = pure OpenDOMTop
-  parseUrlPiece "OpenDOMUnfencedTop" = pure OpenDOMUnfencedTop
-  parseUrlPiece "OpenViewer"         = pure OpenViewer
-  parseUrlPiece _                    = Left "unknown target for open()"
-
-
-instance ToJSON OpenTarget where
-  toJSON t = toJSON (show t)
 
 
 data Manifest

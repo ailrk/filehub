@@ -72,7 +72,6 @@ import Filehub.Types
     , Resolution(..)
     , Manifest
     , LoginForm
-    , OpenTarget
     , MoveFile
     , RenameFile
     , PluginsTextForm
@@ -339,24 +338,6 @@ data Api mode = Api
                           :> AuthProtect "session"
                           :> AuthProtect "login"
                           :> Post '[HTML] (Headers '[ Header "X-Filehub-Selected-Count" Int ] (Html ()))
-
-
-  , initViewer            :: mode
-                          :- "viewer"
-                          :> AuthProtect "session"
-                          :> AuthProtect "login"
-                          :> QueryParam "file" ClientPath
-                          :> Get '[HTML] (Headers '[ Header "HX-Trigger" FilehubEvent] NoContent)
-
-
-  , open                  :: mode
-                          :- "files"
-                          :> "open"
-                          :> AuthProtect "session"
-                          :> AuthProtect "login"
-                          :> QueryParam "target" OpenTarget
-                          :> QueryParam "file" ClientPath
-                          :> Get '[HTML] (Headers '[ Header "HX-Trigger" FilehubEvent] NoContent)
 
 
   , changeTarget          :: mode

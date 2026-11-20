@@ -13,8 +13,6 @@ module Filehub.Server.UI.Action
   , changeLocale
   , toggleSidebar
   , selectRows
-  , initViewer
-  , open
   , cancel
   )
   where
@@ -131,30 +129,6 @@ selectRows sessionId _ selected = do
     [ UpdateSideBar
     , UpdateControlPanel
     ]
-
-
-initViewer :: SessionId -> ConfirmLogin -> Maybe ClientPath
-           -> Filehub (Headers '[Header "HX-Trigger" FilehubEvent] NoContent)
-initViewer sessionId _ mClientPath = do
-  env  <- ask
-  root <- withSession sessionId \s -> getRoot env s
-  clientPath <- withQueryParam mClientPath
-  let ClientPath rawPath = clientPath
-      absPath            = ClientPath.fromClientPath root clientPath
-      mime               = defaultMimeLookup (Text.pack (takeFileName (coerce absPath)))
-      resource           = Resource
-        { url      = ClientPath.RawClientPath [i|/serve?file=#{rawPath}|]
-        , mimetype = T.decodeUtf8 mime
-        }
-  pure $ addHeader (ViewerInited [resource] 0) NoContent
-
-
-open :: SessionId -> ConfirmLogin -> Maybe OpenTarget -> Maybe ClientPath
-     -> Filehub (Headers '[Header "HX-Trigger" FilehubEvent] NoContent)
-open _ _ mTarget mClientPath = do
-  clientPath <- withQueryParam mClientPath
-  target     <- withQueryParam mTarget
-  pure $ addHeader (Opened target clientPath) NoContent
 
 
 cancel :: SessionId -> ConfirmLogin -> Filehub (Headers '[Header "X-Filehub-Selected-Count" Int] (Html ()))

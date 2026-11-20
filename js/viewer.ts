@@ -1,5 +1,3 @@
-import type { Resource } from './def.js';
-
 const NAMESPACE = 'viewer';
 
 const TEMPLATE = (
@@ -53,13 +51,21 @@ function buildToolbar(toolbar: HTMLElement) {
   toolbar.appendChild(list);
 }
 
+function isMedia(mime: string): boolean {
+  return mime.startsWith('image') || mime.startsWith('video') || mime.startsWith('audio');
+}
+
+function mediaItems(): HTMLElement[] {
+  return Array.from(document.querySelectorAll<HTMLElement>('#table .table-item'))
+    .filter(el => el.dataset.ftype !== 'dir' && isMedia(el.dataset.mime ?? ''));
+}
+
 
 class Viewer {
   id: number;
-  resources: Resource[] = [];
+  currentPath: string;
   currentContent?: HTMLElement;
   state: ViewerState = "init";
-  index: number;
   rotation: number = 0;
   playing: boolean = false;
   playInterval: number = 3000;
@@ -78,10 +84,8 @@ class Viewer {
   canvas: HTMLElement;
   footer: HTMLElement;
 
-  constructor(resources: Resource[], options?: { index: number }) {
-    this.resources = resources;
-
-    this.index = options?.index ?? 0;
+  constructor(initialPath: string) {
+    this.currentPath = initialPath;
     this.id = getUniqueID();
 
     const template = document.createElement('div');
@@ -105,41 +109,46 @@ class Viewer {
   }
 
   load() {
-    const resource = this.resources[this.index];
-    const [url, mimetype] = resource;
+    const items = mediaItems();
+    const idx = items.findIndex(el => el.dataset.path === this.currentPath);
+    const el = items[idx];
+    if (!el) return;
+
+    const mime = el.dataset.mime ?? '';
+    const url = `/serve?file=${el.dataset.path ?? ''}`;
 
     let content: HTMLElement = document.createElement('div');
     content.innerHTML = 'No content';
 
     this.info.textContent = '';
 
-    if (mimetype.startsWith('image')) {
+    if (mime.startsWith('image')) {
       const img = document.createElement('img');
-      img.src = url.toString();
+      img.src = url;
       img.style.transform = `rotate(${this.rotation}deg)`;
       img.addEventListener('load', () => {
         this.info.textContent = `${img.naturalWidth} × ${img.naturalHeight}`;
       });
       content = img;
 
-    } else if (mimetype.startsWith('video')) {
+    } else if (mime.startsWith('video')) {
       const video = document.createElement('video');
       const source = document.createElement('source');
       video.setAttribute('controls', '');
       video.setAttribute('autoplay', '');
       video.setAttribute('loop', '');
       video.setAttribute('muted', '');
-      source.src = url.toString();
-      source.type = mimetype;
+      source.src = url;
+      source.type = mime;
       video.appendChild(source);
       content = video;
 
-    } else if (mimetype.startsWith('audio')) {
+    } else if (mime.startsWith('audio')) {
       const audio = document.createElement('audio');
       const source = document.createElement('source');
       audio.setAttribute('controls', '');
-      source.src = url.toString();
-      source.type = mimetype;
+      source.src = url;
+      source.type = mime;
       audio.appendChild(source);
       content = audio;
     }
@@ -147,20 +156,19 @@ class Viewer {
     this.canvas.innerHTML = '';
     this.canvas.appendChild(content);
 
-    const rawFile = (new URL(url, 'https://base.com')).searchParams.get('file') ?? '';
-    this.title.textContent = decodeURIComponent(rawFile).split('/').pop() ?? rawFile;
+    this.title.textContent = decodeURIComponent(el.dataset.path ?? '').split('/').pop() ?? '';
 
     content.classList.add('fade');
     this.currentContent = content;
 
-    const start = Math.max(0, this.index - 10);
-    const end   = Math.min(this.resources.length, this.index + 11);
+    const start = Math.max(0, idx - 20);
+    const end   = Math.min(items.length, idx + 21);
     for (let j = start; j < end; j++) {
-      if (j === this.index) continue;
-      const [preUrl, preMime] = this.resources[j];
-      if (preMime.startsWith('image')) {
+      if (j === idx) continue;
+      const item = items[j];
+      if ((item.dataset.mime ?? '').startsWith('image')) {
         const preImg = new Image();
-        preImg.src = preUrl;
+        preImg.src = `/serve?file=${item.dataset.path ?? ''}`;
       }
     }
   }
@@ -215,7 +223,13 @@ class Viewer {
   }
 
   advance() {
-    this.show((this.index + 1) % this.resources.length);
+    const items = mediaItems();
+    const idx = items.findIndex(el => el.dataset.path === this.currentPath);
+    const next = items[(idx + 1) % items.length];
+    if (next) {
+      this.currentPath = next.dataset.path ?? this.currentPath;
+      this.show();
+    }
   }
 
   init() {
@@ -292,19 +306,26 @@ class Viewer {
   }
 
   next() {
-    this.index = Math.min(this.index + 1, this.resources.length - 1);
-    this.show(this.index);
+    const items = mediaItems();
+    const idx = items.findIndex(el => el.dataset.path === this.currentPath);
+    if (idx < items.length - 1) {
+      this.currentPath = items[idx + 1].dataset.path ?? this.currentPath;
+      this.show();
+    }
   }
 
   prev() {
-    this.index = Math.max(this.index - 1, 0);
-    this.show(this.index);
+    const items = mediaItems();
+    const idx = items.findIndex(el => el.dataset.path === this.currentPath);
+    if (idx > 0) {
+      this.currentPath = items[idx - 1].dataset.path ?? this.currentPath;
+      this.show();
+    }
   }
 
-  show(index = this.index) {
+  show() {
     if (this.state !== 'hidden' && this.state !== 'shown') return;
     this.state = 'showing';
-    this.index = index;
     this.load();
     this.render();
   }

@@ -38,8 +38,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelector('#table')?.addEventListener('contextmenu', e => e.preventDefault());
     }
     document.addEventListener('filehub:themeChanged', handleThemeChanged);
-    document.addEventListener('filehub:viewerInited', initViewer);
-    document.addEventListener('filehub:opened', open);
+    document.addEventListener('click', openViewerOnClick);
+    document.addEventListener('click', openBlankOnClick);
     document.body.addEventListener('htmx:responseError', handleError);
     document.body.addEventListener('htmx:afterSettle', () => {
         if (display === 'Desktop') {
@@ -125,47 +125,23 @@ function handleError(e) {
     }
     Balloon.pushBalloon({ kind: 'ErrorMsg', msg: `${message} ${status}`, duration: balloonWaitTime });
 }
-function initViewer(e) {
-    const o = e.detail;
-    const clickedUrl = o.resources[0][0];
-    const clickedPath = new URL(clickedUrl, window.location.origin).searchParams.get('file') ?? '';
-    const isMedia = (mime) => mime.startsWith('image') || mime.startsWith('video') || mime.startsWith('audio');
-    const items = Array.from(document.querySelectorAll('#table .table-item'))
-        .filter(el => el.dataset.ftype !== 'dir' && isMedia(el.dataset.mime ?? ''));
-    const resources = items.map(el => [
-        `/serve?file=${el.dataset.path ?? ''}`,
-        el.dataset.mime ?? '',
-    ]);
-    const idx = items.findIndex(el => el.dataset.path === clickedPath);
-    viewer = new Viewer(resources.length > 0 ? resources : o.resources, { index: idx >= 0 ? idx : 0 });
+function openViewerOnClick(e) {
+    const el = e.target.closest('[data-action="open-viewer"]');
+    if (!el)
+        return;
+    const path = el.dataset.path ?? '';
+    if (!path)
+        return;
+    viewer = new Viewer(path);
     viewer.show();
 }
-function open(e) {
-    const payload = e.detail;
-    let target = null;
-    switch (payload.tgt) {
-        case 'OpenDOMSelf':
-            target = '_self';
-            break;
-        case 'OpenDOMBlank':
-            target = '_blank';
-            break;
-        case 'OpenDOMParent':
-            target = '_parent';
-            break;
-        case 'OpenDOMTop':
-            target = '_top';
-            break;
-        case 'OpenDOMUnfencedTop':
-            target = '_unfencedTop';
-            break;
-        case 'OpenViewer': {
-            const query = new URLSearchParams({ file: payload.path });
-            htmx.ajax('GET', `/viewer?${query.toString()}`, { target: 'body', source: 'body', swap: 'none' });
-            return;
-        }
-    }
-    window.open(`/serve?file=${payload.path}`, target);
+function openBlankOnClick(e) {
+    const el = e.target.closest('[data-action="open-blank"]');
+    if (!el)
+        return;
+    const path = el.dataset.path ?? '';
+    if (path)
+        window.open(`/serve?file=${path}`, '_blank');
 }
 function closeDropdowns(e) {
     const target = e?.target;

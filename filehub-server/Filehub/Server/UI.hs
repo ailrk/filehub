@@ -21,8 +21,6 @@ module Filehub.Server.UI
   , selectRows
   , entry
   , entries
-  , initViewer
-  , open
   , cancel
   )
   where
