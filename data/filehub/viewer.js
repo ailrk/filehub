@@ -118,6 +118,17 @@ class Viewer {
         this.title.textContent = decodeURIComponent(rawFile).split('/').pop() ?? rawFile;
         content.classList.add('fade');
         this.currentContent = content;
+        const start = Math.max(0, this.index - 10);
+        const end = Math.min(this.resources.length, this.index + 11);
+        for (let j = start; j < end; j++) {
+            if (j === this.index)
+                continue;
+            const [preUrl, preMime] = this.resources[j];
+            if (preMime.startsWith('image')) {
+                const preImg = new Image();
+                preImg.src = preUrl;
+            }
+        }
     }
     rotate() {
         this.rotation = (this.rotation + 90) % 360;
