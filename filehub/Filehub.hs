@@ -10,6 +10,7 @@ module Filehub (main , mainDev)
 
 import Cache.InMemory
 import Control.Exception (SomeException, throwIO)
+import Control.Monad (when)
 import Data.Functor.Identity (Identity(..))
 import Data.String.Interpolate (i)
 import Data.Time (secondsToNominalDiffTime)
@@ -71,6 +72,9 @@ main = Log.withColoredStdoutLogger \logger -> do
         (\err -> throwIO (userError err))
         pure
         (Config.merge optionConfig fileConfig)
+
+  when (null targetConfigs.unTargets) do
+    throwIO (userError "No target specified")
 
   runLogT "main" logger verbosity do
     logInfo_ [i|port:      #{port}|]

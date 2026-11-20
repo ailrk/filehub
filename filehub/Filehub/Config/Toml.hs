@@ -11,7 +11,6 @@ module Filehub.Config.Toml (parseConfigFile) where
 import Control.Applicative ((<|>))
 import Control.Category ((>>>))
 import Control.Exception (throwIO)
-import Control.Monad (when)
 import Data.Coerce (coerce)
 import Data.Text (Text)
 import Data.Text qualified as T
@@ -214,9 +213,7 @@ config = Config
 parseConfigFile :: Maybe FilePath -> IO (Config Maybe)
 parseConfigFile (Just filePath) = do
   cfg <- either (throwIO . userError . show) pure <$> Toml.decodeFileEither config filePath
-  cfg
-    >>= expandFSTargetEnvVars
-    >>= targetCheck
+  cfg >>= expandFSTargetEnvVars
   where
     expandFSTargetEnvVars c = do
       let expand (FSTargetConfig t) = do
@@ -225,10 +222,6 @@ parseConfigFile (Just filePath) = do
           expand x = pure x
       targets' <- traverse expand (coerce @_ @[TargetConfig] c.targets)
       pure $ c { targets = coerce @_ @Targets targets' }
-    targetCheck c = do
-      when (null (coerce @_ @[TargetConfig] c.targets)) do
-        throwIO (userError "No target specified")
-      pure c
 parseConfigFile _ =
   pure (Config Nothing Nothing Nothing Nothing Nothing Nothing Nothing mempty mempty mempty mempty)
 
