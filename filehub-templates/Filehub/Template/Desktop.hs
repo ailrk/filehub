@@ -128,7 +128,7 @@ sideBar targets (TargetView currentTarget _) = do
     targetTab :: Phrase -> (AnyTarget, Int, Maybe DiskUsage) -> Html ()
     targetTab Phrase { target_filesystem, target_s3 } (target, selectedCount, mUsage) = do
       div_ (asHtmx @"changeTarget" hxGet (Just (Target.getTargetId target))
-           [ class_ "target-tab" ]) do
+           [ class_ "target-tab", term "hx-indicator" "#global-spinner" ]) do
         div_ [ class_ "target-tab-row1" ] do
           span_ [ class_ "field" ] do
             fromMaybe "unknown" $ handleTarget target

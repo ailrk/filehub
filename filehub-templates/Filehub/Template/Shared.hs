@@ -146,6 +146,7 @@ pathBreadcrumb = do
                 mkLi                       = li_ (asHtmx @"cd" hxGet (Just clientPath)
                                               [ term "data-path" (Text.pack cp)
                                               , class_ "dir "
+                                              , term "hx-indicator" "#global-spinner"
                                               ])
              in  (mkLi . toHtml . pathShow) (coerce path))
           & Seq.fromList
@@ -336,7 +337,7 @@ open plugins root file = do
     BrokenLink -> []
     _          ->
       case file.content of
-        Dir        -> asHtmx @"cd" hxGet (Just clientPath) []
+        Dir        -> asHtmx @"cd" hxGet (Just clientPath) [term "hx-indicator" "#global-spinner"]
         Regular
           | Just entry <- findPluginViewer plugins file.mimetype ->
                [ href_ (substituteViewerUrl entry.url file root)
