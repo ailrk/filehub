@@ -643,8 +643,7 @@ previewElement root file = do
           serveUrl      = "/serve?file=" <> T.pack cp
       if
          | file.mimetype `isMime` "image" ->
-           img_ [ loading_ "lazy"
-                , src_ serveUrl
+           img_ [ term "data-src" serveUrl
                 , draggable_ "false"
                 ]
          | file.mimetype `isMime` "video" ->
