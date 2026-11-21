@@ -156,7 +156,7 @@ function buildMenuMany(paths: string[], readOnly: boolean): HTMLElement {
       'hx-swap': 'none', 'hx-confirm': t.confirmDeleteLocal.replace('{}', String(paths.length)),
     }));
     menu.appendChild(makeItem(t.copy, 'bxs-copy-alt', {
-      'hx-get': '/files/copy', 'hx-target': '#control-panel', 'hx-swap': 'outerHTML',
+      'hx-get': `/files/copy?${fileParams}`, 'hx-target': '#control-panel', 'hx-swap': 'outerHTML',
     }));
   }
 

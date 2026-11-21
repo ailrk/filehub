@@ -14,6 +14,7 @@ const selectedIds: Set<string> = new Set();
 let selectionScreen: { x: number; y: number; elt: HTMLElement } | null = null;
 let dragging = false;
 let isMouseDown = false;
+let selectAbortController: AbortController | null = null;
 
 
 export function register() {
@@ -107,14 +108,24 @@ async function onMouseUp(e: MouseEvent) {
       const item = (e.target as Element).closest<HTMLElement>('.table-item');
       if (!item) return;
       await selectByClicking(item);
-      if (selectedIds.has(item.dataset.path!)) confirmSelected();
     }
   } else {
-    await selectRequest();
-    dragging = false;
-    selectionScreen?.elt.remove();
+    const elt = selectionScreen?.elt;
     selectionScreen = null;
+    elt?.remove();
     confirmSelected();
+    try {
+      await selectRequest();
+    } catch (err) {
+      if ((err as any)?.name !== 'AbortError') {
+        selectedIds.clear();
+        document.querySelectorAll<HTMLElement>('#table .table-item').forEach(el => {
+          el.classList.remove('selected', 'confirmed');
+        });
+      }
+    } finally {
+      dragging = false;
+    }
   }
 }
 
@@ -126,11 +137,14 @@ function onClick(e: MouseEvent) {
   if ((e.target as Element).closest('.dir')) return;
   if ((e.target as Element).closest('.dropdown-item')) return;
   if (selectedIds.size > 0 && !dragging) {
+    selectAbortController?.abort();
     selectedIds.clear();
     document.querySelectorAll<HTMLElement>('#table .table-item').forEach(el => {
       el.classList.remove('selected', 'confirmed');
     });
-    htmx.ajax('POST', '/cancel', { target: 'body', swap: 'none' });
+    document.querySelectorAll<HTMLElement>('[data-cancel-hide]').forEach(el => el.remove());
+    document.querySelectorAll<HTMLElement>('.target-tab-selected-counter').forEach(el => el.remove());
+    fetch('/cancel', { method: 'POST' });
   }
 }
 
@@ -141,14 +155,32 @@ function confirmSelected() {
 
 
 async function selectRequest() {
-  const values: Record<string, string[]> = { selected: Array.from(selectedIds) };
-  await htmx.ajax('POST', '/table/select', {
-    values,
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    source: '#control-panel',
-    target: '#control-panel',
-    swap: 'outerHTML',
-  });
+  selectAbortController?.abort();
+  const ctrl = new AbortController();
+  selectAbortController = ctrl;
+
+  const params = new URLSearchParams();
+  for (const id of selectedIds) params.append('selected', id);
+
+  try {
+    const res = await fetch('/table/select', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString(),
+      signal: ctrl.signal,
+      priority: 'high',
+    } as RequestInit);
+    const html = await res.text();
+    if (!ctrl.signal.aborted) {
+      const cp = document.getElementById('control-panel');
+      if (cp) htmx.swap(cp, html, { swapStyle: 'outerHTML' });
+    }
+  } catch (err) {
+    if ((err as any)?.name === 'AbortError') return;
+    throw err;
+  } finally {
+    if (selectAbortController === ctrl) selectAbortController = null;
+  }
 }
 
 
@@ -162,12 +194,17 @@ async function selectByClicking(item: HTMLElement) {
     item.classList.add('selected');
   }
   try {
+    if (selectedIds.has(id)) item.classList.add('confirmed');
     await selectRequest();
-  } catch {
-    if (selectedIds.has(id)) {
-      item.classList.add('selected');
-    } else {
-      item.classList.remove('selected', 'confirmed');
+  } catch (err) {
+    if ((err as any)?.name !== 'AbortError') {
+      if (selectedIds.has(id)) {
+        selectedIds.delete(id);
+        item.classList.remove('selected', 'confirmed');
+      } else {
+        selectedIds.add(id);
+        item.classList.add('selected', 'confirmed');
+      }
     }
   }
 }

@@ -215,6 +215,7 @@ changeTarget :: SessionId -> ConfirmLogin -> Maybe TargetId
              -> Filehub (Headers '[Header "HX-Trigger-After-Swap" FilehubEvent] (Html ()))
 changeTarget sessionId _ mTargetId = do
   env           <- ask
+  clear sessionId
   savedTargetId <- do
     TargetView saved _ <- withSession sessionId (getCurrentTarget env)
     pure $ Target.getTargetId saved

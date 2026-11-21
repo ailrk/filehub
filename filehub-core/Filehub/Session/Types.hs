@@ -94,13 +94,8 @@ instance FromForm Selected where
       x:xs -> pure $ Selected x xs
 
 
--- | State machine reprents the copy and paste process.
 data CopyState
- -- | Ready to paste
-  = CopySelected [(AnyTarget, [FileInfo])]
-  -- | Start pasting files to target path
-  | Paste [(AnyTarget, [FileInfo])]
-  -- | No copy paste action being performed at the moment.
+  = Paste [(AnyTarget, [FileInfo])]
   | NoCopyPaste
   deriving (Generic, Debug)
 

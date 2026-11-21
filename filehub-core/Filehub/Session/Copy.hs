@@ -1,101 +1,44 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Filehub.Session.Copy
-  ( select
-  , copy
+  ( selectFiles
   , clearCopyState
   , CopyState
   )
   where
 
 import Control.Handle.Storage (Storage(..))
-import Control.Monad (forM_)
-import Data.ClientPath (Root(..), AbsPath(..))
+import Data.ClientPath (Root(..), AbsPath(..), ClientPath(..))
 import Data.ClientPath qualified as ClientPath
-import Data.Function (on, (&))
-import Data.List (nub)
 import Data.Maybe (fromMaybe)
-import Filehub.Error (FilehubError (..), Error' (..))
 import Filehub.Monad (Filehub)
-import Filehub.Session.Selected (AllSelected(..))
-import Filehub.Session.Selected qualified as Selected
-import Filehub.Session.Types (Selected(..), SessionId, CopyState (..))
+import Filehub.Session.Types (SessionId, CopyState (..))
 import Target.File (FileSys, Target(..))
 import Target.S3 (S3)
 import Target.Types (handleTarget, targetHandler)
-import Target.Types qualified as Target
-import Filehub.Session.Pool (withSession, modifySession, withSession_)
-import Filehub.Session (Session(..), getTargetViews, makeStorage, getTarget)
+import Filehub.Session.Pool (modifySession, withSession_)
+import Filehub.Session (Session(..), makeStorage, getTarget, getCurrentTarget)
+import Filehub.Session.Types (TargetView(..))
 import Control.Monad.Reader (MonadReader(ask))
-import Control.Concurrent.STM (throwSTM)
+import Filehub.Session.Pool (withSession)
 
 
 clearCopyState :: SessionId -> Filehub ()
 clearCopyState sessionId = modifySession sessionId \s -> pure s { copyState = NoCopyPaste }
 
 
--- | Add selected to copy state.
-select :: SessionId -> Filehub ()
-select sessionId = do
+selectFiles :: SessionId -> [ClientPath] -> Filehub ()
+selectFiles sessionId clientPaths = do
   env <- ask
-  AllSelected { allSelected } <- withSession sessionId \s -> do
-    targetViews <- getTargetViews env s
-    Selected.getAllSelected targetViews
-
-  forM_ allSelected \(target, selected) -> do
-
-    paths <- withSession_ sessionId \s -> do
-
-      case selected of
-        NoSelection -> do
-          case onNoSelection s.copyState of
-            Right (Just state') -> pure (s { copyState = state' }, mempty)
-            Right Nothing       -> pure (s, mempty)
-            Left err -> do
-              throwSTM err
-        Selected x xs -> do
-          let targetRoot = fromMaybe (Root (AbsPath "")) $ handleTarget target
-                [ targetHandler @FileSys \(FileBackend { root }) -> root
-                , targetHandler @S3      \_ -> Root (AbsPath "")
-                ]
-          pure (s, (x:xs) & fmap (ClientPath.fromClientPath targetRoot))
-
-    files <- do
-      targetView <- withSession sessionId \s -> getTarget env s target
-      storage    <- makeStorage targetView
-      traverse storage.get paths
-
-    withSession_ sessionId \s -> do
-      case onSelected (target, files) s.copyState of
-        Right state' -> pure (s { copyState = state' }, ())
-        Left err -> do
-            throwSTM err
-  where
-    merge sel [] = [sel]
-    merge sel@(target, files) (h@(target', files'):rest)
-      | on (==) Target.getTargetId target target' = (target, nub (files <> files')):rest
-      | otherwise = h:merge sel rest
-
-    onNoSelection = \case
-      NoCopyPaste    -> Right . Just $ CopySelected []
-      CopySelected _ -> Right Nothing
-      Paste _        -> Left (FilehubError SelectError "Invalid selection")
-
-    onSelected (target, files) = \case
-      NoCopyPaste             -> Right (CopySelected [(target, files)])
-      CopySelected selections -> Right (CopySelected (merge (target, files) selections))
-      Paste _                 -> Left (FilehubError SelectError "Invalid selection")
-
-
--- | Confirm selection
-copy :: SessionId -> Filehub ()
-copy sessionId = withSession_ sessionId \s -> do
-  case step s.copyState of
-    Right state' -> do
-      pure ( s { copyState = state' }
-           , ())
-    Left err -> do
-      throwSTM err
-  where
-    step = \case
-      CopySelected selections -> Right (Paste selections)
-      _                       -> Left (FilehubError SelectError "Not in a copyable state")
+  (target, root) <- withSession sessionId \s -> do
+    TargetView t _ <- getCurrentTarget env s
+    let targetRoot = fromMaybe (Root (AbsPath "")) $ handleTarget t
+          [ targetHandler @FileSys \(FileBackend { root }) -> root
+          , targetHandler @S3      \_ -> Root (AbsPath "")
+          ]
+    pure (t, targetRoot)
+  let paths = fmap (ClientPath.fromClientPath root) clientPaths
+  targetView <- withSession sessionId \s -> getTarget env s target
+  storage    <- makeStorage targetView
+  files      <- traverse storage.get paths
+  withSession_ sessionId \s ->
+    pure (s { copyState = Paste [(target, files)] }, ())

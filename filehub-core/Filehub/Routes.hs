@@ -238,6 +238,7 @@ data Api mode = Api
                           :> AuthProtect "session"
                           :> AuthProtect "login"
                           :> AuthProtect "readonly"
+                          :> QueryParams "file" ClientPath
                           :> Get '[HTML] (Html ())
 
 

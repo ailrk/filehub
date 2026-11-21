@@ -52,7 +52,7 @@ import Network.URI.Encode qualified as URI.Encode
 import Target.Types qualified
 import Filehub.Session (SessionId(..), Session(..), Storage(..), getRoot, TargetView (..), getCurrentTarget, makeStorageCurrentTarget)
 import Filehub.Session.Copy qualified as Copy
-import Filehub.Session.Types (Selected(..), CopyState(..))
+import Filehub.Session.Types (CopyState(..))
 import Filehub.Sort qualified as Sort
 import Filehub.Types ( NewFile(..) , NewFolder(..), UpdatedFile(..) , UpdatedFile(..) , FilehubEvent (..), RenameFile (..), MoveFile (..), Env)
 import Lucid hiding (for_)
@@ -70,7 +70,7 @@ import System.Random (randomRIO)
 import Text.Printf (printf)
 import Data.List (isPrefixOf)
 import Data.Set qualified as Set
-import UnliftIO (throwIO, newEmptyMVar, takeMVar, putMVar, writeTVar, onException)
+import UnliftIO (throwIO, newEmptyMVar, takeMVar, putMVar, onException)
 import UnliftIO.Async (forConcurrently_)
 import UnliftIO.STM (atomically, modifyTVar', readTVar, newTVarIO, writeTBQueue)
 import Worker.Task (newTaskId)
@@ -185,11 +185,10 @@ newFolder sessionId _ _ (NewFolder name) = do
     newFile' sessionId name storage.newFolder
 
 
-copy :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> Filehub (Html ())
-copy sessionId _ _ = do
+copy :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> [ClientPath] -> Filehub (Html ())
+copy sessionId _ _ clientPaths = do
   env <- ask
-  Copy.select sessionId
-  Copy.copy sessionId
+  Copy.selectFiles sessionId clientPaths
   (targetId, count) <- withSession sessionId \s -> do
     TargetView t _ <- getCurrentTarget env s
     let n = case s.copyState of
@@ -205,13 +204,7 @@ copy1 sessionId _ _ mClientPath = do
   env        <- ask
   clientPath <- withQueryParam mClientPath
   UI.clear sessionId
-
-  withSession sessionId \s -> do
-    TargetView _ td <- getCurrentTarget env s
-    writeTVar td.selected (Selected clientPath [])
-
-  Copy.select sessionId
-  Copy.copy sessionId
+  Copy.selectFiles sessionId [clientPath]
   (targetId, count) <- withSession sessionId \s -> do
     TargetView t _ <- getCurrentTarget env s
     let n = case s.copyState of

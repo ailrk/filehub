@@ -115,7 +115,7 @@ textarea:focus {
 }
 
 #side-bar .current-target .target-tab-selected-counter {
-  background: var(--on-secondary);
+  background: var(--background3);
   color: var(--secondary);
 }
 

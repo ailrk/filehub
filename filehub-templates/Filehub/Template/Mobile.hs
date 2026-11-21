@@ -42,6 +42,7 @@ import Target.S3 (Target (..), S3)
 import Target.Types (targetHandler, AnyTarget, handleTarget)
 import Target.Types qualified as Target
 import Filehub.Session (TargetView(..))
+import Filehub.Session.Types (Selected(..))
 import Target.Dummy (DummyTarget)
 import Data.Coerce (coerce)
 import Control.Monad.Reader (asks, MonadReader (..))
@@ -335,8 +336,15 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
     copyBtn :: Template (Html ())
     copyBtn = do
       Phrase { control_panel_copy } <- phrase <$> asks (.locale)
+      selected <- asks (.selected)
+      let clientPaths = case selected of
+            NoSelection   -> []
+            Selected x xs -> x:xs
       pure do
-        button_ (asHtmx @"copy" hxGet () [ class_ "action-btn" ]) do
+        button_ (asHtmx @"copy" hxGet clientPaths
+                [ class_ "action-btn"
+                , term "data-cancel-hide" ""
+                ]) do
           span_ [ class_ "field " ] do
             i_ [ class_ "bx bxs-copy-alt" ] mempty
             span_ (toHtml control_panel_copy)
@@ -346,7 +354,10 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
     pasteBtn = do
       Phrase { control_panel_paste } <- phrase <$> asks (.locale)
       pure do
-        button_ (asHtmx @"paste" hxPost () [ class_ "action-btn" ]) do
+        button_ (asHtmx @"paste" hxPost ()
+                [ class_ "action-btn"
+                , term "data-cancel-hide" ""
+                ]) do
           span_ [ class_ "field " ] do
             i_ [ class_ "bx bxs-paste" ] mempty
             span_ (toHtml control_panel_paste)
@@ -370,7 +381,10 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
     cancelBtn = do
       Phrase { control_panel_cancel } <- phrase <$> asks (.locale)
       pure do
-        button_ (asHtmx @"cancel" hxPost () [ class_ "action-btn" ]) do
+        button_ (asHtmx @"cancel" hxPost ()
+                [ class_ "action-btn"
+                , term "data-cancel-hide" ""
+                ]) do
           span_ [ class_ "field " ] do
             i_ [ class_ "bx bxs-message-alt-x" ] mempty
             span_ (toHtml control_panel_cancel)

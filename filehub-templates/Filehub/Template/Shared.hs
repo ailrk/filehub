@@ -267,7 +267,7 @@ controlPanel
                 uploadBtn
                 copyBtn
                 deleteBtn
-                div_ [id_ "plugin-toolbar-actions"] mempty
+                div_ [id_ "plugin-toolbar-actions", term "data-cancel-hide" ""] mempty
                 cancelBtn
                 fromMaybe mempty mScroll2TopBtn
             ControlPanelCopied ->

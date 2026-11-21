@@ -111,10 +111,9 @@ targetRoot (AnyTarget tgt) =
 getControlPanelState :: AllSelected -> Session -> STM ControlPanelState
 getControlPanelState AllSelected { count } s = do
   case s.copyState of
-    Paste {}                    -> pure ControlPanelCopied
-    CopySelected {} | count > 0 -> pure ControlPanelSelecting
-    NoCopyPaste {} | count > 0  -> pure ControlPanelSelecting
-    _                           -> pure ControlPanelDefault
+    Paste {}               -> pure ControlPanelCopied
+    NoCopyPaste | count > 0 -> pure ControlPanelSelecting
+    _                       -> pure ControlPanelDefault
 
 
 getTargetViews :: Env -> Session -> STM [TargetView]

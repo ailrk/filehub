@@ -37,7 +37,7 @@ import Filehub.Routes (Api(..))
 import Filehub.Routes.Links ( apiLinks )
 import Filehub.Session (TargetView(..))
 import Filehub.Session.Selected qualified as Selected
-import Filehub.Session.Types (Layout(..))
+import Filehub.Session.Types (Layout(..), Selected(..))
 import Filehub.Template (Template, TemplateContext(..), runTemplate)
 import Filehub.Template.Htmx (asHtmx)
 import Filehub.Template.Shared
@@ -240,10 +240,15 @@ uploadBtn = do
 copyBtn :: Template (Html ())
 copyBtn = do
   Phrase { control_panel_copy } <- phrase <$> asks (.locale)
+  selected <- asks (.selected)
+  let clientPaths = case selected of
+        NoSelection   -> []
+        Selected x xs -> x:xs
   pure do
-    button_ (asHtmx @"copy" hxGet ()
+    button_ (asHtmx @"copy" hxGet clientPaths
             [ class_ "btn btn-control tooltip"
             , type_ "submit"
+            , term "data-cancel-hide" ""
             , term "data-tooltip" control_panel_copy
             ]) do
       span_ [ class_ "field " ] do
@@ -257,6 +262,7 @@ pasteBtn = do
     button_ (asHtmx @"paste" hxPost ()
             [ class_ "btn btn-control tooltip"
             , type_ "submit"
+            , term "data-cancel-hide" ""
             , term "data-tooltip" control_panel_paste
             ]) do
       span_ [ class_ "field " ] do
@@ -273,6 +279,7 @@ deleteBtn = do
     button_ (asHtmx @"delete" hxDelete ([], True)
             [ class_ "btn btn-control urgent tooltip"
             , type_ "submit"
+            , term "data-cancel-hide" ""
             , hxConfirm confirm_delete_all
             , term "data-tooltip" control_panel_delete
             ]) do
@@ -287,6 +294,7 @@ cancelBtn = do
     button_ (asHtmx @"cancel" hxPost ()
             [ class_ "btn btn-control tooltip"
             , type_ "submit"
+            , term "data-cancel-hide" ""
             , term "data-tooltip" control_panel_cancel
             ]) do
       span_ [ class_ "field " ] do
