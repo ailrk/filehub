@@ -8,7 +8,6 @@ import Data.ClientPath (AbsPath(..), Root(..), ClientPath(..), toClientPath, fro
 import Data.File (File(..), FileType)
 import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
-import Data.Time (getCurrentTime)
 import Filehub.RateLimit qualified as RateLimit
 import Filehub.SharedLink
 import Filehub.Sort (sortFiles, SortFileBy(..))

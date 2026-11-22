@@ -10,6 +10,7 @@ import Data.ClientPath (AbsPath(..))
 import Data.Coerce (coerce)
 import Data.File (File(..), FileType(..), FileInfo)
 import Data.List ( sortOn )
+import Data.Ord (Down(..))
 import Servant (ToHttpApiData(..), FromHttpApiData(..))
 import System.FilePath ( takeFileName )
 import Text.Debug (Debug (..))
@@ -47,13 +48,11 @@ instance FromHttpApiData SortFileBy where
   parseUrlPiece _              = Left "Unknown order"
 
 
-byFileNamewithDirFirst :: FileInfo -> (FileType, String)
-byFileNamewithDirFirst file = do
-  let pre = case file.content of
-              Regular -> '1'
-              Dir     -> '0'
-  let name = coerce takeFileName file.path :: String
-  (file.content, pre : name)
+byFileNamewithDirFirst :: FileInfo -> (Down FileType, String)
+byFileNamewithDirFirst file =
+  ( Down file.content              -- Regular < Dir, so Down Dir < Down Regular → Dir sorts first
+  , coerce takeFileName file.path
+  )
 
 
 sortFiles :: SortFileBy -> [FileInfo] -> [FileInfo]

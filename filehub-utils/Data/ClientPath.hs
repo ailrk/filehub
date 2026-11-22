@@ -102,10 +102,12 @@ fromClientPath prefix (ClientPath cp) =
 toRawClientPath :: FilePath -> FilePath -> RawClientPath
 toRawClientPath prefix path = do
   RawClientPath (normalise (ensureUnslash (removePrefix (ensureSlash prefix) path)))
+{-# INLINE toRawClientPath #-}
 
 
 fromRawClientPath :: FilePath -> RawClientPath -> FilePath
 fromRawClientPath prefix (RawClientPath cp) = normalise (prefix </> ensureUnslash cp)
+{-# INLINE fromRawClientPath #-}
 
 
 removePrefix :: FilePath -> FilePath -> FilePath
@@ -113,6 +115,7 @@ removePrefix prefix path =
   case stripPrefix (normalise prefix) (normalise path) of
     Just removed -> removed
     Nothing -> path
+{-# INLINE removePrefix #-}
 
 
 ensureSlash :: FilePath -> FilePath
