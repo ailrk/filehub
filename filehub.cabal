@@ -420,7 +420,16 @@ benchmark filehub_bench
   type:                   exitcode-stdio-1.0
   hs-source-dirs:         benchmark
   main-is:                Main.hs
+  other-modules:          Gen
   build-depends:          filehub:filehub-core
+                        , filehub:filehub-utils
+                        , filehub:filehub-templates
                         , criterion >=1.6
                         , unliftio
                         , text
+                        , bytestring
+                        , containers
+                        , lucid
+                        , time
+                        , uuid
+                        , deepseq
