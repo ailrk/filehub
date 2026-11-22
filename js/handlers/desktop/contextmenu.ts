@@ -94,6 +94,12 @@ function buildMenu1(item: HTMLElement, readOnly: boolean): HTMLElement {
     'hx-get': `/files/copy1?file=${enc}`, 'hx-target': '#control-panel', 'hx-swap': 'outerHTML',
   }));
 
+  if (!readOnly) {
+    menu.appendChild(makeItem(t.cut, 'bx-cut', {
+      'hx-get': `/files/cut1?file=${enc}`, 'hx-target': '#control-panel', 'hx-swap': 'outerHTML',
+    }));
+  }
+
   const dl = document.createElement('a');
   dl.className = 'dropdown-item';
   dl.href = `/download?file=${enc}`;
@@ -157,6 +163,9 @@ function buildMenuMany(paths: string[], readOnly: boolean): HTMLElement {
     }));
     menu.appendChild(makeItem(t.copy, 'bxs-copy-alt', {
       'hx-get': `/files/copy?${fileParams}`, 'hx-target': '#control-panel', 'hx-swap': 'outerHTML',
+    }));
+    menu.appendChild(makeItem(t.cut, 'bx-cut', {
+      'hx-get': `/files/cut?${fileParams}`, 'hx-target': '#control-panel', 'hx-swap': 'outerHTML',
     }));
   }
 

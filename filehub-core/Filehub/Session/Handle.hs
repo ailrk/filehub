@@ -123,6 +123,7 @@ getControlPanelState :: AllSelected -> Session -> STM ControlPanelState
 getControlPanelState AllSelected { count } s = do
   case s.copyState of
     Paste {}               -> pure ControlPanelCopied
+    Cut   {}               -> pure ControlPanelCopied
     NoCopyPaste | count > 0 -> pure ControlPanelSelecting
     _                       -> pure ControlPanelDefault
 

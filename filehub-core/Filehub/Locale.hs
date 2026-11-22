@@ -77,6 +77,7 @@ data Phrase = Phrase
   , contextmenu_details      :: Text
   , contextmenu_selected     :: Text
   , contextmenu_copy         :: Text
+  , contextmenu_cut          :: Text
   , contextmenu_cancel       :: Text
   , search_as_you_type       :: Text
   , control_panel_list       :: Text
@@ -87,6 +88,7 @@ data Phrase = Phrase
   , control_panel_new_file   :: Text
   , control_panel_upload     :: Text
   , control_panel_copy       :: Text
+  , control_panel_cut        :: Text
   , control_panel_paste      :: Text
   , control_panel_delete     :: Text
   , control_panel_cancel     :: Text
@@ -215,6 +217,7 @@ phraseCodec =
   <*> Toml.text "CONTEXTMENU_DETAILS"      .= (.contextmenu_details)
   <*> Toml.text "CONTEXTMENU_SELECTED"     .= (.contextmenu_selected)
   <*> Toml.text "CONTEXTMENU_COPY"         .= (.contextmenu_copy)
+  <*> Toml.text "CONTEXTMENU_CUT"          .= (.contextmenu_cut)
   <*> Toml.text "CONTEXTMENU_CANCEL"       .= (.contextmenu_cancel)
   <*> Toml.text "SEARCH_AS_YOU_TYPE"       .= (.search_as_you_type)
   <*> Toml.text "CONTROL_PANEL_LIST"       .= (.control_panel_list)
@@ -225,6 +228,7 @@ phraseCodec =
   <*> Toml.text "CONTROL_PANEL_NEW_FILE"   .= (.control_panel_new_file)
   <*> Toml.text "CONTROL_PANEL_UPLOAD"     .= (.control_panel_upload)
   <*> Toml.text "CONTROL_PANEL_COPY"       .= (.control_panel_copy)
+  <*> Toml.text "CONTROL_PANEL_CUT"        .= (.control_panel_cut)
   <*> Toml.text "CONTROL_PANEL_PASTE"      .= (.control_panel_paste)
   <*> Toml.text "CONTROL_PANEL_DELETE"     .= (.control_panel_delete)
   <*> Toml.text "CONTROL_PANEL_CANCEL"     .= (.control_panel_cancel)

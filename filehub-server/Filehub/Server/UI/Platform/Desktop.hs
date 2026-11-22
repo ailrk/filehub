@@ -69,6 +69,7 @@ i18nPayload readOnly p = "window.filehubI18n=" <> obj <> ";"
       [ kv "delete"              p.contextmenu_delete
       , kv "rename"              p.contextmenu_rename
       , kv "copy"                p.contextmenu_copy
+      , kv "cut"                 p.contextmenu_cut
       , kv "download"            p.contextmenu_download
       , kv "details"             p.contextmenu_details
       , kv "edit"                p.contextmenu_edit

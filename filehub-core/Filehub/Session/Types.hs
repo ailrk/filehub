@@ -96,6 +96,7 @@ instance FromForm Selected where
 
 data CopyState
   = Paste [(AnyTarget, [FileInfo])]
+  | Cut   [(AnyTarget, [FileInfo])]
   | NoCopyPaste
   deriving (Generic, Debug)
 

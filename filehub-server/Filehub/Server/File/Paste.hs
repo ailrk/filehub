@@ -1,7 +1,8 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Filehub.Server.File.Paste (paste) where
 
-import Control.Monad (void)
+import Control.Monad (void, unless)
+import Data.Foldable (for_)
 import Control.Monad.Fix (fix)
 import Control.Monad.Reader (MonadReader(..))
 import Data.ClientPath (AbsPath (..), toClientPath)
@@ -208,6 +209,37 @@ paste sessionId _ _ = do
       response <- go selections
         `catch` handleErr
         `finally`  cleanup
+
+      currentDir' <- readTVarIO sdata.currentDir
+      let fileNames = [ T.pack (takeFileName (coerce f.path))
+                      | (_, files) <- selections, f <- files ]
+          dstCP = ClientPath.toClientPath (targetRoot pasteTo) currentDir'
+      recordHistory sessionId (OpPaste (getTargetId pasteTo) dstCP fileNames) True
+
+      withSession sessionId \s -> do
+        TargetView currentTarget _ <- getCurrentTarget env s
+        writeTBQueue notifications $ TaskCompleted
+          { taskId       = taskId
+          , htmxResponse = if currentTarget == pasteTo
+                              then response
+                              else Nothing
+          }
+
+    Cut selections -> forkFilehub_ env do
+      _ <- takeMVar lk
+
+      response <- (do
+        currentDir' <- readTVarIO sdata.currentDir
+        result <- go selections
+        for_ selections \(from, files) -> do
+          storage <- makeStorageForTarget sessionId from
+          for_ files \file -> do
+            let dstPath = AbsPath (coerce currentDir' </> takeFileName (coerce file.path))
+            unless (from == pasteTo && dstPath == file.path) $
+              storage.delete file.path
+        pure result)
+        `catch` handleErr
+        `finally` cleanup
 
       currentDir' <- readTVarIO sdata.currentDir
       let fileNames = [ T.pack (takeFileName (coerce f.path))

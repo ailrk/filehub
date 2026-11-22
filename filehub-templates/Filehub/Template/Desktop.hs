@@ -200,6 +200,7 @@ controlPanel = join do
     <*> pure mempty
     <*> uploadBtn
     <*> copyBtn
+    <*> cutBtn
     <*> pasteBtn
     <*> deleteBtn
     <*> cancelBtn
@@ -253,6 +254,24 @@ copyBtn = do
             ]) do
       span_ [ class_ "field " ] do
         i_ [ class_ "bx bxs-copy-alt" ] mempty
+
+
+cutBtn :: Template (Html ())
+cutBtn = do
+  Phrase { control_panel_cut } <- phrase <$> asks (.locale)
+  selected <- asks (.selected)
+  let clientPaths = case selected of
+        NoSelection   -> []
+        Selected x xs -> x:xs
+  pure do
+    button_ (asHtmx @"cut" hxGet clientPaths
+            [ class_ "btn btn-control tooltip"
+            , type_ "submit"
+            , term "data-cancel-hide" ""
+            , term "data-tooltip" control_panel_cut
+            ]) do
+      span_ [ class_ "field " ] do
+        i_ [ class_ "bx bx-cut" ] mempty
 
 
 pasteBtn :: Template (Html ())

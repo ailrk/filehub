@@ -9,6 +9,8 @@ module Filehub.Server.File
   , newFolder
   , copy
   , copy1
+  , cut
+  , cut1
   , paste
   , move
   , download
@@ -211,6 +213,35 @@ copy1 sessionId _ _ mClientPath = do
     let n = case s.copyState of
               Paste sels -> sum (map (length . snd) sels)
               _          -> 0
+    pure (Target.Types.getTargetId t, n)
+  recordHistory sessionId (OpCopy targetId count) True
+  UI.controlPanel sessionId
+
+
+cut :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> [ClientPath] -> Filehub (Html ())
+cut sessionId _ _ clientPaths = do
+  env <- ask
+  Copy.cutFiles sessionId clientPaths
+  (targetId, count) <- withSession sessionId \s -> do
+    TargetView t _ <- getCurrentTarget env s
+    let n = case s.copyState of
+              Cut sels -> sum (map (length . snd) sels)
+              _        -> 0
+    pure (Target.Types.getTargetId t, n)
+  recordHistory sessionId (OpCopy targetId count) True
+  UI.controlPanel sessionId
+
+
+cut1 :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> Maybe ClientPath -> Filehub (Html ())
+cut1 sessionId _ _ mClientPath = do
+  env        <- ask
+  clientPath <- withQueryParam mClientPath
+  Copy.cutFiles sessionId [clientPath]
+  (targetId, count) <- withSession sessionId \s -> do
+    TargetView t _ <- getCurrentTarget env s
+    let n = case s.copyState of
+              Cut sels -> sum (map (length . snd) sels)
+              _        -> 0
     pure (Target.Types.getTargetId t, n)
   recordHistory sessionId (OpCopy targetId count) True
   UI.controlPanel sessionId

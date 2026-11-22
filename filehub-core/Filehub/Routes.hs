@@ -262,6 +262,24 @@ data Api mode = Api
                           :> Get '[HTML] (Html ())
 
 
+  , cut                   :: mode
+                          :- "files" :> "cut"
+                          :> AuthProtect "session"
+                          :> AuthProtect "login"
+                          :> AuthProtect "readonly"
+                          :> QueryParams "file" ClientPath
+                          :> Get '[HTML] (Html ())
+
+
+  , cut1                  :: mode
+                          :- "files" :> "cut1"
+                          :> AuthProtect "session"
+                          :> AuthProtect "login"
+                          :> AuthProtect "readonly"
+                          :> QueryParam "file" ClientPath
+                          :> Get '[HTML] (Html ())
+
+
   , paste                 :: mode
                           :- "files" :> "paste"
                           :> AuthProtect "session"

@@ -1,5 +1,5 @@
 export const defaultI18n = {
-    delete: 'Delete', rename: 'Rename', copy: 'Copy', download: 'Download',
+    delete: 'Delete', rename: 'Rename', copy: 'Copy', cut: 'Cut', download: 'Download',
     details: 'Details', edit: 'Edit', view: 'View', play: 'Play', open: 'Open',
     cancel: 'Cancel', selected: 'selected',
     confirmDelete1: 'Delete {}?', confirmDeleteLocal: 'Delete {} items?',

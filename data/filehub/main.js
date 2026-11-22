@@ -86,6 +86,12 @@ window.addEventListener('beforeunload', async () => {
     });
 });
 startListenSSE();
+setInterval(() => {
+    if (!evtSource || evtSource.readyState === EventSource.CLOSED) {
+        evtSource = null;
+        startListenSSE();
+    }
+}, 5000);
 function handleThemeChanged() {
     const oldLink = document.querySelector('link[rel="stylesheet"][href*="/theme.css"]');
     if (!oldLink)
@@ -334,8 +340,17 @@ function initPluginToggles() {
 }
 // ─────────────────────────────────────────────────────────────────────────────
 function startListenSSE() {
-    if (!evtSource)
-        evtSource = new EventSource('/listen');
+    if (evtSource && evtSource.readyState !== EventSource.CLOSED)
+        return;
+    evtSource = new EventSource('/listen');
+    evtSource.onerror = () => {
+        // EventSource auto-reconnects on transient errors; only intervene when
+        // it gives up and enters CLOSED state permanently.
+        if (evtSource?.readyState === EventSource.CLOSED) {
+            evtSource = null;
+            setTimeout(startListenSSE, 3000);
+        }
+    };
     evtSource.onmessage = event => {
         console.log('New update:', JSON.parse(event.data));
     };

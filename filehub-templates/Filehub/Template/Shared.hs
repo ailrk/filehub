@@ -190,7 +190,7 @@ searchBar = do
 
 controlPanel
   :: Html () -> Html () -> Html () -> Html () ->
-     Html () -> Html () -> Html () -> Html () ->
+     Html () -> Html () -> Html () -> Html () -> Html () ->
      Html () -> Html () ->
      Maybe (Html()) -> Maybe (Html ()) -> Maybe (Html ()) ->
      Maybe (Html ()) ->
@@ -204,6 +204,7 @@ controlPanel
   newFileBtn
   uploadBtn
   copyBtn
+  cutBtn
   pasteBtn
   deleteBtn
   cancelBtn
@@ -267,6 +268,7 @@ controlPanel
                 fromMaybe mempty mHistoryBtn
                 uploadBtn
                 copyBtn
+                cutBtn
                 deleteBtn
                 div_ [id_ "plugin-toolbar-actions", term "data-cancel-hide" ""] mempty
                 cancelBtn

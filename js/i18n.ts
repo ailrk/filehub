@@ -2,6 +2,7 @@ export interface I18n {
   delete: string;
   rename: string;
   copy: string;
+  cut: string;
   download: string;
   details: string;
   edit: string;
@@ -45,7 +46,7 @@ declare global {
 }
 
 export const defaultI18n: I18n = {
-  delete: 'Delete', rename: 'Rename', copy: 'Copy', download: 'Download',
+  delete: 'Delete', rename: 'Rename', copy: 'Copy', cut: 'Cut', download: 'Download',
   details: 'Details', edit: 'Edit', view: 'View', play: 'Play', open: 'Open',
   cancel: 'Cancel', selected: 'selected',
   confirmDelete1: 'Delete {}?', confirmDeleteLocal: 'Delete {} items?',

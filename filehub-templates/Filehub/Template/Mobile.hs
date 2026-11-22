@@ -262,6 +262,7 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
     <*> newFileBtn
     <*> uploadBtn
     <*> copyBtn
+    <*> cutBtn
     <*> pasteBtn
     <*> deleteBtn
     <*> cancelBtn
@@ -348,6 +349,23 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
           span_ [ class_ "field " ] do
             i_ [ class_ "bx bxs-copy-alt" ] mempty
             span_ (toHtml control_panel_copy)
+
+
+    cutBtn :: Template (Html ())
+    cutBtn = do
+      Phrase { control_panel_cut } <- phrase <$> asks (.locale)
+      selected <- asks (.selected)
+      let clientPaths = case selected of
+            NoSelection   -> []
+            Selected x xs -> x:xs
+      pure do
+        button_ (asHtmx @"cut" hxGet clientPaths
+                [ class_ "action-btn"
+                , term "data-cancel-hide" ""
+                ]) do
+          span_ [ class_ "field " ] do
+            i_ [ class_ "bx bx-cut" ] mempty
+            span_ (toHtml control_panel_cut)
 
 
     pasteBtn :: Template (Html ())
