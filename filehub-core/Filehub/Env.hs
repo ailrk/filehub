@@ -31,6 +31,7 @@ import Control.Handle.LockManager (LockManager)
 import Control.Handle.EvtLog (EvtLog)
 import Filehub.History.Types (History)
 import Filehub.Plugin.Types (StaticPlugin)
+import Filehub.RateLimit (RateLimiters)
 
 
 data Env = Env
@@ -92,6 +93,8 @@ data Env = Env
   , persistDynConfig  :: IO ()
     -- Path of the writable dynamic config file (Nothing if flag was not set).
   , dynamicConfigPath :: Maybe FilePath
+    -- Per-use-case rate limiters (sliding window, keyed by client IP).
+  , rateLimiters      :: RateLimiters
   }
 
 

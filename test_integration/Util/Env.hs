@@ -16,6 +16,7 @@ import Filehub.Auth.Types.Simple (SimpleAuthUserDB(..))
 import Filehub.Env (Env(..))
 import Filehub.History qualified as History
 import Filehub.Locale (Locale(..))
+import Filehub.RateLimit qualified as RateLimit
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.SharedLink qualified as SharedLink
 import Filehub.Theme (Theme(..))
@@ -44,6 +45,7 @@ defaultEnv = do
                                 )
                               ]
   sharedLinkPool <- SharedLink.newShareLinkPool
+  rateLimiters   <- RateLimit.newRateLimiters
   evtLogHandle   <- EvtLog.initialize ":memory:" 100
   history        <- History.newHistory
   themeVar       <- newTVarIO Dark
@@ -81,6 +83,7 @@ defaultEnv = do
           , staticTargetIds   = Set.singleton tid
           , persistDynConfig  = pure ()
           , dynamicConfigPath = Nothing
+          , rateLimiters      = rateLimiters
           }
   pure env
 

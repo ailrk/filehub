@@ -36,7 +36,7 @@ import Data.File (File(..), FileType(..))
 import System.FilePath (takeFileName)
 import Filehub.Env (Env(..))
 import Filehub.Error (FilehubError(..))
-import Filehub.Handler (ConfirmLogin)
+import Filehub.Handler (ConfirmLogin, ConfirmRateLimitSharedLink(..))
 import Filehub.History (Operation(..), recordHistory)
 import Filehub.Monad
 import Filehub.Session (SessionId(..), makeStorageAt, targetRoot, fromClientPathChecked)
@@ -56,8 +56,8 @@ import Web.Cookie (SetCookie(..), defaultSetCookie)
 
 
 -- | Serve a shared link: show the folder browser or redirect to auth.
-shared :: SessionId -> Maybe SharedLinkPermit -> SharedLinkHash -> Maybe ClientPath -> Filehub (Html ())
-shared sessionId mClientPermit hash mClientPath = do
+shared :: SessionId -> Maybe SharedLinkPermit -> ConfirmRateLimitSharedLink -> SharedLinkHash -> Maybe ClientPath -> Filehub (Html ())
+shared sessionId mClientPermit _ hash mClientPath = do
   env  <- ask
   let pool = env.sharedLinkPool
   mLink <- lookupSharedLink hash pool
@@ -108,9 +108,9 @@ renderShared link mClientPath = do
 
 -- | Serve a single file from a shared link.
 -- When `inline` is True, Content-Disposition is set to inline (useful for PDF iframes).
-sharedFile :: SessionId -> Maybe SharedLinkPermit -> SharedLinkHash -> Bool -> Maybe ClientPath
+sharedFile :: SessionId -> Maybe SharedLinkPermit -> ConfirmRateLimitSharedLink -> SharedLinkHash -> Bool -> Maybe ClientPath
            -> Filehub (Headers '[Header "Content-Disposition" String] (ConduitT () ByteString (ResourceT IO) ()))
-sharedFile sessionId mClientPermit hash inline mClientPath = do
+sharedFile sessionId mClientPermit _ hash inline mClientPath = do
   env <- ask
   let pool = env.sharedLinkPool
   mLink <- lookupSharedLink hash pool
@@ -151,8 +151,8 @@ sharedFile sessionId mClientPermit hash inline mClientPath = do
 
 
 -- | Render a preview page for a single file in a shared link.
-sharedPreview :: SessionId -> Maybe SharedLinkPermit -> SharedLinkHash -> Maybe ClientPath -> Filehub (Html ())
-sharedPreview sessionId mClientPermit hash mClientPath = do
+sharedPreview :: SessionId -> Maybe SharedLinkPermit -> ConfirmRateLimitSharedLink -> SharedLinkHash -> Maybe ClientPath -> Filehub (Html ())
+sharedPreview sessionId mClientPermit _ hash mClientPath = do
   env <- ask
   let pool = env.sharedLinkPool
   mLink <- lookupSharedLink hash pool
@@ -206,8 +206,8 @@ goAuth (SharedLinkHash hashText) =
 
 
 -- | Show the auth page (passcode form) or auto-issue a permit if no passcode is required.
-sharedAuth :: SessionId -> Maybe SharedLinkHash -> Filehub (Html ())
-sharedAuth sessionId mHash = do
+sharedAuth :: SessionId -> ConfirmRateLimitSharedLink -> Maybe SharedLinkHash -> Filehub (Html ())
+sharedAuth sessionId _ mHash = do
   case mHash of
     Nothing -> pure noLinkPage
     Just hash -> do
@@ -242,8 +242,8 @@ autoIssue sessionId hash link = do
 
 
 -- | Handle passcode submission for a shared link.
-sharedAuthPost :: SessionId -> SharedLinkAuth -> Filehub (Html ())
-sharedAuthPost sessionId SharedLinkAuth { hash = hashText, passcode = submittedPasscode } = do
+sharedAuthPost :: SessionId -> ConfirmRateLimitSharedLink -> SharedLinkAuth -> Filehub (Html ())
+sharedAuthPost sessionId _ SharedLinkAuth { hash = hashText, passcode = submittedPasscode } = do
   let hash = SharedLinkHash hashText
   env <- ask
   let pool = env.sharedLinkPool

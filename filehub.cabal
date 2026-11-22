@@ -239,6 +239,7 @@ library filehub-core
                           Filehub.Orphan
                           Filehub.Plugin.Types
                           Filehub.Plugin.Toml
+                          Filehub.RateLimit
                           Filehub.QQ
                           Filehub.Routes
                           Filehub.Routes.LinkConf
@@ -300,7 +301,8 @@ library filehub-server
                           random,
                           uri-encode,
                           wai-extra,
-                          hashable
+                          hashable,
+                          network
   exposed-modules:        Filehub.Server
                           Filehub.Server.File
                           Filehub.Server.File.Paste
@@ -362,6 +364,7 @@ test-suite filehub_test_integration
   other-modules:          Test.Middleware
                           Test.Cache
                           Test.SharedLink
+                          Test.RateLimit
                           Test.Api.Login
                           Test.Api.File
                           Util.Env
@@ -417,10 +420,7 @@ benchmark filehub_bench
   type:                   exitcode-stdio-1.0
   hs-source-dirs:         benchmark
   main-is:                Main.hs
-  build-depends:          filehub
-                        , filehub-utils
+  build-depends:          filehub:filehub-core
                         , criterion >=1.6
                         , unliftio
-                        , req
-                        , time
-                        , http-types
+                        , text

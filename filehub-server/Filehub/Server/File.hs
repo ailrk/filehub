@@ -39,7 +39,7 @@ import Data.Text qualified as T
 import Data.Text.Encoding qualified as T
 import Data.Traversable (for)
 import Filehub.Error ( FilehubError(..), Error' (..) )
-import Filehub.Handler (ConfirmLogin, ConfirmReadOnly)
+import Filehub.Handler (ConfirmLogin, ConfirmReadOnly, ConfirmRateLimitUpload(..), ConfirmRateLimitDownload(..))
 import Filehub.Monad
 import Filehub.Notification.Types (Notification(..))
 import Filehub.Orphan ()
@@ -309,9 +309,9 @@ move sessionId _ _ (MoveFile src tgt) = do
   addHeader FileMoved <$> pure htmx
 
 
-download :: SessionId -> ConfirmLogin -> [ClientPath]
+download :: SessionId -> ConfirmLogin -> ConfirmRateLimitDownload -> [ClientPath]
          -> Filehub (Headers '[ Header "Content-Disposition" String ] (ConduitT () ByteString (ResourceT IO) ()))
-download sessionId _ clientPaths = do
+download sessionId _ _ clientPaths = do
   env     <- ask
   storage <- makeStorageCurrentTarget sessionId
   root    <- withSession sessionId (getRoot env)
@@ -364,9 +364,9 @@ download sessionId _ clientPaths = do
       pure $ addHeader (printf "attachement; filename=%s.zip" tag) conduit
 
 
-upload :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> MultipartData Mem
+upload :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> ConfirmRateLimitUpload -> MultipartData Mem
        -> Filehub (Html ())
-upload sessionId _ _ multipart = do
+upload sessionId _ _ _ multipart = do
   env           <- ask
   taskId        <- newTaskId
   withSession sessionId \s -> modifyTVar' s.pendingTasks (Set.insert taskId)
@@ -423,8 +423,8 @@ upload sessionId _ _ multipart = do
   pure htmx
 
 
-serve :: Env -> SessionId -> ConfirmLogin -> Tagged Filehub Application
-serve env sessionId _ = Tagged $ \req respond -> do
+serve :: Env -> SessionId -> ConfirmLogin -> ConfirmRateLimitDownload -> Tagged Filehub Application
+serve env sessionId _ _ = Tagged $ \req respond -> do
   let query = queryString req
   let mFile = join $ lookup "file" query
 

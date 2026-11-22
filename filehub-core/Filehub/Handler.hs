@@ -7,16 +7,32 @@ module Filehub.Handler
   , displayOnlyHandler
   , loginHandler
   , sharedLinkPermitHandler
+  , rateLimitLoginHandler
+  , rateLimitUploadHandler
+  , rateLimitDownloadHandler
+  , rateLimitSearchHandler
+  , rateLimitSharedLinkHandler
   , ConfirmDesktopOnly(..)
   , ConfirmMobilOnly(..)
   , ConfirmReadOnly(..)
   , ConfirmLogin(..)
+  , ConfirmRateLimitLogin(..)
+  , ConfirmRateLimitUpload(..)
+  , ConfirmRateLimitDownload(..)
+  , ConfirmRateLimitSearch(..)
+  , ConfirmRateLimitSharedLink(..)
+  , clientIP
   )
   where
 
 import Data.Bifunctor (Bifunctor(..))
+import Data.Text (Text)
+import Data.Text qualified as T
+import Data.Text.Encoding qualified as T
 import Data.Text.Lazy qualified as TL
 import Data.Text.Lazy.Encoding qualified as TL
+import Filehub.RateLimit qualified as RateLimit
+import Filehub.RateLimit (RateLimiter)
 import Servant.Server.Experimental.Auth (AuthHandler, mkAuthHandler)
 import Filehub.Types (SessionId, Display(..))
 import Filehub.Cookie qualified as Cookie
@@ -145,3 +161,57 @@ loginHandler env
 sharedLinkPermitHandler :: Env -> AuthHandler Request (Maybe SharedLinkPermit)
 sharedLinkPermitHandler _env = mkAuthHandler \req ->
   pure $ lookup "Cookie" (requestHeaders req) >>= parseHeader' >>= fromCookies @SharedLinkPermit
+
+
+-- ---------------------------------------------------------------------------
+-- Rate-limit guards
+-- Each corresponds to one AuthProtect tag in Routes.hs.
+-- Distinct types are required so Servant's Context lookup stays unambiguous.
+-- ---------------------------------------------------------------------------
+
+data ConfirmRateLimitLogin      = ConfirmRateLimitLogin
+data ConfirmRateLimitUpload     = ConfirmRateLimitUpload
+data ConfirmRateLimitDownload   = ConfirmRateLimitDownload
+data ConfirmRateLimitSearch     = ConfirmRateLimitSearch
+data ConfirmRateLimitSharedLink = ConfirmRateLimitSharedLink
+
+
+-- | Extract client IP, honouring X-Forwarded-For for reverse-proxy
+-- deployments.  Strips the port from the WAI remoteHost fallback.
+-- IPv4 show format: "1.2.3.4:5678"  IPv6: "[::1]:5678"
+clientIP :: Request -> Text
+clientIP req =
+  case lookup "X-Forwarded-For" (requestHeaders req) of
+    Just xff -> T.strip . T.takeWhile (/= ',') $ T.decodeUtf8 xff
+    Nothing  -> stripPort . T.pack . show $ remoteHost req
+  where
+    stripPort t
+      | Just inner <- T.stripPrefix "[" t = T.takeWhile (/= ']') inner
+      | otherwise                          = T.takeWhile (/= ':') t
+
+
+checkRL :: RateLimiter -> Request -> Handler ()
+checkRL rl req = do
+  ok <- liftIO $ RateLimit.check rl (clientIP req)
+  if ok then pure () else throwError err429 { errBody = "Too many requests" }
+
+
+rateLimitLoginHandler :: Env -> AuthHandler Request ConfirmRateLimitLogin
+rateLimitLoginHandler env = mkAuthHandler \req ->
+  checkRL env.rateLimiters.login req >> pure ConfirmRateLimitLogin
+
+rateLimitUploadHandler :: Env -> AuthHandler Request ConfirmRateLimitUpload
+rateLimitUploadHandler env = mkAuthHandler \req ->
+  checkRL env.rateLimiters.upload req >> pure ConfirmRateLimitUpload
+
+rateLimitDownloadHandler :: Env -> AuthHandler Request ConfirmRateLimitDownload
+rateLimitDownloadHandler env = mkAuthHandler \req ->
+  checkRL env.rateLimiters.download req >> pure ConfirmRateLimitDownload
+
+rateLimitSearchHandler :: Env -> AuthHandler Request ConfirmRateLimitSearch
+rateLimitSearchHandler env = mkAuthHandler \req ->
+  checkRL env.rateLimiters.search req >> pure ConfirmRateLimitSearch
+
+rateLimitSharedLinkHandler :: Env -> AuthHandler Request ConfirmRateLimitSharedLink
+rateLimitSharedLinkHandler env = mkAuthHandler \req ->
+  checkRL env.rateLimiters.sharedLink req >> pure ConfirmRateLimitSharedLink

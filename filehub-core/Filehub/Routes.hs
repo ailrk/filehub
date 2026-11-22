@@ -79,7 +79,10 @@ import Filehub.Types
     , AppearanceForm
     )
 import GHC.Generics (Generic)
-import Filehub.Handler (ConfirmReadOnly, ConfirmMobilOnly, ConfirmDesktopOnly, ConfirmLogin)
+import Filehub.Handler ( ConfirmReadOnly, ConfirmMobilOnly, ConfirmDesktopOnly, ConfirmLogin
+                       , ConfirmRateLimitLogin, ConfirmRateLimitUpload, ConfirmRateLimitDownload
+                       , ConfirmRateLimitSearch, ConfirmRateLimitSharedLink
+                       )
 import Data.ByteString (ByteString)
 import Conduit (ConduitT, ResourceT)
 import Amazonka.Data (Value)
@@ -92,12 +95,17 @@ import Filehub.Types (SharedLinkAuth, ShareRequest, SharedLinkUpdate)
 import Filehub.Session.Types (Selected, Layout)
 
 
-type instance AuthServerData (AuthProtect "session")      = SessionId
-type instance AuthServerData (AuthProtect "readonly")     = ConfirmReadOnly
-type instance AuthServerData (AuthProtect "desktop-only") = ConfirmDesktopOnly
-type instance AuthServerData (AuthProtect "mobile-only")  = ConfirmMobilOnly
-type instance AuthServerData (AuthProtect "login")        = ConfirmLogin
-type instance AuthServerData (AuthProtect "sharedlink")   = Maybe SharedLinkPermit
+type instance AuthServerData (AuthProtect "session")              = SessionId
+type instance AuthServerData (AuthProtect "readonly")             = ConfirmReadOnly
+type instance AuthServerData (AuthProtect "desktop-only")         = ConfirmDesktopOnly
+type instance AuthServerData (AuthProtect "mobile-only")          = ConfirmMobilOnly
+type instance AuthServerData (AuthProtect "login")                = ConfirmLogin
+type instance AuthServerData (AuthProtect "sharedlink")           = Maybe SharedLinkPermit
+type instance AuthServerData (AuthProtect "rate-limit-login")     = ConfirmRateLimitLogin
+type instance AuthServerData (AuthProtect "rate-limit-upload")    = ConfirmRateLimitUpload
+type instance AuthServerData (AuthProtect "rate-limit-download")  = ConfirmRateLimitDownload
+type instance AuthServerData (AuthProtect "rate-limit-search")    = ConfirmRateLimitSearch
+type instance AuthServerData (AuthProtect "rate-limit-sharedlink") = ConfirmRateLimitSharedLink
 
 
 -- | Filehub custom headers are in format `X-Filehub-*`. They are usually used to report the server state
@@ -152,6 +160,7 @@ data Api mode = Api
   , loginAuthSimple       :: mode
                           :- "login"
                           :> AuthProtect "session"
+                          :> AuthProtect "rate-limit-login"
                           :> ReqBody '[FormUrlEncoded] LoginForm
                           :> Post '[HTML] (Headers '[ Header "Set-Cookie" SetCookie
                                                     , Header "HX-Redirect" Text
@@ -161,6 +170,7 @@ data Api mode = Api
   , loginAuthOIDCRedirect :: mode
                           :- "login" :> "oidc" :> "redirect"
                           :> AuthProtect "session"
+                          :> AuthProtect "rate-limit-login"
                           :> Capture "provider_name" Text
                           :> Get '[HTML] NoContent
 
@@ -168,6 +178,7 @@ data Api mode = Api
   , loginAuthOIDCCallback :: mode
                           :- "login" :> "oidc" :> "callback"
                           :> AuthProtect "session"
+                          :> AuthProtect "rate-limit-login"
                           -- on success
                           :> QueryParam "code"  Text
                           :> QueryParam "state" Text
@@ -289,6 +300,7 @@ data Api mode = Api
                           :- "search"
                           :> AuthProtect "session"
                           :> AuthProtect "login"
+                          :> AuthProtect "rate-limit-search"
                           :> ReqBody '[FormUrlEncoded] SearchWord
                           :> Post '[HTML] (Html ())
 
@@ -322,6 +334,7 @@ data Api mode = Api
                           :> AuthProtect "session"
                           :> AuthProtect "login"
                           :> AuthProtect "readonly"
+                          :> AuthProtect "rate-limit-upload"
                           :> MultipartForm Mem (MultipartData Mem)
                           :> Post '[HTML] (Html ())
 
@@ -330,6 +343,7 @@ data Api mode = Api
                           :- "download"
                           :> AuthProtect "session"
                           :> AuthProtect "login"
+                          :> AuthProtect "rate-limit-download"
                           :> QueryParams "file" ClientPath
                           :> StreamGet NoFraming OctetStream (Headers '[ Header "Content-Disposition" String ] (ConduitT () ByteString (ResourceT IO) ()))
 
@@ -352,6 +366,7 @@ data Api mode = Api
   , sharedAuth            :: mode
                           :- "s" :> "auth"
                           :> AuthProtect "session"
+                          :> AuthProtect "rate-limit-sharedlink"
                           :> QueryParam "hash" SharedLinkHash
                           :> Get '[HTML] (Html ())
 
@@ -359,6 +374,7 @@ data Api mode = Api
   , sharedAuthPost        :: mode
                           :- "s" :> "auth"
                           :> AuthProtect "session"
+                          :> AuthProtect "rate-limit-sharedlink"
                           :> ReqBody '[FormUrlEncoded] SharedLinkAuth
                           :> Post '[HTML] (Html ())
 
@@ -367,6 +383,7 @@ data Api mode = Api
                           :- "s"
                           :> AuthProtect "session"
                           :> AuthProtect "sharedlink"
+                          :> AuthProtect "rate-limit-sharedlink"
                           :> Capture "hash" SharedLinkHash
                           :> QueryParam "file" ClientPath
                           :> Get '[HTML] (Html ())
@@ -376,6 +393,7 @@ data Api mode = Api
                           :- "s"
                           :> AuthProtect "session"
                           :> AuthProtect "sharedlink"
+                          :> AuthProtect "rate-limit-sharedlink"
                           :> Capture "hash" SharedLinkHash
                           :> "file"
                           :> QueryFlag "inline"
@@ -389,6 +407,7 @@ data Api mode = Api
                           :- "s"
                           :> AuthProtect "session"
                           :> AuthProtect "sharedlink"
+                          :> AuthProtect "rate-limit-sharedlink"
                           :> Capture "hash" SharedLinkHash
                           :> "preview"
                           :> QueryParam "file" ClientPath
@@ -463,6 +482,7 @@ data Api mode = Api
                           :- "serve"
                           :> AuthProtect "session"
                           :> AuthProtect "login"
+                          :> AuthProtect "rate-limit-download"
                           :> Raw
 
 

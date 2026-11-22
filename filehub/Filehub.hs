@@ -30,6 +30,7 @@ import Filehub.Config.Options qualified as Config.Options
 import Filehub.Config.Toml qualified as Config.Toml
 import Filehub.Env (Env(..))
 import Filehub.History qualified as History
+import Filehub.RateLimit qualified as RateLimit
 import Filehub.Locale (Locale)
 import Filehub.Log qualified as Log
 import Filehub.Orphan ()
@@ -134,6 +135,7 @@ main = Log.withColoredStdoutLogger \logger -> do
     httpManager      <- newTlsManager
     evtLogHandle     <- EvtLog.initialize "" 100
     history          <- History.newHistory
+    rateLimiters     <- RateLimit.newRateLimiters
 
     let persistCallback = buildPersistCallback
           dynamicConfigPath themeVar localeVar dynPluginsVar dynTargetsVar
@@ -167,6 +169,7 @@ main = Log.withColoredStdoutLogger \logger -> do
       , staticTargetIds   = staticTids
       , persistDynConfig  = persistCallback
       , dynamicConfigPath = dynamicConfigPath
+      , rateLimiters      = rateLimiters
       }
 
   go env `catch` handler

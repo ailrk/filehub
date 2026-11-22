@@ -15,7 +15,7 @@ import Filehub.Auth.Types (AuthId(..))
 import Filehub.Auth.Types.OIDC (AuthUrl (..), SomeOIDCFlow (..), OIDCFlow (..))
 import Filehub.Cookie qualified as Cookies
 import Filehub.Error ( FilehubError(..), Error' (..) )
-import Filehub.Handler (ConfirmLogin)
+import Filehub.Handler (ConfirmLogin, ConfirmRateLimitLogin(..))
 import Filehub.Locale (Locale (..))
 import Filehub.Monad
 import Filehub.Orphan ()
@@ -80,11 +80,11 @@ loginChangeLocale sessionId (Just locale) = do
 
 
 -- | Handle the simple authetication login.
-loginAuthSimple :: SessionId -> LoginForm
+loginAuthSimple :: SessionId -> ConfirmRateLimitLogin -> LoginForm
                 -> Filehub (Headers '[ Header "Set-Cookie" SetCookie
                                      , Header "HX-Redirect" Text
                                      ] (Html ()))
-loginAuthSimple sessionId form@(LoginForm username _) =  do
+loginAuthSimple sessionId _ form@(LoginForm username _) =  do
   ctx <- makeTemplateContext sessionId
   let failed = runTemplate ctx (Template.Login.loginFailed Nothing)
   mSession <- Auth.Simple.authenticateSession sessionId form
@@ -110,8 +110,8 @@ loginAuthSimple sessionId form@(LoginForm username _) =  do
       noHeader . noHeader <$> (pure failed)
 
 
-loginAuthOIDCRedirect :: SessionId -> Text -> Filehub NoContent
-loginAuthOIDCRedirect sessionId providerName = do
+loginAuthOIDCRedirect :: SessionId -> ConfirmRateLimitLogin -> Text -> Filehub NoContent
+loginAuthOIDCRedirect sessionId _ providerName = do
   stage <- Auth.OIDC.initialize providerName >>= Auth.OIDC.authorize
   modifySession sessionId \s -> pure $ s { oidcFlow = (Just (SomeOIDCFlow stage)) }
   case stage of
@@ -126,6 +126,7 @@ loginAuthOIDCRedirect sessionId providerName = do
 
 
 loginAuthOIDCCallback :: SessionId
+                      -> ConfirmRateLimitLogin
                       -> Maybe Text
                       -> Maybe Text
                       -> Maybe Text
@@ -133,7 +134,7 @@ loginAuthOIDCCallback :: SessionId
                       -> Maybe Text
                       -> Maybe Text
                       -> Filehub NoContent
-loginAuthOIDCCallback sessionId (Just code) (Just state) _ _ _ _ = do
+loginAuthOIDCCallback sessionId _ (Just code) (Just state) _ _ _ _ = do
 
   withSession sessionId (pure . (.oidcFlow)) >>= \case
     Just (SomeOIDCFlow (stage@AuthRequestPrepared {})) -> do
@@ -169,7 +170,7 @@ loginAuthOIDCCallback sessionId (Just code) (Just state) _ _ _ _ = do
           }
 
 
-loginAuthOIDCCallback _ _ _ mErr mErrDescription _ _ = do
+loginAuthOIDCCallback _ _ _ _ mErr mErrDescription _ _ = do
   let message = fromMaybe "" mErr <> ", " <> fromMaybe "" mErrDescription
   throwIO do
     HTTPError err303

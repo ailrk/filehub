@@ -6,6 +6,7 @@ import Test.Api.Login qualified
 import Test.Cache qualified
 import Test.Hspec.Runner
 import Test.Middleware qualified
+import Test.RateLimit qualified
 import Test.SharedLink qualified
 
 
@@ -21,3 +22,4 @@ main = hspecWith
     Test.Middleware.spec
     Test.Cache.spec
     Test.SharedLink.spec
+    Test.RateLimit.spec

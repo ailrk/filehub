@@ -35,7 +35,7 @@ import Data.UUID qualified as UUID
 import Filehub.Cookie qualified as Cookies
 import Filehub.Env (Env (..))
 import Filehub.Error ( FilehubError(..), Error' (..) )
-import Filehub.Handler (ConfirmLogin)
+import Filehub.Handler (ConfirmLogin, clientIP)
 import Filehub.Handler qualified
 import Filehub.Monad
 import Filehub.Orphan ()
@@ -60,11 +60,13 @@ import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Template.Shared qualified as Template
 import Filehub.Types (Display (..), Resolution, FilehubEvent (..))
 import Filehub.Types (Session(..))
+import Filehub.RateLimit qualified as RateLimit
 import Filehub.UserAgent qualified as UserAgent
+
 import Log (logAttention)
 import Log (logTrace_)
 import Lucid hiding (for_)
-import Network.HTTP.Types (hUserAgent, status500)
+import Network.HTTP.Types (hUserAgent, status500, status429)
 import Network.HTTP.Types.Header (hSetCookie)
 import Network.Wai
 import Network.Wai.Middleware.Extended qualified as Wai.Middleware
@@ -339,6 +341,22 @@ stripCookiesForStatic app req respond
   where path = pathInfo req
 
 
+-- | Global per-IP rate limiter.  Per-category limits (login, upload, download,
+-- search, shared links) are enforced by AuthProtect combinators in the route
+-- types — no stringly-typed path matching needed here.
+-- Static assets are exempt so CDN / browser pre-fetching is unaffected.
+rateLimitMiddleware :: Env -> Middleware
+rateLimitMiddleware env app req respond
+  | "/static" `BC.isPrefixOf` rawPathInfo req = app req respond
+  | otherwise = do
+      ok <- RateLimit.check env.rateLimiters.global (clientIP req)
+      if ok
+        then app req respond
+        else respond $ responseLBS status429
+               [("Content-Type", "text/plain; charset=utf-8")]
+               "Too many requests"
+
+
 ------------------------------------
 -- Application
 ------------------------------------
@@ -350,6 +368,7 @@ application env
   . (if env.enableWAILog then Wai.Middleware.logStdout else id)
   . stripCookiesForStatic
   . Wai.Middleware.exposeHeaders
+  . rateLimitMiddleware env
   . sessionMiddleware env
   . Wai.Middleware.dedupHeadersKeepLast
   . displayMiddleware env
@@ -362,4 +381,9 @@ application env
         :. Filehub.Handler.mobileOnlyHandler env
         :. Filehub.Handler.loginHandler env
         :. Filehub.Handler.sharedLinkPermitHandler env
+        :. Filehub.Handler.rateLimitLoginHandler env
+        :. Filehub.Handler.rateLimitUploadHandler env
+        :. Filehub.Handler.rateLimitDownloadHandler env
+        :. Filehub.Handler.rateLimitSearchHandler env
+        :. Filehub.Handler.rateLimitSharedLinkHandler env
         :. EmptyContext

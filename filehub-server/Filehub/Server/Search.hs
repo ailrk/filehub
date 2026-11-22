@@ -1,6 +1,6 @@
 module Filehub.Server.Search where
 
-import Filehub.Handler (ConfirmLogin)
+import Filehub.Handler (ConfirmLogin, ConfirmRateLimitSearch(..))
 import Filehub.Monad
 import Filehub.Orphan ()
 import Filehub.Session qualified as Session
@@ -16,8 +16,8 @@ import Filehub.Session.Pool (withSession)
 import Control.Monad (join)
 
 
-search :: SessionId -> ConfirmLogin -> SearchWord -> Filehub (Html ())
-search sessionId _ searchWord = do
+search :: SessionId -> ConfirmLogin -> ConfirmRateLimitSearch -> SearchWord -> Filehub (Html ())
+search sessionId _ _ searchWord = do
   join $ withSession sessionId \s -> do
     display <- getDisplay s
     pure do
