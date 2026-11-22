@@ -23,13 +23,11 @@ spec = before setup  . after_ teardown . with (Filehub.application <$> defaultEn
       post "/files/paste" "" `shouldRespondWith` 500
 
     it "paste file into the same dir - should overwrite the file with the same content." do
-      postHtmlForm "/table/select" [("selected", "a")] `shouldRespondWith` 200
-      get "/files/copy" `shouldRespondWith` 200
+      get "/files/copy?file=a" `shouldRespondWith` 200
       post "/files/paste" "" `shouldRespondWith` 200
 
     it "to a new dir - should succeed" do
-      postHtmlForm "/table/select" [("selected", "a")] `shouldRespondWith` 200
-      get "/files/copy" `shouldRespondWith` 200
+      get "/files/copy?file=a" `shouldRespondWith` 200
       get "/cd?dir=dir1" `shouldRespondWith` 200
       post "/files/paste" "" `shouldRespondWith` 200
 
@@ -39,12 +37,7 @@ spec = before setup  . after_ teardown . with (Filehub.application <$> defaultEn
           expectationFailure dirStructure
 
     it "multiple files at the same level - should paste successfully" do
-      postHtmlForm "/table/select"
-        [ ("selected", "a")
-        , ("selected", "b")
-        , ("selected", "dir1")
-        ] `shouldRespondWith` 200
-      get "/files/copy" `shouldRespondWith` 200
+      get "/files/copy?file=a&file=b&file=dir1" `shouldRespondWith` 200
       get "/cd?dir=dir2" `shouldRespondWith` 200
       post "/files/paste" "" `shouldRespondWith` 200
       liftIO do
@@ -53,8 +46,7 @@ spec = before setup  . after_ teardown . with (Filehub.application <$> defaultEn
           expectationFailure dirStructure
 
     it "paste a dir - dir1 should be pasted into dir2 completely" do
-      postHtmlForm "/table/select" [("selected", "dir1")] `shouldRespondWith` 200
-      get "/files/copy" `shouldRespondWith` 200
+      get "/files/copy?file=dir1" `shouldRespondWith` 200
       get "/cd?dir=dir2" `shouldRespondWith` 200
       post "/files/paste" "" `shouldRespondWith` 200
       liftIO do
