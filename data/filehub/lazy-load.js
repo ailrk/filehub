@@ -1,4 +1,4 @@
-const MAX_CONCURRENT = 4;
+const MAX_CONCURRENT = 30;
 let inFlight = 0;
 let generation = 0;
 let active = false;
