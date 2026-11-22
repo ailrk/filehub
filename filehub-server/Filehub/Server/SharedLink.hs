@@ -196,7 +196,7 @@ singleUseConsumed link = link.linkType == SingleUse && link.accessCount > 0
 
 
 isWithin :: AbsPath -> AbsPath -> Bool
-isWithin (AbsPath root) (AbsPath path) = root `isPrefixOf` path
+isWithin (AbsPath root) (AbsPath path) = (root ++ "/") `isPrefixOf` path || root == path
 
 
 goAuth :: SharedLinkHash -> Filehub a
