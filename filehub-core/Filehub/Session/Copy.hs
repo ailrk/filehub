@@ -16,7 +16,7 @@ import Target.File (FileSys, Target(..))
 import Target.S3 (S3)
 import Target.Types (handleTarget, targetHandler)
 import Filehub.Session.Pool (modifySession, withSession_)
-import Filehub.Session (Session(..), makeStorage, getTarget, getCurrentTarget)
+import Filehub.Session (Session(..), makeStorage, getTarget, getCurrentTarget, fromClientPathChecked)
 import Filehub.Session.Types (TargetView(..))
 import Control.Monad.Reader (MonadReader(ask))
 import Filehub.Session.Pool (withSession)
@@ -36,7 +36,7 @@ selectFiles sessionId clientPaths = do
           , targetHandler @S3      \_ -> Root (AbsPath "")
           ]
     pure (t, targetRoot)
-  let paths = fmap (ClientPath.fromClientPath root) clientPaths
+  paths      <- traverse (fromClientPathChecked root) clientPaths
   targetView <- withSession sessionId \s -> getTarget env s target
   storage    <- makeStorage targetView
   files      <- traverse storage.get paths

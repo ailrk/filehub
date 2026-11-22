@@ -10,7 +10,6 @@ module Filehub.Server.UI.Platform.Desktop
   )
   where
 
-import Data.ClientPath qualified as ClientPath
 import Data.ClientPath (AbsPath(..), Root(..))
 import Data.Coerce (coerce)
 import Data.DiskUsage (getDiskUsage, DiskUsage(..))
@@ -19,7 +18,7 @@ import Data.Text qualified as T
 import Filehub.Locale (Phrase(..), phrase)
 import Filehub.Monad (Filehub)
 import Filehub.Plugin.Types (StaticPlugin(..), ContextMenuEntry(..), ToolbarEntry(..), UrlTemplate(..))
-import Filehub.Session (TargetView(..), getTargetViews, getCurrentTarget, makeStorageCurrentTarget, Storage(..))
+import Filehub.Session (TargetView(..), getTargetViews, getCurrentTarget, makeStorageCurrentTarget, Storage(..), fromClientPathChecked)
 import Filehub.Session.Pool (withSession)
 import Filehub.Session.Types (TargetSessionData(..), Selected (..))
 import Filehub.Sort (sortFiles)
@@ -45,7 +44,7 @@ editorModal sessionId mClientPath = do
   ctx@TemplateContext{ root } <- makeTemplateContext sessionId
   storage      <- makeStorageCurrentTarget sessionId
   clientPath   <- withQueryParam mClientPath
-  let p        =  ClientPath.fromClientPath root clientPath
+  p            <- fromClientPathChecked root clientPath
   file         <- storage.get p
   content      <- storage.read file
   let filename =  coerce takeFileName p

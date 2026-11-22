@@ -14,6 +14,7 @@ module Filehub.Session.Handle
   , makeStorageForTarget
   , makeStorageCurrentTarget
   , makeStorageAt
+  , fromClientPathChecked
   )
   where
 
@@ -23,7 +24,7 @@ import Control.Concurrent.STM (throwSTM)
 import Control.Handle.Storage (Storage(..))
 import Control.Monad (unless)
 import Control.Monad.Reader (MonadReader (..))
-import Data.ClientPath (AbsPath (..), Root (..))
+import Data.ClientPath (AbsPath (..), Root (..), ClientPath, withinRoot)
 import Data.ClientPath (fromClientPath)
 import Data.Coerce (coerce)
 import Data.File (File (..), FileWithContent, FileContent (..), extractFileInfo)
@@ -51,6 +52,16 @@ import UnliftIO (throwIO, writeTVar, STM, readTVar, TVar, atomically, newTVar, n
 import UnliftIO.Directory (doesDirectoryExist)
 import Filehub.Session.Pool (withSession, modifySession)
 import Filehub.Session.Selected (AllSelected (..))
+
+
+-- | Convert a ClientPath to AbsPath, throwing InvalidPath if the result escapes
+-- the configured root (path traversal guard).
+fromClientPathChecked :: Root -> ClientPath -> Filehub AbsPath
+fromClientPathChecked root cp = do
+  let path = fromClientPath root cp
+  unless (withinRoot root path) $
+    throwIO (FilehubError InvalidPath "path escapes configured root")
+  pure path
 
 
 getTarget :: HasTargetId t => Env -> Session -> t -> STM TargetView

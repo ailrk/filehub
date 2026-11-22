@@ -18,7 +18,6 @@ module Filehub.Server.SharedLink
 import Control.Concurrent.STM (throwSTM)
 import Control.Monad.Reader (MonadReader(..))
 import Data.ClientPath (ClientPath(..), AbsPath(..))
-import Data.ClientPath qualified as ClientPath
 import Data.List (isPrefixOf)
 import Data.Maybe (isNothing)
 import Data.Set qualified as Set
@@ -40,7 +39,7 @@ import Filehub.Error (FilehubError(..))
 import Filehub.Handler (ConfirmLogin)
 import Filehub.History (Operation(..), recordHistory)
 import Filehub.Monad
-import Filehub.Session (SessionId(..), makeStorageAt, targetRoot)
+import Filehub.Session (SessionId(..), makeStorageAt, targetRoot, fromClientPathChecked)
 import Filehub.Session.Pool (withSession, modifySession)
 import Filehub.Session.Types (Session(..))
 import Filehub.SharedLink
@@ -97,11 +96,11 @@ renderShared link mClientPath = do
         Regular ->
           pure (Template.Shared.sharedPage link target [link.file] mClientPath)
         Dir -> do
-          let dir = case mClientPath of
-                      Nothing -> sharedRoot
-                      Just cp ->
-                        let p = ClientPath.fromClientPath root cp
-                         in if isWithin sharedRoot p then p else sharedRoot
+          dir <- case mClientPath of
+                   Nothing -> pure sharedRoot
+                   Just cp -> do
+                     p <- fromClientPathChecked root cp
+                     pure (if isWithin sharedRoot p then p else sharedRoot)
           storage <- makeStorageAt target dir
           files   <- sortFiles ByNameUp <$> storage.ls dir
           pure (Template.Shared.sharedPage link target files mClientPath)
@@ -134,7 +133,7 @@ sharedFile sessionId mClientPermit hash inline mClientPath = do
             Just target -> do
               let root       = targetRoot target
                   sharedRoot = link.file.path
-                  absPath    = ClientPath.fromClientPath root clientPath
+              absPath <- fromClientPathChecked root clientPath
               unless (isWithin sharedRoot absPath) $
                 throwIO (HTTPError err403 { errBody = "Path not within shared root" })
               storage <- makeStorageAt target sharedRoot
@@ -176,7 +175,7 @@ sharedPreview sessionId mClientPermit hash mClientPath = do
             Just target -> do
               let root       = targetRoot target
                   sharedRoot = link.file.path
-                  absPath    = ClientPath.fromClientPath root clientPath
+              absPath <- fromClientPathChecked root clientPath
               unless (isWithin sharedRoot absPath) $
                 throwIO (HTTPError err403 { errBody = "Path not within shared root" })
               storage <- makeStorageAt target sharedRoot
@@ -297,8 +296,8 @@ share sessionId _ req = do
   case lookup currentTargetId targets of
     Nothing -> throwIO (HTTPError err404 { errBody = "Target not found" })
     Just target -> do
-      let root    = targetRoot target
-          absPath = ClientPath.fromClientPath root req.file
+      let root = targetRoot target
+      absPath <- fromClientPathChecked root req.file
       storage <- makeStorageAt target absPath
       file    <- storage.get absPath
       linkType <- mkLinkType req
@@ -325,11 +324,12 @@ shareForFile sessionId _ mClientPath = do
     Just cp -> pure cp
   env <- ask
   currentTargetId <- withSession sessionId \s -> readTVar s.currentTargetId
-  absPath <- atomically $ do
+  root <- atomically $ do
     targets <- readTVar env.targets
     case lookup currentTargetId targets of
       Nothing -> throwSTM (HTTPError err404 { errBody = "Target not found" })
-      Just tgt -> pure $ ClientPath.fromClientPath (targetRoot tgt) clientPath
+      Just tgt -> pure (targetRoot tgt)
+  absPath <- fromClientPathChecked root clientPath
   now <- liftIO getCurrentTime
   all_ <- getAllSharedLinks env.sharedLinkPool
   let active l = not l.revoked
@@ -358,8 +358,8 @@ shareAuto sessionId confirmLogin mClientPath = do
       case lookup currentTargetId targets of
         Nothing -> throwIO (HTTPError err404 { errBody = "Target not found" })
         Just target -> do
-          let root    = targetRoot target
-              absPath = ClientPath.fromClientPath root clientPath
+          let root = targetRoot target
+          absPath <- fromClientPathChecked root clientPath
           storage <- makeStorageAt target absPath
           file    <- storage.get absPath
           link    <- createSharedLink file currentTargetId Indefinite True Nothing

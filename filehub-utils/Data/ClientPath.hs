@@ -23,11 +23,12 @@ module Data.ClientPath
   , fromClientPath
   , toRawClientPath
   , fromRawClientPath
+  , withinRoot
   )
   where
 
 import Data.Aeson (ToJSON(..))
-import Data.List (stripPrefix)
+import Data.List (stripPrefix, isPrefixOf)
 import Network.URI.Encode qualified as URI.Encode
 import Servant (FromHttpApiData (..), ToHttpApiData (..))
 import System.FilePath ((</>), normalise, isAbsolute)
@@ -126,3 +127,12 @@ ensureUnslash path =
   case path of
     '/':rest -> rest
     _        -> path
+
+
+-- | Check whether an AbsPath is within (or equal to) a Root.
+-- S3 targets use an empty root string; for those we always return True because
+-- S3 object keys cannot traverse the local filesystem.
+withinRoot :: Root -> AbsPath -> Bool
+withinRoot (Root (AbsPath root)) (AbsPath path)
+  | null root = True
+  | otherwise = (root ++ "/") `isPrefixOf` path || root == path

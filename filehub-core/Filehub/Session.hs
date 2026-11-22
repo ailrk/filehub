@@ -51,6 +51,7 @@ module Filehub.Session
   , makeStorageForTarget
   , makeStorageCurrentTarget
   , makeStorageAt
+  , fromClientPathChecked
   )
   where
 

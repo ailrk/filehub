@@ -30,7 +30,7 @@ import Data.ByteString qualified as B
 import Data.ByteString.Builder (Builder)
 import Data.ByteString.Builder qualified as BB
 import Data.ByteString.Lazy qualified as BL
-import Data.ClientPath (AbsPath(..))
+import Data.ClientPath (AbsPath(..), withinRoot)
 import Data.ClientPath (ClientPath)
 import Data.ClientPath qualified as ClientPath
 import Data.ClientPath.IO (validateAbsPath)
@@ -384,7 +384,9 @@ upload currentDir file = do
 
 download :: Target FileSys -> ClientPath -> Filehub (ConduitT () ByteString (ResourceT IO) ())
 download fileSys clientPath = do
-  let path =  ClientPath.fromClientPath fileSys.root clientPath
+  let path = ClientPath.fromClientPath fileSys.root clientPath
+  unless (withinRoot fileSys.root path) $
+    throwIO (FilehubError InvalidPath "path escapes configured root")
   file <- get path
 
   case file.isLink of

@@ -9,11 +9,11 @@ module Filehub.Server.UI.Platform.Mobile
   )
   where
 
-import Data.ClientPath qualified as ClientPath
+import Data.ClientPath (AbsPath(..))
 import Filehub.Env qualified as Env
 import Filehub.Server.Util (withQueryParam)
 import Filehub.Template (makeTemplateContext, runTemplate, TemplateContext(..))
-import Filehub.Session (SessionId, Storage(..), getTargetViews, getCurrentTarget, getRoot, makeStorageCurrentTarget)
+import Filehub.Session (SessionId, Storage(..), getTargetViews, getCurrentTarget, getRoot, makeStorageCurrentTarget, fromClientPathChecked)
 import Filehub.Session.Selected qualified as Selected
 import Filehub.Sort (sortFiles)
 import Filehub.Template.Mobile qualified as Template.Mobile
@@ -70,7 +70,7 @@ editorModal sessionId mClientPath = do
       storage      <- makeStorageCurrentTarget sessionId
       ctx          <- makeTemplateContext sessionId
       clientPath   <- withQueryParam mClientPath
-      let p        =  ClientPath.fromClientPath root clientPath
+      p            <- fromClientPathChecked root clientPath
       file         <- storage.get p
       content      <- storage.read file
       let filename = coerce takeFileName p

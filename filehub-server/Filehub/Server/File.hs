@@ -50,7 +50,7 @@ import Filehub.Server.Util (withQueryParam)
 import Filehub.History (Operation(..), withHistory, recordHistory)
 import Network.URI.Encode qualified as URI.Encode
 import Target.Types qualified
-import Filehub.Session (SessionId(..), Session(..), Storage(..), getRoot, TargetView (..), getCurrentTarget, makeStorageCurrentTarget)
+import Filehub.Session (SessionId(..), Session(..), Storage(..), getRoot, TargetView (..), getCurrentTarget, makeStorageCurrentTarget, fromClientPathChecked)
 import Filehub.Session.Copy qualified as Copy
 import Filehub.Session.Types (CopyState(..))
 import Filehub.Sort qualified as Sort
@@ -85,7 +85,8 @@ cd sessionId _ mClientPath = do
   root       <- withSession sessionId . getRoot =<< ask
   storage    <- makeStorageCurrentTarget sessionId
   clientPath <- withQueryParam mClientPath
-  storage.cd (ClientPath.fromClientPath root clientPath)
+  path <- fromClientPathChecked root clientPath
+  storage.cd path
   addHeader DirChanged <$> runUIPartialUpdate sessionId
     [ UpdateToolBar
     , UpdateView
@@ -103,7 +104,8 @@ rename sessionId _ _ (RenameFile old new) = do
     pure (Target.Types.getTargetId t)
   let newPath = ClientPath . URI.Encode.encode $ new
   withHistory sessionId (OpRename targetId old newPath) do
-    storage.rename (ClientPath.fromClientPath root old) new
+    oldPath <- fromClientPathChecked root old
+    storage.rename oldPath new
   addHeader FileRenamed <$> runUIPartialUpdate sessionId [ UpdateView ]
 
 
@@ -111,7 +113,7 @@ updateFile :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> UpdatedFile -> Fil
 updateFile sessionId _ _ (UpdatedFile clientPath content) = do
   storage <- makeStorageCurrentTarget sessionId
   root    <- withSession sessionId . getRoot =<< ask
-  let path  = ClientPath.fromClientPath root clientPath
+  path  <- fromClientPathChecked root clientPath
   storage.write $ defaultFileWithContent
     { path     = path
     , content  = FileContentRaw (T.encodeUtf8 content)
@@ -233,8 +235,8 @@ move sessionId _ _ (MoveFile src tgt) = do
   withSession sessionId \s -> modifyTVar' s.pendingTasks (Set.insert taskId)
   lk     <- newEmptyMVar
 
-  let srcPaths = fmap (ClientPath.fromClientPath root) src
-  let tgtPath  = ClientPath.fromClientPath root tgt
+  srcPaths <- traverse (fromClientPathChecked root) src
+  tgtPath  <- fromClientPathChecked root tgt
 
   -- check before take action
   checkedSrcPaths <- catMaybes <$> for srcPaths \srcPath -> do
@@ -316,7 +318,8 @@ download sessionId _ clientPaths = do
 
   case clientPaths of
     [clientPath@(ClientPath path)] -> do
-      file    <- storage.get (ClientPath.fromClientPath root clientPath)
+      absPath <- fromClientPathChecked root clientPath
+      file    <- storage.get absPath
 
       case file.isLink of
         BrokenLink -> throwIO (FilehubError InvalidPath "Can't download a broken link")
@@ -335,7 +338,8 @@ download sessionId _ clientPaths = do
         tempDir <- Temp.getCanonicalTemporaryDirectory
         Temp.openTempFile tempDir "DXXXXXX.zip"
 
-      files <- traverse (storage.get . ClientPath.fromClientPath root) clientPaths
+      absPaths <- traverse (fromClientPathChecked root) clientPaths
+      files <- traverse storage.get absPaths
 
       tasks <- for files \file -> do
         conduit <- storage.readStream file Nothing Nothing
@@ -434,7 +438,7 @@ serve env sessionId _ = Tagged $ \req respond -> do
         Right c  -> pure c
         Left err -> throwIO do HTTPError err404 { errBody = [i|#{err}|] }
 
-    let path = ClientPath.fromClientPath root clientPath
+    path <- fromClientPathChecked root clientPath
 
     file <- storage.get path
     pure (Just (file, storage))
