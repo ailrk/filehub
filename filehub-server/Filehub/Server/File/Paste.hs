@@ -25,6 +25,7 @@ import Data.ClientPath qualified as ClientPath
 import Filehub.Session (Session(..), makeStorageForTarget, targetRoot)
 import Filehub.Session (SessionId(..), TargetView (..), getCurrentTarget, getTargetViews, getTarget, makeStorage)
 import Filehub.Session.Pool (withSession, withSession_)
+import Filehub.Session.Copy qualified as Copy
 import Filehub.Session.Selected (AllSelected(..))
 import Filehub.Session.Selected qualified as Selected
 import Filehub.Session.Types (CopyState (..), Storage(..))
@@ -227,6 +228,7 @@ paste sessionId _ _ = do
       logAttention_ [i|[v8dsaz] #{sessionId}, not in pastable state.|]
       throwIO (FilehubError SelectError "Not in a pastable state")
 
+  Copy.clearCopyState sessionId
   UI.clear sessionId
 
   AllSelected { count } <- withSession sessionId \s -> do

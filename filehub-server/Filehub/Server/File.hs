@@ -205,7 +205,6 @@ copy1 :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> Maybe ClientPath -> Fil
 copy1 sessionId _ _ mClientPath = do
   env        <- ask
   clientPath <- withQueryParam mClientPath
-  UI.clear sessionId
   Copy.selectFiles sessionId [clientPath]
   (targetId, count) <- withSession sessionId \s -> do
     TargetView t _ <- getCurrentTarget env s
@@ -214,7 +213,7 @@ copy1 sessionId _ _ mClientPath = do
               _          -> 0
     pure (Target.Types.getTargetId t, n)
   recordHistory sessionId (OpCopy targetId count) True
-  UI.index sessionId
+  UI.controlPanel sessionId
 
 
 move :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> MoveFile

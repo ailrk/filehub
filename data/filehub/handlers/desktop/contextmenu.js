@@ -79,7 +79,7 @@ function buildMenu1(item, readOnly) {
         }));
     }
     menu.appendChild(makeItem(t.copy, 'bxs-copy-alt', {
-        'hx-get': `/files/copy1?file=${enc}`, 'hx-target': '#index', 'hx-swap': 'outerHTML',
+        'hx-get': `/files/copy1?file=${enc}`, 'hx-target': '#control-panel', 'hx-swap': 'outerHTML',
     }));
     const dl = document.createElement('a');
     dl.className = 'dropdown-item';

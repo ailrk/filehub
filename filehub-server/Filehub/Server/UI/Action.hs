@@ -55,11 +55,12 @@ import System.FilePath (takeDirectory, takeFileName)
 import UnliftIO (throwIO, writeTVar, readTVar)
 
 
--- | Completely reset all state machines. This should be the only place to reset state.
+-- | Reset navigation-sensitive state: selections and UI.
+-- Does NOT clear copy state — that persists across target switches so paste
+-- remains available after the user navigates to the destination target.
 clear :: SessionId -> Filehub ()
-clear sessionId = do
+clear sessionId =
   Selected.clearSelectedAllTargets sessionId
-  Copy.clearCopyState sessionId
 
 
 selectLayout :: SessionId -> ConfirmLogin -> Maybe Layout -> Filehub (Headers '[ Header "HX-Trigger" FilehubEvent ] (Html ()))
@@ -139,6 +140,7 @@ cancel sessionId _ = do
     AllSelected { count } <- Selected.getAllSelected =<< getTargetViews env s
     pure count
 
+  Copy.clearCopyState sessionId
   clear sessionId
   addHeader count <$> runUIPartialUpdate sessionId
     [ UpdateControlPanel
