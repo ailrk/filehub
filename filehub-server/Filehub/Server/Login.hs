@@ -32,7 +32,7 @@ import Network.URI qualified as URI
 import Prelude hiding (init, readFile)
 import Servant (Header , Headers , NoContent (..) , addHeader , err301 , err303    , errHeaders , noHeader, FromHttpApiData (..)  )
 import UnliftIO (throwIO, atomically)
-import Web.Cookie (SetCookie (..), defaultSetCookie)
+import Web.Cookie (SetCookie (..), defaultSetCookie, sameSiteStrict)
 import Filehub.Session.Pool (withSession, modifySession)
 
 
@@ -100,6 +100,7 @@ loginAuthSimple sessionId form@(LoginForm username _) =  do
                 , setCookieHttpOnly = True
                 , setCookiePath     = Just "/"
                 , setCookieSecure   = True
+                , setCookieSameSite = Just sameSiteStrict
                 }
           logInfo_ [i|[2445sz] User #{username} logged in|]
           addHeader setCookie . addHeader "/" <$> pure mempty
@@ -155,6 +156,7 @@ loginAuthOIDCCallback sessionId (Just code) (Just state) _ _ _ _ = do
             , setCookieHttpOnly = True
             , setCookiePath     = Just "/"
             , setCookieSecure   = True
+            , setCookieSameSite = Just sameSiteStrict
             }
       throwIO do
         HTTPError err303
@@ -190,6 +192,7 @@ logout sessionId _ = do
             , setCookieHttpOnly = True
             , setCookiePath     = Just "/"
             , setCookieSecure   = True
+            , setCookieSameSite = Just sameSiteStrict
             })
        session.authId
 
