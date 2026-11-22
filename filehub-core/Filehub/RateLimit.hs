@@ -82,6 +82,6 @@ newRateLimiters = RateLimiters
   <$> new 20   60   -- login:      brute-force protection
   <*> new 300  60   -- sharedLink: enumeration / DDoS protection
   <*> new 30   60   -- upload:     disk / bandwidth exhaustion
-  <*> new 600  60   -- download:   ~10 pages of thumbnails/min (50 req/page)
+  <*> new 3000 60   -- download:   ~60 pages of thumbnails/min (50 req/page)
   <*> new 300  60   -- search:     htmx fires on each keystroke; 5/s headroom
-  <*> new 2000 60   -- global:     headroom for thumbnail-heavy browsing sessions
+  <*> new 5000 60   -- global:     headroom for thumbnail-heavy browsing sessions

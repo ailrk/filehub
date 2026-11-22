@@ -47,9 +47,9 @@ data Notification
 -- https://html.spec.whatwg.org/multipage/server-sent-events.html
 instance ToServerEvent Notification where
   toServerEvent Pong = ServerEvent
-    { eventType = Nothing
+    { eventType = Just "Pong"
     , eventId   = Nothing
-    , eventData = "Pong"
+    , eventData = ""
     }
   toServerEvent (SimpleMessage content) = ServerEvent
     { eventType = Nothing
