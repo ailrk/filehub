@@ -480,5 +480,3 @@ serve env sessionId _ = Tagged $ \req respond -> do
               runResourceT . runConduit
                 $ stream
                 .| Conduit.mapM_C \chunk -> liftIO do send (BB.fromByteString chunk); flush
-
-

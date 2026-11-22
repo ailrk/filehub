@@ -645,13 +645,15 @@ previewElement root file = do
          | file.mimetype `isMime` "image" ->
            img_ [ term "data-src" serveUrl
                 , draggable_ "false"
+                , term "fetchpriority" "low"
                 ]
          | file.mimetype `isMime` "video" ->
-           video_ [ src_ serveUrl
+           video_ [ term "data-src" serveUrl
                   , term "muted" ""
                   , term "preload" "metadata"
                   , term "loop" ""
                   , term "playsinline" ""
+                  , term "fetchpriority" "low"
                   , class_ "thumbnail-video"
                   , draggable_ "false"
                   ] mempty

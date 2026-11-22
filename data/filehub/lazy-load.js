@@ -1,28 +1,29 @@
-const MAX_CONCURRENT = 2;
+const MAX_CONCURRENT = 4;
 let inFlight = 0;
 let generation = 0;
+let active = false;
 const queue = [];
 let controller = new AbortController();
 let rafPending = false;
 function tryLoadNext() {
     while (inFlight < MAX_CONCURRENT && queue.length > 0) {
-        const img = queue.shift();
-        if (!img.isConnected || !img.dataset.src)
+        const el = queue.shift();
+        if (!el.isConnected || !el.dataset.src)
             continue;
         const gen = generation;
-        const src = img.dataset.src;
+        const src = el.dataset.src;
         inFlight++;
-        fetch(src, { signal: controller.signal })
+        fetch(src, { signal: controller.signal, priority: 'low' })
             .then(res => res.blob())
             .then(blob => {
-            if (gen !== generation)
-                return;
             const blobUrl = URL.createObjectURL(blob);
-            img.src = blobUrl;
-            img.addEventListener('load', () => URL.revokeObjectURL(blobUrl), { once: true });
-            img.addEventListener('error', () => URL.revokeObjectURL(blobUrl), { once: true });
+            el.src = blobUrl;
+            const cleanup = () => URL.revokeObjectURL(blobUrl);
+            const doneEvt = el instanceof HTMLVideoElement ? 'loadedmetadata' : 'load';
+            el.addEventListener(doneEvt, cleanup, { once: true });
+            el.addEventListener('error', cleanup, { once: true });
         })
-            .catch(() => { })
+            .catch(_ => { })
             .finally(() => {
             if (gen !== generation)
                 return;
@@ -38,22 +39,28 @@ function scheduleNext() {
     requestAnimationFrame(() => { rafPending = false; tryLoadNext(); });
 }
 const observer = new IntersectionObserver(entries => {
+    let pushed = false;
     for (const entry of entries) {
-        if (!entry.isIntersecting)
+        if (!entry.isIntersecting || !active)
             continue;
         observer.unobserve(entry.target);
         queue.push(entry.target);
+        pushed = true;
     }
-    scheduleNext();
+    if (pushed)
+        scheduleNext();
 }, { rootMargin: '200px' });
 export function init() {
-    document.querySelectorAll('img[data-src]').forEach(img => observer.observe(img));
+    active = true;
+    document.querySelectorAll('img[data-src], video[data-src]').forEach(el => observer.observe(el));
 }
 export function reset() {
+    active = false;
     generation++;
     queue.length = 0;
     inFlight = 0;
     rafPending = false;
     controller.abort();
     controller = new AbortController();
+    observer.disconnect();
 }
