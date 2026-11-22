@@ -31,7 +31,7 @@ import Data.Aeson (ToJSON(..))
 import Data.List (stripPrefix, isPrefixOf)
 import Network.URI.Encode qualified as URI.Encode
 import Servant (FromHttpApiData (..), ToHttpApiData (..))
-import System.FilePath ((</>), normalise, isAbsolute)
+import System.FilePath ((</>), normalise, isAbsolute, dropTrailingPathSeparator)
 import Text.Debug (Debug(..))
 import Data.Hashable (Hashable)
 import Data.Coerce (coerce)
@@ -135,4 +135,6 @@ ensureUnslash path =
 withinRoot :: Root -> AbsPath -> Bool
 withinRoot (Root (AbsPath root)) (AbsPath path)
   | null root = True
-  | otherwise = (root ++ "/") `isPrefixOf` path || root == path
+  | otherwise =
+      let r = dropTrailingPathSeparator (normalise root)
+      in (r ++ "/") `isPrefixOf` path || r == path
