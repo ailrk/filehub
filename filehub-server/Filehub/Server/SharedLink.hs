@@ -277,7 +277,7 @@ performIssue sessionId hash = do
   pure defaultSetCookie
     { setCookieName     = "sharedlink_permit"
     , setCookieValue    = UUID.toASCIIBytes permitUuid
-    , setCookieHttpOnly = False
+    , setCookieHttpOnly = True
     , setCookiePath     = Just "/"
     , setCookieSecure   = False
     }
