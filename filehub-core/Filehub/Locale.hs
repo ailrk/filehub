@@ -131,6 +131,27 @@ data Phrase = Phrase
   , share_passcode           :: Text
   , share_create             :: Text
   , control_panel_share_links :: Text
+  , history_title            :: Text
+  , history_empty            :: Text
+  , history_col_time         :: Text
+  , history_col_op           :: Text
+  , history_col_target       :: Text
+  , history_col_details      :: Text
+  , history_col_status       :: Text
+  , history_ok               :: Text
+  , history_fail             :: Text
+  , history_items            :: Text
+  , history_op_rename        :: Text
+  , history_op_new_file      :: Text
+  , history_op_new_folder    :: Text
+  , history_op_move          :: Text
+  , history_op_delete        :: Text
+  , history_op_upload        :: Text
+  , history_op_copy          :: Text
+  , history_op_paste         :: Text
+  , history_op_cut           :: Text
+  , history_op_share         :: Text
+  , history_op_revoke_link   :: Text
   }
   deriving (Show)
 
@@ -271,6 +292,27 @@ phraseCodec =
   <*> Toml.text "SHARE_PASSCODE"           .= (.share_passcode)
   <*> Toml.text "SHARE_CREATE"             .= (.share_create)
   <*> Toml.text "CONTROL_PANEL_SHARE_LINKS" .= (.control_panel_share_links)
+  <*> Toml.text "HISTORY_TITLE"            .= (.history_title)
+  <*> Toml.text "HISTORY_EMPTY"            .= (.history_empty)
+  <*> Toml.text "HISTORY_COL_TIME"         .= (.history_col_time)
+  <*> Toml.text "HISTORY_COL_OP"           .= (.history_col_op)
+  <*> Toml.text "HISTORY_COL_TARGET"       .= (.history_col_target)
+  <*> Toml.text "HISTORY_COL_DETAILS"      .= (.history_col_details)
+  <*> Toml.text "HISTORY_COL_STATUS"       .= (.history_col_status)
+  <*> Toml.text "HISTORY_OK"               .= (.history_ok)
+  <*> Toml.text "HISTORY_FAIL"             .= (.history_fail)
+  <*> Toml.text "HISTORY_ITEMS"            .= (.history_items)
+  <*> Toml.text "HISTORY_OP_RENAME"        .= (.history_op_rename)
+  <*> Toml.text "HISTORY_OP_NEW_FILE"      .= (.history_op_new_file)
+  <*> Toml.text "HISTORY_OP_NEW_FOLDER"    .= (.history_op_new_folder)
+  <*> Toml.text "HISTORY_OP_MOVE"          .= (.history_op_move)
+  <*> Toml.text "HISTORY_OP_DELETE"        .= (.history_op_delete)
+  <*> Toml.text "HISTORY_OP_UPLOAD"        .= (.history_op_upload)
+  <*> Toml.text "HISTORY_OP_COPY"          .= (.history_op_copy)
+  <*> Toml.text "HISTORY_OP_PASTE"         .= (.history_op_paste)
+  <*> Toml.text "HISTORY_OP_CUT"           .= (.history_op_cut)
+  <*> Toml.text "HISTORY_OP_SHARE"         .= (.history_op_share)
+  <*> Toml.text "HISTORY_OP_REVOKE_LINK"   .= (.history_op_revoke_link)
 
 
 config :: Text

@@ -11,6 +11,7 @@ import Filehub.Env (Env(..))
 import Filehub.Handler (ConfirmLogin)
 import Filehub.History (getHistory)
 import Filehub.Monad
+import Filehub.Locale (phrase)
 import Filehub.Session (SessionId, Session(..))
 import Filehub.Session.Pool (withSession)
 import Filehub.Template.History (historyModal)
@@ -40,4 +41,4 @@ history sessionId _ = do
   locale  <- withSession sessionId \(Session { locale = loc }) -> pure loc
   entries <- liftIO (getHistory h)
   let labelOf tid = fromMaybe "?" (lookup tid targets >>= \t -> Just (targetLabel t))
-  pure (historyModal locale labelOf entries)
+  pure (historyModal (phrase locale) labelOf entries)

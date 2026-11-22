@@ -221,6 +221,7 @@ controlPanel
     noLogin               <- asks (.noLogin)
     state                 <- asks (.state)
     TargetView { target } <- asks  (.currentTarget)
+    Phrase { modal_readonly } <- phrase <$> asks (.locale)
     pure do
       case readOnly of
         True ->
@@ -235,7 +236,7 @@ controlPanel
             fromMaybe mempty mShareLinksBtn
             fromMaybe mempty mHistoryBtn
             fromMaybe mempty mScroll2TopBtn
-            span_ [ class_ "btn-like field " ] do i_ [ class_ "bx bx-lock-alt" ] mempty >> span_ "Read-only"
+            span_ [ class_ "btn-like field " ] do i_ [ class_ "bx bx-lock-alt" ] mempty >> span_ (toHtml modal_readonly)
         False ->
           case state of
             ControlPanelDefault ->

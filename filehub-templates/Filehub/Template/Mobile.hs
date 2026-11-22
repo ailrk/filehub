@@ -57,12 +57,13 @@ index :: Html ()
       -> Int
       -> Template (Html ())
 index sideBar' toolBar' view' selectedCount = do
-  controlPanel' <- controlPanel
+  controlPanel'    <- controlPanel
+  selectedCounter' <- selectedCounter selectedCount
   pure do
     safeAreaShim
     div_ [ id_ "index" ] do
       overlay
-      selectedCounter selectedCount
+      selectedCounter'
       sideBar'
       toolBar'
       view'
@@ -384,11 +385,11 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
     deleteBtn :: Template (Html ())
     deleteBtn = do
       selected <- asks (.selected)
-      Phrase { control_panel_delete } <- phrase <$> asks (.locale)
+      Phrase { control_panel_delete, confirm_delete_all } <- phrase <$> asks (.locale)
       pure do
         button_ (asHtmx @"delete" hxDelete ((Selected.toList selected), True)
                 [ class_ "action-btn urgent "
-                , hxConfirm ("Are you sure about deleting selected files?")
+                , hxConfirm confirm_delete_all
                 ]) do
           span_ [ class_ "field " ] do
             i_ [ class_ "bx bxs-trash" ] mempty
@@ -410,12 +411,12 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
 
     logoutBtn :: Template (Html ())
     logoutBtn = do
-      Phrase { control_panel_logout } <- phrase <$> asks (.locale)
+      Phrase { control_panel_logout, confirm_logout } <- phrase <$> asks (.locale)
       pure do
         button_ (asHtmx @"logout" hxPost ()
                 [ class_ "action-btn urgent "
                 , type_ "submit"
-                , hxConfirm "Logout?"
+                , hxConfirm confirm_logout
                 ]) do
           span_ [ class_ "field " ] do
             i_ [ class_ "bx bx-power-off" ] mempty
@@ -458,15 +459,17 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
             span_ (toHtml control_panel_scroll2top)
 
 
-selectedCounter :: Int -> Html ()
+selectedCounter :: Int -> Template (Html ())
 selectedCounter n = do
-  div_ (asHtmx @"cancel" hxPost ()
-       [ id_ selectedCounterId
-       , class_ "field "
-       ]) do
-    span_ [i|#{n}|]
-    span_ "selected"
-    i_ [ class_ "bx bx-x" ] mempty
+  Phrase { contextmenu_selected } <- phrase <$> asks (.locale)
+  pure do
+    div_ (asHtmx @"cancel" hxPost ()
+         [ id_ selectedCounterId
+         , class_ "field "
+         ]) do
+      span_ [i|#{n}|]
+      span_ (toHtml contextmenu_selected)
+      i_ [ class_ "bx bx-x" ] mempty
 
 
 editorModal :: (ClientPath, String) -> ByteString -> Template (Html ())
