@@ -346,7 +346,7 @@ linkEditModal link =
                     , term "hx-target" "#share-links-modal"
                     , term "hx-swap" "outerHTML"
                     ] "Cancel"
-            button_ [ class_ "btn btn-control", type_ "submit" ] "Save"
+            button_ [ class_ "btn btn-accent", type_ "submit" ] "Save"
   where
     SharedLinkHash hashText = link.hash
     displayName = takeFileName (coerce link.file.path)

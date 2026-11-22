@@ -334,15 +334,15 @@ icon file =
           | otherwise                                                      -> i_ [ class_ "bx bxs-file-blank "] mempty
 
 
-open :: [StaticPlugin] -> Root -> FileInfo -> [Attribute]
-open plugins root file = do
+open :: [StaticPlugin] -> Root -> ClientPath -> FileInfo -> [Attribute]
+open plugins root clientPath file =
   case file.isLink of
     BrokenLink -> []
     _          ->
       case file.content of
         Dir        -> asHtmx @"cd" hxGet (Just clientPath) [term "hx-indicator" "#global-spinner"]
         Regular
-          | Just entry <- findPluginViewer plugins file.mimetype ->
+          | Just entry <- findPluginViewer file.mimetype ->
                [ href_ (substituteViewerUrl entry.url file root)
                , target_ "_blank"
                ]
@@ -359,11 +359,10 @@ open plugins root file = do
           | otherwise ->
                asHtmx @"editorModal" hxGet (Just clientPath) [ term "hx-indicator" "#global-spinner" ]
   where
-    clientPath = ClientPath.toClientPath root file.path
+    allViewers = concatMap (.viewer) plugins
 
-    findPluginViewer ps mime =
-      let allViewers = concatMap (.viewer) ps
-          -- skip viewer entries that need {share_url} — those require async JS handling
+    findPluginViewer mime =
+      let -- skip viewer entries that need {share_url} — those require async JS handling
           usable e = mime `isMime` e.mime && not ("{share_url}" `Text.isInfixOf` e.url.unUrlTemplate)
       in  find usable allViewers
 

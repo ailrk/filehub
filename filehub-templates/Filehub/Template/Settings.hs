@@ -205,7 +205,7 @@ pluginItemRaw open mErr name tomlContent =
             Nothing  -> mempty
             Just err -> div_ [class_ "plugin-editor-error"] do
               i_ [class_ "bx bx-error-circle"] mempty; " "; toHtml err
-          button_ [type_ "submit", class_ "btn btn-secondary btn-sm"] do
+          button_ [type_ "submit", class_ "btn btn-accent btn-sm"] do
             i_ [class_ "bx bx-save"] mempty; " Save"
   where
     cls    = if open then "plugin-item expanded" else "plugin-item"
@@ -215,7 +215,7 @@ pluginItemRaw open mErr name tomlContent =
 newPluginButton :: Html ()
 newPluginButton =
   div_ [id_ newPluginAreaId] do
-    button_ [ class_ "btn btn-secondary"
+    button_ [ class_ "btn btn-accent"
             , term "hx-get" settingsGetNewPluginUrl
             , term "hx-target" ("#" <> newPluginAreaId)
             , term "hx-swap" "outerHTML"
@@ -241,7 +241,7 @@ newPluginForm mErr tomlContent =
                 , term "hx-target" ("#" <> pluginsPanelId)
                 , term "hx-swap" "outerHTML"
                 ] "Cancel"
-        button_ [type_ "submit", class_ "btn btn-secondary btn-sm"] do
+        button_ [type_ "submit", class_ "btn btn-accent btn-sm"] do
           i_ [class_ "bx bx-save"] mempty; " Save"
 
 
@@ -307,7 +307,7 @@ addTargetForm =
       option_ [value_ "s3"] "S3 Bucket"
     input_ [ class_ "form-control", name_ "path"
            , placeholder_ "/path/to/dir  or  bucket-name", required_ ""]
-    button_ [type_ "submit", class_ "btn btn-secondary"] do
+    button_ [type_ "submit", class_ "btn btn-accent"] do
       i_ [class_ "bx bx-plus"] mempty; " Add Target"
 
 
@@ -349,7 +349,7 @@ settingsAppearanceSection theme locale =
           opt RU    "Русский"
           opt PT    "Português"
           opt IT    "Italiano"
-      button_ [type_ "submit", class_ "btn btn-secondary"] "Apply"
+      button_ [type_ "submit", class_ "btn btn-accent"] "Apply"
   where
     opt l lbl =
       option_ ([value_ (localeVal l)] <> [selected_ "selected" | l == locale]) lbl

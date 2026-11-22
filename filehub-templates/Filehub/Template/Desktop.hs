@@ -21,7 +21,6 @@ import Control.Monad.Reader (asks, MonadReader (..))
 import Data.DiskUsage (DiskUsage(..))
 import Data.ByteString (ByteString)
 import Data.ClientPath (ClientPath(..), AbsPath (..), Root (..))
-import Data.ClientPath qualified as ClientPath
 import Data.ClientPath.View (ClientPathView(..), AsClientPathView (..))
 import Data.Coerce (coerce)
 import Data.File (File(..), FileType(..), FileInfo, IsLink (..))
@@ -577,32 +576,31 @@ entry file = do
     tr_ do
       td_ [ class_ "entry-preview " ] do
         fileNameElement file target True
-          `with` Template.open plugins root file
+          `with` Template.open plugins root clientPath file
           `with`  [ class_ "field "]
       td_ $ modifiedDateElement file
       td_ $ sizeElement file
       `with`
-        mconcat
-          [ [ term "data-path" (T.pack (coerce clientPath)) ]
-          , [ term "data-ftype" (fileType file) ]
-          , [ term "data-name" fileName ]
-          , [ term "data-mtime" mtimeStr ]
-          , [ term "data-atime" atimeStr ]
-          , [ term "data-size" sizeStr ]
-          , [ term "data-mime" mimeStr ]
-          , [ class_ "selected confirmed " | clientPath `Selected.elem` selected]
-          , [ id_ [i|tr-#{hashPath}|]
-            , class_ "table-item "
-            , draggable_ "true"
-            ]
-          , case file.content of
-              Dir        -> [ class_ "dir "]
-              Regular    -> mempty
-          , case file.isLink of
-              Link       -> [ class_ "symlink " ]
-              BrokenLink -> [ class_ "broken-symlink "]
-              NotLink    -> []
+        ( [ term "data-path" (T.pack (coerce clientPath))
+          , term "data-ftype" (fileType file)
+          , term "data-name" fileName
+          , term "data-mtime" mtimeStr
+          , term "data-atime" atimeStr
+          , term "data-size" sizeStr
+          , term "data-mime" mimeStr
+          , id_ [i|tr-#{hashPath}|]
+          , class_ "table-item "
+          , draggable_ "true"
           ]
+        <> [ class_ "selected confirmed " | clientPath `Selected.elem` selected ]
+        <> case file.content of
+             Dir     -> [ class_ "dir " ]
+             Regular -> []
+        <> case file.isLink of
+             Link       -> [ class_ "symlink " ]
+             BrokenLink -> [ class_ "broken-symlink " ]
+             NotLink    -> []
+        )
 
 
 thumbnailLayout :: [FileInfo] -> Template (Html ())
@@ -631,35 +629,37 @@ thumbnail file = do
 
   pure $
     (div_ do
-      previewElement root file
+      previewElement clientPath file
       fileNameElement file target False `with` [ class_ "thumbnail-name" ])
-    `with` mconcat
-        [ [ term "data-path" (T.pack (coerce clientPath)) ]
-        , [ term "data-ftype" (fileType file) ]
-        , [ term "data-name" fileName ]
-        , [ term "data-mtime" mtimeStr ]
-        , [ term "data-atime" atimeStr ]
-        , [ term "data-size" sizeStr ]
-        , [ term "data-mime" mimeStr ]
-        , [ class_ "selected confirmed " | clientPath `Selected.elem` selected ]
-        , [ id_ [i|tr-#{hashPath}|], class_ "thumbnail table-item ", draggable_ "true" ]
-        , case file.content of
-            Dir     -> [ class_ "dir "]
-            Regular -> mempty
-        , case file.isLink of
-            Link       -> [ class_ "symlink " ]
-            BrokenLink -> [ class_ "broken-symlink "]
-            NotLink    -> []
+    `with`
+      ( [ term "data-path" (T.pack (coerce clientPath))
+        , term "data-ftype" (fileType file)
+        , term "data-name" fileName
+        , term "data-mtime" mtimeStr
+        , term "data-atime" atimeStr
+        , term "data-size" sizeStr
+        , term "data-mime" mimeStr
+        , id_ [i|tr-#{hashPath}|]
+        , class_ "thumbnail table-item "
+        , draggable_ "true"
         ]
-    `with` Template.open plugins root file
+      <> [ class_ "selected confirmed " | clientPath `Selected.elem` selected ]
+      <> case file.content of
+           Dir     -> [ class_ "dir " ]
+           Regular -> []
+      <> case file.isLink of
+           Link       -> [ class_ "symlink " ]
+           BrokenLink -> [ class_ "broken-symlink " ]
+           NotLink    -> []
+      )
+    `with` Template.open plugins root clientPath file
 
 
-previewElement :: Root -> FileInfo -> Html ()
-previewElement root file = do
+previewElement :: ClientPath -> FileInfo -> Html ()
+previewElement (ClientPath cp) file = do
   div_ [ class_ "thumbnail-preview " ] do
     div_ [  class_ "image-wrapper " ] do
-      let ClientPath cp = ClientPath.toClientPath root file.path
-          serveUrl      = "/serve?file=" <> T.pack cp
+      let serveUrl = "/serve?file=" <> T.pack cp
       if
          | file.mimetype `isMime` "image" ->
            img_ [ src_ serveUrl

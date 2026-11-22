@@ -38,8 +38,8 @@ textarea:focus {
 #index {
   display: grid;
   height: 100vh;
-  --sidebar-width: 245px;
-  column-gap: 12px;
+  --sidebar-width: 240px;
+  column-gap: 0;
   grid-template-areas:
     "side-bar control-panel"
     "side-bar tool-bar"
@@ -66,17 +66,19 @@ textarea:focus {
   grid-area: side-bar;
   background-color: var(--background2);
   overflow: hidden;
-  margin: 10px 0 0 10px;
+  margin: 8px 0 8px 8px;
   border-radius: var(--radius-lg);
-  padding: 12px 0 10px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  padding: 10px 0 10px;
   min-width: 0;
 }
 
 #side-bar .target-tab {
-  width: 220px;
-  margin: 2px 0 0 10px;
+  width: calc(100% - 16px);
+  margin: 2px 0 0 8px;
   border-radius: var(--radius-sm);
-  padding: 6px 10px;
+  padding: 7px 10px;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -98,7 +100,7 @@ textarea:focus {
 }
 
 #side-bar .target-tab.current-target {
-  background: var(--secondary);
+  background: var(--primary);
   color: var(--on-secondary);
 }
 
@@ -115,8 +117,8 @@ textarea:focus {
 }
 
 #side-bar .current-target .target-tab-selected-counter {
-  background: var(--background3);
-  color: var(--secondary);
+  background: rgba(255, 255, 255, 0.22);
+  color: var(--light);
 }
 
 #tool-bar {
@@ -128,7 +130,7 @@ textarea:focus {
   justify-content: space-between;
   align-items: center;
   overflow: hidden;
-  padding: 4px 0;
+  padding: 3px 0;
   border-bottom: 1px solid var(--border);
   transition: box-shadow 0.5s var(--ease);
 }
@@ -198,8 +200,8 @@ textarea:focus {
 }
 
 .thumbnail-preview {
-  width: 100px;
-  height: 100px;
+  width: 108px;
+  height: 108px;
   margin: auto;
   display: flex;
   position: relative;
@@ -266,13 +268,13 @@ textarea:focus {
 }
 
 .breadcrumb li.active {
-  color: var(--tertiary);
+  color: var(--primary);
   font-weight: 600;
 }
 
 .dir {
   cursor: pointer;
-  color: var(--tertiary);
+  color: var(--primary);
 }
 
 
@@ -379,7 +381,7 @@ textarea:focus {
 
 #table tr { cursor: pointer; }
 
-#table tr:hover { background: var(--background2); }
+#table tr:hover { background: var(--background3); }
 
 #table td span { min-width: 10%; }
 
@@ -396,7 +398,7 @@ textarea:focus {
   overflow-y: auto;
   scrollbar-width: none;
   white-space: nowrap;
-  padding: 10px 16px;
+  padding: 9px 14px;
   line-height: 1;
 }
 
@@ -422,9 +424,9 @@ textarea:focus {
 
 #table.thumbnail-view {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 12px;
-  padding: 18px;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+  padding: 16px;
   box-sizing: border-box;
 }
 

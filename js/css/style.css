@@ -103,10 +103,10 @@ hr {
 .mr-2    { margin-right: 10px; }
 
 .selected {
-  background: color-mix(in srgb, var(--secondary) 8%, var(--background2)) !important;
+  background: color-mix(in srgb, var(--primary) 10%, var(--background2)) !important;
 }
 .selected.confirmed {
-  background: color-mix(in srgb, var(--secondary) 16%, var(--background2)) !important;
+  background: color-mix(in srgb, var(--primary) 20%, var(--background2)) !important;
 }
 
 
@@ -180,7 +180,7 @@ hr {
 
 /* ---------- Boxicons ---------- */
 
-.bxs-folder { color: var(--secondary); }
+.bxs-folder { color: var(--primary); }
 
 .bx-caret-right, .bx-caret-down {
   transition: color var(--fast) var(--ease);
@@ -353,6 +353,22 @@ hr {
   border-color: color-mix(in srgb, var(--secondary) 40%, transparent);
 }
 
+.btn-accent {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--secondary);
+  color: var(--on-secondary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  gap: 5px;
+  white-space: nowrap;
+  transition: filter var(--fast) var(--ease),
+              transform var(--fast) var(--ease);
+}
+.btn-accent:hover  { background: color-mix(in srgb, var(--secondary) 88%, black); }
+.btn-accent:active { background: color-mix(in srgb, var(--secondary) 80%, black); transform: translateY(1px); }
+
 .btn-icon {
   width: 32px;
   height: 32px;
@@ -451,10 +467,25 @@ hr {
   color: var(--on-secondary);
 }
 
-.modal .btn-modal-confirm {
-  color: var(--dark);
-  background: var(--primary);
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0 !important;
+.simple-modal-form {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  padding: 12px 16px 16px;
+}
+
+.simple-modal-form .form-control {
+  flex: 1;
+  min-width: 0;
+}
+
+.simple-modal-form .btn-accent {
+  flex-shrink: 0;
+  min-width: 72px;
+  white-space: nowrap;
+  justify-content: center;
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 .modal-underlay {
@@ -464,11 +495,56 @@ hr {
   z-index: -1;
 }
 
-#new-file-modal   { width: 420px; }
-#new-folder-modal { width: 420px; }
-#rename-modal     { width: 420px; }
+#new-file-modal   { width: min(92vw, 380px); }
+#new-folder-modal { width: min(92vw, 380px); }
+#rename-modal     { width: min(92vw, 380px); }
 #editor-modal     { width: 80%; max-width: 900px; }
 #file-detail-modal { padding: 16px; }
+#share-modal { width: min(92vw, 440px); }
+
+.share-modal-body {
+  padding: 16px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.share-modal-filename {
+  font-size: 0.85rem;
+  color: var(--muted);
+  word-break: break-all;
+  padding: 8px 12px;
+  background: var(--background2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+
+.share-modal-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.share-modal-section-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.055em;
+  color: var(--muted);
+}
+
+.share-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+}
+
+.share-modal-footer .btn-accent {
+  min-width: 120px;
+  justify-content: center;
+  padding: 0.55rem 1.1rem;
+}
 
 #file-detail-modal table {
   border-spacing: 0.6rem 0.5rem;

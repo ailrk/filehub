@@ -185,17 +185,17 @@ entry file = do
       sizeStr  = Text.pack (show (fromMaybe 0 file.size))
       mimeStr  = Text.decodeUtf8 file.mimetype
       attrs :: [Attribute]
-      attrs = mconcat
-        [ [ term "data-path" (Text.pack (coerce clientPath)) ]
-        , [class_ "selected " | clientPath `Selected.elem` selected]
-        , [id_ [i|tr-#{hashPath}|], class_ "table-item " ]
-        , [ term "data-name" fileName
-          , term "data-mtime" mtimeStr
-          , term "data-atime" atimeStr
-          , term "data-size" sizeStr
-          , term "data-mime" mimeStr
-          ]
+      attrs =
+        [ term "data-path" (Text.pack (coerce clientPath))
+        , id_ [i|tr-#{hashPath}|]
+        , class_ "table-item "
+        , term "data-name" fileName
+        , term "data-mtime" mtimeStr
+        , term "data-atime" atimeStr
+        , term "data-size" sizeStr
+        , term "data-mime" mimeStr
         ]
+        <> [class_ "selected " | clientPath `Selected.elem` selected]
       ClientPathView { clientPath, hashPath  } = asClientPathView root file.path
 
   pure do
@@ -206,7 +206,7 @@ entry file = do
           modifiedDateElement file
           i_ [ class_ "bx bx-wifi-0"] mempty
           sizeElement file
-        `with` Template.open plugins root file
+        `with` Template.open plugins root clientPath file
         `with` [ class_ "entry-preview " ]
       `with` [ case file.isLink of
                  Link       -> class_ "symlink "
