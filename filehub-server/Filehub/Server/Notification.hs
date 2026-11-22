@@ -1,3 +1,4 @@
+{-# LANGUAGE NumericUnderscores #-}
 module Filehub.Server.Notification (listen) where
 
 import Conduit (ConduitT, yield, MonadIO (..), MonadUnliftIO (..))
@@ -8,9 +9,11 @@ import Filehub.Handler (ConfirmLogin)
 import Filehub.Monad (Filehub)
 import Filehub.Notification.Types (Notification(..))
 import Filehub.Session (SessionId(..))
+import Control.Concurrent.STM (retry)
+import GHC.Conc (registerDelay)
 import Prelude hiding (init, readFile)
 import Servant.API.EventStream (RecommendedEventSourceHeaders, recommendedEventSourceHeaders)
-import UnliftIO.STM (readTBQueue, atomically, isEmptyTBQueue, modifyTVar', readTVar, STM, TBQueue)
+import UnliftIO.STM (readTBQueue, atomically, isEmptyTBQueue, modifyTVar', readTVar, STM, TBQueue, orElse)
 import Filehub.Session.Pool (withSession)
 import Filehub.Session (Session(..))
 
@@ -37,7 +40,12 @@ type NotificationStream = ConduitT () Notification IO ()
 --
 -- As long as the tab is on, the notification conduit runs forever in the
 -- background. When the browser tab is closed, the conduit will fail to yield
--- hence clean up the resource
+-- hence clean up the resource.
+--
+-- == Heartbeat
+-- A Pong is emitted every `pingInterval` microseconds when the queue is idle.
+-- This prevents reverse-proxy idle-timeout from silently dropping the
+-- connection (which the browser sees as a clean close and does not reconnect).
 listen :: SessionId -> ConfirmLogin -> Filehub (RecommendedEventSourceHeaders NotificationStream)
 listen sessionId _ = recommendedEventSourceHeaders <$> do
   s <- withSession sessionId pure
@@ -45,10 +53,19 @@ listen sessionId _ = recommendedEventSourceHeaders <$> do
 
 
 startStream :: Session -> Filehub NotificationStream
-startStream s =
-  streamAtomically \loop -> do
-    n <- readTBQueue s.notifications
-    case n of
+startStream s = withRunInIO \runInIO -> pure $ fix \loop -> do
+  timer  <- liftIO $ registerDelay pingInterval
+  result <- liftIO . atomically $
+    (Just <$> readTBQueue s.notifications)
+    `orElse`
+    (readTVar timer >>= \fired -> if fired then pure Nothing else retry)
+  case result of
+    Nothing -> yield Pong >> loop
+    Just n  -> join . liftIO . runInIO $ atomically (handleN n loop)
+  where
+    pingInterval = 25_000_000  -- 25 seconds
+
+    handleN n loop = case n of
       TaskCompleted taskId _ -> do
         modifyTVar' s.pendingTasks (Set.delete taskId)
         tasksRemaining <- readTVar s.pendingTasks
@@ -73,11 +90,3 @@ clearQueue notifications =
     when (not empty) do
       _ <- readTBQueue notifications
       popMore
-
-
-streamAtomically :: (NotificationStream -> STM NotificationStream) -> Filehub NotificationStream
-streamAtomically action =
-  withRunInIO \runInIO -> do
-    pure do
-      fix \loop -> join . liftIO . runInIO $ atomically do
-        action loop
