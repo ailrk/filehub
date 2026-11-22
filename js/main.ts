@@ -16,7 +16,6 @@ import * as DesktopSort from './handlers/desktop/sort.js';
 import * as MobileCloseSidebar from './handlers/mobile/closeSidebar.js';
 import * as MobileSelected from './handlers/mobile/selected.js';
 import * as MobilePanel from './handlers/mobile/panel.js';
-import * as LazyLoad from './lazy-load.js';
 import * as Modal from './modal.js';
 import * as ModalBuilder from './modal-builder.js';
 import Viewer from './viewer.js';
@@ -63,7 +62,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!targetIsIndex && !triggerWantsSpinner) return;
     document.getElementById('view')?.classList.add('view-loading');
     document.getElementById('global-spinner')?.classList.add('htmx-request');
-    LazyLoad.reset();
   });
 
   const clearViewLoading = () => {
@@ -83,13 +81,11 @@ document.addEventListener('DOMContentLoaded', () => {
     initTomlEditors();
     initPluginToggles();
     if (display === 'Desktop') initVideoHover();
-    LazyLoad.init();
   });
 
   initTomlEditors();
   initPluginToggles();
   if (display === 'Desktop') initVideoHover();
-  LazyLoad.init();
 });
 
 

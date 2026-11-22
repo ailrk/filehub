@@ -643,17 +643,17 @@ previewElement root file = do
           serveUrl      = "/serve?file=" <> T.pack cp
       if
          | file.mimetype `isMime` "image" ->
-           img_ [ term "data-src" serveUrl
+           img_ [ src_ serveUrl
                 , draggable_ "false"
+                , term "loading" "lazy"
                 , term "fetchpriority" "low"
                 ]
          | file.mimetype `isMime` "video" ->
-           video_ [ term "data-src" serveUrl
+           video_ [ src_ serveUrl
                   , term "muted" ""
                   , term "preload" "metadata"
                   , term "loop" ""
                   , term "playsinline" ""
-                  , term "fetchpriority" "low"
                   , class_ "thumbnail-video"
                   , draggable_ "false"
                   ] mempty
