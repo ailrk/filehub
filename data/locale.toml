@@ -88,6 +88,7 @@ HISTORY_OP_PASTE               = "Paste"
 HISTORY_OP_CUT                 = "Cut"
 HISTORY_OP_SHARE               = "Share"
 HISTORY_OP_REVOKE_LINK         = "Revoke link"
+FOLDER_EMPTY                   = "This folder is empty"
 
 [zh_cn]
 TARGET_FILESYSTEM              = "文件系统"
@@ -179,6 +180,7 @@ HISTORY_OP_PASTE               = "粘贴"
 HISTORY_OP_CUT                 = "剪切"
 HISTORY_OP_SHARE               = "分享"
 HISTORY_OP_REVOKE_LINK         = "撤销链接"
+FOLDER_EMPTY                   = "此文件夹为空"
 
 [zh_tw]
 TARGET_FILESYSTEM              = "檔案系統"
@@ -270,6 +272,7 @@ HISTORY_OP_PASTE               = "貼上"
 HISTORY_OP_CUT                 = "剪下"
 HISTORY_OP_SHARE               = "分享"
 HISTORY_OP_REVOKE_LINK         = "撤銷連結"
+FOLDER_EMPTY                   = "此資料夾為空"
 
 [zh_hk]
 TARGET_FILESYSTEM              = "檔案系統"
@@ -361,6 +364,7 @@ HISTORY_OP_PASTE               = "貼上"
 HISTORY_OP_CUT                 = "剪下"
 HISTORY_OP_SHARE               = "分享"
 HISTORY_OP_REVOKE_LINK         = "撤銷連結"
+FOLDER_EMPTY                   = "此資料夾為空"
 
 [ja]
 TARGET_FILESYSTEM              = "ファイルシステム"
@@ -452,6 +456,7 @@ HISTORY_OP_PASTE               = "貼り付け"
 HISTORY_OP_CUT                 = "切り取り"
 HISTORY_OP_SHARE               = "共有"
 HISTORY_OP_REVOKE_LINK         = "リンク取消"
+FOLDER_EMPTY                   = "このフォルダは空です"
 
 [fr]
 TARGET_FILESYSTEM              = "Système de fichiers"
@@ -543,6 +548,7 @@ HISTORY_OP_PASTE               = "Coller"
 HISTORY_OP_CUT                 = "Couper"
 HISTORY_OP_SHARE               = "Partager"
 HISTORY_OP_REVOKE_LINK         = "Révoquer le lien"
+FOLDER_EMPTY                   = "Ce dossier est vide"
 
 [es]
 TARGET_FILESYSTEM              = "Sistema de archivos"
@@ -634,6 +640,7 @@ HISTORY_OP_PASTE               = "Pegar"
 HISTORY_OP_CUT                 = "Cortar"
 HISTORY_OP_SHARE               = "Compartir"
 HISTORY_OP_REVOKE_LINK         = "Revocar enlace"
+FOLDER_EMPTY                   = "Esta carpeta está vacía"
 
 [de]
 TARGET_FILESYSTEM              = "Dateisystem"
@@ -725,6 +732,7 @@ HISTORY_OP_PASTE               = "Einfügen"
 HISTORY_OP_CUT                 = "Ausschneiden"
 HISTORY_OP_SHARE               = "Teilen"
 HISTORY_OP_REVOKE_LINK         = "Link widerrufen"
+FOLDER_EMPTY                   = "Dieser Ordner ist leer"
 
 [ko]
 TARGET_FILESYSTEM              = "파일 시스템"
@@ -816,6 +824,7 @@ HISTORY_OP_PASTE               = "붙여넣기"
 HISTORY_OP_CUT                 = "잘라내기"
 HISTORY_OP_SHARE               = "공유"
 HISTORY_OP_REVOKE_LINK         = "링크 취소"
+FOLDER_EMPTY                   = "이 폴더는 비어 있습니다"
 
 [ru]
 TARGET_FILESYSTEM              = "Файловая система"
@@ -907,6 +916,7 @@ HISTORY_OP_PASTE               = "Вставить"
 HISTORY_OP_CUT                 = "Вырезать"
 HISTORY_OP_SHARE               = "Поделиться"
 HISTORY_OP_REVOKE_LINK         = "Отозвать ссылку"
+FOLDER_EMPTY                   = "Эта папка пуста"
 
 [pt]
 TARGET_FILESYSTEM              = "Sistema de arquivos"
@@ -998,6 +1008,7 @@ HISTORY_OP_PASTE               = "Colar"
 HISTORY_OP_CUT                 = "Recortar"
 HISTORY_OP_SHARE               = "Compartilhar"
 HISTORY_OP_REVOKE_LINK         = "Revogar link"
+FOLDER_EMPTY                   = "Esta pasta está vazia"
 
 [it]
 TARGET_FILESYSTEM              = "File system"
@@ -1089,3 +1100,4 @@ HISTORY_OP_PASTE               = "Incolla"
 HISTORY_OP_CUT                 = "Taglia"
 HISTORY_OP_SHARE               = "Condividi"
 HISTORY_OP_REVOKE_LINK         = "Revoca link"
+FOLDER_EMPTY                   = "Questa cartella è vuota"

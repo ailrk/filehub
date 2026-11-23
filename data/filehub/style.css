@@ -941,6 +941,28 @@ tr.pasted-new td, div.pasted-new { animation: pastedFlash 2s ease-out forwards; 
   padding: 4px 0;
 }
 
+.empty-dir {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 80px 0;
+  color: var(--muted);
+  user-select: none;
+  pointer-events: none;
+}
+
+.empty-dir i {
+  font-size: 4rem;
+  opacity: 0.35;
+}
+
+.empty-dir span {
+  font-size: 0.9rem;
+  opacity: 0.6;
+}
+
 .share-links-empty {
   padding: 24px;
   text-align: center;

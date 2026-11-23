@@ -530,23 +530,26 @@ listLayout files = do
   readOnly <- asks (.readOnly)
   ctx      <- ask
 
+  emptyHtml <- Template.emptyDir
   pure do
-    table_ ([ id_ tableId, class_ "list-view ", term "data-sort-by" (sortByText order) ] <> [ term "data-readonly" "" | readOnly ]) do
-      thead_ do
-        tr_ do
-          th_ do
-            span_ [ class_ "field ", term "data-sort-field" "name" ] do
-              toHtml detail_filename
-              sortIconName order
-          th_ do
-            span_ [ class_ "field ", term "data-sort-field" "mtime" ] do
-              toHtml detail_modified
-              sortIconMTime order
-          th_ do
-            span_ [ class_ "field ", term "data-sort-field" "size" ] do
-              toHtml detail_size
-              sortIconSize order
-      tbody_ $ (runTemplate ctx (entries files))
+    if null files
+      then emptyHtml
+      else table_ ([ id_ tableId, class_ "list-view ", term "data-sort-by" (sortByText order) ] <> [ term "data-readonly" "" | readOnly ]) do
+        thead_ do
+          tr_ do
+            th_ do
+              span_ [ class_ "field ", term "data-sort-field" "name" ] do
+                toHtml detail_filename
+                sortIconName order
+            th_ do
+              span_ [ class_ "field ", term "data-sort-field" "mtime" ] do
+                toHtml detail_modified
+                sortIconMTime order
+            th_ do
+              span_ [ class_ "field ", term "data-sort-field" "size" ] do
+                toHtml detail_size
+                sortIconSize order
+        tbody_ $ (runTemplate ctx (entries files))
 
 
 entries :: [FileInfo] -> Template (Html ())
@@ -605,12 +608,15 @@ entry file = do
 
 thumbnailLayout :: [FileInfo] -> Template (Html ())
 thumbnailLayout files = do
-  readOnly <- asks (.readOnly)
-  order    <- asks (.sortedBy)
-  ctx      <- ask
+  readOnly  <- asks (.readOnly)
+  order     <- asks (.sortedBy)
+  ctx       <- ask
+  emptyHtml <- Template.emptyDir
   pure do
-    div_ ([ id_ tableId, class_ "thumbnail-view ", term "data-sort-by" (sortByText order) ] <> [ term "data-readonly" "" | readOnly ]) do
-      runTemplate ctx (entries files)
+    if null files
+      then emptyHtml
+      else div_ ([ id_ tableId, class_ "thumbnail-view ", term "data-sort-by" (sortByText order) ] <> [ term "data-readonly" "" | readOnly ]) do
+        runTemplate ctx (entries files)
 
 
 thumbnail :: FileInfo -> Template (Html ())

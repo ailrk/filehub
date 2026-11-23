@@ -161,11 +161,14 @@ sortTool = do
 
 table :: [FileInfo] -> Template (Html ())
 table files = do
-  ctx <- ask
-  order <- asks (.sortedBy)
+  ctx       <- ask
+  order     <- asks (.sortedBy)
+  emptyHtml <- Template.emptyDir
   pure do
-    table_ [ id_ tableId, class_ "list-view ", term "data-sort-by" (sortByText order) ] do
-      tbody_ $ runTemplate ctx (entries files)
+    if null files
+      then emptyHtml
+      else table_ [ id_ tableId, class_ "list-view ", term "data-sort-by" (sortByText order) ] do
+        tbody_ $ runTemplate ctx (entries files)
 
 
 entries :: [FileInfo] -> Template (Html ())

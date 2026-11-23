@@ -24,6 +24,7 @@ module Filehub.Template.Shared
   , controlPanelId
   , toolBarId
   , tableId
+  , emptyDir
   )
   where
 
@@ -483,3 +484,12 @@ sideBarId = "side-bar"
 
 toolBarId :: Text
 toolBarId = "tool-bar"
+
+
+emptyDir :: Template (Html ())
+emptyDir = do
+  Phrase { folder_empty } <- phrase <$> asks (.locale)
+  pure do
+    div_ [ class_ "empty-dir" ] do
+      i_ [ class_ "bx bx-folder-open" ] mempty
+      span_ (toHtml folder_empty)

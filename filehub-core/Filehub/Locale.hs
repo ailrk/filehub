@@ -152,6 +152,7 @@ data Phrase = Phrase
   , history_op_cut           :: Text
   , history_op_share         :: Text
   , history_op_revoke_link   :: Text
+  , folder_empty             :: Text
   }
   deriving (Show)
 
@@ -313,6 +314,7 @@ phraseCodec =
   <*> Toml.text "HISTORY_OP_CUT"           .= (.history_op_cut)
   <*> Toml.text "HISTORY_OP_SHARE"         .= (.history_op_share)
   <*> Toml.text "HISTORY_OP_REVOKE_LINK"   .= (.history_op_revoke_link)
+  <*> Toml.text "FOLDER_EMPTY"             .= (.folder_empty)
 
 
 config :: Text
