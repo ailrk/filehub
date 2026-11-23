@@ -502,6 +502,9 @@ hr {
 #file-detail-modal { width: min(92vw, 480px); }
 #share-modal { width: min(92vw, 440px); }
 
+.plugin-modal-content { width: min(92vw, 680px); }
+.plugin-modal-body    { padding: 16px 20px 20px; overflow: auto; }
+
 .share-modal-body {
   padding: 16px 20px 20px;
   display: flex;

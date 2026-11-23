@@ -5,6 +5,7 @@ module Filehub.Plugin.Toml
   , pluginsCodec
   ) where
 
+import Control.Applicative ((<|>))
 import Data.Text (Text)
 import Data.Text qualified as T
 import Filehub.Plugin.Types
@@ -37,6 +38,16 @@ pluginHint = T.unlines
   , "# label = \"Open in viewer\""
   , "# url   = \"https://example.com?path={file_path}\""
   , "#"
+  , "# [[plugin.context_menu]]"
+  , "# mime  = \"text\""
+  , "# label = \"Copy path\""
+  , "# script = \"\"\""
+  , "#   function run({ filePath, fileName, mimeType }, ui) {"
+  , "#     navigator.clipboard.writeText(filePath);"
+  , "#     ui.notify('Copied!');"
+  , "#   }"
+  , "# \"\"\""
+  , "#"
   , "# [[plugin.viewer]]"
   , "# mime  = \"text/plain\""
   , "# url   = \"https://example.com?file={file_path}\""
@@ -46,35 +57,46 @@ pluginHint = T.unlines
   , "# label = \"Edit in Photopea\""
   , "# url   = \"https://www.photopea.com#src={share_url}\""
   , "#"
-  , "# URL placeholders: {file_path}  {file_name}  {mime_type}  {share_url}"
+  , "# URL placeholders:  {file_path}  {file_name}  {mime_type}  {share_url}"
+  , "# Script: define function run({ filePath, fileName, mimeType }, ui) { ... }"
+  , "#   ui.modal({ title })  →  { body, show(), close() }"
+  , "#   ui.notify(msg, 'info'|'error')"
   ]
 
 
-urlTemplate :: Key -> TomlCodec UrlTemplate
-urlTemplate key = Toml.dimap (.unUrlTemplate) UrlTemplate (Toml.text key)
+entryActionCodec :: TomlCodec EntryAction
+entryActionCodec =
+  Toml.dimatch matchUrl    (UrlAction . UrlTemplate) (Toml.text "url")
+  <|>
+  Toml.dimatch matchScript ScriptAction              (Toml.text "script")
+  where
+    matchUrl    (UrlAction (UrlTemplate u)) = Just u
+    matchUrl    _                           = Nothing
+    matchScript (ScriptAction s)            = Just s
+    matchScript _                           = Nothing
 
 
 contextMenuEntry :: TomlCodec ContextMenuEntry
 contextMenuEntry =
   ContextMenuEntry
-  <$> Toml.text        "mime"  .= (.mime)
-  <*> Toml.text        "label" .= (.label)
-  <*> urlTemplate      "url"   .= (.url)
+  <$> Toml.text        "mime"   .= (.mime)
+  <*> Toml.text        "label"  .= (.label)
+  <*> entryActionCodec          .= (.action)
 
 
 viewerEntry :: TomlCodec ViewerEntry
 viewerEntry =
   ViewerEntry
-  <$> Toml.text   "mime" .= (.mime)
-  <*> urlTemplate "url"  .= (.url)
+  <$> Toml.text   "mime"   .= (.mime)
+  <*> entryActionCodec     .= (.action)
 
 
 toolbarEntry :: TomlCodec ToolbarEntry
 toolbarEntry =
   ToolbarEntry
-  <$> Toml.text   "mime"  .= (.mime)
-  <*> Toml.text   "label" .= (.label)
-  <*> urlTemplate "url"   .= (.url)
+  <$> Toml.text   "mime"   .= (.mime)
+  <*> Toml.text   "label"  .= (.label)
+  <*> entryActionCodec     .= (.action)
 
 
 staticPlugin :: TomlCodec StaticPlugin

@@ -1,6 +1,7 @@
 import { i18n } from '../../i18n.js';
 import * as ModalBuilder from '../../modal-builder.js';
 import Viewer from '../../viewer.js';
+import { createPluginUI } from '../../plugin-ui.js';
 function openViewer(path) {
     const v = new Viewer(path);
     v.show();
@@ -207,14 +208,19 @@ function buildPluginItems(filePath, fileName, fileMime) {
         for (const entry of plugin.contextMenu) {
             if (!fileMime.startsWith(entry.mime))
                 continue;
-            const needsShare = entry.url.includes('{share_url}');
             const el = makeClickItem(entry.label, 'bx-link-external', () => {
-                if (needsShare) {
-                    openWithShare(filePath, fileName, fileMime, entry.url);
+                if (entry.action.type === 'script') {
+                    executePluginScript(entry.action.value, filePath, fileName, fileMime);
                 }
                 else {
-                    const url = substituteUrl(entry.url, filePath, fileName, fileMime, '');
-                    window.open(url, '_blank');
+                    const needsShare = entry.action.value.includes('{share_url}');
+                    if (needsShare) {
+                        openWithShare(filePath, fileName, fileMime, entry.action.value);
+                    }
+                    else {
+                        const url = substituteUrl(entry.action.value, filePath, fileName, fileMime, '');
+                        window.open(url, '_blank');
+                    }
                 }
             });
             items.push(el);
@@ -244,6 +250,19 @@ async function openWithShare(filePath, fileName, fileMime, urlTemplate) {
     const shareUrl = `${window.location.origin}/s/${hash}/file?file=${enc}`;
     const url = substituteUrl(urlTemplate, filePath, fileName, fileMime, shareUrl);
     window.open(url, '_blank');
+}
+function executePluginScript(script, filePath, fileName, fileMime) {
+    try {
+        const run = new Function(script + '\nreturn run;')();
+        if (typeof run !== 'function') {
+            console.error('Plugin script must define a function named "run"');
+            return;
+        }
+        run({ filePath, fileName, mimeType: fileMime }, createPluginUI());
+    }
+    catch (e) {
+        console.error('Plugin script error:', e);
+    }
 }
 function substituteUrl(template, filePath, fileName, fileMime, shareUrl) {
     const downloadUrl = `${window.location.origin}/download?file=${encodeURIComponent(filePath)}`;

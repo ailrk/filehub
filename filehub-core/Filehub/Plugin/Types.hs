@@ -4,6 +4,7 @@ module Filehub.Plugin.Types
   , ViewerEntry(..)
   , ToolbarEntry(..)
   , UrlTemplate(..)
+  , EntryAction(..)
   , StaticPlugins(..)
   ) where
 
@@ -13,21 +14,26 @@ import Data.Text (Text)
 newtype UrlTemplate = UrlTemplate { unUrlTemplate :: Text }
   deriving (Show, Eq)
 
+data EntryAction
+  = UrlAction  UrlTemplate
+  | ScriptAction Text
+  deriving (Show, Eq)
+
 data ContextMenuEntry = ContextMenuEntry
-  { mime  :: Text
-  , label :: Text
-  , url   :: UrlTemplate
+  { mime   :: Text
+  , label  :: Text
+  , action :: EntryAction
   } deriving (Show, Eq)
 
 data ViewerEntry = ViewerEntry
-  { mime :: Text
-  , url  :: UrlTemplate
+  { mime   :: Text
+  , action :: EntryAction
   } deriving (Show, Eq)
 
 data ToolbarEntry = ToolbarEntry
-  { mime  :: Text
-  , label :: Text
-  , url   :: UrlTemplate
+  { mime   :: Text
+  , label  :: Text
+  , action :: EntryAction
   } deriving (Show, Eq)
 
 data StaticPlugin = StaticPlugin
