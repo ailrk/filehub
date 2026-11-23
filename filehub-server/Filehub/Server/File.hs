@@ -141,6 +141,9 @@ newFile' sessionId name create = do
   when (null nameStr || '/' `elem` nameStr || '\0' `elem` nameStr || nameStr == "..") do
     throwIO (FilehubError InvalidPath "Invalid filename")
   path    <- validateAbsPath (coerce dir </> nameStr) (FilehubError InvalidPath ("<redacted>/" <> show name))
+  already <- storage.doesExist path
+  when already do
+    throwIO (FilehubError FileExists ("Already exists: " <> show name))
   file    <- create path
   files   <- Sort.sortFiles order <$> storage.ls dir
 
