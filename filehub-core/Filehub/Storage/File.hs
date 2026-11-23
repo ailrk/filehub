@@ -86,13 +86,13 @@ createCacheKey :: forall (s :: Symbol) (a :: Type) . CacheKeyComponent s a => Bu
 createCacheKey identifier = Cache.mkCacheKey [cacheKeyPrefix, toCacheKeyComponent @s @a, identifier]
 
 
-getMimetype :: AbsPath -> MonadIO m => m ByteString
+getMimetype :: MonadIO m => AbsPath -> m ByteString
 getMimetype path = do
   let ext = defaultMimeLookup (T.pack (coerce path))
   if ext /= "application/octet-stream"
     then pure ext
     else do
-      header <- liftIO $ tryIO $ BS.readFile (coerce path)
+      header <- liftIO $ tryIO $ withFile (coerce path) ReadMode (`BS.hGet` 512)
       pure $ case header of
         Left  _  -> ext
         Right bs -> sniffMimetype bs `orElse` ext
@@ -121,7 +121,7 @@ sniffMimetype bs
   | "\x1f\x8b"            `BS.isPrefixOf` bs                        = "application/gzip"
   | "BZh"                 `BS.isPrefixOf` bs                        = "application/x-bzip2"
   | "\xFD7zXZ\x00"        `BS.isPrefixOf` bs                        = "application/x-xz"
-  | "7z\xBC\xAF\x27\x1C" `BS.isPrefixOf` bs                         = "application/x-7z-compressed"
+  | "7z\xBC\xAF\x27\x1C"  `BS.isPrefixOf` bs                        = "application/x-7z-compressed"
   | "Rar!\x1A\x07"        `BS.isPrefixOf` bs                        = "application/vnd.rar"
   -- audio
   | "ID3"                 `BS.isPrefixOf` bs                        = "audio/mpeg"
