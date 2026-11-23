@@ -363,8 +363,7 @@ open plugins root clientPath file =
                [ term "data-action" "open-viewer" ]
           | file.mimetype `isMime` "text" ->
                asHtmx @"editorModal" hxGet (Just clientPath) [ term "hx-indicator" "#global-spinner" ]
-          | otherwise ->
-               asHtmx @"editorModal" hxGet (Just clientPath) [ term "hx-indicator" "#global-spinner" ]
+          | otherwise -> []
   where
     allViewers = concatMap (.viewer) plugins
 
