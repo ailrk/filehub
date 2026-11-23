@@ -138,6 +138,8 @@ class Viewer {
       video.setAttribute('autoplay', '');
       video.setAttribute('loop', '');
       video.setAttribute('muted', '');
+      video.setAttribute('playsinline', '');
+      video.setAttribute('webkit-playsinline', '');
       source.src = url;
       source.type = mime;
       video.appendChild(source);
