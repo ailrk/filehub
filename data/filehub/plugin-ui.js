@@ -1,38 +1,9 @@
 import * as Balloon from './balloon.js';
+import { createWindow } from './window.js';
 export function createPluginUI() {
     return {
-        modal(opts = {}) {
-            const wrap = document.createElement('div');
-            wrap.className = 'modal';
-            const underlay = document.createElement('div');
-            underlay.className = 'modal-underlay';
-            const content = document.createElement('div');
-            content.className = 'modal-content plugin-modal-content';
-            const header = document.createElement('div');
-            header.className = 'modal-title-bar';
-            const title = document.createElement('span');
-            title.textContent = opts.title ?? '';
-            const closeBtn = document.createElement('button');
-            closeBtn.className = 'btn-modal-close';
-            closeBtn.setAttribute('data-close-modal', '');
-            closeBtn.innerHTML = `<i class="bx bx-x"></i>`;
-            header.appendChild(title);
-            header.appendChild(closeBtn);
-            content.appendChild(header);
-            const body = document.createElement('div');
-            body.className = 'plugin-modal-body';
-            content.appendChild(body);
-            wrap.appendChild(underlay);
-            wrap.appendChild(content);
-            return {
-                body,
-                show() {
-                    document.body.appendChild(wrap);
-                },
-                close() {
-                    wrap.dispatchEvent(new Event('Close', { bubbles: true }));
-                },
-            };
+        window(opts = {}) {
+            return createWindow(opts);
         },
         notify(msg, kind = 'info') {
             Balloon.pushBalloon({
@@ -40,6 +11,15 @@ export function createPluginUI() {
                 msg,
                 duration: 3000,
             });
+        },
+        fetch(path, opts = {}) {
+            return window.fetch(path, opts);
+        },
+        selectedFiles() {
+            return Array.from(document.querySelectorAll('#table .table-item.selected[data-path]')).map(el => el.dataset.path);
+        },
+        refresh() {
+            htmx.ajax('GET', '/', { target: '#index', swap: 'none' });
         },
     };
 }

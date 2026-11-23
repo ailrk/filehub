@@ -43,8 +43,9 @@ pluginHint = T.unlines
   , "# label = \"Copy path\""
   , "# script = \"\"\""
   , "#   function run({ filePath, fileName, mimeType }, ui) {"
-  , "#     navigator.clipboard.writeText(filePath);"
-  , "#     ui.notify('Copied!');"
+  , "#     const win = ui.window({ title: fileName });"
+  , "#     win.body.textContent = filePath;"
+  , "#     win.show();"
   , "#   }"
   , "# \"\"\""
   , "#"
@@ -59,8 +60,11 @@ pluginHint = T.unlines
   , "#"
   , "# URL placeholders:  {file_path}  {file_name}  {mime_type}  {share_url}"
   , "# Script: define function run({ filePath, fileName, mimeType }, ui) { ... }"
-  , "#   ui.modal({ title })  →  { body, show(), close() }"
-  , "#   ui.notify(msg, 'info'|'error')"
+  , "#   ui.window({ title })    →  { body: HTMLElement, show(), close() }"
+  , "#   ui.notify(msg, kind)    →  balloon ('info' or 'error')"
+  , "#   ui.fetch(path, opts)    →  fetch() scoped to this server"
+  , "#   ui.selectedFiles()      →  string[] of currently selected paths"
+  , "#   ui.refresh()            →  reload the file list"
   ]
 
 
