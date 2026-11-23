@@ -163,13 +163,31 @@ export function showFileDetailModal(
   const content = modal.querySelector('.modal-content')!;
   const readableSize = toReadableSize(parseInt(size, 10) || 0);
   content.innerHTML = `
-    <span class="bold">${esc(t.modal_detail)}</span><br>
-    <table><tbody>
-      <tr><td>${esc(t.detail_filename)}</td><td>${esc(name)}</td></tr>
-      <tr><td>${esc(t.detail_modified)}</td><td>${esc(formatDate(mtime))}</td></tr>
-      <tr><td>${esc(t.detail_accessed)}</td><td>${esc(formatDate(atime))}</td></tr>
-      <tr><td>${esc(t.detail_size)}</td><td>${esc(readableSize)}</td></tr>
-      <tr><td>${esc(t.detail_content_type)}</td><td>${esc(mime)}</td></tr>
-    </tbody></table>`;
+    <div class="modal-title-bar">
+      <span class="bold">${esc(t.modal_detail)}</span>
+      <div class="btn-modal-close" data-close-modal="true"><i class="bx bx-x"></i></div>
+    </div>
+    <div class="file-detail-body">
+      <div class="file-detail-row">
+        <span class="file-detail-label">${esc(t.detail_filename)}</span>
+        <span class="file-detail-value">${esc(name)}</span>
+      </div>
+      <div class="file-detail-row">
+        <span class="file-detail-label">${esc(t.detail_content_type)}</span>
+        <span class="file-detail-value">${esc(mime)}</span>
+      </div>
+      <div class="file-detail-row">
+        <span class="file-detail-label">${esc(t.detail_size)}</span>
+        <span class="file-detail-value">${esc(readableSize)}</span>
+      </div>
+      <div class="file-detail-row">
+        <span class="file-detail-label">${esc(t.detail_modified)}</span>
+        <span class="file-detail-value">${esc(formatDate(mtime))}</span>
+      </div>
+      <div class="file-detail-row">
+        <span class="file-detail-label">${esc(t.detail_accessed)}</span>
+        <span class="file-detail-value">${esc(formatDate(atime))}</span>
+      </div>
+    </div>`;
   appendModal(modal);
 }

@@ -499,7 +499,7 @@ hr {
 #new-folder-modal { width: min(92vw, 380px); }
 #rename-modal     { width: min(92vw, 380px); }
 #editor-modal     { width: 80%; max-width: 900px; }
-#file-detail-modal { padding: 16px; }
+#file-detail-modal { width: min(92vw, 480px); }
 #share-modal { width: min(92vw, 440px); }
 
 .share-modal-body {
@@ -546,9 +546,35 @@ hr {
   padding: 0.55rem 1.1rem;
 }
 
-#file-detail-modal table {
-  border-spacing: 0.6rem 0.5rem;
-  border-collapse: separate;
+.file-detail-body {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 20px 20px;
+  gap: 10px;
+}
+
+.file-detail-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.file-detail-label {
+  flex-shrink: 0;
+  width: 76px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.file-detail-value {
+  flex: 1;
+  font-size: 0.88rem;
+  color: var(--frontground);
+  word-break: break-all;
+  user-select: text;
 }
 
 #editor-modal textarea {
