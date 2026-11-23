@@ -195,7 +195,7 @@ shareCreatedModal :: SharedLinkHash -> Html ()
 shareCreatedModal (SharedLinkHash hashText) = do
   div_ [ id_ "share-created-modal", class_ "modal" ] do
     div_ [ class_ "modal-underlay", onclick_ "this.closest('.modal').remove()" ] mempty
-    div_ [ class_ "modal-content", style_ "width:480px" ] do
+    div_ [ class_ "modal-content", style_ "width:min(480px,calc(100vw - 1.5rem))" ] do
       div_ [ class_ "modal-title-bar" ] do
         span_ "Share link created"
         div_ [ class_ "modal-title-bar-control" ] do
@@ -210,8 +210,10 @@ shareCreatedModal (SharedLinkHash hashText) = do
                  , id_ "share-url-input"
                  , value_ [iii|/s/#{hashText}|]
                  , readonly_ ""
+                 , style_ "flex:1; min-width:0"
                  ]
           button_ [ class_ "btn btn-control"
+                  , style_ "flex-shrink:0"
                   , onclick_ "navigator.clipboard.writeText(document.getElementById('share-url-input').value); this.textContent='Copied!'; setTimeout(()=>this.textContent='Copy',1500)"
                   ] "Copy"
         script_ [iii|(function(){ var el = document.getElementById('share-url-input'); if(el) el.value = window.location.origin + el.value; })()|]

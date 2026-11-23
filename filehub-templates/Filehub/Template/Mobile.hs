@@ -252,9 +252,10 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
     <*> pure Nothing
     <*> pure Nothing
     <*> (Just <$> scroll2TopBtn)
+    <*> (Just <$> shareLinksBtn)
     <*> pure Nothing
     <*> pure Nothing
-    <*> pure Nothing
+    <*> (Just <$> shareSelectedBtn)
   where
     localeBtn :: Template (Html ())
     localeBtn = do
@@ -430,6 +431,32 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
           span_ [ class_ "field " ] do
             i_ [ class_ "bx bx-vertical-top" ] mempty
             span_ (toHtml control_panel_scroll2top)
+
+
+    shareLinksBtn :: Template (Html ())
+    shareLinksBtn = do
+      Phrase { control_panel_share_links } <- phrase <$> asks (.locale)
+      pure do
+        button_ [ class_ "action-btn"
+                , type_ "button"
+                , term "data-action" "share-links"
+                ] do
+          span_ [ class_ "field " ] do
+            i_ [ class_ "bx bxs-share-alt" ] mempty
+            span_ (toHtml control_panel_share_links)
+
+
+    shareSelectedBtn :: Template (Html ())
+    shareSelectedBtn = do
+      Phrase { contextmenu_share } <- phrase <$> asks (.locale)
+      pure do
+        button_ [ class_ "action-btn"
+                , type_ "button"
+                , term "data-action" "share-selected"
+                ] do
+          span_ [ class_ "field " ] do
+            i_ [ class_ "bx bxs-share" ] mempty
+            span_ (toHtml contextmenu_share)
 
 
 selectedCounter :: Int -> Template (Html ())

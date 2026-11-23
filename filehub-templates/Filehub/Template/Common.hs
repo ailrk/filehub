@@ -200,6 +200,7 @@ controlPanel
      Maybe (Html ()) ->
      Maybe (Html ()) ->
      Maybe (Html ()) ->
+     Maybe (Html ()) ->
      Maybe (Html ())
   -> Template (Html ())
 controlPanel
@@ -220,7 +221,8 @@ controlPanel
   mScroll2TopBtn
   mShareLinksBtn
   mHistoryBtn
-  mSettingsBtn = do
+  mSettingsBtn
+  mShareSelectedBtn = do
     readOnly              <- asks (.readOnly)
     noLogin               <- asks (.noLogin)
     state                 <- asks (.state)
@@ -275,6 +277,7 @@ controlPanel
                 copyBtn
                 cutBtn
                 deleteBtn
+                fromMaybe mempty mShareSelectedBtn
                 div_ [id_ "plugin-toolbar-actions", term "data-cancel-hide" ""] mempty
                 cancelBtn
                 fromMaybe mempty mScroll2TopBtn

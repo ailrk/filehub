@@ -5,6 +5,8 @@
 
 declare var htmx: any;
 
+import { showShareModal } from '../../modal-builder.js';
+
 export function register() {
   document.addEventListener('click', onDocumentClick);
   document.body.addEventListener('htmx:beforeRequest', (e: any) => {
@@ -58,6 +60,24 @@ function onDocumentClick(e: MouseEvent) {
 
   if (t.closest('[data-close-editor]')) {
     document.getElementById('editor-modal')?.remove();
+    return;
+  }
+
+  if (t.closest('[data-action="share-links"]')) {
+    document.getElementById('overlay')?.classList.remove('show');
+    document.getElementById('control-panel')?.classList.remove('show');
+    setTimeout(() => htmx.ajax('GET', '/share/links', { target: '#index', swap: 'beforeend' }), 340);
+    return;
+  }
+
+  if (t.closest('[data-action="share-selected"]')) {
+    const row = document.querySelector('tr.selected[data-path]') as HTMLElement | null;
+    const path = row?.dataset.path;
+    if (path) {
+      document.getElementById('overlay')?.classList.remove('show');
+      document.getElementById('control-panel')?.classList.remove('show');
+      setTimeout(() => showShareModal(path), 340);
+    }
     return;
   }
 }

@@ -137,6 +137,7 @@ controlPanel = join do
     <*> (Just <$> shareLinksBtn)
     <*> (Just <$> historyBtn)
     <*> pure (Just settingsBtn)
+    <*> pure Nothing
 
 
 uploadBtn :: Template (Html ())
