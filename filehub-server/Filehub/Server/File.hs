@@ -147,15 +147,13 @@ newFile' sessionId name create = do
   file    <- create path
   files   <- Sort.sortFiles order <$> storage.ls dir
 
-  let target :: Text
-      target = case getPrev file files of
-                 Just prevFile -> let ClientPathView { hashPath } = asClientPathView root prevFile.path
-                                   in [i|afterend:\#tr-#{hashPath}|]
-                 Nothing       -> [i|afterbegin:\#table|]
+  let updates = case getPrev file files of
+        Just prevFile ->
+          let ClientPathView { hashPath } = asClientPathView root prevFile.path
+           in [ UpdateEntry [i|afterend:\#tr-#{hashPath}|] file ]
+        Nothing -> [ UpdateView ]
 
-  runUIPartialUpdate sessionId
-    [ UpdateEntry target file
-    ]
+  runUIPartialUpdate sessionId updates
 
   where
     getPrev target list =

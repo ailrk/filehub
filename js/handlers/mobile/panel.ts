@@ -5,7 +5,7 @@
 
 declare var htmx: any;
 
-import { showShareModal } from '../../modal-builder.js';
+import { showShareModal, showNewFileModal, showNewFolderModal } from '../../modal-builder.js';
 
 export function register() {
   document.addEventListener('click', onDocumentClick);
@@ -49,12 +49,16 @@ function onDocumentClick(e: MouseEvent) {
   }
 
   if (t.closest('#new-folder-btn')) {
-    promptNew('folder');
+    document.getElementById('overlay')?.classList.remove('show');
+    document.getElementById('control-panel')?.classList.remove('show');
+    setTimeout(() => showNewFolderModal(), 340);
     return;
   }
 
   if (t.closest('#new-file-btn')) {
-    promptNew('file');
+    document.getElementById('overlay')?.classList.remove('show');
+    document.getElementById('control-panel')?.classList.remove('show');
+    setTimeout(() => showNewFileModal(), 340);
     return;
   }
 
@@ -93,14 +97,3 @@ function toggle(id: string) {
   document.getElementById(id)?.classList.toggle('show');
 }
 
-function promptNew(kind: 'folder' | 'file') {
-  const name = prompt(`New ${kind} name`);
-  if (!name) return;
-  const path = kind === 'folder' ? '/folders/new' : '/files/new';
-  const key  = kind === 'folder' ? 'new-folder' : 'new-file';
-  htmx.ajax('POST', path, {
-    target: '#view',
-    values: { [key]: name },
-    swap: 'outerHTML',
-  });
-}

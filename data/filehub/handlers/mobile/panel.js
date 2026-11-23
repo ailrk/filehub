@@ -2,7 +2,7 @@
  * Mobile panel / sidebar management — replaces _hyperscript attribute scripts.
  * Registered once on document at startup; survives all htmx swaps.
  */
-import { showShareModal } from '../../modal-builder.js';
+import { showShareModal, showNewFileModal, showNewFolderModal } from '../../modal-builder.js';
 export function register() {
     document.addEventListener('click', onDocumentClick);
     document.body.addEventListener('htmx:beforeRequest', (e) => {
@@ -38,11 +38,15 @@ function onDocumentClick(e) {
         return;
     }
     if (t.closest('#new-folder-btn')) {
-        promptNew('folder');
+        document.getElementById('overlay')?.classList.remove('show');
+        document.getElementById('control-panel')?.classList.remove('show');
+        setTimeout(() => showNewFolderModal(), 340);
         return;
     }
     if (t.closest('#new-file-btn')) {
-        promptNew('file');
+        document.getElementById('overlay')?.classList.remove('show');
+        document.getElementById('control-panel')?.classList.remove('show');
+        setTimeout(() => showNewFileModal(), 340);
         return;
     }
     if (t.closest('[data-close-editor]')) {
@@ -74,16 +78,4 @@ function onDocumentClick(e) {
 }
 function toggle(id) {
     document.getElementById(id)?.classList.toggle('show');
-}
-function promptNew(kind) {
-    const name = prompt(`New ${kind} name`);
-    if (!name)
-        return;
-    const path = kind === 'folder' ? '/folders/new' : '/files/new';
-    const key = kind === 'folder' ? 'new-folder' : 'new-file';
-    htmx.ajax('POST', path, {
-        target: '#view',
-        values: { [key]: name },
-        swap: 'outerHTML',
-    });
 }
