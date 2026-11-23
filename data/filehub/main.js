@@ -71,6 +71,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (display === 'Desktop')
             initVideoHover();
     });
+    document.addEventListener('animationend', (e) => {
+        const el = e.target;
+        if (e.animationName === 'pastedFlash') {
+            el.classList.remove('pasted-new');
+        }
+    });
     initTomlEditors();
     initPluginToggles();
     if (display === 'Desktop')

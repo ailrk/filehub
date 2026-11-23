@@ -1076,6 +1076,7 @@ tr.pasted-new td, div.pasted-new { animation: pastedFlash 2s ease-out forwards; 
   width: 100%;
   border-collapse: collapse;
   font-size: 0.84rem;
+  table-layout: fixed;
 }
 
 .history-table thead th {
@@ -1093,7 +1094,7 @@ tr.pasted-new td, div.pasted-new { animation: pastedFlash 2s ease-out forwards; 
 .col-time   { width: 80px;  }
 .col-op     { width: 100px; }
 .col-target { width: 90px;  }
-.col-desc   { }
+.col-desc   { width: auto;  overflow: hidden; }
 .col-status { width: 54px;  }
 
 .history-row td {
@@ -1175,6 +1176,7 @@ tr.pasted-new td, div.pasted-new { animation: pastedFlash 2s ease-out forwards; 
   margin-top: 6px;
   max-height: 130px;
   overflow-y: auto;
+  overflow-x: hidden;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--background1);

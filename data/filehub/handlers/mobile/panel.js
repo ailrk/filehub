@@ -55,6 +55,12 @@ function onDocumentClick(e) {
         setTimeout(() => htmx.ajax('GET', '/share/links', { target: '#index', swap: 'beforeend' }), 340);
         return;
     }
+    if (t.closest('[data-action="history"]')) {
+        document.getElementById('overlay')?.classList.remove('show');
+        document.getElementById('control-panel')?.classList.remove('show');
+        setTimeout(() => htmx.ajax('GET', '/history', { target: '#index', swap: 'beforeend' }), 340);
+        return;
+    }
     if (t.closest('[data-action="share-selected"]')) {
         const row = document.querySelector('tr.selected[data-path]');
         const path = row?.dataset.path;

@@ -253,7 +253,7 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
     <*> pure Nothing
     <*> (Just <$> scroll2TopBtn)
     <*> (Just <$> shareLinksBtn)
-    <*> pure Nothing
+    <*> (Just <$> historyBtn)
     <*> pure Nothing
     <*> (Just <$> shareSelectedBtn)
   where
@@ -431,6 +431,19 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
           span_ [ class_ "field " ] do
             i_ [ class_ "bx bx-vertical-top" ] mempty
             span_ (toHtml control_panel_scroll2top)
+
+
+    historyBtn :: Template (Html ())
+    historyBtn = do
+      Phrase { history_title } <- phrase <$> asks (.locale)
+      pure do
+        button_ [ class_ "action-btn"
+                , type_ "button"
+                , term "data-action" "history"
+                ] do
+          span_ [ class_ "field " ] do
+            i_ [ class_ "bx bx-history" ] mempty
+            span_ (toHtml history_title)
 
 
     shareLinksBtn :: Template (Html ())

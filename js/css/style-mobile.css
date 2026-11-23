@@ -337,6 +337,23 @@ tfoot td {
 }
 
 
+/* ---------- History modal ---------- */
+
+.history-modal-content {
+  width: calc(100vw - 1.5rem);
+  max-height: calc(100dvh - max(env(safe-area-inset-top), 0.75rem) - 0.5rem);
+}
+
+.history-modal-body {
+  overflow-x: auto;
+}
+
+.history-modal-content .col-time,
+.history-modal-content .history-time,
+.history-modal-content .col-desc,
+.history-modal-content .history-desc { display: none; }
+
+
 /* ---------- Editor ---------- */
 
 #editor-modal {
