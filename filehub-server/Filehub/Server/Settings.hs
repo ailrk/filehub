@@ -13,7 +13,7 @@ module Filehub.Server.Settings
   , settingsUpdateAppearance
   ) where
 
-import Control.Concurrent.STM (readTVar, writeTVar, modifyTVar)
+import Control.Concurrent.STM (writeTVar, modifyTVar)
 import Control.Monad.Reader (ask)
 import Data.ClientPath (AbsPath(..), Root(..))
 import Data.Map qualified as M
@@ -23,7 +23,6 @@ import Data.String.Interpolate (i)
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.IO qualified as T
-import Filehub.Env (Env(..))
 import Filehub.Error (FilehubError(..))
 import Filehub.Handler (ConfirmLogin)
 import Filehub.Locale (Locale(..))
@@ -31,11 +30,8 @@ import Filehub.Monad (Filehub)
 import Filehub.Plugin.Toml qualified as Plugin.Toml
 import Filehub.Plugin.Types (StaticPlugin(..))
 import Filehub.Server.UI.Render (runUIPartialUpdate, UIPartialUpdate(..))
-import Filehub.Session (SessionId)
 import Filehub.Session.Pool (withSession_)
-import Filehub.Session.Types (Pool(..), Session, TargetSessionData(..), Selected(..))
-import Filehub.Sort (SortFileBy(..))
-import Filehub.Theme (Theme(..))
+import Filehub.Session.Types (Pool(..), Selected(..))
 import Filehub.Types
 import Lucid (Html)
 import Servant (Headers, Header, addHeader, err400, errBody)

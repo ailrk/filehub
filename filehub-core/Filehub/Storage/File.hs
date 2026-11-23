@@ -50,6 +50,7 @@ import GHC.TypeLits (Symbol)
 import Log (logAttention, logAttention_)
 import Log (logTrace_, logInfo)
 import Network.Mime (defaultMimeLookup)
+import Data.ByteString qualified as BS
 import Prelude hiding (read, readFile, writeFile)
 import Servant.Multipart (Mem, FileData (..))
 import System.FilePath ((</>), takeDirectory, takeFileName)
@@ -85,6 +86,63 @@ createCacheKey :: forall (s :: Symbol) (a :: Type) . CacheKeyComponent s a => Bu
 createCacheKey identifier = Cache.mkCacheKey [cacheKeyPrefix, toCacheKeyComponent @s @a, identifier]
 
 
+getMimetype :: AbsPath -> MonadIO m => m ByteString
+getMimetype path = do
+  let ext = defaultMimeLookup (T.pack (coerce path))
+  if ext /= "application/octet-stream"
+    then pure ext
+    else do
+      header <- liftIO $ tryIO $ BS.readFile (coerce path)
+      pure $ case header of
+        Left  _  -> ext
+        Right bs -> sniffMimetype bs `orElse` ext
+  where
+    orElse x fallback = if x == "application/octet-stream" then fallback else x
+
+
+sniffMimetype :: ByteString -> ByteString
+sniffMimetype bs
+  -- images
+  | "\x89PNG\r\n\x1a\n"   `BS.isPrefixOf` bs                        = "image/png"
+  | "\xFF\xD8\xFF"        `BS.isPrefixOf` bs                        = "image/jpeg"
+  | "GIF87a"              `BS.isPrefixOf` bs                        = "image/gif"
+  | "GIF89a"              `BS.isPrefixOf` bs                        = "image/gif"
+  | "RIFF"                `BS.isPrefixOf` bs
+      && "WEBP"           `BS.isInfixOf`  BS.take 12 bs             = "image/webp"
+  | "BM"                  `BS.isPrefixOf` bs                        = "image/bmp"
+  | "\x00\x00\x01\x00"    `BS.isPrefixOf` bs                        = "image/x-icon"
+  | "\x00\x00\x00\x0C\x6A\x50\x20\x20" `BS.isPrefixOf` bs           = "image/jp2"
+  | "II\x2A\x00"          `BS.isPrefixOf` bs                        = "image/tiff"
+  | "MM\x00\x2A"          `BS.isPrefixOf` bs                        = "image/tiff"
+  -- documents
+  | "%PDF"                `BS.isPrefixOf` bs                        = "application/pdf"
+  -- archives
+  | "PK\x03\x04"          `BS.isPrefixOf` bs                        = "application/zip"
+  | "\x1f\x8b"            `BS.isPrefixOf` bs                        = "application/gzip"
+  | "BZh"                 `BS.isPrefixOf` bs                        = "application/x-bzip2"
+  | "\xFD7zXZ\x00"        `BS.isPrefixOf` bs                        = "application/x-xz"
+  | "7z\xBC\xAF\x27\x1C" `BS.isPrefixOf` bs                         = "application/x-7z-compressed"
+  | "Rar!\x1A\x07"        `BS.isPrefixOf` bs                        = "application/vnd.rar"
+  -- audio
+  | "ID3"                 `BS.isPrefixOf` bs                        = "audio/mpeg"
+  | "\xFF\xFB"            `BS.isPrefixOf` bs                        = "audio/mpeg"
+  | "\xFF\xF3"            `BS.isPrefixOf` bs                        = "audio/mpeg"
+  | "\xFF\xF2"            `BS.isPrefixOf` bs                        = "audio/mpeg"
+  | "OggS"                `BS.isPrefixOf` bs                        = "audio/ogg"
+  | "fLaC"                `BS.isPrefixOf` bs                        = "audio/flac"
+  | "RIFF"                `BS.isPrefixOf` bs                        = "audio/wav"
+  -- video
+  | "\x1aE\xDF\xA3"       `BS.isPrefixOf` bs                        = "video/webm"
+  | "ftyp"                `BS.isInfixOf`  BS.take 12 bs             = "video/mp4"
+  -- text heuristic: all bytes are printable ASCII or common whitespace
+  | isLikelyText bs                                                 = "text/plain"
+  | otherwise                                                       = "application/octet-stream"
+  where
+    isLikelyText chunk =
+      let sample = BS.take 512 chunk
+       in not (BS.null sample) && BS.all (\w -> w >= 9 && w <= 126 || w >= 128) sample
+
+
 get :: AbsPath -> Filehub FileInfo
 get path = do
   mCached <- cacheLookup cacheKey
@@ -100,7 +158,7 @@ get path = do
             size   <- getFileSize (coerce path)
             mtime  <- getModificationTime (coerce path)
             atime  <- getAccessTime (coerce path)
-            let mimetype = defaultMimeLookup (coerce T.pack path)
+            mimetype <- getMimetype path
             let file = File
                   { path     = path
                   , size     = Just size
