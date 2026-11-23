@@ -1,7 +1,6 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Filehub.Template.Mobile
   ( index
-  , sideBar
   , controlPanel
   , view
   , entry
@@ -12,15 +11,17 @@ module Filehub.Template.Mobile
   )
   where
 
-import Control.Monad (join)
+import Control.Monad (join, when)
 import Data.ByteString (ByteString)
 import Data.ClientPath (ClientPath(..), AbsPath (..), Root (..))
+import Data.DiskUsage (DiskUsage(..))
 import Data.File (File(..), FileInfo, IsLink (..))
 import Data.Foldable (traverse_)
 import Data.Maybe (fromMaybe)
 import Data.String.Interpolate (iii, i)
 import Data.Text (Text)
 import Data.Text qualified as Text
+import Data.Text qualified as T
 import Data.Text.Encoding qualified as Text
 import Data.Time.Format (formatTime, defaultTimeLocale)
 import Filehub.Locale (Phrase(..), phrase, Locale (..))
@@ -28,8 +29,8 @@ import Filehub.Routes (Api(..))
 import Filehub.Session.Selected qualified as Selected
 import Filehub.Size (toReadableSize)
 import Filehub.Template (Template, TemplateContext(..), runTemplate)
-import Filehub.Template.Shared qualified as Template
-import Filehub.Template.Shared
+import Filehub.Template.Common qualified as Template
+import Filehub.Template.Common
   ( sideBarId, viewId, searchBar, toolBarId, tableId
   , fileNameElement
   , sortIconName, sortIconMTime, sortIconSize, sortByText
@@ -77,30 +78,6 @@ safeAreaShim = div_ [ id_ "safe-area-shim" ] mempty
 
 overlay :: Html ()
 overlay = div_ [ id_ overlayId ] mempty
-
-
-sideBar :: [AnyTarget] -> TargetView -> Html ()
-sideBar targets (TargetView currentTarget _) = do
-  div_ [ id_ sideBarId ] do traverse_ targetIcon targets
-  where
-    targetIcon :: AnyTarget -> Html ()
-    targetIcon target = do
-      div_ (asHtmx @"changeTarget" hxGet (Just (Target.getTargetId target))
-           [ class_ "target-icon" ]) do
-        fromMaybe "unknown" $ handleTarget target
-          [ targetHandler @FileSys \(FileBackend { root = Root (AbsPath root) }) -> do
-              i_ [ class_ "bx bx-folder" ] mempty
-              span_ [iii| /#{takeFileName root} |]
-          , targetHandler @S3 \(S3Backend { bucket }) -> do
-              i_ [ class_ "bx bxs-cube" ] mempty
-              span_  [iii| /#{bucket} |]
-          , targetHandler @DummyTarget \_ -> do
-              i_ [ class_ "bx bxs-cube" ] mempty
-              span_  [iii| dummy |]
-          ]
-      `with` targetAttr
-      where
-        targetAttr = [class_ " current-target" | Target.getTargetId currentTarget == Target.getTargetId target]
 
 
 controlPanelBtn :: Html ()
@@ -207,7 +184,6 @@ entry file = do
         fileNameElement file target True `with` [class_ "field"]
         span_ [class_ "file-meta mobile "] do
           modifiedDateElement file
-          i_ [ class_ "bx bx-wifi-0"] mempty
           sizeElement file
         `with` Template.open plugins root clientPath file
         `with` [ class_ "entry-preview " ]
@@ -429,25 +405,19 @@ controlPanel = (fmap (`with` [ class_ "panel "]) . join) do
     themeBtn :: Template (Html ())
     themeBtn = do
       theme <- asks (.theme)
-      Phrase
-        { control_panel_light
-        , control_panel_dark } <- phrase <$> asks (.locale)
+      Phrase { control_panel_light, control_panel_dark } <- phrase <$> asks (.locale)
       pure do
-        case theme of
-          Light -> do
-            button_ (asHtmx @"toggleTheme" hxGet ()
-                    [ class_ "action-btn"
-                    , type_ "submit"
-                    ]) do
-              i_ [ class_ "bx bxs-moon" ] mempty
-              span_ (toHtml control_panel_dark )
-          Dark -> do
-            button_ (asHtmx @"toggleTheme" hxGet ()
-                    [ class_ "action-btn"
-                    , type_ "submit"
-                    ]) do
-              i_ [ class_ "bx bxs-sun" ] mempty
-              span_ (toHtml control_panel_light )
+        let (label, iconClass, themeName) = case theme of
+              Light -> (control_panel_dark,  "bx bxs-moon", "light" :: Text)
+              Dark  -> (control_panel_light, "bx bxs-sun",  "dark"  :: Text)
+        button_ [ class_ "action-btn"
+                , type_ "button"
+                , term "data-action" "toggle-theme"
+                , term "data-current-theme" themeName
+                ] do
+          span_ [ class_ "field " ] do
+            i_ [ class_ iconClass ] mempty
+            span_ (toHtml label)
 
 
     scroll2TopBtn :: Template (Html ())

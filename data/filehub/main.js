@@ -16,10 +16,16 @@ import { i18n } from './i18n.js';
 const balloonWaitTime = 2000;
 let viewer = null;
 let display = Cookie.getCookie('display');
+// Cookie can be stale when switching between desktop/mobile emulation in DevTools.
+// Fall back to DOM: control-panel-btn only exists in the mobile template.
+if (display === 'Desktop' && document.getElementById('control-panel-btn')) {
+    display = 'Mobile';
+}
 let evtSource;
 const taskLabels = new Map();
 document.addEventListener('DOMContentLoaded', () => {
     Modal.register();
+    document.addEventListener('click', onActionClick);
     if (display === 'Desktop') {
         DesktopContextmenu.register();
         DesktopSelected.register();
@@ -27,7 +33,6 @@ document.addEventListener('DOMContentLoaded', () => {
         DesktopScroll.register();
         DesktopSort.register();
         document.addEventListener('click', closeDropdowns);
-        document.addEventListener('click', onActionClick);
         document.addEventListener('htmx:afterSettle', closeDropdowns);
     }
     if (display === 'Mobile') {

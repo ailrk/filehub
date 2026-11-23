@@ -4,6 +4,12 @@
  */
 export function register() {
     document.addEventListener('click', onDocumentClick);
+    document.body.addEventListener('htmx:beforeRequest', (e) => {
+        if (e.detail.elt.closest('#control-panel')) {
+            document.getElementById('overlay')?.classList.remove('show');
+            document.getElementById('control-panel')?.classList.remove('show');
+        }
+    });
 }
 function onDocumentClick(e) {
     const t = e.target;

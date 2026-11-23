@@ -4,7 +4,6 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 module Filehub.Template.Desktop
   ( index
-  , sideBar
   , controlPanel
   , view
   , toolBar
@@ -39,12 +38,12 @@ import Filehub.Session.Selected qualified as Selected
 import Filehub.Session.Types (Layout(..), Selected(..))
 import Filehub.Template (Template, TemplateContext(..), runTemplate)
 import Filehub.Template.Htmx (asHtmx)
-import Filehub.Template.Shared
+import Filehub.Template.Common
   ( bold, modal, sideBarId, viewId, searchBar, tableId
   , fileNameElement, sizeElement, modifiedDateElement
   , sortIconName, sortIconMTime, sortIconSize, sortByText
   )
-import Filehub.Template.Shared qualified as Template
+import Filehub.Template.Common qualified as Template
 import Filehub.Theme (Theme (..))
 import Lucid
 import Lucid.Htmx (hxGet, hxEncoding, hxPost, hxTrigger, Trigger (..), hxDelete, hxConfirm, HtmxEvent (..), hxOn)
@@ -115,80 +114,6 @@ toolBar = do
     div_ [ id_ "tool-bar" ] do
       pathBreadcrumb'
       searchBar'
-
-
-sideBar :: [(AnyTarget, Int, Maybe DiskUsage)] -> TargetView -> Template (Html ())
-sideBar targets (TargetView currentTarget _) = do
-  p <- phrase <$> asks (.locale)
-  pure do
-    div_ [ id_ sideBarId ] do
-      traverse_ (targetTab p) targets
-  where
-    targetTab :: Phrase -> (AnyTarget, Int, Maybe DiskUsage) -> Html ()
-    targetTab Phrase { target_filesystem, target_s3 } (target, selectedCount, mUsage) = do
-      div_ (asHtmx @"changeTarget" hxGet (Just (Target.getTargetId target))
-           [ class_ "target-tab", term "hx-indicator" "#global-spinner" ]) do
-        div_ [ class_ "target-tab-row1" ] do
-          span_ [ class_ "field" ] do
-            fromMaybe "unknown" $ handleTarget target
-              [ targetHandler @S3      \_ -> i_ [ class_ "bx bxs-cube" ] mempty
-              , targetHandler @FileSys \_ -> i_ [ class_ "bx bx-folder" ] mempty
-              ]
-            fromMaybe "" $ handleTarget target
-              [ targetHandler @S3      \(S3Backend { bucket }) -> span_ [iii| /#{bucket} |]
-              , targetHandler @FileSys \(FileBackend { root = Root (AbsPath root) }) -> span_ [iii| /#{takeFileName root} |]
-              ]
-          when (selectedCount > 0) do
-            div_ [ class_ "target-tab-selected-counter" ] do
-              (toHtml . T.pack . show) selectedCount
-
-        case mUsage of
-          Nothing -> mempty
-          Just DiskUsage { total, used } ->
-            if total > 0
-              then
-                let pct     = (used * 100) `div` total :: Integer
-                    urgency = if pct > 90 then " urgent" else if pct > 70 then " warn" else "" :: Text
-                in div_ [ class_ "sidebar-usage" ] do
-                     div_ [ class_ "sidebar-usage-track" ] do
-                       div_ [ class_ [iii|sidebar-usage-bar#{urgency}|]
-                            , style_ [iii|width:#{pct}%|]
-                            ] mempty
-                     span_ [ class_ "sidebar-usage-label" ] do
-                       toHtml (formatBytes used <> " / " <> formatBytes total)
-              else
-                div_ [ class_ "sidebar-usage" ] do
-                  span_ [ class_ "sidebar-usage-label" ] do
-                    toHtml (formatBytes used <> " used")
-
-      `with` targetAttr target
-      `with` targetDataAttrs target
-      where
-        targetAttr t = [class_ " current-target" | Target.getTargetId currentTarget == Target.getTargetId t]
-        targetDataAttrs t =
-          fromMaybe [] $ handleTarget t
-            [ targetHandler @S3 \(S3Backend { bucket }) ->
-                [ term "data-target-type" "s3"
-                , term "data-target-name" bucket
-                , term "data-target-info" [iii| [#{target_s3}] #{bucket} |]
-                ]
-            , targetHandler @FileSys \(FileBackend { root = Root (AbsPath root) }) ->
-                [ term "data-target-type" "fs"
-                , term "data-target-info" [iii| [#{target_filesystem}] #{takeFileName root} |]
-                ]
-            ]
-
-    formatBytes :: Integer -> Text
-    formatBytes b
-      | b >= gb   = fmt (b `div` gb)   "GB"
-      | b >= mb   = fmt (b `div` mb)   "MB"
-      | b >= kb   = fmt (b `div` kb)   "KB"
-      | otherwise = T.pack (show b) <> " B"
-      where
-        kb  = 1024
-        mb  = 1024 * kb
-        gb  = 1024 * mb
-        fmt n unit = T.pack (show n) <> " " <> unit
 
 
 controlPanel :: Template (Html ())

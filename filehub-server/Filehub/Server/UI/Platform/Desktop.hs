@@ -3,7 +3,6 @@
 module Filehub.Server.UI.Platform.Desktop
   ( editorModal
   , index
-  , sideBar
   , view
   , toolBar
   , pluginsDataEl
@@ -19,6 +18,7 @@ import Filehub.Locale (Phrase(..), phrase)
 import Filehub.Monad (Filehub)
 import Filehub.Plugin.Types (StaticPlugin(..), ContextMenuEntry(..), ToolbarEntry(..), UrlTemplate(..))
 import Filehub.Session (TargetView(..), getTargetViews, getCurrentTarget, makeStorageCurrentTarget, Storage(..), fromClientPathChecked)
+import Filehub.Server.UI.Platform.Common (sideBar)
 import Filehub.Session.Pool (withSession)
 import Filehub.Session.Types (TargetSessionData(..), Selected (..))
 import Filehub.Sort (sortFiles)
@@ -139,35 +139,6 @@ pluginsDataEl :: [StaticPlugin] -> Html ()
 pluginsDataEl ps =
   div_ [id_ "filehub-plugins"] $
     script_ [type_ "text/javascript"] (pluginsPayload ps)
-
-
-sideBar :: SessionId -> Filehub (Html ())
-sideBar sessionId = do
-  env <- ask
-  join $ withSession sessionId \s -> do
-    targetViews   <- getTargetViews env s
-    currentTarget <- getCurrentTarget env s
-    pure do
-      ctx <- makeTemplateContext sessionId
-      targets'    <- forConcurrently targetViews \(TargetView target td) -> do
-        selected' <- readTVarIO td.selected
-        let selCount = case selected' of
-              Selected _ sels -> length sels + 1
-              NoSelection     -> 0
-        mUsage <- case handleTarget target
-          [ targetHandler @FileSys \(FileBackend { root = Root (AbsPath p) }) -> Left p
-          , targetHandler @S3      \s3                                         -> Right s3
-          ] of
-            Just (Left fsPath) -> getDiskUsage fsPath
-            Just (Right s3)    -> do
-              result <- tryAny (S3.getBucketSize s3)
-              pure $ case result of
-                Right used -> Just DiskUsage { total = 0, used }
-                Left _     -> Nothing
-            Nothing            -> pure Nothing
-        pure (target, selCount, mUsage)
-
-      pure $ runTemplate ctx (Template.Desktop.sideBar targets' currentTarget)
 
 
 view :: SessionId -> Filehub (Html ())

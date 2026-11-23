@@ -2,7 +2,6 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Filehub.Server.UI.Platform.Mobile
   ( index
-  , sideBar
   , editorModal
   , toolBar
   , view
@@ -10,10 +9,10 @@ module Filehub.Server.UI.Platform.Mobile
   where
 
 import Data.ClientPath (AbsPath(..))
-import Filehub.Env qualified as Env
+import Filehub.Server.UI.Platform.Common (sideBar)
 import Filehub.Server.Util (withQueryParam)
 import Filehub.Template (makeTemplateContext, runTemplate, TemplateContext(..))
-import Filehub.Session (SessionId, Storage(..), getTargetViews, getCurrentTarget, getRoot, makeStorageCurrentTarget, fromClientPathChecked)
+import Filehub.Session (SessionId, Storage(..), getTargetViews, getRoot, makeStorageCurrentTarget, fromClientPathChecked)
 import Filehub.Session.Selected qualified as Selected
 import Filehub.Sort (sortFiles)
 import Filehub.Template.Mobile qualified as Template.Mobile
@@ -24,7 +23,7 @@ import System.FilePath (takeFileName)
 import Data.Coerce (coerce)
 import Filehub.Monad (Filehub)
 import Control.Monad.Reader (asks, MonadReader (..))
-import UnliftIO.STM (readTVar, atomically)
+import UnliftIO (atomically)
 import Filehub.Session.Selected (AllSelected(..))
 import Filehub.Session.Pool (withSession)
 import Control.Monad (join)
@@ -43,16 +42,6 @@ index sessionId = do
     Selected.getAllSelected targetViews
 
   pure $ runTemplate ctx (Template.Mobile.index sideBar' toolBar' view' count)
-
-
-sideBar :: SessionId -> Filehub (Html ())
-sideBar sessionId = do
-  env         <- ask
-  targetsTVar <- asks (.targets)
-  withSession sessionId \s -> do
-    currentTarget <- getCurrentTarget env s
-    targets <- readTVar targetsTVar
-    pure $ Template.Mobile.sideBar (fmap snd targets) currentTarget
 
 
 toolBar :: SessionId -> Filehub (Html ())

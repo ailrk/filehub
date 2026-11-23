@@ -7,6 +7,12 @@ declare var htmx: any;
 
 export function register() {
   document.addEventListener('click', onDocumentClick);
+  document.body.addEventListener('htmx:beforeRequest', (e: any) => {
+    if ((e.detail.elt as HTMLElement).closest('#control-panel')) {
+      document.getElementById('overlay')?.classList.remove('show');
+      document.getElementById('control-panel')?.classList.remove('show');
+    }
+  });
 }
 
 function onDocumentClick(e: MouseEvent) {

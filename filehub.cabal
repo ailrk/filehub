@@ -317,6 +317,7 @@ library filehub-server
                           Filehub.Server.UI
                           Filehub.Server.UI.Render
                           Filehub.Server.UI.Action
+                          Filehub.Server.UI.Platform.Common
                           Filehub.Server.UI.Platform.Desktop
                           Filehub.Server.UI.Platform.Mobile
                           Filehub.Server.Util
@@ -345,7 +346,7 @@ library filehub-templates
                           Filehub.Template.Login
                           Filehub.Template.Mobile
                           Filehub.Template.Settings
-                          Filehub.Template.Shared
+                          Filehub.Template.Common
                           Filehub.Template.SharedView
 
 

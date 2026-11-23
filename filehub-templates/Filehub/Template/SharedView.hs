@@ -21,7 +21,7 @@ import Data.Text qualified as T
 import Data.Time.Format (formatTime, defaultTimeLocale)
 import Filehub.Session (targetRoot)
 import Filehub.SharedLink (SharedLink(..), SharedLinkHash(..), SharedLinkType(..))
-import Filehub.Template.Shared (icon, sizeElement, modifiedDateElement, withDefault)
+import Filehub.Template.Common (icon, sizeElement, modifiedDateElement, withDefault)
 import Filehub.Types (Display(..))
 import Lucid
 import Network.Mime.Extended (isMime)

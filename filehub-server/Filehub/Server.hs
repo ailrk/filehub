@@ -57,7 +57,7 @@ import Filehub.Server.UI.Platform.Mobile qualified as Server.Mobile
 import Filehub.Server.Util (withQueryParam)
 import Filehub.Session (SessionId(..), TargetView (..), getDisplay, getCurrentTarget, setCurrentTarget)
 import Filehub.Session.Pool qualified as Session.Pool
-import Filehub.Template.Shared qualified as Template
+import Filehub.Template.Common qualified as Template
 import Filehub.Types (Display (..), Resolution, FilehubEvent (..))
 import Filehub.Types (Session(..))
 import Filehub.RateLimit qualified as RateLimit
