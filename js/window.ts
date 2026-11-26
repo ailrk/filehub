@@ -27,7 +27,7 @@ export function createWindow(opts: WindowOptions = {}): WindowHandle {
   const win = document.createElement('div');
   win.className = 'filehub-window';
 
-  /* ── title bar ─────────────────────────────────────────────────────────── */
+  /* --- title bar --- */
   const titlebar = document.createElement('div');
   titlebar.className = 'filehub-window-titlebar';
 
@@ -38,8 +38,8 @@ export function createWindow(opts: WindowOptions = {}): WindowHandle {
   const controls = document.createElement('div');
   controls.className = 'filehub-window-controls';
 
-  /* ── maximize / restore ─────────────────────────────────────────────────── */
-  type SavedGeom = { left: string; top: string; width: string; height: string; transform: string };
+  /* --- maximize / restore --- */
+  type SavedGeom = { left: string; top: string; width: string; height: string };
   let saved: SavedGeom | null = null;
 
   const maxBtn = document.createElement('button');
@@ -51,22 +51,20 @@ export function createWindow(opts: WindowOptions = {}): WindowHandle {
     const icon  = maxBtn.querySelector('i')!;
     if (isMax) {
       saved = { left: win.style.left, top: win.style.top,
-                width: win.style.width, height: win.style.height,
-                transform: win.style.transform };
+                width: win.style.width, height: win.style.height };
       icon.className = 'bx bx-collapse';
     } else {
       if (saved) {
-        win.style.left      = saved.left;
-        win.style.top       = saved.top;
-        win.style.width     = saved.width;
-        win.style.height    = saved.height;
-        win.style.transform = saved.transform;
+        win.style.left   = saved.left;
+        win.style.top    = saved.top;
+        win.style.width  = saved.width;
+        win.style.height = saved.height;
       }
       icon.className = 'bx bx-expand';
     }
   });
 
-  /* ── close ──────────────────────────────────────────────────────────────── */
+  /* --- close --- */
   const closeBtn = document.createElement('button');
   closeBtn.className = 'filehub-window-btn';
   closeBtn.setAttribute('aria-label', 'Close');
@@ -78,29 +76,21 @@ export function createWindow(opts: WindowOptions = {}): WindowHandle {
   titlebar.appendChild(titleEl);
   titlebar.appendChild(controls);
 
-  /* ── body ───────────────────────────────────────────────────────────────── */
+  /* --- body --- */
   const body = document.createElement('div');
   body.className = 'filehub-window-body';
 
   win.appendChild(titlebar);
   win.appendChild(body);
 
-  /* ── bring to front on any click ────────────────────────────────────────── */
+  /* --- bring to front on any click --- */
   win.addEventListener('mousedown', () => bringToFront(win), { capture: true });
 
-  /* ── drag ───────────────────────────────────────────────────────────────── */
+  /* --- drag --- */
   titlebar.addEventListener('mousedown', (e: MouseEvent) => {
     if ((e.target as Element).closest('button')) return;
     if (win.classList.contains('filehub-window-maximized')) return;
     e.preventDefault();
-
-    // Switch from initial transform-centering to explicit coords on first drag
-    if (win.style.transform && win.style.transform !== 'none') {
-      const r        = win.getBoundingClientRect();
-      win.style.left      = r.left + 'px';
-      win.style.top       = r.top  + 'px';
-      win.style.transform = 'none';
-    }
 
     const ox = e.clientX - win.offsetLeft;
     const oy = e.clientY - win.offsetTop;
@@ -117,18 +107,24 @@ export function createWindow(opts: WindowOptions = {}): WindowHandle {
     document.addEventListener('mouseup',   onUp);
   });
 
-  /* ── public handle ──────────────────────────────────────────────────────── */
+  /* --- public handle --- */
   const handle: WindowHandle = {
     body,
 
     show() {
       if (opts.width)  win.style.width  = opts.width  + 'px';
       if (opts.height) win.style.height = opts.height + 'px';
-      win.style.left      = '50%';
-      win.style.top       = '50%';
-      win.style.transform = 'translate(-50%, -50%)';
-      bringToFront(win);
+
+      // Append hidden first so we can measure real dimensions, then center
+      win.style.visibility = 'hidden';
       document.body.appendChild(win);
+      const w = win.offsetWidth;
+      const h = win.offsetHeight;
+      win.style.left       = Math.round((window.innerWidth  - w) / 2) + 'px';
+      win.style.top        = Math.round((window.innerHeight - h) / 2) + 'px';
+      win.style.visibility = '';
+
+      bringToFront(win);
     },
 
     close() {

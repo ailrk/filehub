@@ -10,7 +10,7 @@
  *  - Selection is optimistic: rows highlight immediately, and one batched
  *    request syncs the server state.
  */
-import { createObservableCell } from '../../containers/Observable.js';
+import { createObservableCell } from '../containers/Observable.js';
 /* selectedIds is a local buffer holding the currently selected entries on the table.
  * It does NOT hold selections across folders or targets.
  * The server side state is updated through the `X-Filehub-Selected-*` headers;

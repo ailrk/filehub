@@ -8,14 +8,14 @@ declare global {
 
 import * as Balloon from './balloon.js';
 import * as Cookie from './cookie.js';
-import * as DesktopContextmenu from './handlers/desktop/contextmenu.js';
-import * as DesktopDrag from './handlers/desktop/drag.js';
-import * as DesktopScroll from './handlers/desktop/scroll.js';
-import * as DesktopSelected from './handlers/desktop/selected.js';
-import * as DesktopSort from './handlers/desktop/sort.js';
-import * as MobileCloseSidebar from './handlers/mobile/closeSidebar.js';
-import * as MobileSelected from './handlers/mobile/selected.js';
-import * as MobilePanel from './handlers/mobile/panel.js';
+import * as DesktopContextmenu from './hdesktop/contextmenu.js';
+import * as DesktopDrag from './hdesktop/drag.js';
+import * as DesktopScroll from './hdesktop/scroll.js';
+import * as DesktopSelected from './hdesktop/selected.js';
+import * as DesktopSort from './hdesktop/sort.js';
+import * as MobileCloseSidebar from './hmobile/closeSidebar.js';
+import * as MobileSelected from './hmobile/selected.js';
+import * as MobilePanel from './hmobile/panel.js';
 import * as Modal from './modal.js';
 import * as ModalBuilder from './modal-builder.js';
 import { createPluginUI } from './plugin-ui.js';

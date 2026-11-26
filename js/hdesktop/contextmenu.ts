@@ -6,10 +6,10 @@ interface ToolbarEntry    { mime: string; label: string; action: EntryAction; }
 interface FilehubPlugin   { name: string; contextMenu: ContextMenuEntry[]; toolbar: ToolbarEntry[]; }
 declare var filehubPlugins: FilehubPlugin[] | undefined;
 
-import { i18n } from '../../i18n.js';
-import * as ModalBuilder from '../../modal-builder.js';
-import Viewer from '../../viewer.js';
-import { createPluginUI } from '../../plugin-ui.js';
+import { i18n } from '../i18n.js';
+import * as ModalBuilder from '../modal-builder.js';
+import Viewer from '../viewer.js';
+import { createPluginUI } from '../plugin-ui.js';
 
 function openViewer(path: string) {
   const v = new Viewer(path);

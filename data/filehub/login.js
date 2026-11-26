@@ -1,5 +1,5 @@
 'use strict';
-import * as ControlPanel from './handlers/desktop/controlpanel.js';
+import * as ControlPanel from './hdesktop/controlpanel.js';
 document.addEventListener("DOMContentLoaded", () => {
     document.addEventListener('ThemeChanged', reloadTheme);
     ControlPanel.register();

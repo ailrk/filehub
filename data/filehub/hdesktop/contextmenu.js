@@ -1,7 +1,7 @@
-import { i18n } from '../../i18n.js';
-import * as ModalBuilder from '../../modal-builder.js';
-import Viewer from '../../viewer.js';
-import { createPluginUI } from '../../plugin-ui.js';
+import { i18n } from '../i18n.js';
+import * as ModalBuilder from '../modal-builder.js';
+import Viewer from '../viewer.js';
+import { createPluginUI } from '../plugin-ui.js';
 function openViewer(path) {
     const v = new Viewer(path);
     v.show();

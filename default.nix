@@ -1,17 +1,18 @@
 { mkDerivation, aeson, aeson-pretty, amazonka, amazonka-core
 , amazonka-s3, base, base64-bytestring, bcrypt, binary, breakpoint
 , bytestring, case-insensitive, conduit, conduit-extra, containers
-, cookie, criterion, cryptohash-sha256, cryptonite, directory
-, file-embed, filepath, fuzzy, generic-lens, hashable, hashtables
-, hspec, hspec-wai, http-api-data, http-client, http-client-tls
-, http-types, jwt, lib, log-base, lucid, microlens, mime-types, mtl
-, network-uri, optparse-applicative, psqueues, QuickCheck, random
-, req, resourcet, retry, servant, servant-client, servant-conduit
-, servant-event-stream, servant-lucid, servant-multipart
-, servant-server, split, sqlite-simple, stm, string-interpolate
-, suspend, template-haskell, temporary, text, time, timers, tomland
-, transformers, transformers-base, unliftio, uri-encode, uuid
-, vector, wai, wai-extra, warp, zip
+, cookie, criterion, cryptohash-sha256, cryptonite, deepseq
+, directory, file-embed, filepath, fuzzy, generic-lens, hashable
+, hashtables, hspec, hspec-wai, http-api-data, http-client
+, http-client-tls, http-types, jwt, lib, log-base, lucid, microlens
+, mime-types, mtl, network, network-uri, optparse-applicative
+, psqueues, QuickCheck, random, resourcet, retry, servant
+, servant-client, servant-conduit, servant-event-stream
+, servant-lucid, servant-multipart, servant-server, split
+, sqlite-simple, stm, string-interpolate, suspend, template-haskell
+, temporary, text, time, timers, tomland, transformers
+, transformers-base, unliftio, uri-encode, uuid, vector, wai
+, wai-extra, warp, zip
 }:
 mkDerivation {
   pname = "filehub";
@@ -27,12 +28,12 @@ mkDerivation {
     cryptohash-sha256 cryptonite directory file-embed filepath fuzzy
     generic-lens hashable hashtables http-api-data http-client
     http-client-tls http-types jwt log-base lucid microlens mime-types
-    mtl network-uri optparse-applicative psqueues random resourcet
-    retry servant servant-client servant-conduit servant-event-stream
-    servant-lucid servant-multipart servant-server split sqlite-simple
-    stm string-interpolate suspend template-haskell temporary text time
-    timers tomland transformers transformers-base unliftio uri-encode
-    uuid vector wai wai-extra warp zip
+    mtl network network-uri optparse-applicative psqueues random
+    resourcet retry servant servant-client servant-conduit
+    servant-event-stream servant-lucid servant-multipart servant-server
+    split sqlite-simple stm string-interpolate suspend template-haskell
+    temporary text time timers tomland transformers transformers-base
+    unliftio uri-encode uuid vector wai wai-extra warp zip
   ];
   executableHaskellDepends = [
     aeson base breakpoint bytestring text
@@ -44,8 +45,8 @@ mkDerivation {
     uri-encode uuid wai wai-extra
   ];
   benchmarkHaskellDepends = [
-    aeson base breakpoint bytestring criterion http-types req text time
-    unliftio
+    aeson base breakpoint bytestring containers criterion deepseq lucid
+    text time unliftio uuid
   ];
   doHaddock = false;
   license = "unknown";
