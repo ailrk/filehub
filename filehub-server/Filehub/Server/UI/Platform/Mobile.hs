@@ -13,7 +13,7 @@ import Data.ClientPath (AbsPath(..))
 import Filehub.Server.UI.Platform.Common (sideBar)
 import Filehub.Server.Util (withQueryParam)
 import Filehub.Template (makeTemplateContext, runTemplate, TemplateContext(..))
-import Filehub.Session (SessionId, Storage(..), getTargetViews, getRoot, makeStorageCurrentTarget, fromClientPathChecked)
+import Filehub.Session (SessionId, Storage(..), getTargetViews, getRoot, makeStorageCurrentTarget, fromClientPathChecked, AllSelected(..), withSession)
 import Filehub.Session.Selected qualified as Selected
 import Filehub.Sort (sortFiles)
 import Filehub.Template.Mobile qualified as Template.Mobile
@@ -23,8 +23,6 @@ import Prelude hiding (readFile)
 import System.FilePath (takeFileName)
 import Filehub.Monad (Filehub)
 import Control.Monad.Reader (MonadReader (..))
-import Filehub.Session.Selected (AllSelected(..))
-import Filehub.Session.Pool (withSession)
 
 
 index :: SessionId -> Filehub (Html ())

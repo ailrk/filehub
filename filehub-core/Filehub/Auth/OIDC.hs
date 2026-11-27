@@ -33,7 +33,6 @@ import Filehub.Env (Env(..))
 import Filehub.Error (FilehubError (..), Error' (..))
 import Filehub.Monad (Filehub)
 import Filehub.Orphan ()
-import Filehub.Session.Types.SessionId (SessionId)
 import Network.URI (URI(..), URIAuth(..), relativeTo)
 import Network.URI qualified as URI
 import Prelude hiding (init, readFile)
@@ -48,8 +47,7 @@ import UnliftIO (Exception (..))
 import Web.FormUrlEncoded (ToForm)
 import Web.JWT (JOSEHeader (..))
 import Web.JWT qualified as JWT
-import Filehub.Session.Pool (modifySession)
-import Filehub.Session (Session(..))
+import Filehub.Session (Session(..), SessionId, modifySession)
 
 
 

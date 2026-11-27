@@ -90,7 +90,7 @@ import Target.Types (TargetId)
 import Filehub.Notification.Types (Notification)
 import Filehub.SharedLink (SharedLinkHash, SharedLinkPermit)
 import Filehub.Types (SharedLinkAuth, ShareRequest, SharedLinkUpdate)
-import Filehub.Session.Types (Selected, Layout)
+import Filehub.Session (Selected, Layout)
 
 
 type instance AuthServerData (AuthProtect "session")              = SessionId

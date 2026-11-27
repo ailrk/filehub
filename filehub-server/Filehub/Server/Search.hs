@@ -5,7 +5,7 @@ import Filehub.Handler (ConfirmLogin, ConfirmRateLimitSearch(..))
 import Filehub.Monad
 import Filehub.Orphan ()
 import Filehub.Session qualified as Session
-import Filehub.Session (SessionId(..), getDisplay, makeStorageCurrentTarget)
+import Filehub.Session (SessionId(..), getDisplay, makeStorageCurrentTarget, withSession)
 import Filehub.Template (runTemplate, makeTemplateContext)
 import Filehub.Template.Desktop qualified as Template.Desktop
 import Filehub.Template.Mobile qualified as Template.Mobile
@@ -13,7 +13,6 @@ import Filehub.Template.Common qualified as Template
 import Filehub.Types (Display (..), SearchWord)
 import Lucid hiding (for_)
 import Prelude hiding (init, readFile)
-import Filehub.Session.Pool (withSession)
 
 
 search :: SessionId -> ConfirmLogin -> ConfirmRateLimitSearch -> SearchWord -> Filehub (Html ())

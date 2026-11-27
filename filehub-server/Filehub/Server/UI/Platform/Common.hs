@@ -8,9 +8,7 @@ import Filehub.Prelude
 import Data.ClientPath (AbsPath(..), Root(..))
 import Data.DiskUsage (getDiskUsage, DiskUsage(..))
 import Filehub.Monad (Filehub)
-import Filehub.Session (SessionId, TargetView(..), getTargetViews, getCurrentTarget)
-import Filehub.Session.Pool (withSession)
-import Filehub.Session.Types (TargetSessionData(..), Selected(..))
+import Filehub.Session (SessionId, TargetView(..), getTargetViews, getCurrentTarget, withSession, TargetSessionData(..), Selected(..))
 import Filehub.Storage.S3 qualified as S3
 import Filehub.Template (runTemplate, makeTemplateContext)
 import Filehub.Template.Common qualified as Template

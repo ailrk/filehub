@@ -23,8 +23,7 @@ import Filehub.Monad (Filehub)
 import Filehub.Plugin.Toml qualified as Plugin.Toml
 import Filehub.Plugin.Types (StaticPlugin(..))
 import Filehub.Server.UI.Render (runUIPartialUpdate, UIPartialUpdate(..))
-import Filehub.Session.Pool (withSession_)
-import Filehub.Session.Types (Pool(..), Selected(..))
+import Filehub.Session (withSession_, Pool(..), Selected(..))
 import Filehub.Types
 import Lucid (Html)
 import Servant (Headers, Header, addHeader, err400, errBody)

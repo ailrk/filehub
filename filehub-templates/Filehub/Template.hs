@@ -16,16 +16,10 @@ import Filehub.Env qualified as Env
 import Filehub.Locale (Locale)
 import Filehub.Monad (Filehub)
 import Filehub.Plugin.Types (StaticPlugin)
-import Filehub.Session (Session(..), getRoot, getCurrentTarget, getTargetViews)
-import Filehub.Session (TargetView(..), SessionId)
-import Filehub.Session.Types (Selected, Layout, ControlPanelState)
+import Filehub.Session (Session(..), SessionId, TargetView(..), getRoot, getCurrentTarget, getTargetViews, Selected, Layout, ControlPanelState, withSession, getDisplay, getControlPanelState, TargetSessionData(..), getAllSelected)
 import Filehub.Sort (SortFileBy)
 import Filehub.Theme (Theme)
 import Filehub.Types (Display(..), Env)
-import Filehub.Session.Pool (withSession)
-import Filehub.Session.Handle (getDisplay, getControlPanelState)
-import Filehub.Session.Types (TargetSessionData(..))
-import Filehub.Session.Selected (getAllSelected)
 
 
 -- | A Template context type that capture all useful information to render

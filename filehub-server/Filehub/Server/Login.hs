@@ -15,7 +15,7 @@ import Filehub.Handler (ConfirmLogin, ConfirmRateLimitLogin(..))
 import Filehub.Locale (Locale (..))
 import Filehub.Monad
 import Filehub.Orphan ()
-import Filehub.Session (SessionId(..), Session(..))
+import Filehub.Session (SessionId(..), Session(..), withSession, modifySession)
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Template (runTemplate, TemplateContext(..), makeTemplateContext)
 import Filehub.Template.Login qualified as Template.Login
@@ -28,7 +28,6 @@ import Network.URI qualified as URI
 import Prelude hiding (init, readFile)
 import Servant (Header , Headers , NoContent (..) , addHeader , err301 , err303    , errHeaders , noHeader, FromHttpApiData (..)  )
 import Web.Cookie (SetCookie (..), defaultSetCookie, sameSiteStrict)
-import Filehub.Session.Pool (withSession, modifySession)
 
 
 -- | Return the login page

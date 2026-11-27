@@ -50,8 +50,7 @@ import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Cookie (FromCookies(..))
 import Filehub.SharedLink (SharedLinkPermit)
 import Filehub.Session qualified as Session
-import Filehub.Session.Pool (withSession)
-import Filehub.Session.Handle (getDisplay)
+import Filehub.Session (withSession, getDisplay)
 import Network.HTTP.Headers.Extended (parseHeader')
 
 

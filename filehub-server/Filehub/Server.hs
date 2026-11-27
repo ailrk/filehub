@@ -51,7 +51,7 @@ import Filehub.Server.UI qualified
 import Filehub.Server.UI.Platform.Desktop qualified as Server.Desktop
 import Filehub.Server.UI.Platform.Mobile qualified as Server.Mobile
 import Filehub.Server.Util (withQueryParam)
-import Filehub.Session (SessionId(..), TargetView (..), getDisplay, getCurrentTarget, setCurrentTarget)
+import Filehub.Session (SessionId(..), TargetView (..), getDisplay, getCurrentTarget, setCurrentTarget, withSession_, withSession, extendSession)
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Template.Common qualified as Template
 import Filehub.Types (Display (..), Resolution, FilehubEvent (..))
@@ -77,7 +77,6 @@ import Target.Types qualified as Target
 import UnliftIO (try, throwIO)
 import UnliftIO.Exception (catch)
 import Web.Cookie (SetCookie (..), defaultSetCookie)
-import Filehub.Session.Pool (withSession_, withSession, extendSession)
 import Control.Monad.Reader (MonadReader(..))
 import Network.HTTP.Headers.Extended (parseHeader')
 

@@ -13,9 +13,7 @@ import Filehub.Error ( FilehubError(..) )
 import Filehub.Monad
 import Filehub.Orphan ()
 import Filehub.Server.Static.QQ (staticFiles)
-import Filehub.Session (Session(..))
-import Filehub.Session (SessionId(..))
-import Filehub.Session.Pool (withSession)
+import Filehub.Session (Session(..), SessionId(..), withSession)
 import Filehub.Theme qualified as Theme
 import Filehub.Types (Theme(..))
 import Network.Mime qualified as Mime

@@ -43,9 +43,8 @@ import Filehub.Server.Util (withQueryParam)
 import Filehub.History (Operation(..), withHistory, recordHistory)
 import Network.URI.Encode qualified as URI.Encode
 import Target.Types qualified
-import Filehub.Session (SessionId(..), Session(..), Storage(..), getRoot, TargetView (..), getCurrentTarget, makeStorageCurrentTarget, fromClientPathChecked)
+import Filehub.Session (SessionId(..), Session(..), Storage(..), getRoot, TargetView (..), getCurrentTarget, makeStorageCurrentTarget, fromClientPathChecked, CopyState(..), withSession, TargetSessionData(..))
 import Filehub.Session.Copy qualified as Copy
-import Filehub.Session.Types (CopyState(..))
 import Filehub.Sort qualified as Sort
 import Filehub.Types ( NewFile(..) , NewFolder(..), UpdatedFile(..) , UpdatedFile(..) , FilehubEvent (..), RenameFile (..), MoveFile (..), Env)
 import Lucid hiding (for_)
@@ -62,8 +61,6 @@ import System.Random (randomRIO)
 import Text.Printf (printf)
 import UnliftIO (newEmptyMVar, takeMVar, putMVar)
 import UnliftIO.STM (writeTBQueue)
-import Filehub.Session.Pool (withSession)
-import Filehub.Session.Types (TargetSessionData(..))
 import Filehub.Server.UI.Render (runUIPartialUpdate, UIPartialUpdate (..))
 import Log (logAttention_)
 

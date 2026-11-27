@@ -23,7 +23,7 @@ import Filehub.Env (Env(..))
 import Filehub.Error (FilehubError)
 import Filehub.History.Types
 import Filehub.Monad (Filehub)
-import Filehub.Session.Types (SessionId)
+import Filehub.Session (SessionId)
 
 
 recordHistory :: SessionId -> Operation -> Bool -> Filehub ()

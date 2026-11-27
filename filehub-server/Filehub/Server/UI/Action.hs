@@ -26,12 +26,9 @@ import Filehub.Monad
 import Filehub.Orphan ()
 import Filehub.Orphan ()
 import Filehub.Server.UI.Render (index, UIPartialUpdate (..), runUIPartialUpdate)
-import Filehub.Session (TargetView (..), getTargetViews, getCurrentTarget)
+import Filehub.Session (TargetView (..), getTargetViews, getCurrentTarget, withSession, withSession_, modifySession, AllSelected(..), Selected(..), Layout(..))
 import Filehub.Session.Copy qualified as Copy
-import Filehub.Session.Pool (withSession, withSession_, modifySession)
-import Filehub.Session.Selected (AllSelected(..))
 import Filehub.Session.Selected qualified as Selected
-import Filehub.Session.Types (Selected (..), Layout (..))
 import Filehub.Theme qualified as Theme
 import Filehub.Types
 import Lucid hiding ()

@@ -33,9 +33,7 @@ import Filehub.Error (FilehubError(..))
 import Filehub.Handler (ConfirmLogin, ConfirmRateLimitSharedLink(..))
 import Filehub.History (Operation(..), recordHistory)
 import Filehub.Monad
-import Filehub.Session (SessionId(..), makeStorageAt, targetRoot, fromClientPathChecked)
-import Filehub.Session.Pool (withSession, modifySession)
-import Filehub.Session.Types (Session(..))
+import Filehub.Session (SessionId(..), Session(..), makeStorageAt, targetRoot, fromClientPathChecked, withSession, modifySession)
 import Filehub.SharedLink
 import Filehub.Sort (sortFiles, SortFileBy(..))
 import Filehub.Template.SharedView qualified as Template.Shared

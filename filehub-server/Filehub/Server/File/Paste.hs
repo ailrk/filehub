@@ -16,13 +16,9 @@ import Filehub.Notification.Types (Notification(..), newTaskId)
 import Filehub.Server.UI qualified as UI
 import Filehub.Server.Util (throttle)
 import Data.ClientPath qualified as ClientPath
-import Filehub.Session (Session(..), makeStorageForTarget, targetRoot)
-import Filehub.Session (SessionId(..), TargetView (..), getCurrentTarget, getTargetViews, getTarget, makeStorage)
-import Filehub.Session.Pool (withSession, withSession_)
+import Filehub.Session (Session(..), SessionId(..), TargetView(..), makeStorageForTarget, targetRoot, getCurrentTarget, getTargetViews, getTarget, makeStorage, withSession, withSession_, AllSelected(..), CopyState(..), Storage(..))
 import Filehub.Session.Copy qualified as Copy
-import Filehub.Session.Selected (AllSelected(..))
 import Filehub.Session.Selected qualified as Selected
-import Filehub.Session.Types (CopyState (..), Storage(..))
 import Filehub.Types (TargetSessionData (..))
 import Log (logAttention_)
 import Lucid hiding (for_)

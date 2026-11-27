@@ -38,7 +38,14 @@ module Filehub.Session
   ( Session(..)
   , SessionId(..)
   , TargetView(..)
+  , TargetSessionData(..)
   , Storage(..)
+  , Selected(..)
+  , Layout(..)
+  , CopyState(..)
+  , ControlPanelState(..)
+  , Pool(..)
+  , AllSelected(..)
   , getCurrentTarget
   , getTarget
   , getDisplay
@@ -46,16 +53,26 @@ module Filehub.Session
   , targetRoot
   , getTargetViews
   , setCurrentTarget
+  , modifyCurrentTarget
+  , getControlPanelState
   , makeStorageDummy
   , makeStorage
   , makeStorageForTarget
   , makeStorageCurrentTarget
   , makeStorageAt
   , fromClientPathChecked
+  , withSession
+  , withSession_
+  , modifySession
+  , extendSession
+  , getAllSelected
+  , clearSelectedAllTargets
   )
   where
 
 import Filehub.Prelude
 import Control.Handle.Storage (Storage(..))
 import Filehub.Session.Handle
-import Filehub.Session.Types (TargetView(..), Session(..), SessionId(..))
+import Filehub.Session.Pool (withSession, withSession_, modifySession, extendSession)
+import Filehub.Session.Selected (AllSelected(..), getAllSelected, clearSelectedAllTargets)
+import Filehub.Session.Types (TargetView(..), Session(..), SessionId(..), TargetSessionData(..), Selected(..), Layout(..), CopyState(..), ControlPanelState(..), Pool(..))

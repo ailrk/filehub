@@ -12,15 +12,13 @@ import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
 import Filehub.ActiveUser.Types (ActiveUser (..))
 import Filehub.Auth.Types (createAuthId, AuthId, Auth (..))
 import Filehub.Env (Env(..))
-import Filehub.Session (SessionId, Session)
+import Filehub.Session (SessionId, Session(..), modifySession)
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Types (LoginForm (..))
 import Prelude hiding (readFile)
 import Filehub.Monad (Filehub)
 import Control.Monad.Reader (asks)
 import Filehub.Auth.Types.Simple
-import Filehub.Session.Pool (modifySession)
-import Filehub.Session (Session(..))
 
 
 validate :: Username -> ByteString -> SimpleAuthUserDB -> Bool

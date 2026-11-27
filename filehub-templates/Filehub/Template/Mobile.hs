@@ -29,8 +29,7 @@ import Filehub.Template.Common
 import Filehub.Theme (Theme(..))
 import Lucid
 import System.FilePath (takeFileName)
-import Filehub.Session (TargetView(..))
-import Filehub.Session.Types (Selected(..))
+import Filehub.Session (TargetView(..), Selected(..))
 import Control.Monad.Reader (asks, MonadReader (..))
 import Data.ClientPath.View (ClientPathView(..), AsClientPathView (..))
 import Lucid.Htmx (hxGet, hxPost, hxTrigger, hxEncoding, Trigger (..), hxConfirm, hxDelete, HtmxEvent (..), hxOn)

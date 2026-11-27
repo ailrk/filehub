@@ -28,9 +28,7 @@ import Filehub.Orphan ()
 import Filehub.Server.UI.Platform.Common qualified as Server.Common
 import Filehub.Server.UI.Platform.Desktop qualified as Server.Desktop
 import Filehub.Server.UI.Platform.Mobile qualified as Server.Mobile
-import Filehub.Session (getDisplay)
-import Filehub.Session.Pool (withSession)
-import Filehub.Session.Types (Layout (..))
+import Filehub.Session (getDisplay, withSession, Layout(..))
 import Filehub.Template (runTemplate, makeTemplateContext)
 import Filehub.Template.Desktop qualified as Template.Desktop
 import Filehub.Template.Mobile qualified as Template.Mobile

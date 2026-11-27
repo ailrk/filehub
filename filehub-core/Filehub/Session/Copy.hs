@@ -12,15 +12,11 @@ import Control.Handle.Storage (Storage(..))
 import Data.ClientPath (Root(..), AbsPath(..), ClientPath(..))
 import Data.ClientPath qualified as ClientPath
 import Filehub.Monad (Filehub)
-import Filehub.Session.Types (SessionId, CopyState (..))
 import Target.File (FileSys, Target(..))
 import Target.S3 (S3)
 import Target.Types (handleTarget, targetHandler)
-import Filehub.Session.Pool (modifySession, withSession_)
-import Filehub.Session (Session(..), makeStorage, getTarget, getCurrentTarget, fromClientPathChecked)
-import Filehub.Session.Types (TargetView(..))
+import Filehub.Session (Session(..), SessionId, CopyState(..), TargetView(..), makeStorage, getTarget, getCurrentTarget, fromClientPathChecked, modifySession, withSession_, withSession)
 import Control.Monad.Reader (MonadReader(ask))
-import Filehub.Session.Pool (withSession)
 
 
 clearCopyState :: SessionId -> Filehub ()

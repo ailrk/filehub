@@ -24,9 +24,8 @@ import Data.String.Interpolate (iii)
 import Filehub.Locale (Locale(..), Phrase (..), phrase)
 import Filehub.Routes (Api(..))
 import Filehub.Routes.Links ( apiLinks )
-import Filehub.Session (TargetView(..))
+import Filehub.Session (TargetView(..), Layout(..), Selected(..))
 import Filehub.Session.Selected qualified as Selected
-import Filehub.Session.Types (Layout(..), Selected(..))
 import Filehub.Template (Template, TemplateContext(..), runTemplate)
 import Filehub.Template.Htmx (asHtmx)
 import Filehub.Template.Common
