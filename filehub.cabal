@@ -147,8 +147,11 @@ library filehub-utils
                           uri-encode,
                           filepath,
                           conduit,
-                          servant-multipart
+                          servant-multipart,
+                          directory,
+                          zlib
   exposed-modules:        Data.DiskUsage
+                          Data.Zip
                           Cache.InMemory
                           Cache.Key
                           Control.Handle.Cache
@@ -213,7 +216,6 @@ library filehub-core
                           mtl,
                           resourcet,
                           transformers-base,
-                          zip,
                           conduit,
                           mime-types,
                           servant-multipart,
@@ -305,7 +307,6 @@ library filehub-server
                           mime-types,
                           filepath,
                           stm,
-                          zip,
                           binary,
                           wai,
                           servant-multipart,

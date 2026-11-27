@@ -18,7 +18,7 @@ module Filehub.Storage.File where
 
 import Filehub.Prelude
 import Cache.Key (CacheKey, SomeCacheKey (..))
-import Codec.Archive.Zip qualified as Zip
+import Data.Zip qualified as Zip
 import Conduit (ConduitT, ResourceT, (.|), runResourceT)
 import Conduit qualified
 import Control.Service.Cache (MonadCache(..))
@@ -39,7 +39,7 @@ import Filehub.Error (FilehubError(..), Error' (..))
 import Filehub.Monad (Filehub)
 import GHC.TypeLits (Symbol)
 import Log (logAttention, logAttention_)
-import Log (logTrace_, logInfo)
+import Log (logTrace_)
 import Network.Mime (defaultMimeLookup)
 import Prelude hiding (read, writeFile)
 import Servant.Multipart (Mem, FileData (..))
@@ -448,11 +448,7 @@ download fileSys clientPath = do
         openTempFile tempDir "DXXXXXX.zip"
 
       onException
-        (Zip.createArchive zipPath do
-           Zip.packDirRecur
-             Zip.Zstd
-             Zip.mkEntrySelector
-             (coerce path))
+        (liftIO $ Zip.packDir zipPath (coerce path))
         (removeFile zipPath)
 
       pure $

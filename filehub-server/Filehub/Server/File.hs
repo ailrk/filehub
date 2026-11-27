@@ -19,8 +19,8 @@ module Filehub.Server.File
   ) where
 
 import Filehub.Prelude
-import Codec.Archive.Zip qualified as Zip
-import Conduit (ConduitT, ResourceT, runResourceT, runConduit, (.|))
+import Data.Zip qualified as Zip
+import Conduit (ConduitT, ResourceT, runResourceT, runConduit, (.|), sinkList)
 import Conduit qualified
 import Control.Monad (replicateM)
 import Control.Monad.Reader (MonadReader(..))
@@ -362,14 +362,10 @@ download sessionId _ _ clientPaths = do
         conduit <- storage.readStream file Nothing Nothing
         pure (file.path, conduit)
 
-      Zip.createArchive zipPath do
-        for_ tasks \(path, conduit) ->
-          let
-              relativePath = coerce makeRelative root path
-           in
-              do
-                m <- Zip.mkEntrySelector relativePath
-                Zip.sinkEntry Zip.Zstd conduit m
+      entries <- for tasks \(path, conduit) -> do
+        chunks <- liftIO . runResourceT . runConduit $ conduit .| sinkList
+        pure Zip.Entry { entryName = coerce makeRelative root path, entryBytes = mconcat chunks }
+      liftIO $ Zip.writeZip zipPath entries
 
       tag <- txt_pack <$> replicateM 8 (randomRIO ('a', 'z'))
 

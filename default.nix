@@ -12,7 +12,7 @@
 , sqlite-simple, stm, string-interpolate, suspend, template-haskell
 , text, time, timers, transformers
 , transformers-base, unliftio, uri-encode, uuid, vector, wai
-, wai-extra, warp, zip
+, wai-extra, warp, zlib
 }:
 mkDerivation {
   pname = "filehub";
@@ -33,7 +33,7 @@ mkDerivation {
     servant-event-stream servant-lucid servant-multipart servant-server
     split sqlite-simple stm string-interpolate suspend template-haskell
     text time timers transformers transformers-base
-    unliftio uri-encode uuid vector wai wai-extra warp zip
+    unliftio uri-encode uuid vector wai wai-extra warp zlib
   ];
   executableHaskellDepends = [
     aeson base breakpoint bytestring text

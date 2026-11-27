@@ -27,7 +27,9 @@ import Amazonka.S3.GetObject (GetObject(..))
 import Amazonka.S3.PutObject (PutObject(..))
 import Amazonka.S3.UploadPart (UploadPartResponse(..))
 import Cache.Key (CacheKey, SomeCacheKey (..))
-import Codec.Archive.Zip qualified as Zip
+import Data.Functor.Const (Const(..))
+import Data.Functor.Identity (Identity(..))
+import Data.Zip qualified as Zip
 import Conduit (ResourceT, MonadTrans (..), sinkLazy)
 import Conduit qualified
 import Control.Service.Cache (MonadCache(..))
@@ -454,11 +456,7 @@ download s3 path = do
         openTempFile tempDir "DXXXXXX.zip"
 
       onException
-        (Zip.createArchive zipPath do
-           Zip.packDirRecur
-             Zip.Zstd
-             Zip.mkEntrySelector
-             (coerce path))
+        (liftIO $ Zip.packDir zipPath (coerce path))
         (removeFile zipPath)
 
       pure $
