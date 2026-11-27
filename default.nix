@@ -10,7 +10,7 @@
 , servant-client, servant-conduit, servant-event-stream
 , servant-lucid, servant-multipart, servant-server, split
 , sqlite-simple, stm, string-interpolate, suspend, template-haskell
-, temporary, text, time, timers, tomland, transformers
+, temporary, text, time, timers, transformers
 , transformers-base, unliftio, uri-encode, uuid, vector, wai
 , wai-extra, warp, zip
 }:
@@ -32,7 +32,7 @@ mkDerivation {
     resourcet retry servant servant-client servant-conduit
     servant-event-stream servant-lucid servant-multipart servant-server
     split sqlite-simple stm string-interpolate suspend template-haskell
-    temporary text time timers tomland transformers transformers-base
+    temporary text time timers transformers transformers-base
     unliftio uri-encode uuid vector wai wai-extra warp zip
   ];
   executableHaskellDepends = [

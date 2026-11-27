@@ -88,7 +88,6 @@ library
                           split,
                           network-uri,
                           filehub:filehub-utils,
-                          tomland,
                           string-interpolate,
                           time,
                           filehub:filehub-server,
@@ -128,6 +127,8 @@ library filehub-utils
                           sqlite-simple,
                           unliftio,
                           time,
+                          text,
+                          bytestring,
                           http-api-data,
                           mime-types,
                           case-insensitive,
@@ -172,6 +173,7 @@ library filehub-utils
                           System.FilePath.Extended
                           Text.Debug
                           Text.Fuzzy
+                          Text.Toml
 
 library filehub-core
   import:                 shared
@@ -186,7 +188,6 @@ library filehub-core
                           servant-server,
                           http-api-data,
                           file-embed,
-                          tomland,
                           time,
                           log-base,
                           aeson-pretty,

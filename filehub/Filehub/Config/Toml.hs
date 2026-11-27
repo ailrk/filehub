@@ -9,191 +9,36 @@
 module Filehub.Config.Toml (parseConfigFile, serializeConfig) where
 
 import Filehub.Prelude
-import Control.Category ((>>>))
 import Filehub.Auth.Types.OIDC qualified as Auth.OIDC
 import Filehub.Auth.Types.Simple qualified as Auth.Simple
 import Filehub.Config
 import Filehub.Locale (Locale(..))
 import Filehub.Plugin.Toml qualified as Plugin.Toml
+import Filehub.Plugin.Types (StaticPlugins(..))
 import Filehub.Theme (Theme (..), CustomTheme(..))
-import Network.URI (URI)
+import Data.Map.Strict qualified as Map
 import Network.URI qualified as URI
 import System.FilePath.Extended (expandVars)
 import Target.File qualified
 import Target.S3 qualified
-import Toml (TomlCodec, (.=), Key)
-import Toml qualified
-import Toml.Codec (TomlBiMap)
+import Text.Toml (TomlTable, TomlValue(..), TomlError(..))
+import Text.Toml qualified as Toml
 import Log (LogLevel (..))
 
 
-simpleAuthUserRecord :: TomlCodec Auth.Simple.UserRecord
-simpleAuthUserRecord =
-  Auth.Simple.UserRecord
-  <$> Toml.string "username" .= (.username)
-  <*> Toml.string "password" .= (.password)
-
-
-oidcAuthProvider :: TomlCodec Auth.OIDC.Provider
-oidcAuthProvider =
-  Auth.OIDC.Provider
-  <$> Toml.text               "name"          .= (.name)
-  <*> Toml.match _URI         "issuer"        .= (.issuer)
-  <*> Toml.text               "client_id"     .= (.clientId)
-  <*> Toml.text               "client_secret" .= (.clientSecret)
-  <*> Toml.text               "grant_type"    .= (.grantType)
-  <*> Toml.arrayOf Toml._Text "allowed_users" .= (.allowedUsers)
-  <*> Toml.match _URI         "redirect_uri"  .= (.redirectURI)
-
-
-targetConfig :: TomlCodec TargetConfig
-targetConfig =
-      Toml.dimatch match1 FSTargetConfig fs
-  <|> Toml.dimatch match2 S3TargetConfig s3
-  where
-    match1 (FSTargetConfig t) = Just t; match1 _ = Nothing
-    match2 (S3TargetConfig t) = Just t; match2 _ = Nothing
-    fs = Target.File.Config <$> (Toml.validateIf (== "fs") Toml._Text "type" .= const "fs" *> Toml.string "root" .= (.root))
-    s3 = Target.S3.Config <$> (Toml.validateIf (== "s3") Toml._Text "type" .= const "s3" *> Toml.string "bucket") .= (.bucket)
-
-
-targetConfigs :: Key -> TomlCodec Targets
-targetConfigs key = Toml.dimap (.unTargets) Targets (Toml.list targetConfig key)
-
-
-simpleAuthUserRecords :: Key -> TomlCodec SimpleAuthUserRecords
-simpleAuthUserRecords key = Toml.dimap (.unSimpleAuthUserRecords) SimpleAuthUserRecords (Toml.list simpleAuthUserRecord key)
-
-
-oidcAuthProviders :: Key -> TomlCodec OidcAuthProviders
-oidcAuthProviders key = Toml.dimap (.unOidcAuthProviders) OidcAuthProviders (Toml.list oidcAuthProvider key)
-
-
-
-theme :: Key -> TomlCodec Theme
-theme =
-  Toml.textBy
-    (\case
-      Dark -> "dark"
-      Light -> "light")
-    (\case
-      "dark" -> Right Dark
-      "light" -> Right Light
-      _ -> Left "unknown theme")
-
-
-verbosity :: Key -> TomlCodec LogLevel
-verbosity =
-  Toml.textBy
-    (\case
-      LogInfo -> "info"
-      LogAttention -> "attention"
-      LogTrace -> "trace")
-    (\case
-      "info" -> Right LogInfo
-      "attention" -> Right LogAttention
-      "trace" -> Right LogTrace
-      _ -> Left "unknown log level")
-
-
-locale :: Key -> TomlCodec Locale
-locale =
-  Toml.textBy
-    (\case
-    EN      -> "en"
-    ZH_CN   -> "zh_cn"
-    ZH_TW   -> "zh_tw"
-    ZH_HK   -> "zh_hk"
-    JA      -> "ja"
-    ES      -> "es"
-    FR      -> "fr"
-    DE      -> "de"
-    KO      -> "ko"
-    RU      -> "ru"
-    PT      -> "pt"
-    IT      -> "it")
-    (\case
-    "en"    -> Right EN;
-    "zh_cn" -> Right ZH_CN
-    "zh_tw" -> Right ZH_TW
-    "zh_hk" -> Right ZH_HK
-    "ja"    -> Right JA
-    "es"    -> Right ES
-    "fr"    -> Right FR
-    "de"    -> Right DE
-    "ko"    -> Right KO
-    "ru"    -> Right RU
-    "pt"    -> Right PT
-    "it"    -> Right IT
-    _       -> Left "unknown locale")
-
-
-customTheme :: Key -> TomlCodec CustomTheme
-customTheme key=
-  Toml.table
-    (CustomTheme
-      <$> colorHex "frontground" .= (.frontground)
-      <*> colorHex "background1" .= (.background1)
-      <*> colorHex "background2" .= (.background2)
-      <*> colorHex "background3" .= (.background3)
-      <*> colorHex "primary"     .= (.primary)
-      <*> colorHex "secondary"   .= (.secondary)
-      <*> colorHex "tertiary"    .= (.tertiary)
-      <*> colorHex "dark"        .= (.dark)
-      <*> colorHex "light"       .= (.light))
-    key
-
-
--- | If we don't wrap custom theme in newtype tomland will parse the table in order regardless
--- of the key for some reasons.
-customThemeDark :: Key -> TomlCodec CustomThemeDark
-customThemeDark key = Toml.dimap (.unCustomThemeDark) CustomThemeDark (customTheme key)
-
-
-customThemeLight :: Key -> TomlCodec CustomThemeLight
-customThemeLight key = Toml.dimap (.unCustomThemeLight) CustomThemeLight (customTheme key)
-
-
--- | Maybe maybe?
-dioptional2 :: TomlCodec a -> TomlCodec (Maybe (Maybe a))
-dioptional2 = Toml.dioptional . Toml.dioptional
-
-
-pluginJsFilesCodec :: Key -> TomlCodec [FilePath]
-pluginJsFilesCodec key =
-  Toml.dimap
-    (\xs -> if null xs then Nothing else Just xs)
-    (maybe [] id)
-    (Toml.dioptional (Toml.arrayOf Toml._String key))
-
-
-
-
-config :: TomlCodec (Config Maybe)
-config = Config
-  <$> Toml.dioptional (Toml.int            "port")        .= (.port)
-  <*> Toml.dioptional (theme               "theme")       .= (.theme)
-  <*> Toml.dioptional (verbosity           "verbosity")   .= (.verbosity)
-  <*> Toml.dioptional (Toml.bool           "readonly")    .= (.readOnly)
-  <*> Toml.dioptional (locale              "locale")      .= (.locale)
-  <*> dioptional2     (customThemeDark     "dark-theme")  .= (.customThemeDark)
-  <*> dioptional2     (customThemeLight    "light-theme") .= (.customThemeLight)
-  <*> (targetConfigs                       "target")      .= (.targets)
-  <*> (simpleAuthUserRecords               "login")       .= (.simpleAuthUserRecords)
-  <*> (oidcAuthProviders                   "oidc")        .= (.oidcAuthProviders)
-  <*> (Plugin.Toml.pluginsCodec             "plugin")      .= (.plugins)
-  <*> (pluginJsFilesCodec                   "plugin_js")   .= (.pluginJsFiles)
-
+------------------------------------------------------------
+-- Public API
 
 serializeConfig :: Config Maybe -> Text
-serializeConfig = Toml.encode config
+serializeConfig = Toml.encode . configToTable
 
 
--- | It should be called at the top level, let it throw if we failed to decode.
 parseConfigFile :: Maybe FilePath -> IO (Config Maybe)
+parseConfigFile Nothing = pure mempty
 parseConfigFile (Just filePath) = do
-  cfg <- either (throwIO . userError . show) pure <$> Toml.decodeFileEither config filePath
-  cfg >>= expandFSTargetEnvVars
+  tbl <- Toml.parseFile filePath >>= either (throwIO . userError . show) pure
+  cfg <- either (throwIO . userError . show) pure (decodeConfig tbl)
+  expandFSTargetEnvVars cfg
   where
     expandFSTargetEnvVars c = do
       let expand (FSTargetConfig t) = do
@@ -202,27 +47,238 @@ parseConfigFile (Just filePath) = do
           expand x = pure x
       targets' <- traverse expand (coerce @_ @[TargetConfig] c.targets)
       pure $ c { targets = coerce @_ @Targets targets' }
-parseConfigFile _ =
-  pure (Config Nothing Nothing Nothing Nothing Nothing Nothing Nothing mempty mempty mempty mempty [])
 
 
-------------------------------
--- Extra
-------------------------------
+------------------------------------------------------------
+-- Decode
+
+decodeConfig :: TomlTable -> Either TomlError (Config Maybe)
+decodeConfig tbl = do
+  port                  <- Toml.getOptInt  "port"       tbl
+  theme_                <- Toml.getOptText "theme"      tbl >>= traverse parseTheme
+  verbosity_            <- Toml.getOptText "verbosity"  tbl >>= traverse parseVerbosity
+  readOnly              <- Toml.getOptBool "readonly"   tbl
+  locale_               <- Toml.getOptText "locale"     tbl >>= traverse parseLocale
+  customThemeDark       <- fmap (fmap (Just . CustomThemeDark)) (decodeOptTheme "dark-theme"  tbl)
+  customThemeLight      <- fmap (fmap (Just . CustomThemeLight)) (decodeOptTheme "light-theme" tbl)
+  targetTbls            <- Toml.getArrayOfTables "target" tbl
+  loginTbls             <- Toml.getArrayOfTables "login"  tbl
+  oidcTbls              <- Toml.getArrayOfTables "oidc"   tbl
+  pluginTbls            <- Toml.getArrayOfTables "plugin" tbl
+  pluginJsFiles         <- Toml.getStringArray   "plugin_js" tbl
+  targets               <- Targets               <$> traverse decodeTarget  targetTbls
+  simpleAuthUserRecords <- SimpleAuthUserRecords <$> traverse decodeLogin   loginTbls
+  oidcAuthProviders     <- OidcAuthProviders     <$> traverse decodeOIDC    oidcTbls
+  plugins               <- StaticPlugins         <$> traverse Plugin.Toml.decodePlugin pluginTbls
+  pure Config
+    { port                  = port
+    , theme                 = theme_
+    , verbosity             = verbosity_
+    , readOnly              = readOnly
+    , locale                = locale_
+    , customThemeDark       = customThemeDark
+    , customThemeLight      = customThemeLight
+    , targets               = targets
+    , simpleAuthUserRecords = simpleAuthUserRecords
+    , oidcAuthProviders     = oidcAuthProviders
+    , plugins               = plugins
+    , pluginJsFiles         = pluginJsFiles
+    }
 
 
-_URI :: TomlBiMap URI Toml.AnyValue
-_URI = uriText >>> Toml._Text
+decodeTarget :: TomlTable -> Either TomlError TargetConfig
+decodeTarget tbl = do
+  typ <- Toml.getText "type" tbl
+  case typ of
+    "fs" -> FSTargetConfig . Target.File.Config <$> Toml.getString "root"   tbl
+    "s3" -> S3TargetConfig . Target.S3.Config   <$> Toml.getString "bucket" tbl
+    _    -> Left (TomlError ("unknown target type: " <> typ))
+
+
+decodeLogin :: TomlTable -> Either TomlError Auth.Simple.UserRecord
+decodeLogin tbl = Auth.Simple.UserRecord
+  <$> Toml.getString "username" tbl
+  <*> Toml.getString "password" tbl
+
+
+decodeOIDC :: TomlTable -> Either TomlError Auth.OIDC.Provider
+decodeOIDC tbl = do
+  name         <- Toml.getText      "name"          tbl
+  issuerStr    <- Toml.getText      "issuer"        tbl
+  clientId     <- Toml.getText      "client_id"     tbl
+  clientSecret <- Toml.getText      "client_secret" tbl
+  grantType    <- Toml.getText      "grant_type"    tbl
+  allowedUsers <- Toml.getTextArray "allowed_users" tbl
+  redirectStr  <- Toml.getText      "redirect_uri"  tbl
+  issuer      <- maybe (Left (TomlError "invalid issuer URI"))
+                       Right (URI.parseURI (txt_unpack issuerStr))
+  redirectURI <- maybe (Left (TomlError "invalid redirect_uri"))
+                       Right (URI.parseURI (txt_unpack redirectStr))
+  pure Auth.OIDC.Provider
+    { name         = name
+    , issuer       = issuer
+    , clientId     = clientId
+    , clientSecret = clientSecret
+    , grantType    = grantType
+    , allowedUsers = allowedUsers
+    , redirectURI  = redirectURI
+    }
+
+
+decodeCustomTheme :: TomlTable -> Either TomlError CustomTheme
+decodeCustomTheme tbl = CustomTheme
+  <$> getHex "frontground"
+  <*> getHex "background1"
+  <*> getHex "background2"
+  <*> getHex "background3"
+  <*> getHex "primary"
+  <*> getHex "secondary"
+  <*> getHex "tertiary"
+  <*> getHex "dark"
+  <*> getHex "light"
   where
-    uriText :: TomlBiMap URI Text
-    uriText = Toml.BiMap forward backward
-
-    forward uri = Right . txt_pack . URI.uriToString id uri $ ""
-    backward t = maybe
-      (Left (Toml.ArbitraryError "invalid uri"))
-      Right
-      (URI.parseURI (txt_unpack t))
+    getHex k = do
+      t <- Toml.getText k tbl
+      if "#" `txt_isPrefixOf` t && txt_length t == 7
+        then Right t
+        else Left (TomlError ("invalid color hex: " <> t))
 
 
-colorHex :: Key -> TomlCodec Text
-colorHex key = Toml.validateIf (\s -> "#" `txt_isPrefixOf` s && txt_length s == 7) Toml._Text key
+decodeOptTheme :: Text -> TomlTable -> Either TomlError (Maybe CustomTheme)
+decodeOptTheme key tbl =
+  Toml.getOptTable key tbl >>= traverse decodeCustomTheme
+
+------------------------------------------------------------
+-- Encode
+
+configToTable :: Config Maybe -> TomlTable
+configToTable cfg = Map.fromList $ concat
+  [ optKV "port"      TInt                        cfg.port
+  , optKV "theme"     (TString . encodeTheme)     cfg.theme
+  , optKV "verbosity" (TString . encodeVerbosity) cfg.verbosity
+  , optKV "readonly"  TBool                       cfg.readOnly
+  , optKV "locale"    (TString . encodeLocale)    cfg.locale
+  , aoTs  "target"    (map targetToTable  (coerce cfg.targets))
+  , aoTs  "login"     (map loginToTable   (coerce cfg.simpleAuthUserRecords))
+  , aoTs  "oidc"      (map oidcToTable    (coerce cfg.oidcAuthProviders))
+  , aoTs  "plugin"    (map Plugin.Toml.pluginToTable (coerce cfg.plugins))
+  , pluginJsKV cfg.pluginJsFiles
+  , darkThemeEntry
+  , lightThemeEntry
+  ]
+  where
+    optKV _ _ Nothing  = []
+    optKV k f (Just v) = [(k, f v)]
+
+    aoTs _ []  = []
+    aoTs k ts  = [(k, TArrayOfTables ts)]
+
+    pluginJsKV []  = []
+    pluginJsKV fs  = [("plugin_js", TArray (map (TString . txt_pack) fs))]
+
+    darkThemeEntry = case join cfg.customThemeDark of
+      Nothing -> []
+      Just ct -> [("dark-theme",  TTable (themeToTable (coerce ct)))]
+
+    lightThemeEntry = case join cfg.customThemeLight of
+      Nothing -> []
+      Just ct -> [("light-theme", TTable (themeToTable (coerce ct)))]
+
+
+targetToTable :: TargetConfig -> TomlTable
+targetToTable (FSTargetConfig t) = Map.fromList
+  [ ("type", TString "fs")
+  , ("root", TString (txt_pack t.root))
+  ]
+targetToTable (S3TargetConfig t) = Map.fromList
+  [ ("type",   TString "s3")
+  , ("bucket", TString (txt_pack t.bucket))
+  ]
+
+
+loginToTable :: Auth.Simple.UserRecord -> TomlTable
+loginToTable r = Map.fromList
+  [ ("username", TString (txt_pack r.username))
+  , ("password", TString (txt_pack r.password))
+  ]
+
+
+oidcToTable :: Auth.OIDC.Provider -> TomlTable
+oidcToTable p = Map.fromList
+  [ ("name",          TString p.name)
+  , ("issuer",        TString (txt_pack (URI.uriToString id p.issuer "")))
+  , ("client_id",     TString p.clientId)
+  , ("client_secret", TString p.clientSecret)
+  , ("grant_type",    TString p.grantType)
+  , ("allowed_users", TArray  (map TString p.allowedUsers))
+  , ("redirect_uri",  TString (txt_pack (URI.uriToString id p.redirectURI "")))
+  ]
+
+
+themeToTable :: CustomTheme -> TomlTable
+themeToTable ct = Map.fromList
+  [ ("frontground", TString ct.frontground)
+  , ("background1", TString ct.background1)
+  , ("background2", TString ct.background2)
+  , ("background3", TString ct.background3)
+  , ("primary",     TString ct.primary)
+  , ("secondary",   TString ct.secondary)
+  , ("tertiary",    TString ct.tertiary)
+  , ("dark",        TString ct.dark)
+  , ("light",       TString ct.light)
+  ]
+
+
+------------------------------------------------------------
+-- Helpers
+
+parseTheme :: Text -> Either TomlError Theme
+parseTheme "dark"  = Right Dark
+parseTheme "light" = Right Light
+parseTheme t       = Left (TomlError ("unknown theme: " <> t))
+
+encodeTheme :: Theme -> Text
+encodeTheme Dark  = "dark"
+encodeTheme Light = "light"
+
+
+parseVerbosity :: Text -> Either TomlError LogLevel
+parseVerbosity "info"      = Right LogInfo
+parseVerbosity "attention" = Right LogAttention
+parseVerbosity "trace"     = Right LogTrace
+parseVerbosity t           = Left (TomlError ("unknown verbosity: " <> t))
+
+encodeVerbosity :: LogLevel -> Text
+encodeVerbosity LogInfo      = "info"
+encodeVerbosity LogAttention = "attention"
+encodeVerbosity LogTrace     = "trace"
+
+
+parseLocale :: Text -> Either TomlError Locale
+parseLocale "en"    = Right EN
+parseLocale "zh_cn" = Right ZH_CN
+parseLocale "zh_tw" = Right ZH_TW
+parseLocale "zh_hk" = Right ZH_HK
+parseLocale "ja"    = Right JA
+parseLocale "es"    = Right ES
+parseLocale "fr"    = Right FR
+parseLocale "de"    = Right DE
+parseLocale "ko"    = Right KO
+parseLocale "ru"    = Right RU
+parseLocale "pt"    = Right PT
+parseLocale "it"    = Right IT
+parseLocale t       = Left (TomlError ("unknown locale: " <> t))
+
+encodeLocale :: Locale -> Text
+encodeLocale EN    = "en"
+encodeLocale ZH_CN = "zh_cn"
+encodeLocale ZH_TW = "zh_tw"
+encodeLocale ZH_HK = "zh_hk"
+encodeLocale JA    = "ja"
+encodeLocale ES    = "es"
+encodeLocale FR    = "fr"
+encodeLocale DE    = "de"
+encodeLocale KO    = "ko"
+encodeLocale RU    = "ru"
+encodeLocale PT    = "pt"
+encodeLocale IT    = "it"

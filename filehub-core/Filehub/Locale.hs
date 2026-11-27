@@ -16,8 +16,7 @@ module Filehub.Locale (Locale(..), Phrase(..), phrase) where
 import Filehub.Prelude
 import Data.Either (fromRight)
 import Data.FileEmbed qualified as FileEmbed
-import Toml.Codec (TomlCodec, (.=))
-import Toml.Codec qualified as Toml
+import Text.Toml qualified as Toml
 import Web.HttpApiData (ToHttpApiData(..), FromHttpApiData(..))
 
 
@@ -156,21 +155,6 @@ data Phrase = Phrase
   deriving (Show)
 
 
-localeCodec :: Locale -> TomlCodec Phrase
-localeCodec EN    = Toml.table phraseCodec "en"
-localeCodec ZH_CN = Toml.table phraseCodec "zh_cn"
-localeCodec ZH_TW = Toml.table phraseCodec "zh_tw"
-localeCodec ZH_HK = Toml.table phraseCodec "zh_hk"
-localeCodec JA    = Toml.table phraseCodec "ja"
-localeCodec ES    = Toml.table phraseCodec "es"
-localeCodec FR    = Toml.table phraseCodec "fr"
-localeCodec DE    = Toml.table phraseCodec "de"
-localeCodec KO    = Toml.table phraseCodec "ko"
-localeCodec RU    = Toml.table phraseCodec "ru"
-localeCodec PT    = Toml.table phraseCodec "pt"
-localeCodec IT    = Toml.table phraseCodec "it"
-
-
 instance ToHttpApiData Locale where
   toUrlPiece EN    = "en"
   toUrlPiece ZH_CN = "zh_cn"
@@ -202,119 +186,126 @@ instance FromHttpApiData Locale where
   parseUrlPiece _        = Left "unknown locale"
 
 
+localeKey :: Locale -> Text
+localeKey EN    = "en"
+localeKey ZH_CN = "zh_cn"
+localeKey ZH_TW = "zh_tw"
+localeKey ZH_HK = "zh_hk"
+localeKey JA    = "ja"
+localeKey ES    = "es"
+localeKey FR    = "fr"
+localeKey DE    = "de"
+localeKey KO    = "ko"
+localeKey RU    = "ru"
+localeKey PT    = "pt"
+localeKey IT    = "it"
+
+
 phraseEN :: Phrase
-phraseEN = fromRight (error "error in en locale") $ Toml.decode (localeCodec EN) config
+phraseEN = fromRight (error "error in en locale") $
+  Toml.parse localeToml >>= Toml.getTable "en" >>= phraseFromTable
 
 
 phrase :: Locale -> Phrase
-phrase EN    = phraseEN
-phrase ZH_CN = fromRight phraseEN $ Toml.decode (localeCodec ZH_CN) config
-phrase ZH_TW = fromRight phraseEN $ Toml.decode (localeCodec ZH_TW) config
-phrase ZH_HK = fromRight phraseEN $ Toml.decode (localeCodec ZH_HK) config
-phrase JA    = fromRight phraseEN $ Toml.decode (localeCodec JA)    config
-phrase ES    = fromRight phraseEN $ Toml.decode (localeCodec ES)    config
-phrase FR    = fromRight phraseEN $ Toml.decode (localeCodec FR)    config
-phrase DE    = fromRight phraseEN $ Toml.decode (localeCodec DE)    config
-phrase KO    = fromRight phraseEN $ Toml.decode (localeCodec KO)    config
-phrase RU    = fromRight phraseEN $ Toml.decode (localeCodec RU)    config
-phrase PT    = fromRight phraseEN $ Toml.decode (localeCodec PT)    config
-phrase IT    = fromRight phraseEN $ Toml.decode (localeCodec IT)    config
+phrase locale = fromRight phraseEN $
+  Toml.parse localeToml >>= Toml.getTable (localeKey locale) >>= phraseFromTable
 
 
-phraseCodec :: TomlCodec Phrase
-phraseCodec =
-  Phrase
-  <$> Toml.text "TARGET_FILESYSTEM"        .= (.target_filesystem)
-  <*> Toml.text "TARGET_S3"                .= (.target_s3)
-  <*> Toml.text "TOGGLE_SIDEBAR"           .= (.toggle_sidebar)
-  <*> Toml.text "CONTEXTMENU_OPEN"         .= (.contextmenu_open)
-  <*> Toml.text "CONTEXTMENU_PLAY"         .= (.contextmenu_play)
-  <*> Toml.text "CONTEXTMENU_VIEW"         .= (.contextmenu_view)
-  <*> Toml.text "CONTEXTMENU_EDIT"         .= (.contextmenu_edit)
-  <*> Toml.text "CONTEXTMENU_RENAME"       .= (.contextmenu_rename)
-  <*> Toml.text "CONTEXTMENU_DOWNLOAD"     .= (.contextmenu_download)
-  <*> Toml.text "CONTEXTMENU_DELETE"       .= (.contextmenu_delete)
-  <*> Toml.text "CONTEXTMENU_DELETE_LOCAL" .= (.contextmenu_delete_local)
-  <*> Toml.text "CONTEXTMENU_DETAILS"      .= (.contextmenu_details)
-  <*> Toml.text "CONTEXTMENU_SELECTED"     .= (.contextmenu_selected)
-  <*> Toml.text "CONTEXTMENU_COPY"         .= (.contextmenu_copy)
-  <*> Toml.text "CONTEXTMENU_CUT"          .= (.contextmenu_cut)
-  <*> Toml.text "CONTEXTMENU_CANCEL"       .= (.contextmenu_cancel)
-  <*> Toml.text "SEARCH_AS_YOU_TYPE"       .= (.search_as_you_type)
-  <*> Toml.text "CONTROL_PANEL_LIST"       .= (.control_panel_list)
-  <*> Toml.text "CONTROL_PANEL_GIRD"       .= (.control_panel_grid)
-  <*> Toml.text "CONTROL_PANEL_LIGHT"      .= (.control_panel_light)
-  <*> Toml.text "CONTROL_PANEL_DARK"       .= (.control_panel_dark)
-  <*> Toml.text "CONTROL_PANEL_NEW_FOLDER" .= (.control_panel_new_folder)
-  <*> Toml.text "CONTROL_PANEL_NEW_FILE"   .= (.control_panel_new_file)
-  <*> Toml.text "CONTROL_PANEL_UPLOAD"     .= (.control_panel_upload)
-  <*> Toml.text "CONTROL_PANEL_COPY"       .= (.control_panel_copy)
-  <*> Toml.text "CONTROL_PANEL_CUT"        .= (.control_panel_cut)
-  <*> Toml.text "CONTROL_PANEL_PASTE"      .= (.control_panel_paste)
-  <*> Toml.text "CONTROL_PANEL_DELETE"     .= (.control_panel_delete)
-  <*> Toml.text "CONTROL_PANEL_CANCEL"     .= (.control_panel_cancel)
-  <*> Toml.text "CONTROL_PANEL_LOGOUT"     .= (.control_panel_logout)
-  <*> Toml.text "CONTROL_PANEL_SCROLL2TOP" .= (.control_panel_scroll2top)
-  <*> Toml.text "CONTROL_PANEL_LANGUAGE"   .= (.control_panel_language)
-  <*> Toml.text "SORT_NAME"                .= (.sort_name)
-  <*> Toml.text "SORT_MODIFIED"            .= (.sort_modified)
-  <*> Toml.text "SORT_SIZE"                .= (.sort_size)
-  <*> Toml.text "LOGIN_BUTTON"             .= (.login_button)
-  <*> Toml.text "LOGIN_OR"                 .= (.login_or)
-  <*> Toml.text "LOGIN_USERNAME"           .= (.login_username)
-  <*> Toml.text "LOGIN_PASSWORD"           .= (.login_password)
-  <*> Toml.text "LOGIN_ERROR"              .= (.login_error)
-  <*> Toml.text "DETAIL_FILENAME"          .= (.detail_filename)
-  <*> Toml.text "DETAIL_MODIFIED"          .= (.detail_modified)
-  <*> Toml.text "DETAIL_ACCESSED"          .= (.detail_accessed)
-  <*> Toml.text "DETAIL_SIZE"              .= (.detail_size)
-  <*> Toml.text "DETAIL_CONTENT_TYPE"      .= (.detail_content_type)
-  <*> Toml.text "MODAL_DETAIL"             .= (.modal_detail)
-  <*> Toml.text "MODAL_FILE"               .= (.modal_file)
-  <*> Toml.text "MODAL_FOLDER"             .= (.modal_folder)
-  <*> Toml.text "MODAL_CREATE"             .= (.modal_create)
-  <*> Toml.text "MODAL_EDIT"               .= (.modal_edit)
-  <*> Toml.text "MODAL_READONLY"           .= (.modal_readonly)
-  <*> Toml.text "MODAL_CONFIRM"            .= (.modal_confirm)
-  <*> Toml.text "PLACEHOLDER_NEWFILE"      .= (.placeholder_newfile)
-  <*> Toml.text "PLACEHOLDER_NEWFOLER"     .= (.placeholder_newfoler)
-  <*> Toml.text "PLACEHOLDER_EMPTY_FILE"   .= (.placeholder_empty_file)
-  <*> Toml.text "PLACEHOLDER_FILENAME"     .= (.placeholder_filename)
-  <*> Toml.text "CONFIRM_LOGOUT"           .= (.confirm_logout)
-  <*> Toml.text "CONFIRM_SAVE_EDIT"        .= (.confirm_save_edit)
-  <*> Toml.text "CONFIRM_DELETE1"          .= (.confirm_delete1)
-  <*> Toml.text "CONFIRM_DELETE_LOCAL"     .= (.confirm_delete_local)
-  <*> Toml.text "CONFIRM_DELETE_ALL"       .= (.confirm_delete_all)
-  <*> Toml.text "CONTEXTMENU_SHARE"        .= (.contextmenu_share)
-  <*> Toml.text "SHARE_LINK_INDEFINITE"    .= (.share_link_indefinite)
-  <*> Toml.text "SHARE_LINK_SINGLEUSE"     .= (.share_link_singleuse)
-  <*> Toml.text "SHARE_LINK_EXPIRY"        .= (.share_link_expiry)
-  <*> Toml.text "SHARE_PASSCODE"           .= (.share_passcode)
-  <*> Toml.text "SHARE_CREATE"             .= (.share_create)
-  <*> Toml.text "CONTROL_PANEL_SHARE_LINKS" .= (.control_panel_share_links)
-  <*> Toml.text "HISTORY_TITLE"            .= (.history_title)
-  <*> Toml.text "HISTORY_EMPTY"            .= (.history_empty)
-  <*> Toml.text "HISTORY_COL_TIME"         .= (.history_col_time)
-  <*> Toml.text "HISTORY_COL_OP"           .= (.history_col_op)
-  <*> Toml.text "HISTORY_COL_TARGET"       .= (.history_col_target)
-  <*> Toml.text "HISTORY_COL_DETAILS"      .= (.history_col_details)
-  <*> Toml.text "HISTORY_COL_STATUS"       .= (.history_col_status)
-  <*> Toml.text "HISTORY_OK"               .= (.history_ok)
-  <*> Toml.text "HISTORY_FAIL"             .= (.history_fail)
-  <*> Toml.text "HISTORY_ITEMS"            .= (.history_items)
-  <*> Toml.text "HISTORY_OP_RENAME"        .= (.history_op_rename)
-  <*> Toml.text "HISTORY_OP_NEW_FILE"      .= (.history_op_new_file)
-  <*> Toml.text "HISTORY_OP_NEW_FOLDER"    .= (.history_op_new_folder)
-  <*> Toml.text "HISTORY_OP_MOVE"          .= (.history_op_move)
-  <*> Toml.text "HISTORY_OP_DELETE"        .= (.history_op_delete)
-  <*> Toml.text "HISTORY_OP_UPLOAD"        .= (.history_op_upload)
-  <*> Toml.text "HISTORY_OP_COPY"          .= (.history_op_copy)
-  <*> Toml.text "HISTORY_OP_PASTE"         .= (.history_op_paste)
-  <*> Toml.text "HISTORY_OP_CUT"           .= (.history_op_cut)
-  <*> Toml.text "HISTORY_OP_SHARE"         .= (.history_op_share)
-  <*> Toml.text "HISTORY_OP_REVOKE_LINK"   .= (.history_op_revoke_link)
-  <*> Toml.text "FOLDER_EMPTY"             .= (.folder_empty)
+phraseFromTable :: Toml.TomlTable -> Either Toml.TomlError Phrase
+phraseFromTable tbl = Phrase
+  <$> get "TARGET_FILESYSTEM"
+  <*> get "TARGET_S3"
+  <*> get "TOGGLE_SIDEBAR"
+  <*> get "CONTEXTMENU_OPEN"
+  <*> get "CONTEXTMENU_PLAY"
+  <*> get "CONTEXTMENU_VIEW"
+  <*> get "CONTEXTMENU_EDIT"
+  <*> get "CONTEXTMENU_RENAME"
+  <*> get "CONTEXTMENU_DOWNLOAD"
+  <*> get "CONTEXTMENU_DELETE"
+  <*> get "CONTEXTMENU_DELETE_LOCAL"
+  <*> get "CONTEXTMENU_DETAILS"
+  <*> get "CONTEXTMENU_SELECTED"
+  <*> get "CONTEXTMENU_COPY"
+  <*> get "CONTEXTMENU_CUT"
+  <*> get "CONTEXTMENU_CANCEL"
+  <*> get "SEARCH_AS_YOU_TYPE"
+  <*> get "CONTROL_PANEL_LIST"
+  <*> get "CONTROL_PANEL_GIRD"
+  <*> get "CONTROL_PANEL_LIGHT"
+  <*> get "CONTROL_PANEL_DARK"
+  <*> get "CONTROL_PANEL_NEW_FOLDER"
+  <*> get "CONTROL_PANEL_NEW_FILE"
+  <*> get "CONTROL_PANEL_UPLOAD"
+  <*> get "CONTROL_PANEL_COPY"
+  <*> get "CONTROL_PANEL_CUT"
+  <*> get "CONTROL_PANEL_PASTE"
+  <*> get "CONTROL_PANEL_DELETE"
+  <*> get "CONTROL_PANEL_CANCEL"
+  <*> get "CONTROL_PANEL_LOGOUT"
+  <*> get "CONTROL_PANEL_SCROLL2TOP"
+  <*> get "CONTROL_PANEL_LANGUAGE"
+  <*> get "SORT_NAME"
+  <*> get "SORT_MODIFIED"
+  <*> get "SORT_SIZE"
+  <*> get "LOGIN_BUTTON"
+  <*> get "LOGIN_OR"
+  <*> get "LOGIN_USERNAME"
+  <*> get "LOGIN_PASSWORD"
+  <*> get "LOGIN_ERROR"
+  <*> get "DETAIL_FILENAME"
+  <*> get "DETAIL_MODIFIED"
+  <*> get "DETAIL_ACCESSED"
+  <*> get "DETAIL_SIZE"
+  <*> get "DETAIL_CONTENT_TYPE"
+  <*> get "MODAL_DETAIL"
+  <*> get "MODAL_FILE"
+  <*> get "MODAL_FOLDER"
+  <*> get "MODAL_CREATE"
+  <*> get "MODAL_EDIT"
+  <*> get "MODAL_READONLY"
+  <*> get "MODAL_CONFIRM"
+  <*> get "PLACEHOLDER_NEWFILE"
+  <*> get "PLACEHOLDER_NEWFOLER"
+  <*> get "PLACEHOLDER_EMPTY_FILE"
+  <*> get "PLACEHOLDER_FILENAME"
+  <*> get "CONFIRM_LOGOUT"
+  <*> get "CONFIRM_SAVE_EDIT"
+  <*> get "CONFIRM_DELETE1"
+  <*> get "CONFIRM_DELETE_LOCAL"
+  <*> get "CONFIRM_DELETE_ALL"
+  <*> get "CONTEXTMENU_SHARE"
+  <*> get "SHARE_LINK_INDEFINITE"
+  <*> get "SHARE_LINK_SINGLEUSE"
+  <*> get "SHARE_LINK_EXPIRY"
+  <*> get "SHARE_PASSCODE"
+  <*> get "SHARE_CREATE"
+  <*> get "CONTROL_PANEL_SHARE_LINKS"
+  <*> get "HISTORY_TITLE"
+  <*> get "HISTORY_EMPTY"
+  <*> get "HISTORY_COL_TIME"
+  <*> get "HISTORY_COL_OP"
+  <*> get "HISTORY_COL_TARGET"
+  <*> get "HISTORY_COL_DETAILS"
+  <*> get "HISTORY_COL_STATUS"
+  <*> get "HISTORY_OK"
+  <*> get "HISTORY_FAIL"
+  <*> get "HISTORY_ITEMS"
+  <*> get "HISTORY_OP_RENAME"
+  <*> get "HISTORY_OP_NEW_FILE"
+  <*> get "HISTORY_OP_NEW_FOLDER"
+  <*> get "HISTORY_OP_MOVE"
+  <*> get "HISTORY_OP_DELETE"
+  <*> get "HISTORY_OP_UPLOAD"
+  <*> get "HISTORY_OP_COPY"
+  <*> get "HISTORY_OP_PASTE"
+  <*> get "HISTORY_OP_CUT"
+  <*> get "HISTORY_OP_SHARE"
+  <*> get "HISTORY_OP_REVOKE_LINK"
+  <*> get "FOLDER_EMPTY"
+  where
+    get k = Toml.getText k tbl
 
 
-config :: Text
-config = txt_decode $(FileEmbed.embedFile "data/locale.toml")
+localeToml :: Text
+localeToml = txt_decode $(FileEmbed.embedFile "data/locale.toml")

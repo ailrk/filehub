@@ -2,26 +2,34 @@ module Filehub.Plugin.Toml
   ( serializePlugins
   , parsePlugins
   , pluginHint
-  , pluginsCodec
+  , decodePlugin
+  , pluginToTable
   ) where
 
 import Filehub.Prelude
 import Filehub.Plugin.Types
-import Toml (TomlCodec, (.=), Key)
-import Toml qualified
+import Data.Map.Strict qualified as Map
+import Text.Toml (TomlTable, TomlValue(..))
+import Text.Toml qualified as Toml
 
 
 serializePlugins :: [StaticPlugin] -> Text
 serializePlugins [] = ""
-serializePlugins ps  = Toml.encode (pluginsCodec "plugin") (StaticPlugins ps)
+serializePlugins ps = Toml.encode (Map.fromList [("plugin", TArrayOfTables (map pluginToTable ps))])
 
 
 parsePlugins :: Text -> Either Text [StaticPlugin]
 parsePlugins t
   | txt_null (txt_strip t) = Right []
-  | otherwise = case Toml.decode (pluginsCodec "plugin") t of
-      Left errs -> Left (txt_unlines (map (txt_pack . show) errs))
-      Right (StaticPlugins ps) -> Right ps
+  | otherwise = case Toml.parse t of
+      Left (Toml.TomlError e) -> Left e
+      Right root ->
+        case Toml.getArrayOfTables "plugin" root of
+          Left (Toml.TomlError e) -> Left e
+          Right tbls ->
+            case traverse decodePlugin tbls of
+              Left (Toml.TomlError e) -> Left e
+              Right ps               -> Right ps
 
 
 pluginHint :: Text
@@ -66,49 +74,78 @@ pluginHint = txt_unlines
   ]
 
 
-entryActionCodec :: TomlCodec EntryAction
-entryActionCodec =
-  Toml.dimatch matchUrl    (UrlAction . UrlTemplate) (Toml.text "url")
-  <|>
-  Toml.dimatch matchScript ScriptAction              (Toml.text "script")
-  where
-    matchUrl    (UrlAction (UrlTemplate u)) = Just u
-    matchUrl    _                           = Nothing
-    matchScript (ScriptAction s)            = Just s
-    matchScript _                           = Nothing
+------------------------------------------------------------
+-- Encode
+
+pluginToTable :: StaticPlugin -> TomlTable
+pluginToTable p = Map.fromList $
+  [ ("name", TString p.name)
+  , ("context_menu", TArrayOfTables (map contextMenuToTable p.contextMenu))
+  , ("viewer",       TArrayOfTables (map viewerToTable p.viewer))
+  , ("toolbar",      TArrayOfTables (map toolbarToTable p.toolbar))
+  ]
+
+contextMenuToTable :: ContextMenuEntry -> TomlTable
+contextMenuToTable e = Map.fromList $
+  [ ("mime",  TString e.mime)
+  , ("label", TString e.label)
+  ] ++ actionFields e.action
+
+viewerToTable :: ViewerEntry -> TomlTable
+viewerToTable e = Map.fromList $
+  ("mime", TString e.mime) : actionFields e.action
+
+toolbarToTable :: ToolbarEntry -> TomlTable
+toolbarToTable e = Map.fromList $
+  [ ("mime",  TString e.mime)
+  , ("label", TString e.label)
+  ] ++ actionFields e.action
+
+actionFields :: EntryAction -> [(Text, TomlValue)]
+actionFields (UrlAction (UrlTemplate u)) = [("url",    TString u)]
+actionFields (ScriptAction s)            = [("script", TString s)]
 
 
-contextMenuEntry :: TomlCodec ContextMenuEntry
-contextMenuEntry =
-  ContextMenuEntry
-  <$> Toml.text        "mime"   .= (.mime)
-  <*> Toml.text        "label"  .= (.label)
-  <*> entryActionCodec          .= (.action)
+------------------------------------------------------------
+-- Decode
 
+decodePlugin :: TomlTable -> Either Toml.TomlError StaticPlugin
+decodePlugin tbl = do
+  name        <- Toml.getText "name" tbl
+  cmTbls      <- Toml.getArrayOfTables "context_menu" tbl
+  viewerTbls  <- Toml.getArrayOfTables "viewer" tbl
+  toolbarTbls <- Toml.getArrayOfTables "toolbar" tbl
+  contextMenu <- traverse decodeContextMenu cmTbls
+  viewer      <- traverse decodeViewer viewerTbls
+  toolbar     <- traverse decodeToolbar toolbarTbls
+  pure StaticPlugin { name = name, contextMenu = contextMenu, viewer = viewer, toolbar = toolbar }
 
-viewerEntry :: TomlCodec ViewerEntry
-viewerEntry =
-  ViewerEntry
-  <$> Toml.text   "mime"   .= (.mime)
-  <*> entryActionCodec     .= (.action)
+decodeContextMenu :: TomlTable -> Either Toml.TomlError ContextMenuEntry
+decodeContextMenu tbl = do
+  mime   <- Toml.getText "mime"  tbl
+  label  <- Toml.getText "label" tbl
+  action <- decodeAction tbl
+  pure ContextMenuEntry { mime = mime, label = label, action = action }
 
+decodeViewer :: TomlTable -> Either Toml.TomlError ViewerEntry
+decodeViewer tbl = do
+  mime   <- Toml.getText "mime" tbl
+  action <- decodeAction tbl
+  pure ViewerEntry { mime = mime, action = action }
 
-toolbarEntry :: TomlCodec ToolbarEntry
-toolbarEntry =
-  ToolbarEntry
-  <$> Toml.text   "mime"   .= (.mime)
-  <*> Toml.text   "label"  .= (.label)
-  <*> entryActionCodec     .= (.action)
+decodeToolbar :: TomlTable -> Either Toml.TomlError ToolbarEntry
+decodeToolbar tbl = do
+  mime   <- Toml.getText "mime"  tbl
+  label  <- Toml.getText "label" tbl
+  action <- decodeAction tbl
+  pure ToolbarEntry { mime = mime, label = label, action = action }
 
-
-staticPlugin :: TomlCodec StaticPlugin
-staticPlugin =
-  StaticPlugin
-  <$> Toml.text                    "name"         .= (.name)
-  <*> Toml.list contextMenuEntry   "context_menu" .= (.contextMenu)
-  <*> Toml.list viewerEntry        "viewer"       .= (.viewer)
-  <*> Toml.list toolbarEntry       "toolbar"      .= (.toolbar)
-
-
-pluginsCodec :: Key -> TomlCodec StaticPlugins
-pluginsCodec key = Toml.dimap (.unStaticPlugins) StaticPlugins (Toml.list staticPlugin key)
+decodeAction :: TomlTable -> Either Toml.TomlError EntryAction
+decodeAction tbl =
+  case (Toml.getOptText "url" tbl, Toml.getOptText "script" tbl) of
+    (Right (Just u), _)         -> Right (UrlAction (UrlTemplate u))
+    (_, Right (Just s))         -> Right (ScriptAction s)
+    (Left e, _)                 -> Left e
+    (_, Left e)                 -> Left e
+    (Right Nothing, Right Nothing) ->
+      Left (Toml.TomlError "entry must have url or script")
