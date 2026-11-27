@@ -47,9 +47,9 @@ import System.FilePath ((</>), takeDirectory, takeFileName)
 import System.IO.Error (isDoesNotExistError)
 import System.IO (openTempFile)
 import Target.File (Target(..), FileSys)
-import UnliftIO (IOException, Handler (..), withFile, IOMode (..), hClose, withTempFile)
+import UnliftIO (withFile, IOMode (..), hClose, withTempFile)
 import UnliftIO.Directory (doesDirectoryExist, pathIsSymbolicLink, removeFile, makeAbsolute, getFileSize, getAccessTime, getModificationTime, doesPathExist, doesFileExist, createDirectoryIfMissing, renameFile, copyFile, listDirectory, removeDirectoryRecursive, withCurrentDirectory, getTemporaryDirectory, canonicalizePath)
-import UnliftIO.Retry (recovering, limitRetries, exponentialBackoff)
+import Control.Concurrent (threadDelay)
 
 
 class CacheKeyComponent (s :: Symbol) a              where toCacheKeyComponent :: Builder
@@ -365,20 +365,17 @@ delete' path = do
      | otherwise  -> pure ()
   cacheDelete (SomeCacheKey (createCacheKey @"file" @FileInfo (coerce BB.string8 path)))
   where
-    withRetry action = recovering policy handlers \_ -> do
-      logInfo [i|[vhdkl2] Retrying delete|] path
-      result <- tryIO action
-      case result of
-        Left e | isDoesNotExistError e -> pure () -- it's already gone
-        Left e -> liftIO (ioError e)
-        Right _ -> pure ()
+    withRetry action = go (0 :: Int)
       where
-        policy = exponentialBackoff 50000 <> limitRetries 3
-        handlers =
-          [ -- we need to retry unless the exception is cause becasue the file doesn't exist
-            -- anymore.
-            \_ -> Handler \(e :: IOException) -> pure $ not (isDoesNotExistError e)
-          ]
+        go n = do
+          result <- tryIO action
+          case result of
+            Right _                        -> pure ()
+            Left e | isDoesNotExistError e -> pure ()
+            Left _ | n < 3                -> do
+              liftIO (threadDelay (50000 * 2 ^ n))
+              go (n + 1)
+            Left e                         -> throwIO e
 
 
 ls :: AbsPath -> Filehub [FileInfo]
