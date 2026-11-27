@@ -16,7 +16,7 @@ import Data.Text (Text)
 import Data.Text qualified as T
 import Filehub.Locale (Phrase(..), phrase)
 import Filehub.Monad (Filehub)
-import Filehub.Plugin.Types (StaticPlugin(..), ContextMenuEntry(..), ToolbarEntry(..), UrlTemplate(..))
+import Filehub.Plugin.Types (StaticPlugin(..), ContextMenuEntry(..), ToolbarEntry(..), UrlTemplate(..), EntryAction(..))
 import Filehub.Session (TargetView(..), getTargetViews, getCurrentTarget, makeStorageCurrentTarget, Storage(..), fromClientPathChecked)
 import Filehub.Server.UI.Platform.Common (sideBar)
 import Filehub.Session.Pool (withSession)
@@ -59,7 +59,7 @@ index sessionId = do
   toolBar' <- toolBar sessionId
   let i18nScript = script_ [type_ "text/javascript"] $
         i18nPayload ctx.readOnly (phrase ctx.locale)
-  pure $ runTemplate ctx (Template.Desktop.index (i18nScript <> pluginsDataEl ctx.plugins) sideBar' view' toolBar')
+  pure $ runTemplate ctx (Template.Desktop.index (i18nScript <> pluginsDataEl ctx.plugins ctx.pluginJsFiles) sideBar' view' toolBar')
 
 
 i18nPayload :: Bool -> Phrase -> Text
@@ -109,7 +109,7 @@ i18nPayload readOnly p = "window.filehubI18n=" <> obj <> ";"
       , "\"readOnly\":" <> if readOnly then "true" else "false"
       ] <> "}"
     kv key val = "\"" <> key <> "\":\"" <> escape val <> "\""
-    escape = T.replace "\\" "\\\\" . T.replace "\"" "\\\"" . T.replace "\n" "\\n" . T.replace "\r" "\\r" . T.replace "\t" "\\t"
+    escape = T.replace "\t" "\\t" . T.replace "\r" "\\r" . T.replace "\n" "\\n" . T.replace "\"" "\\\"" . T.replace "\\" "\\\\"
 
 
 pluginsPayload :: [StaticPlugin] -> Text
@@ -121,24 +121,30 @@ pluginsPayload ps = "window.filehubPlugins=" <> arr <> ";"
       ",\"contextMenu\":[" <> T.intercalate "," (map encodeContextMenu p.contextMenu) <> "]" <>
       ",\"toolbar\":[" <> T.intercalate "," (map encodeToolbar p.toolbar) <> "]" <>
       "}"
-    encodeToolbar (ToolbarEntry { mime, label, url }) =
+    encodeToolbar (ToolbarEntry { mime, label, action }) =
       "{\"mime\":" <> str mime <>
       ",\"label\":" <> str label <>
-      ",\"url\":" <> str url.unUrlTemplate <>
+      ",\"action\":" <> encodeAction action <>
       "}"
     encodeContextMenu e =
       "{\"mime\":" <> str e.mime <>
       ",\"label\":" <> str e.label <>
-      ",\"url\":" <> str (e.url.unUrlTemplate) <>
+      ",\"action\":" <> encodeAction e.action <>
       "}"
+    encodeAction (UrlAction (UrlTemplate u)) =
+      "{\"type\":\"url\",\"value\":" <> str u <> "}"
+    encodeAction (ScriptAction s) =
+      "{\"type\":\"script\",\"value\":" <> str s <> "}"
     str t = "\"" <> escape t <> "\""
-    escape = T.replace "\\" "\\\\" . T.replace "\"" "\\\"" . T.replace "\n" "\\n" . T.replace "\r" "\\r" . T.replace "\t" "\\t"
+    escape = T.replace "\t" "\\t" . T.replace "\r" "\\r" . T.replace "\n" "\\n" . T.replace "\"" "\\\"" . T.replace "\\" "\\\\"
 
 
-pluginsDataEl :: [StaticPlugin] -> Html ()
-pluginsDataEl ps =
-  div_ [id_ "filehub-plugins"] $
-    script_ [type_ "text/javascript"] (pluginsPayload ps)
+pluginsDataEl :: [StaticPlugin] -> [Text] -> Html ()
+pluginsDataEl ps jsFiles =
+  div_ [id_ "filehub-plugins"] $ do
+    script_ [type_ "text/javascript"]
+      (pluginsPayload ps <> "\nwindow.filehub=window.filehub||{_jsPlugins:[],registerPlugin:function(d){this._jsPlugins.push(d);}};")
+    mapM_ (\src -> script_ [type_ "text/javascript"] ("(function(){\n" <> src <> "\n})();")) jsFiles
 
 
 view :: SessionId -> Filehub (Html ())

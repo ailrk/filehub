@@ -1,16 +1,17 @@
 'use strict';
 import * as Balloon from './balloon.js';
 import * as Cookie from './cookie.js';
-import * as DesktopContextmenu from './handlers/desktop/contextmenu.js';
-import * as DesktopDrag from './handlers/desktop/drag.js';
-import * as DesktopScroll from './handlers/desktop/scroll.js';
-import * as DesktopSelected from './handlers/desktop/selected.js';
-import * as DesktopSort from './handlers/desktop/sort.js';
-import * as MobileCloseSidebar from './handlers/mobile/closeSidebar.js';
-import * as MobileSelected from './handlers/mobile/selected.js';
-import * as MobilePanel from './handlers/mobile/panel.js';
+import * as DesktopContextmenu from './hdesktop/contextmenu.js';
+import * as DesktopDrag from './hdesktop/drag.js';
+import * as DesktopScroll from './hdesktop/scroll.js';
+import * as DesktopSelected from './hdesktop/selected.js';
+import * as DesktopSort from './hdesktop/sort.js';
+import * as MobileCloseSidebar from './hmobile/closeSidebar.js';
+import * as MobileSelected from './hmobile/selected.js';
+import * as MobilePanel from './hmobile/panel.js';
 import * as Modal from './modal.js';
 import * as ModalBuilder from './modal-builder.js';
+import { createPluginUI } from './plugin-ui.js';
 import Viewer from './viewer.js';
 import { i18n } from './i18n.js';
 const balloonWaitTime = 2000;
@@ -45,6 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('filehub:themeChanged', handleThemeChanged);
     document.addEventListener('click', openViewerOnClick);
     document.addEventListener('click', openBlankOnClick);
+    document.addEventListener('click', openPluginScriptOnClick);
     document.body.addEventListener('htmx:responseError', handleError);
     document.body.addEventListener('htmx:beforeRequest', (e) => {
         const targetIsIndex = e.detail.target?.id === 'index';
@@ -170,6 +172,19 @@ function openViewerOnClick(e) {
     viewer = new Viewer(path);
     viewer.show();
 }
+function openPluginScriptOnClick(e) {
+    const el = e.target.closest('[data-action="plugin-script"]');
+    if (!el)
+        return;
+    const script = el.dataset.pluginScript ?? '';
+    if (!script)
+        return;
+    const row = el.closest('[data-path]');
+    const filePath = row?.dataset.path ?? '';
+    const fileName = row?.dataset.name ?? '';
+    const fileMime = row?.dataset.mime ?? '';
+    runPluginScript(script, filePath, fileName, fileMime);
+}
 function openBlankOnClick(e) {
     const el = e.target.closest('[data-action="open-blank"]');
     if (!el)
@@ -267,6 +282,21 @@ function initTomlEditors() {
     document.querySelectorAll('textarea.toml-textarea')
         .forEach(initTomlEditor);
 }
+function executeJsPluginToolbarEntry(entry, filePath, fileName, fileMime) {
+    if (typeof entry.script === 'function') {
+        entry.script({ filePath, fileName, mimeType: fileMime }, createPluginUI());
+    }
+    else if (typeof entry.script === 'string') {
+        runPluginScript(entry.script, filePath, fileName, fileMime);
+    }
+    else if (entry.url) {
+        const url = entry.url
+            .replace('{file_path}', encodeURIComponent(filePath))
+            .replace('{file_name}', encodeURIComponent(fileName))
+            .replace('{mime_type}', encodeURIComponent(fileMime));
+        window.open(url, '_blank');
+    }
+}
 function updatePluginToolbarActions() {
     const container = document.getElementById('plugin-toolbar-actions');
     if (!container)
@@ -289,7 +319,12 @@ function updatePluginToolbarActions() {
             btn.className = 'btn btn-control plugin-toolbar-btn';
             btn.textContent = entry.label;
             btn.addEventListener('click', async () => {
-                const needsShare = entry.url.includes('{share_url}');
+                if (entry.action.type === 'script') {
+                    runPluginScript(entry.action.value, filePath, fileName, fileMime);
+                    return;
+                }
+                const urlTemplate = entry.action.value;
+                const needsShare = urlTemplate.includes('{share_url}');
                 const enc = encodeURIComponent(filePath);
                 const downloadUrl = `${window.location.origin}/download?file=${enc}`;
                 if (needsShare) {
@@ -309,7 +344,7 @@ function updatePluginToolbarActions() {
                         hash = await createRes.text();
                     }
                     const shareUrl = `${window.location.origin}/s/${hash}/file?file=${enc}`;
-                    const url = entry.url
+                    const url = urlTemplate
                         .replace('{file_path}', encodeURIComponent(filePath))
                         .replace('{file_name}', encodeURIComponent(fileName))
                         .replace('{mime_type}', encodeURIComponent(fileMime))
@@ -318,7 +353,7 @@ function updatePluginToolbarActions() {
                     window.open(url, '_blank');
                 }
                 else {
-                    const url = entry.url
+                    const url = urlTemplate
                         .replace('{file_path}', encodeURIComponent(filePath))
                         .replace('{file_name}', encodeURIComponent(fileName))
                         .replace('{mime_type}', encodeURIComponent(fileMime))
@@ -329,6 +364,33 @@ function updatePluginToolbarActions() {
             });
             container.appendChild(btn);
         }
+    }
+    const jsPlugins = window.filehub?._jsPlugins ?? [];
+    for (const plugin of jsPlugins) {
+        for (const entry of (plugin.toolbar ?? [])) {
+            if (!fileMime.startsWith(entry.mime))
+                continue;
+            const btn = document.createElement('button');
+            btn.className = 'btn btn-control plugin-toolbar-btn';
+            btn.textContent = entry.label ?? plugin.name;
+            btn.addEventListener('click', () => {
+                executeJsPluginToolbarEntry(entry, filePath, fileName, fileMime);
+            });
+            container.appendChild(btn);
+        }
+    }
+}
+function runPluginScript(script, filePath, fileName, fileMime) {
+    try {
+        const run = new Function(script + '\nreturn run;')();
+        if (typeof run !== 'function') {
+            console.error('Plugin script must define a function named "run"');
+            return;
+        }
+        run({ filePath, fileName, mimeType: fileMime }, createPluginUI());
+    }
+    catch (e) {
+        console.error('Plugin script error:', e);
     }
 }
 function initPluginToggles() {

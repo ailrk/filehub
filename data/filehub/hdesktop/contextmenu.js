@@ -1,6 +1,7 @@
-import { i18n } from '../../i18n.js';
-import * as ModalBuilder from '../../modal-builder.js';
-import Viewer from '../../viewer.js';
+import { i18n } from '../i18n.js';
+import * as ModalBuilder from '../modal-builder.js';
+import Viewer from '../viewer.js';
+import { createPluginUI } from '../plugin-ui.js';
 function openViewer(path) {
     const v = new Viewer(path);
     v.show();
@@ -201,18 +202,43 @@ function buildMenuSidebar(tab) {
     return menu;
 }
 function buildPluginItems(filePath, fileName, fileMime) {
-    const plugins = (typeof filehubPlugins !== 'undefined' && filehubPlugins) ? filehubPlugins : [];
     const items = [];
-    for (const plugin of plugins) {
+    const tomlPlugins = (typeof filehubPlugins !== 'undefined' && filehubPlugins) ? filehubPlugins : [];
+    for (const plugin of tomlPlugins) {
         for (const entry of plugin.contextMenu) {
             if (!fileMime.startsWith(entry.mime))
                 continue;
-            const needsShare = entry.url.includes('{share_url}');
             const el = makeClickItem(entry.label, 'bx-link-external', () => {
-                if (needsShare) {
-                    openWithShare(filePath, fileName, fileMime, entry.url);
+                if (entry.action.type === 'script') {
+                    executePluginScript(entry.action.value, filePath, fileName, fileMime);
                 }
                 else {
+                    const needsShare = entry.action.value.includes('{share_url}');
+                    if (needsShare) {
+                        openWithShare(filePath, fileName, fileMime, entry.action.value);
+                    }
+                    else {
+                        const url = substituteUrl(entry.action.value, filePath, fileName, fileMime, '');
+                        window.open(url, '_blank');
+                    }
+                }
+            });
+            items.push(el);
+        }
+    }
+    const jsPlugins = window.filehub?._jsPlugins ?? [];
+    for (const plugin of jsPlugins) {
+        for (const entry of (plugin.contextMenu ?? [])) {
+            if (!fileMime.startsWith(entry.mime))
+                continue;
+            const el = makeClickItem(entry.label ?? plugin.name, 'bx-link-external', () => {
+                if (typeof entry.script === 'function') {
+                    entry.script({ filePath, fileName, mimeType: fileMime }, createPluginUI());
+                }
+                else if (typeof entry.script === 'string') {
+                    executePluginScript(entry.script, filePath, fileName, fileMime);
+                }
+                else if (entry.url) {
                     const url = substituteUrl(entry.url, filePath, fileName, fileMime, '');
                     window.open(url, '_blank');
                 }
@@ -244,6 +270,19 @@ async function openWithShare(filePath, fileName, fileMime, urlTemplate) {
     const shareUrl = `${window.location.origin}/s/${hash}/file?file=${enc}`;
     const url = substituteUrl(urlTemplate, filePath, fileName, fileMime, shareUrl);
     window.open(url, '_blank');
+}
+function executePluginScript(script, filePath, fileName, fileMime) {
+    try {
+        const run = new Function(script + '\nreturn run;')();
+        if (typeof run !== 'function') {
+            console.error('Plugin script must define a function named "run"');
+            return;
+        }
+        run({ filePath, fileName, mimeType: fileMime }, createPluginUI());
+    }
+    catch (e) {
+        console.error('Plugin script error:', e);
+    }
 }
 function substituteUrl(template, filePath, fileName, fileMime, shareUrl) {
     const downloadUrl = `${window.location.origin}/download?file=${encodeURIComponent(filePath)}`;

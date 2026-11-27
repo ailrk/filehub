@@ -45,7 +45,7 @@ import Data.String.Interpolate (iii)
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Encoding qualified as Text
-import Filehub.Plugin.Types (StaticPlugin(..), ViewerEntry(..), UrlTemplate(..))
+import Filehub.Plugin.Types (StaticPlugin(..), ViewerEntry(..), UrlTemplate(..), EntryAction(..))
 import Filehub.Routes.Links (apiLinks)
 import Filehub.Locale ( Phrase(..), phrase )
 import Filehub.Routes (Api (..))
@@ -350,9 +350,15 @@ open plugins root clientPath file =
         Dir        -> asHtmx @"cd" hxGet (Just clientPath) [term "hx-indicator" "#global-spinner"]
         Regular
           | Just entry <- findPluginViewer file.mimetype ->
-               [ href_ (substituteViewerUrl entry.url file root)
-               , target_ "_blank"
-               ]
+               case entry.action of
+                 UrlAction url ->
+                   [ href_ (substituteViewerUrl url file root)
+                   , target_ "_blank"
+                   ]
+                 ScriptAction script ->
+                   [ term "data-action" "plugin-script"
+                   , term "data-plugin-script" script
+                   ]
           | file.mimetype `isMime` "application/pdf" ->
                [ term "data-action" "open-blank" ]
           | file.mimetype `isMime` "audio" ->
@@ -368,8 +374,10 @@ open plugins root clientPath file =
     allViewers = concatMap (.viewer) plugins
 
     findPluginViewer mime =
-      let -- skip viewer entries that need {share_url} — those require async JS handling
-          usable e = mime `isMime` e.mime && not ("{share_url}" `Text.isInfixOf` e.url.unUrlTemplate)
+      let -- skip url viewer entries that need {share_url} — those require async JS handling
+          usable e = mime `isMime` e.mime && case e.action of
+            UrlAction (UrlTemplate u) -> not ("{share_url}" `Text.isInfixOf` u)
+            ScriptAction _            -> True
       in  find usable allViewers
 
     substituteViewerUrl (UrlTemplate tmpl) f r =
@@ -381,6 +389,7 @@ open plugins root clientPath file =
             & Text.replace "{file_path}" filePath
             & Text.replace "{file_name}" fileName
             & Text.replace "{mime_type}" mimeType
+
 
 
 bold :: Html () -> Html ()

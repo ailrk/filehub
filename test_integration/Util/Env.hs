@@ -84,6 +84,7 @@ defaultEnv = do
           , persistDynConfig  = pure ()
           , dynamicConfigPath = Nothing
           , rateLimiters      = rateLimiters
+          , pluginJsFiles     = []
           }
   pure env
 

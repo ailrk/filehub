@@ -1,7 +1,7 @@
 'use strict';
 declare var htmx: any;
 
-import * as ControlPanel from './handlers/desktop/controlpanel.js';
+import * as ControlPanel from './hdesktop/controlpanel.js';
 
 
 document.addEventListener("DOMContentLoaded", () => {

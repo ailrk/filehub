@@ -164,9 +164,9 @@ runUIPartialUpdate1 sessionId = \case
     pure (view' `with` [ hxSwapOOB True ])
 
   UpdatePlugins -> do
-    env <- ask
-    ps  <- readTVarIO env.plugins
-    pure (Server.Desktop.pluginsDataEl ps `with` [ hxSwapOOB True ])
+    env     <- ask
+    ps      <- readTVarIO env.plugins
+    pure (Server.Desktop.pluginsDataEl ps env.pluginJsFiles `with` [ hxSwapOOB True ])
 
 
 runUIPartialUpdate :: SessionId -> [UIPartialUpdate] -> Filehub (Html ())

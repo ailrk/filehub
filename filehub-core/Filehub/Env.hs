@@ -14,6 +14,7 @@ module Filehub.Env
 
 import Data.Map.Strict qualified as M
 import Data.Set (Set)
+import Data.Text (Text)
 import Data.Time (NominalDiffTime)
 import Filehub.ActiveUser.Types qualified as ActiveUser
 import Filehub.Locale (Locale)
@@ -95,6 +96,8 @@ data Env = Env
   , dynamicConfigPath :: Maybe FilePath
     -- Per-use-case rate limiters (sliding window, keyed by client IP).
   , rateLimiters      :: RateLimiters
+    -- Contents of JS plugin files, pre-loaded at startup.
+  , pluginJsFiles     :: [Text]
   }
 
 

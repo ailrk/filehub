@@ -457,6 +457,9 @@ hr {
   width: 24px;
   height: 24px;
   border-radius: 999px;
+  border: none;
+  outline: none;
+  padding: 0;
   cursor: pointer;
   transition: background var(--fast) var(--ease),
               color     var(--fast) var(--ease);
@@ -501,6 +504,87 @@ hr {
 #editor-modal     { width: 80%; max-width: 900px; }
 #file-detail-modal { width: min(92vw, 480px); }
 #share-modal { width: min(92vw, 440px); }
+
+/* ── Plugin Windows ───────────────────────────────────────────────────────── */
+
+.filehub-window {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  width: min(92vw, 680px);
+  min-width: 260px;
+  min-height: 180px;
+  background: var(--background1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  resize: both;
+  overflow: hidden;
+  animation: zoomIn 130ms var(--ease);
+}
+.filehub-window-maximized {
+  inset: 0 !important;
+  width:  100vw  !important;
+  height: 100dvh !important;
+  border-radius: 0 !important;
+  resize: none   !important;
+  transform: none !important;
+}
+.filehub-window-closing { animation: zoomOut 90ms var(--ease) forwards; }
+
+.filehub-window-titlebar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--background2);
+  cursor: move;
+  user-select: none;
+  flex-shrink: 0;
+}
+.filehub-window-title {
+  flex: 1;
+  font-size: 0.85rem;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--frontground);
+}
+.filehub-window-controls {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.filehub-window-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: none;
+  outline: none;
+  padding: 0;
+  background: var(--background3);
+  color: var(--muted);
+  cursor: pointer;
+  transition: background var(--fast) var(--ease),
+              color     var(--fast) var(--ease);
+  flex-shrink: 0;
+}
+.filehub-window-btn:hover {
+  background: var(--secondary);
+  color: var(--on-secondary);
+}
+.filehub-window-controls button { cursor: pointer; }
+.filehub-window-body {
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
+  padding: 16px;
+}
 
 .share-modal-body {
   padding: 16px 20px 20px;
