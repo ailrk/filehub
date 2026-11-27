@@ -30,7 +30,7 @@ import Data.ByteString.Builder qualified as BB
 import Data.ClientPath (AbsPath(..), withinRoot)
 import Data.ClientPath (ClientPath)
 import Data.ClientPath qualified as ClientPath
-import Data.ClientPath.IO (validateAbsPath)
+import Data.ClientPath (validateAbsPath)
 import Data.Conduit.Binary qualified as Conduit
 import Data.File (File (..), FileInfo, FileType (..), FileWithContent, FileContent (..), defaultFileWithContent, IsLink (..))
 import Data.Kind (Type)

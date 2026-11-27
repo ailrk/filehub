@@ -70,7 +70,7 @@ import Network.Wai.Middleware.Gzip qualified as Wai.Middleware
 import Network.Wai.Middleware.RequestLogger qualified as Wai.Middleware (logStdout)
 import Prelude hiding (init, readFile)
 import Prelude hiding (readFile)
-import Servant (Context (..) , Header , Headers  , addHeader   , err400  , err500   , serveWithContextT , errBody)
+import Servant (Context (..), Header, Headers, addHeader, err400, err500, serveWithContextT, errBody)
 import Servant.Server.Generic (AsServerT)
 import Target.Types (TargetId)
 import Target.Types qualified as Target

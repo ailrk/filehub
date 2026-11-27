@@ -31,7 +31,7 @@ import Lucid
 import System.FilePath (takeFileName)
 import Filehub.Session (TargetView(..), Selected(..))
 import Control.Monad.Reader (asks, MonadReader (..))
-import Data.ClientPath.View (ClientPathView(..), AsClientPathView (..))
+import Data.ClientPath (ClientPathView(..), AsClientPathView (..))
 import Lucid.Htmx (hxGet, hxPost, hxTrigger, hxEncoding, Trigger (..), hxConfirm, hxDelete, HtmxEvent (..), hxOn)
 import Filehub.Template.Htmx (asHtmx)
 

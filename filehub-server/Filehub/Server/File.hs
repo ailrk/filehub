@@ -25,10 +25,8 @@ import Conduit qualified
 import Control.Monad (replicateM)
 import Control.Monad.Reader (MonadReader(..))
 import Data.Binary.Builder qualified as BB
-import Data.ClientPath (ClientPath (..), AbsPath (..), (<./>), Root (..))
+import Data.ClientPath (ClientPath (..), AbsPath (..), (<./>), Root (..), validateAbsPath, ClientPathView(..), asClientPathView)
 import Data.ClientPath qualified as ClientPath
-import Data.ClientPath.IO (validateAbsPath)
-import Data.ClientPath.View (ClientPathView(..), asClientPathView)
 import Data.File (FileType(..), File(..), FileContent (..), defaultFileWithContent, FileInfo, IsLink (..))
 import Data.Ratio ((%))
 import Filehub.Error ( FilehubError(..), Error' (..) )

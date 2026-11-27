@@ -161,8 +161,6 @@ library filehub-utils
                           Control.Service.Cache
                           Control.Service.LockManager
                           Data.ClientPath
-                          Data.ClientPath.IO
-                          Data.ClientPath.View
                           Data.File
                           Data.Queue
                           LockManager.Key

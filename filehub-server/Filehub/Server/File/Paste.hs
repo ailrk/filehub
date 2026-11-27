@@ -5,7 +5,7 @@ import Filehub.Prelude
 import Control.Monad.Reader (MonadReader(..))
 import Data.ClientPath (AbsPath (..), toClientPath)
 import Data.Hashable (hash)
-import Data.ClientPath.IO (validateAbsPath)
+import Data.ClientPath (validateAbsPath)
 import Data.File (FileType(..), File(..), FileContent (..), withContent, FileInfo, IsLink (..))
 import Data.Ratio ((%))
 import Filehub.Error ( FilehubError(..), Error' (..) )

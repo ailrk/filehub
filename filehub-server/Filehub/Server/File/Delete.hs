@@ -6,7 +6,7 @@ module Filehub.Server.File.Delete (delete) where
 import Filehub.Prelude
 import Control.Monad.Reader (MonadReader(..))
 import Data.ClientPath (ClientPath (..), Root(..), AbsPath(..))
-import Data.ClientPath.View (ClientPathView(..), asClientPathView)
+import Data.ClientPath (ClientPathView(..), asClientPathView)
 import Data.Ratio ((%))
 import Filehub.Handler (ConfirmLogin, ConfirmReadOnly)
 import Filehub.History (Operation(..), recordHistory)

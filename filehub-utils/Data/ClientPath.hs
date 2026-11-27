@@ -24,17 +24,21 @@ module Data.ClientPath
   , toRawClientPath
   , fromRawClientPath
   , withinRoot
+  , validateAbsPath
+  , ClientPathView(..)
+  , AsClientPathView(..)
   )
   where
 
+import Control.Monad.IO.Class (MonadIO)
 import Data.Aeson (ToJSON(..))
+import Data.Coerce (coerce)
+import Data.Hashable (Hashable(..))
 import Data.List (stripPrefix, isPrefixOf)
 import Network.URI.Encode qualified as URI.Encode
 import Servant (FromHttpApiData (..), ToHttpApiData (..))
 import System.FilePath ((</>), normalise, isAbsolute, dropTrailingPathSeparator)
-import Data.Coerce (coerce)
 import Text.Debug (Debug(..))
-import Data.Hashable (Hashable)
 
 
 newtype Root = Root AbsPath
@@ -141,3 +145,33 @@ withinRoot (Root (AbsPath root)) (AbsPath path)
   | otherwise =
       let r = dropTrailingPathSeparator (normalise root)
       in (r ++ "/") `isPrefixOf` path || r == path
+
+
+-- TODO: doesn't work with S3 paths — currently a noop that just wraps the path.
+validateAbsPath :: MonadIO m => FilePath -> e -> m AbsPath
+validateAbsPath path _ = pure (AbsPath path)
+
+
+data ClientPathView = ClientPathView
+  { clientPath :: ClientPath
+  , hashPath   :: Word
+  , path       :: AbsPath
+  }
+
+
+class AsClientPathView a where
+  asClientPathView :: Root -> a -> ClientPathView
+
+
+instance AsClientPathView AbsPath where
+  asClientPathView root p =
+    let cp = toClientPath root p
+     in ClientPathView { clientPath = cp, hashPath = fromIntegral @_ @Word (hash cp), path = p }
+  {-# INLINE asClientPathView #-}
+
+
+instance AsClientPathView ClientPath where
+  asClientPathView root cp =
+    let p = fromClientPath root cp
+     in ClientPathView { clientPath = cp, hashPath = fromIntegral @_ @Word (hash cp), path = p }
+  {-# INLINE asClientPathView #-}

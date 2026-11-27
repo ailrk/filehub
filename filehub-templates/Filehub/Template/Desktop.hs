@@ -18,7 +18,7 @@ module Filehub.Template.Desktop
 import Filehub.Prelude
 import Control.Monad.Reader (asks, MonadReader (..))
 import Data.ClientPath (ClientPath(..), AbsPath (..))
-import Data.ClientPath.View (ClientPathView(..), AsClientPathView (..))
+import Data.ClientPath (ClientPathView(..), AsClientPathView (..))
 import Data.File (File(..), FileType(..), FileInfo, IsLink (..))
 import Data.String.Interpolate (iii)
 import Filehub.Locale (Locale(..), Phrase (..), phrase)
