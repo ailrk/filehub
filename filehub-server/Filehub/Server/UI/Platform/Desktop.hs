@@ -130,7 +130,7 @@ pluginsDataEl :: [StaticPlugin] -> [Text] -> Html ()
 pluginsDataEl ps jsFiles =
   div_ [id_ "filehub-plugins"] $ do
     script_ [type_ "text/javascript"]
-      (pluginsPayload ps <> "\nwindow.filehub=window.filehub||{_jsPlugins:[],registerPlugin:function(d){this._jsPlugins.push(d);}};")
+      (pluginsPayload ps <> "\nwindow.filehub=window.filehub||{};window.filehub._jsPlugins=[];window.filehub.registerPlugin=function(d){this._jsPlugins.push(d);};")
     mapM_ (\src -> script_ [type_ "text/javascript"] ("(function(){\n" <> src <> "\n})();")) jsFiles
 
 
