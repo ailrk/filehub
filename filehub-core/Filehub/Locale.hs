@@ -13,10 +13,9 @@
 -- construct the appropriate `Phrase` value for a given language.
 module Filehub.Locale (Locale(..), Phrase(..), phrase) where
 
+import Filehub.Prelude
 import Data.Either (fromRight)
 import Data.FileEmbed qualified as FileEmbed
-import Data.Text (Text)
-import Data.Text.Encoding qualified as T
 import Toml.Codec (TomlCodec, (.=))
 import Toml.Codec qualified as Toml
 import Web.HttpApiData (ToHttpApiData(..), FromHttpApiData(..))
@@ -318,4 +317,4 @@ phraseCodec =
 
 
 config :: Text
-config = T.decodeUtf8 $(FileEmbed.embedFile "data/locale.toml")
+config = txt_decode $(FileEmbed.embedFile "data/locale.toml")

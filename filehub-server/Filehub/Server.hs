@@ -20,17 +20,13 @@
 -- Some features that are hard to implement with servant are provided through wai middleware.
 module Filehub.Server (application) where
 
+import Filehub.Prelude
 import Conduit (MonadIO (..), MonadUnliftIO (..))
 import Data.Aeson ((.:), withObject)
 import Data.Aeson.Types (parseMaybe)
 import Data.ByteString.Char8 qualified as BC
 import Data.Char qualified as Char
 import Data.FileEmbed qualified as FileEmbed
-import Data.Maybe (fromMaybe)
-import Data.String.Interpolate (i)
-import Data.Text (Text)
-import Data.Text qualified as T
-import Data.Text.Encoding qualified as T
 import Data.UUID qualified as UUID
 import Filehub.Cookie qualified as Cookies
 import Filehub.Env (Env (..))
@@ -79,7 +75,7 @@ import Servant.Server.Generic (AsServerT)
 import Target.Types (TargetId)
 import Target.Types qualified as Target
 import UnliftIO (try, throwIO)
-import UnliftIO.Exception (SomeException, catch)
+import UnliftIO.Exception (catch)
 import Web.Cookie (SetCookie (..), defaultSetCookie)
 import Filehub.Session.Pool (withSession_, withSession, extendSession)
 import Control.Monad.Reader (MonadReader(..))
@@ -163,9 +159,9 @@ server env = Api
 
 healthz :: SessionId -> Filehub Text
 healthz _ = do
-  let gitRev = T.dropAround Char.isSpace
-             $ T.decodeUtf8 $(Filehub.QQ.getGitRev)
-  pure $ T.concat [ gitRev, ", ok." ]
+  let gitRev = txt_dropAround Char.isSpace
+             $ txt_decode $(Filehub.QQ.getGitRev)
+  pure $ txt_concat [ gitRev, ", ok." ]
 
 
 initialize :: SessionId -> Resolution -> Filehub (Html ())
@@ -275,7 +271,7 @@ displayMiddleware  env app req respond = toIO onErr env do
     currentDisplay <- withSession sessionId getDisplay
     let displaySetCookie = defaultSetCookie
           { setCookieName     = "display"
-          , setCookieValue    = BC.pack (show currentDisplay)
+          , setCookieValue    = bs_packChars (show currentDisplay)
           , setCookieExpires  = Nothing
           , setCookieHttpOnly = False
           , setCookiePath     = Just "/"

@@ -1,11 +1,29 @@
-module Filehub.Notification.Types (Notification(..)) where
+module Filehub.Notification.Types (Notification(..), TaskId, newTaskId) where
 
+import Filehub.Prelude
 import Servant.API.EventStream (ToServerEvent(..), ServerEvent (..))
-import Worker.Task (TaskId)
 import Data.Aeson ((.=), ToJSON(..))
 import Data.Aeson qualified as Aeson
+import Data.Unique (Unique, hashUnique, newUnique)
+import Data.Hashable (Hashable)
 import Lucid (Html, renderText)
-import Data.Text (Text)
+import Text.Debug (Debug(..))
+
+
+newtype TaskId = TaskId Unique
+  deriving (Eq, Ord)
+  deriving newtype (Hashable)
+
+instance Show TaskId where
+  show (TaskId u) = "TaskId " <> show (hashUnique u)
+
+instance Debug TaskId where debug = show
+
+instance ToJSON TaskId where
+  toJSON (TaskId u) = toJSON (hashUnique u)
+
+newTaskId :: MonadIO m => m TaskId
+newTaskId = TaskId <$> liftIO newUnique
 
 
 data Notification

@@ -29,30 +29,21 @@ module Filehub.Template.Common
   )
   where
 
-import Control.Monad (when)
+import Filehub.Prelude
 import Control.Monad.Reader (asks)
 import Data.ClientPath (ClientPath(..), AbsPath (..), newAbsPath, Root(..))
 import Data.ClientPath qualified as ClientPath
-import Data.Coerce (coerce)
 import Data.File (File(..), FileType(..), FileInfo, IsLink (..))
-import Data.Foldable (Foldable(..), traverse_)
-import Data.Function ((&))
-import Data.List (find)
-import Data.Maybe (fromMaybe, catMaybes)
+import Data.Foldable (Foldable(..))
 import Data.Sequence (Seq(..))
 import Data.Sequence qualified as Seq
 import Data.String.Interpolate (iii)
-import Data.Text (Text)
-import Data.Text qualified as Text
-import Data.Text.Encoding qualified as Text
 import Filehub.Plugin.Types (StaticPlugin(..), ViewerEntry(..), UrlTemplate(..), EntryAction(..))
-import Filehub.Routes.Links (apiLinks)
 import Filehub.Locale ( Phrase(..), phrase )
 import Filehub.Routes (Api (..))
 import Filehub.Session (TargetView(..))
 import Filehub.Session.Types (ControlPanelState(..))
 import Filehub.Template (Template, TemplateContext(..))
-import Data.Time.Format (formatTime, defaultTimeLocale)
 import Filehub.Size (toReadableSize)
 import Filehub.Types (Display(..), SearchWord(..), SortFileBy (..))
 import Lucid
@@ -65,7 +56,6 @@ import Target.File (FileSys, Target(..))
 import Target.S3 (S3, Target(..))
 import Target.Types (targetHandler, handleTarget, AnyTarget)
 import Target.Types qualified as Target
-import Data.List (sortBy)
 import Data.Ord (comparing, Down (..))
 import Text.Fuzzy qualified as Fuzzy
 import Filehub.Template.Htmx (asHtmx)
@@ -148,7 +138,7 @@ pathBreadcrumb = do
           & fmap (\path ->
             let clientPath@(ClientPath cp) = (ClientPath.toClientPath root path)
                 mkLi                       = li_ (asHtmx @"cd" hxGet (Just clientPath)
-                                              [ term "data-path" (Text.pack cp)
+                                              [ term "data-path" (txt_pack cp)
                                               , class_ "dir "
                                               , term "hx-indicator" "#global-spinner"
                                               ])
@@ -172,7 +162,7 @@ pathBreadcrumb = do
 
 search :: SearchWord -> [FileInfo] -> ([FileInfo] -> Template (Html ())) -> Template (Html ())
 search (SearchWord searchWord) files table = do
-  let scored = Fuzzy.filter searchWord files "" "" (\f -> Text.pack (takeFileName (coerce f.path))) False
+  let scored = Fuzzy.filter searchWord files "" "" (\f -> txt_pack (takeFileName (coerce f.path))) False
       sorted = sortBy (comparing (Down . Fuzzy.score)) scored
   table (map Fuzzy.original sorted)
 
@@ -376,19 +366,19 @@ open plugins root clientPath file =
     findPluginViewer mime =
       let -- skip url viewer entries that need {share_url} — those require async JS handling
           usable e = mime `isMime` e.mime && case e.action of
-            UrlAction (UrlTemplate u) -> not ("{share_url}" `Text.isInfixOf` u)
+            UrlAction (UrlTemplate u) -> not ("{share_url}" `txt_isInfixOf` u)
             ScriptAction _            -> True
       in  find usable allViewers
 
     substituteViewerUrl (UrlTemplate tmpl) f r =
       let cp       = ClientPath.toClientPath r f.path
-          filePath = Text.pack (show cp)
-          fileName = Text.pack (takeFileName (coerce f.path))
-          mimeType = Text.decodeUtf8 f.mimetype
+          filePath = txt_pack (show cp)
+          fileName = txt_pack (takeFileName (coerce f.path))
+          mimeType = txt_decode f.mimetype
       in  tmpl
-            & Text.replace "{file_path}" filePath
-            & Text.replace "{file_name}" fileName
-            & Text.replace "{mime_type}" mimeType
+            & txt_replace "{file_path}" filePath
+            & txt_replace "{file_name}" fileName
+            & txt_replace "{mime_type}" mimeType
 
 
 
@@ -411,7 +401,7 @@ fileNameElement file target withIcon = do
        then icon file
        else mempty
     name
-    `with` [ title_ (Text.pack displayName) ]
+    `with` [ title_ (txt_pack displayName) ]
   where
     name = span_ (toHtml displayName)
     displayName =
@@ -426,7 +416,7 @@ sizeElement :: FileInfo -> Html ()
 sizeElement file =
   span_ (toHtml displaySize)
     `with` [ class_ "field file-meta "
-           , title_ (Text.pack displaySize)
+           , title_ (txt_pack displaySize)
            ]
   where
     displaySize = toReadableSize (fromMaybe 0 file.size)
@@ -436,10 +426,10 @@ modifiedDateElement :: FileInfo -> Html ()
 modifiedDateElement file =
   span_ (toHtml displayTime)
     `with` [ class_ "field file-meta "
-           , title_ (Text.pack displayTime)
+           , title_ (txt_pack displayTime)
            ]
   where
-    displayTime = maybe mempty (formatTime defaultTimeLocale "%Y/%m/%d") file.mtime
+    displayTime = maybe mempty (time_format "%Y/%m/%d") file.mtime
 
 
 sortIconName :: SortFileBy -> Html ()
@@ -534,7 +524,7 @@ sideBar targets (TargetView currentTarget _) = do
               ]
           when (selectedCount > 0) do
             div_ [ class_ "target-tab-selected-counter" ] do
-              (toHtml . Text.pack . show) selectedCount
+              (toHtml . txt_pack . show) selectedCount
 
         case mUsage of
           Nothing -> mempty
@@ -577,9 +567,9 @@ sideBar targets (TargetView currentTarget _) = do
       | b >= gb   = fmt (b `div` gb)   "GB"
       | b >= mb   = fmt (b `div` mb)   "MB"
       | b >= kb   = fmt (b `div` kb)   "KB"
-      | otherwise = Text.pack (show b) <> " B"
+      | otherwise = txt_pack (show b) <> " B"
       where
         kb  = 1024
         mb  = 1024 * kb
         gb  = 1024 * mb
-        fmt n unit = Text.pack (show n) <> " " <> unit
+        fmt n unit = txt_pack (show n) <> " " <> unit

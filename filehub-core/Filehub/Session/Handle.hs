@@ -18,21 +18,17 @@ module Filehub.Session.Handle
   )
   where
 
+import Filehub.Prelude
 import Conduit (yield)
 import Control.Applicative (asum)
 import Control.Concurrent.STM (throwSTM)
 import Control.Handle.Storage (Storage(..))
-import Control.Monad (unless)
 import Control.Monad.Reader (MonadReader (..))
 import Data.ClientPath (AbsPath (..), Root (..), ClientPath, withinRoot)
 import Data.ClientPath (fromClientPath)
-import Data.Coerce (coerce)
 import Data.File (File (..), FileWithContent, FileContent (..), extractFileInfo)
-import Data.Functor ((<&>))
 import Data.Generics.Labels ()
 import Data.Generics.Labels ()
-import Data.Map qualified as M
-import Data.Maybe (fromMaybe, mapMaybe)
 import Data.Typeable (cast)
 import Filehub.Display qualified as Display
 import Filehub.Error (Error' (..))
@@ -72,7 +68,7 @@ getTarget env s t = do
       targetId = getTargetId t
 
       mTargetView = do
-        targetSessionData <- M.lookup targetId s.targets
+        targetSessionData <- map_lookup targetId s.targets
         target            <- lookup targetId targets
         pure (TargetView target targetSessionData)
 
@@ -132,7 +128,7 @@ getTargetViews :: Env -> Session -> STM [TargetView]
 getTargetViews env s = do
   targets <- readTVar env.targets
   let tvs = flip mapMaybe targets \(targetId, target) ->
-              case M.lookup targetId s.targets of
+              case map_lookup targetId s.targets of
                 Just targetData -> pure (TargetView target targetData)
                 Nothing         -> Nothing
   pure tvs
@@ -157,7 +153,7 @@ modifyCurrentTarget sessionId f = do
   modifySession sessionId \s -> do
     TargetView target _ <- getCurrentTarget env s
     let targetId = getTargetId target
-    pure $ (s { targets =  M.adjust f targetId s.targets } :: Session)
+    pure $ (s { targets =  map_adjust f targetId s.targets } :: Session)
 
 
 makeStorageDummy :: [(AbsPath, FileWithContent)] -> Storage Filehub

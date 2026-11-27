@@ -12,10 +12,7 @@ module Filehub.Env
   )
   where
 
-import Data.Map.Strict qualified as M
-import Data.Set (Set)
-import Data.Text (Text)
-import Data.Time (NominalDiffTime)
+import Filehub.Prelude
 import Filehub.ActiveUser.Types qualified as ActiveUser
 import Filehub.Locale (Locale)
 import Filehub.Session.Types qualified as Session
@@ -26,7 +23,6 @@ import Network.HTTP.Client qualified as HTTP
 import Target.Types (AnyTarget, TargetId)
 import Filehub.Auth.Types.OIDC (OIDCAuthProviders(..))
 import Filehub.Auth.Types.Simple (SimpleAuthUserDB(..))
-import Control.Concurrent.STM (TVar)
 import Control.Handle.Cache (Cache)
 import Control.Handle.LockManager (LockManager)
 import Control.Handle.EvtLog (EvtLog)
@@ -104,4 +100,4 @@ data Env = Env
 -- | Check if there is login information provided when the program starts.
 hasNoLogin :: Env -> Bool
 hasNoLogin (Env { simpleAuthUserDB = SimpleAuthUserDB db
-                , oidcAuthProviders = OIDCAuthProviders providers}) = M.null db && null providers
+                , oidcAuthProviders = OIDCAuthProviders providers}) = map_null db && null providers

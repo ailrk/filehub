@@ -13,31 +13,27 @@ module Filehub.Session.Types
   )
   where
 
+import Filehub.Prelude
 import Control.Concurrent.Timer qualified as Timer
 import Control.Handle.Storage (Storage(..))
 import Data.ClientPath (AbsPath, ClientPath)
 import Data.File (FileInfo)
-import Data.Map.Strict (Map)
-import Data.Set (Set)
-import Data.Time (UTCTime)
 import Filehub.Auth.Types (AuthId)
 import Filehub.Auth.Types.OIDC (SomeOIDCFlow)
 import Filehub.Display (Resolution)
 import Filehub.Locale (Locale)
-import Filehub.Notification.Types (Notification(..))
+import Filehub.Notification.Types (Notification(..), TaskId)
 import Filehub.Session.Types.SessionId (SessionId(..))
 import Filehub.SharedLink (SharedLinkPermitSet)
 import Filehub.Sort (SortFileBy)
 import Filehub.Theme (Theme)
 import Filehub.UserAgent (DeviceType)
-import GHC.Generics (Generic)
 import Servant (ToHttpApiData (..), FromHttpApiData (..))
 import Target.Types (AnyTarget, TargetId)
 import Text.Debug (Debug(..))
 import UnliftIO (TBQueue, TVar)
 import Web.FormUrlEncoded (FromForm, parseAll)
 import Web.Internal.FormUrlEncoded (FromForm(..))
-import Worker.Task (TaskId)
 
 
 data Session = Session

@@ -82,6 +82,7 @@ library
   import:                 shared
   hs-source-dirs:         filehub
   build-depends:          filehub:filehub-core,
+                          filehub:filehub-prelude,
                           log-base,
                           optparse-applicative,
                           split,
@@ -112,7 +113,9 @@ library filehub-prelude
                           stm,
                           string-interpolate,
                           text,
-                          bytestring
+                          bytestring,
+                          base64-bytestring,
+                          time
   exposed-modules:        Filehub.Prelude
 
 
@@ -120,7 +123,8 @@ library filehub-utils
   import:                 shared
   hs-source-dirs:         filehub-utils
   c-sources:              filehub-utils/cbits/disk_usage.c
-  build-depends:          hashable,
+  build-depends:          filehub:filehub-prelude,
+                          hashable,
                           string-interpolate,
                           sqlite-simple,
                           unliftio,
@@ -168,13 +172,12 @@ library filehub-utils
                           Servant.Extended
                           System.FilePath.Extended
                           Text.Debug
-                          Worker.Pool
-                          Worker.Task
 
 library filehub-core
   import:                 shared
   hs-source-dirs:         filehub-core
-  build-depends:          uuid,
+  build-depends:          filehub:filehub-prelude,
+                          uuid,
                           hashable,
                           unliftio,
                           containers,
@@ -281,7 +284,8 @@ library filehub-core
 library filehub-server
   import:                 shared
   hs-source-dirs:         filehub-server
-  build-depends:          string-interpolate,
+  build-depends:          filehub:filehub-prelude,
+                          string-interpolate,
                           time,
                           uuid,
                           filehub:filehub-core,
@@ -339,7 +343,8 @@ library filehub-server
 library filehub-templates
   import:                 shared
   hs-source-dirs:         filehub-templates
-  build-depends:          mtl,
+  build-depends:          filehub:filehub-prelude,
+                          mtl,
                           filehub:filehub-utils,
                           filehub:filehub-core,
                           unliftio,
@@ -366,7 +371,8 @@ executable filehub
   import:                 shared
   main-is:                Main.hs
   hs-source-dirs:         app
-  build-depends:          filehub
+  build-depends:          filehub,
+                          filehub:filehub-prelude
 
 
 test-suite filehub_test_integration
@@ -406,6 +412,7 @@ test-suite filehub_test_integration
                         , filehub:filehub-utils
                         , filehub:filehub-core
                         , filehub:filehub-server
+                        , filehub:filehub-prelude
 
 
 test-suite filehub_test_unit
@@ -426,6 +433,7 @@ test-suite filehub_test_unit
                         , time
                         , uri-encode
                         , filehub:filehub-core
+                        , filehub:filehub-prelude
 
 
 benchmark filehub_bench
@@ -437,6 +445,7 @@ benchmark filehub_bench
   build-depends:          filehub:filehub-core
                         , filehub:filehub-utils
                         , filehub:filehub-templates
+                        , filehub:filehub-prelude
                         , criterion >=1.6
                         , unliftio
                         , text

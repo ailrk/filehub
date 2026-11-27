@@ -1,11 +1,8 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Filehub.Template.Login (login, login', loginFailed) where
 
-import Control.Monad (when)
+import Filehub.Prelude
 import Control.Monad.Reader (asks)
-import Data.Foldable (forM_)
-import Data.Maybe (fromMaybe)
-import Data.Text (Text)
 import Filehub.Auth.Types.OIDC (OIDCAuthProviders(..), Provider(..))
 import Filehub.Routes.Links (apiLinks)
 import Filehub.Locale (Phrase(..), phrase, Locale (..))

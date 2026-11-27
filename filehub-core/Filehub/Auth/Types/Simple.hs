@@ -1,9 +1,7 @@
 module Filehub.Auth.Types.Simple where
 
-import Data.ByteString (ByteString)
+import Filehub.Prelude
 import Data.Hashable (Hashable)
-import Data.Map.Strict (Map)
-import Data.Text (Text)
 import Prelude hiding (readFile)
 import Text.Debug (Debug(..))
 

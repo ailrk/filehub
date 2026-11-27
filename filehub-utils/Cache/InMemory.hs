@@ -15,21 +15,12 @@ module Cache.InMemory
   )
   where
 
+import Filehub.Prelude
 import Cache.Key (CacheKey (..), SomeCacheKey(..))
 import Data.Dynamic (Dynamic, fromDynamic, Typeable, toDyn)
 import Data.HashPSQ (HashPSQ)
 import Data.HashPSQ qualified as HashPSQ
-import Data.IORef (newIORef)
 import Prelude hiding (lookup)
-import UnliftIO (IORef)
-import Data.Time (NominalDiffTime, UTCTime, addUTCTime)
-import Data.Map qualified as M
-import Data.Map.Strict (Map)
-import Data.Set qualified as S
-import Data.Set (Set)
-import Data.Function ((&))
-import Data.Coerce (coerce)
-import Data.Maybe (fromMaybe)
 
 
 -- | Priority is a monotonically increasing tick. Every insertion or lookup
@@ -60,10 +51,10 @@ reachable key graph = go mempty [key]
   where
     go seen [] = seen
     go seen (x:xs)
-      | S.member x seen = go seen xs
+      | set_member x seen = go seen xs
       | otherwise =
-          let neighbors = M.findWithDefault mempty x graph
-           in go (S.insert x seen) (S.toList neighbors ++ xs)
+          let neighbors = map_findWithDefault mempty x graph
+           in go (set_insert x seen) (set_toList neighbors ++ xs)
 
 
 new ::  Int -> IO InMemoryCache
@@ -141,7 +132,7 @@ insertDyn now key deps mTTL value cache
   & updateDependencies
   & trim
   where
-    entry = Entry value (fmap (`addUTCTime` now) mTTL)
+    entry = Entry value (fmap (`time_add` now) mTTL)
     (mEvicted, queue) = HashPSQ.insertView key cache.tick entry cache.queue
     updateDependencies c =
       case deps of
@@ -151,7 +142,7 @@ insertDyn now key deps mTTL value cache
                 let cacheDeps = coerce @_ @(Map SomeCacheKey (Set SomeCacheKey)) c.dependencies
                  in coerce $
                    foldr
-                    (M.alter (Just . (S.insert key) . fromMaybe mempty))
+                    (map_alter (Just . (set_insert key) . fromMaybe mempty))
                     cacheDeps deps
             }
 
@@ -189,8 +180,8 @@ delete key cache@Cache { dependencies = dependencies } =
   cache
     { queue = foldr HashPSQ.delete cache.queue toDelete
     , dependencies = coerce
-                   $ fmap (`S.difference` toDelete)
-                   $ foldr M.delete (coerce dependencies)
+                   $ fmap (`set_difference` toDelete)
+                   $ foldr map_delete (coerce dependencies)
                    $ toDelete
     }
   where

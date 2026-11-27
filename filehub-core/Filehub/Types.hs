@@ -39,11 +39,10 @@ module Filehub.Types
   )
   where
 
+import Filehub.Prelude
 import Data.Aeson (ToJSON (..), (.=), Value, Key)
-import Data.Maybe (listToMaybe)
 import Data.Aeson qualified as Aeson
 import Data.ClientPath (ClientPath(..), RawClientPath(..))
-import Data.Text (Text)
 import Data.Text.Lazy qualified as TL
 import Data.Text.Lazy.Encoding qualified as TL
 import Filehub.Display (Display(..), Resolution(..))
@@ -52,13 +51,11 @@ import Filehub.Session.Types (SessionId(..), Session(..), TargetSessionData(..))
 import Filehub.Sort (SortFileBy(..))
 import Filehub.Theme (Theme(..))
 import Filehub.SharedLink (SharedLinkHash)
-import GHC.Generics (Generic)
 import GHC.IsList (fromList)
 import Servant ( ToHttpApiData(..), FromHttpApiData(..), Accept (..), MimeRender )
 import Servant.API (MimeRender(..))
 import Web.FormUrlEncoded (FromForm (..), parseUnique, ToForm (..), parseAll)
 import Lucid.Htmx (IsHtmxCustomEvent (..), asCamelCase)
-import Data.Text qualified as T
 import Data.Aeson.Key qualified as Aeson.Key
 
 
@@ -159,7 +156,7 @@ data FilehubEvent
 
 
 instance IsHtmxCustomEvent FilehubEvent where
-  htmxCustomEventToText e = T.pack (show e)
+  htmxCustomEventToText e = txt_pack (show e)
 
 
 -- | HTMX event name conventions uses camel case. Filehub custom events starts
@@ -234,7 +231,7 @@ instance FromForm ShareRequest where
     passTexts   <- parseAll @Text "passcode" f
     readonlyTxs <- parseAll @Text "readonly" f
     expiryTxs   <- parseAll @Text "expiryHours" f
-    let passcode    = case passTexts of { t:_ | not (T.null t) -> Just t; _ -> Nothing }
+    let passcode    = case passTexts of { t:_ | not (txt_null t) -> Just t; _ -> Nothing }
         readonly    = case readonlyTxs of { "true":_ -> True; _ -> False }
         expiryHours = case expiryTxs of { t:_ -> either (const Nothing) Just (parseUrlPiece @Int t); _ -> Nothing }
     pure ShareRequest { file, linkType, expiryHours, passcode, readonly }
@@ -257,7 +254,7 @@ instance FromForm SharedLinkUpdate where
     passTexts   <- parseAll  @Text "passcode" f
     readonlyTxs <- parseAll  @Text "readonly" f
     expiryTxs   <- parseAll  @Text "expiryHours" f
-    let passcode    = case passTexts of { t:_ | not (T.null t) -> Just t; _ -> Nothing }
+    let passcode    = case passTexts of { t:_ | not (txt_null t) -> Just t; _ -> Nothing }
         readonly    = case readonlyTxs of { "true":_ -> True; _ -> False }
         expiryHours = case expiryTxs of { t:_ -> either (const Nothing) Just (parseUrlPiece @Int t); _ -> Nothing }
     pure SharedLinkUpdate { hash, linkType, expiryHours, passcode, readonly }
@@ -295,4 +292,4 @@ instance FromForm AppearanceForm where
     <$> (listToMaybe <$> parseAll @Text "theme"  f)
     <*> (listToMaybe <$> parseAll @Text "locale" f)
     where listToMaybe []    = Nothing
-          listToMaybe (x:_) = if T.null x then Nothing else Just x
+          listToMaybe (x:_) = if txt_null x then Nothing else Just x

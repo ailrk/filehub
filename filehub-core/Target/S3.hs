@@ -2,24 +2,17 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Target.S3 where
 
+import Filehub.Prelude
 import Target.Types (TargetId(..), Target, IsTarget(..), HasTargetId(..))
-import Data.Text (Text)
 import Amazonka.Env qualified as Amazonka
-import Data.String.Interpolate (i)
 import Amazonka.Types qualified as Amazonka
 import Data.UUID.V4 qualified as UUID
 import Amazonka qualified
-import Data.ByteString.Char8 qualified as BC
-import Data.Maybe (fromMaybe)
 import Text.Read (readMaybe)
 import Network.URI qualified as URI
 import System.Environment qualified as Environment
-import Data.Functor ((<&>))
 import Amazonka.S3 qualified as Amazonka
-import Data.Text qualified as Text
 import Text.Debug (Debug(..))
-import GHC.Generics (Generic)
-import UnliftIO (MonadIO(..))
 import Log (logInfo_, MonadLog)
 
 #ifdef DEBUG
@@ -36,7 +29,7 @@ instance Debug (Target S3) where
     mconcat
       [ "[<S3Backend>, "
       , debug targetId, ", "
-      , Text.unpack bucket
+      , txt_unpack bucket
       , "]"
       ]
 
@@ -66,7 +59,7 @@ instance Debug (Config S3) where debug = show
 initialize :: (MonadLog m, MonadIO m) => Config S3 -> m (Target S3)
 initialize opt = do
   targetId   <- liftIO $ TargetId <$> UUID.nextRandom
-  let bucket =  Text.pack opt.bucket
+  let bucket =  txt_pack opt.bucket
   service    <- liftIO makeS3Service
   env        <- liftIO do Amazonka.configureService service <$> Amazonka.newEnv Amazonka.discover
   logInfo_ [i|[ive9d4] Initialized: #{targetId} - S3 #{bucket}|]
@@ -86,7 +79,7 @@ initialize opt = do
                 case url.uriAuthority of
                   Nothing -> id
                   Just auth -> do
-                    let host = BC.pack auth.uriRegName
+                    let host = bs_packChars auth.uriRegName
                     let port = fromMaybe 443 . readMaybe $ auth.uriPort
                     Amazonka.setEndpoint True host port
               Nothing -> id

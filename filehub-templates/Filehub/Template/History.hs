@@ -1,8 +1,6 @@
 module Filehub.Template.History (historyModal) where
 
-import Data.Text (Text)
-import Data.Text qualified as T
-import Data.Time.Format (formatTime, defaultTimeLocale)
+import Filehub.Prelude
 import Filehub.History (HistoryEntry(..), Operation(..))
 import Filehub.History.Types (clientName, clientFullPath)
 import Filehub.Locale (Phrase(..))
@@ -47,7 +45,7 @@ entryRow p labelOf e =
     td_ [ class_ "history-desc"   ] (descCell p e.operation)
     td_ [ class_ "history-status" ] statusBadge
   where
-    timeStr  = T.pack $ formatTime defaultTimeLocale "%m/%d %H:%M" e.timestamp
+    timeStr  = txt_pack $ time_format "%m/%d %H:%M" e.timestamp
     rowClass = if e.succeeded then "history-row" else "history-row history-row-failed" :: Text
     statusBadge
       | e.succeeded = span_ [ class_ "badge badge-ok"   ] (toHtml p.history_ok)
@@ -86,7 +84,7 @@ descCell p op = case expandItems op of
         i_ [ class_ itemIcon ] mempty
         toHtml name
       where
-        ext      = takeExtension (T.unpack name)
+        ext      = takeExtension (txt_unpack name)
         itemIcon
           | ext /= "" = "bx bxs-file-blank history-item-icon"
           | otherwise = "bx bx-file history-item-icon"
@@ -95,23 +93,23 @@ descCell p op = case expandItems op of
 -- | Returns the item paths to show in the expandable list, Nothing if not expandable.
 expandItems :: Operation -> Maybe [Text]
 expandItems = \case
-  OpMove   _ srcs _ -> Just [ T.pack (clientFullPath p) | p <- srcs ]
-  OpDelete _ ps     -> Just [ T.pack (clientFullPath p) | p <- ps   ]
+  OpMove   _ srcs _ -> Just [ txt_pack (clientFullPath p) | p <- srcs ]
+  OpDelete _ ps     -> Just [ txt_pack (clientFullPath p) | p <- ps   ]
   OpPaste  _ _ ns   -> Just ns
   _                 -> Nothing
 
 
 describeOp :: Phrase -> Operation -> Text
 describeOp p = \case
-  OpRename    _ from to -> T.pack $ clientName from <> " → " <> clientName to
-  OpNewFile   _ path    -> T.pack $ clientName path
-  OpNewFolder _ path    -> T.pack $ clientName path
-  OpMove      _ srcs _  -> T.pack (show (length srcs)) <> " " <> p.history_items
-  OpDelete    _ ps      -> T.pack (show (length ps))   <> " " <> p.history_items
-  OpUpload    _ path    -> T.pack $ clientName path
-  OpCopy      _ n       -> T.pack (show n)             <> " " <> p.history_items
-  OpPaste     _ _ ns    -> T.pack (show (length ns))   <> " " <> p.history_items
-  OpShare     _ path _  -> T.pack $ clientName path
+  OpRename    _ from to -> txt_pack $ clientName from <> " → " <> clientName to
+  OpNewFile   _ path    -> txt_pack $ clientName path
+  OpNewFolder _ path    -> txt_pack $ clientName path
+  OpMove      _ srcs _  -> txt_pack (show (length srcs)) <> " " <> p.history_items
+  OpDelete    _ ps      -> txt_pack (show (length ps))   <> " " <> p.history_items
+  OpUpload    _ path    -> txt_pack $ clientName path
+  OpCopy      _ n       -> txt_pack (show n)             <> " " <> p.history_items
+  OpPaste     _ _ ns    -> txt_pack (show (length ns))   <> " " <> p.history_items
+  OpShare     _ path _  -> txt_pack $ clientName path
   OpRevokeLink _ _      -> ""
 
 

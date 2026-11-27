@@ -1,25 +1,18 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Filehub.Server.File.Paste (paste) where
 
-import Control.Monad (void, unless)
-import Data.Foldable (for_)
-import Control.Monad.Fix (fix)
+import Filehub.Prelude
 import Control.Monad.Reader (MonadReader(..))
 import Data.ClientPath (AbsPath (..), toClientPath)
 import Data.Hashable (hash)
-import Data.Text qualified as T
 import Data.ClientPath.IO (validateAbsPath)
-import Data.Coerce (coerce)
 import Data.File (FileType(..), File(..), FileContent (..), withContent, FileInfo, IsLink (..))
-import Data.Maybe (catMaybes)
 import Data.Ratio ((%))
-import Data.String.Interpolate (i)
-import Data.Traversable (for)
 import Filehub.Error ( FilehubError(..), Error' (..) )
 import Filehub.Handler (ConfirmLogin, ConfirmReadOnly)
 import Filehub.History (Operation(..), recordHistory)
 import Filehub.Monad
-import Filehub.Notification.Types (Notification(..))
+import Filehub.Notification.Types (Notification(..), newTaskId)
 import Filehub.Server.UI qualified as UI
 import Filehub.Server.Util (throttle)
 import Data.ClientPath qualified as ClientPath
@@ -40,10 +33,8 @@ import System.FilePath (takeFileName, (</>))
 import Target.Types (AnyTarget, getTargetId)
 import UnliftIO (throwIO, newEmptyMVar, takeMVar, putMVar, finally, readTVarIO, catch, SomeException)
 import UnliftIO.Async (pooledForConcurrentlyN_)
-import UnliftIO.STM (atomically, modifyTVar', readTVar, newTVarIO, writeTBQueue)
-import Worker.Task (newTaskId)
+import UnliftIO.STM (writeTBQueue)
 import UnliftIO.Concurrent (getNumCapabilities)
-import Data.Set qualified as Set
 
 
 data PasteTask
@@ -110,7 +101,7 @@ paste sessionId _ _ = do
   env    <- ask
   taskId <- newTaskId
   nCores <- getNumCapabilities
-  withSession sessionId \s -> modifyTVar' s.pendingTasks (Set.insert taskId)
+  withSession sessionId \s -> modifyTVar' s.pendingTasks (set_insert taskId)
 
   ( notifications
     , state
@@ -192,8 +183,8 @@ paste sessionId _ _ = do
                         , f          <- files
                         , let cp = toClientPath root (AbsPath (coerce currentDir' </> takeFileName (coerce f.path)))
                         ]
-            idsJs     = T.intercalate "," (map (\h -> [i|'tr-#{h}'|]) hashPaths)
-            hlScript  = [i|requestAnimationFrame(function(){[#{idsJs}].forEach(function(id){var el=document.getElementById(id);if(el){el.classList.add('pasted-new');}});});|] :: T.Text
+            idsJs     = txt_intercalate "," (map (\h -> [i|'tr-#{h}'|]) hashPaths)
+            hlScript  = [i|requestAnimationFrame(function(){[#{idsJs}].forEach(function(id){var el=document.getElementById(id);if(el){el.classList.add('pasted-new');}});});|] :: Text
             hlTrigger = div_ [ id_ "paste-hl", hxSwapOOB True ] do
                           script_ hlScript
 
@@ -211,7 +202,7 @@ paste sessionId _ _ = do
         `finally`  cleanup
 
       currentDir' <- readTVarIO sdata.currentDir
-      let fileNames = [ T.pack (takeFileName (coerce f.path))
+      let fileNames = [ txt_pack (takeFileName (coerce f.path))
                       | (_, files) <- selections, f <- files ]
           dstCP = ClientPath.toClientPath (targetRoot pasteTo) currentDir'
       recordHistory sessionId (OpPaste (getTargetId pasteTo) dstCP fileNames) True
@@ -242,7 +233,7 @@ paste sessionId _ _ = do
         `finally` cleanup
 
       currentDir' <- readTVarIO sdata.currentDir
-      let fileNames = [ T.pack (takeFileName (coerce f.path))
+      let fileNames = [ txt_pack (takeFileName (coerce f.path))
                       | (_, files) <- selections, f <- files ]
           dstCP = ClientPath.toClientPath (targetRoot pasteTo) currentDir'
       recordHistory sessionId (OpPaste (getTargetId pasteTo) dstCP fileNames) True

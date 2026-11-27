@@ -10,11 +10,11 @@ module Gen
   , benchCtxThumbnail
   ) where
 
+import Filehub.Prelude
 import Control.DeepSeq (NFData(..), deepseq)
 import Data.ClientPath (AbsPath(..), ClientPath(..), Root(..))
 import Data.File (File(..), FileType(..), IsLink(..))
 import Filehub.SharedLink (SharedLink(..), SharedLinkHash(..))
-import Data.Time (UTCTime(..), fromGregorian, secondsToDiffTime)
 import Filehub.Locale (Locale(..))
 import Filehub.Plugin.Types (StaticPlugin)
 import Filehub.Session.Types (TargetSessionData(..), TargetView(..), Selected(..), Layout(..))
@@ -25,7 +25,6 @@ import Filehub.Theme (Theme(..))
 import Filehub.Types (Display(..))
 import Target.Dummy (newDummyTarget)
 import Target.Types (AnyTarget(..))
-import UnliftIO.STM (newTVarIO)
 import System.IO.Unsafe (unsafePerformIO)
 
 

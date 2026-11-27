@@ -10,10 +10,8 @@
 
 module Filehub.Server.Static.QQ (staticFiles) where
 
-import Data.ByteString (ByteString)
+import Filehub.Prelude
 import Data.FileEmbed qualified as FileEmbed
-import Data.Map.Strict (Map)
-import Data.Map.Strict qualified as M
 import Filehub.Orphan ()
 import Prelude hiding (init, readFile)
 
@@ -28,10 +26,10 @@ staticFiles :: Map FilePath ByteString
 
 -- It's very slow to run template haskell with repl.
 #ifdef DEBUG
-staticFiles = unsafePerformIO $ M.fromList <$> FileEmbed.getDir "data/filehub"
+staticFiles = unsafePerformIO $ map_fromList <$> FileEmbed.getDir "data/filehub"
 
 #else
-staticFiles = M.fromList $(FileEmbed.embedDir "data/filehub")
+staticFiles = map_fromList $(FileEmbed.embedDir "data/filehub")
 #endif
 
 

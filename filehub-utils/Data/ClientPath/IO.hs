@@ -1,8 +1,8 @@
 module Data.ClientPath.IO (validateAbsPath) where
 
 
-import Data.ClientPath (AbsPath(..), newAbsPath)
-import UnliftIO (MonadIO)
+import Filehub.Prelude
+import Data.ClientPath (AbsPath(..))
 
 
 -- TODO !THIS DOESN'T WORK WITH THE S3 PATH. WE NEED A MORE GENERAL  AbsPath TYPE.

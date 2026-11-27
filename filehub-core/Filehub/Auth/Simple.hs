@@ -6,15 +6,8 @@ module Filehub.Auth.Simple
   )
   where
 
-import Control.Monad (forM)
+import Filehub.Prelude
 import Crypto.BCrypt qualified as BCrypt
-import Data.ByteString (ByteString)
-import Data.ByteString.Char8 qualified as Char8
-import Data.Map.Strict qualified as Map
-import Data.Maybe (maybeToList)
-import Data.Text qualified as Text
-import Data.Text.Encoding qualified as Text
-import Data.Time qualified as Time
 import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
 import Filehub.ActiveUser.Types (ActiveUser (..))
 import Filehub.Auth.Types (createAuthId, AuthId, Auth (..))
@@ -25,7 +18,6 @@ import Filehub.Types (LoginForm (..))
 import Prelude hiding (readFile)
 import Filehub.Monad (Filehub)
 import Control.Monad.Reader (asks)
-import UnliftIO (MonadIO(..), atomically)
 import Filehub.Auth.Types.Simple
 import Filehub.Session.Pool (modifySession)
 import Filehub.Session (Session(..))
@@ -33,7 +25,7 @@ import Filehub.Session (Session(..))
 
 validate :: Username -> ByteString -> SimpleAuthUserDB -> Bool
 validate name password (SimpleAuthUserDB db) =
-  case Map.lookup name db of
+  case map_lookup name db of
     Just (PasswordHash hash) -> BCrypt.validatePassword hash password
     Nothing                  -> False
 
@@ -46,12 +38,12 @@ createSimpleAuthUserDB loginInfo =
   where
     fromList xs = liftIO $ do
       infos <- forM xs \(UserRecord u p) -> do
-        let username = Username (Text.pack u)
-        mHash <- BCrypt.hashPasswordUsingPolicy BCrypt.slowerBcryptHashingPolicy (Char8.pack p)
+        let username = Username (txt_pack u)
+        mHash <- BCrypt.hashPasswordUsingPolicy BCrypt.slowerBcryptHashingPolicy (bs_packChars p)
         pure $ maybeToList (fmap (\hash -> (username, PasswordHash hash)) mHash)
       pure
         . SimpleAuthUserDB
-        . Map.fromList
+        . map_fromList
         . mconcat
         $ infos
 
@@ -61,7 +53,7 @@ authenticateSession :: SessionId -> LoginForm -> Filehub (Maybe Session)
 authenticateSession sessionId (LoginForm username password) = do
   db <- asks (.simpleAuthUserDB)
   let username' =  Username username
-  if (validate username' (Text.encodeUtf8 password) db) then do
+  if (validate username' (txt_encode password) db) then do
     authId <- createAuthId
     modifySession sessionId \s -> pure $ s { authId = (Just authId) }
     activeUser <- createActiveUser authId sessionId username'
@@ -72,7 +64,7 @@ authenticateSession sessionId (LoginForm username password) = do
 
 createActiveUser :: AuthId -> SessionId -> Username -> Filehub ActiveUser
 createActiveUser authId sessionId username = do
-  now <- liftIO Time.getCurrentTime
+  now <- liftIO time_now
   pure ActiveUser
     { authId   = authId
     , loginAt  = now

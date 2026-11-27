@@ -1,6 +1,6 @@
 module Test.Api.Login (spec) where
 
-
+import Filehub.Prelude
 import Filehub.Auth.Types.Simple (UserRecord(..))
 import Filehub.Auth.Simple (createSimpleAuthUserDB)
 import Filehub.Env (Env(..))

@@ -7,10 +7,9 @@ module Filehub.Template
   )
   where
 
+import Filehub.Prelude
 import Control.Monad.Reader (ReaderT, runReader, asks, MonadReader (..))
 import Data.ClientPath (AbsPath, Root)
-import Data.Functor.Identity (Identity)
-import Data.Text (Text)
 import Filehub.Auth.Types.OIDC (OIDCAuthProviders)
 import Filehub.Auth.Types.Simple (SimpleAuthUserDB)
 import Filehub.Env qualified as Env
@@ -27,7 +26,6 @@ import Filehub.Session.Pool (withSession)
 import Filehub.Session.Handle (getDisplay, getControlPanelState)
 import Filehub.Session.Types (TargetSessionData(..))
 import Filehub.Session.Selected (getAllSelected)
-import UnliftIO (readTVar, readTVarIO)
 
 
 -- | A Template context type that capture all useful information to render

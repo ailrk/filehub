@@ -27,14 +27,14 @@ module Data.ClientPath
   )
   where
 
+import Filehub.Prelude
 import Data.Aeson (ToJSON(..))
-import Data.List (stripPrefix, isPrefixOf)
+import Data.List (stripPrefix)
 import Network.URI.Encode qualified as URI.Encode
 import Servant (FromHttpApiData (..), ToHttpApiData (..))
 import System.FilePath ((</>), normalise, isAbsolute, dropTrailingPathSeparator)
 import Text.Debug (Debug(..))
 import Data.Hashable (Hashable)
-import Data.Coerce (coerce)
 
 
 newtype Root = Root AbsPath

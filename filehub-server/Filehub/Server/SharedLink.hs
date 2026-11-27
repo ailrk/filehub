@@ -15,23 +15,17 @@ module Filehub.Server.SharedLink
   , updateLink
   ) where
 
+import Filehub.Prelude
 import Control.Concurrent.STM (throwSTM)
 import Control.Monad.Reader (MonadReader(..))
 import Data.ClientPath (ClientPath(..), AbsPath(..))
-import Data.List (isPrefixOf)
-import Data.Maybe (isNothing)
-import Data.Set qualified as Set
-import Data.Text (Text)
 import Data.Text.Encoding qualified as T
 import Data.Text.Encoding.Error (lenientDecode)
-import Data.Time (addUTCTime, getCurrentTime, UTCTime)
 import Network.Mime.Extended (isMime)
 import Data.UUID qualified as UUID
 import Filehub.Cookie qualified as Cookies
 import Control.Handle.Storage (Storage(..))
 import Conduit (ConduitT, ResourceT)
-import Data.ByteString (ByteString)
-import Data.Coerce (coerce)
 import Data.File (File(..), FileType(..))
 import System.FilePath (takeFileName)
 import Filehub.Env (Env(..))
@@ -50,8 +44,7 @@ import Lucid hiding (for_)
 import Network.HTTP.Types.Header (hLocation, hSetCookie)
 import Prelude hiding (init, readFile)
 import Servant (addHeader, Header, Headers, err303, err400, err404, err403, errBody, errHeaders)
-import Control.Monad (unless, when)
-import UnliftIO (MonadIO(..), atomically, readTVar, throwIO, tryIO, tryAny)
+import UnliftIO (tryAny)
 import Web.Cookie (SetCookie(..), defaultSetCookie)
 
 
@@ -79,7 +72,7 @@ checkPermit sessionId mClientPermit hash = do
   mPermitSet <- withSession sessionId (pure . (.sharedLinkPermit))
   case (mClientPermit, mPermitSet) of
     (Just clientPermit, Just (SharedLinkPermitSet sessionPermit hashes))
-      | clientPermit == sessionPermit && hash `Set.member` hashes -> pure True
+      | clientPermit == sessionPermit && hash `set_member` hashes -> pure True
     _ -> pure False
 
 
@@ -202,7 +195,7 @@ isWithin (AbsPath root) (AbsPath path) = (root ++ "/") `isPrefixOf` path || root
 goAuth :: SharedLinkHash -> Filehub a
 goAuth (SharedLinkHash hashText) =
   throwIO (HTTPError err303
-    { errHeaders = [(hLocation, "/s/auth?hash=" <> T.encodeUtf8 hashText)] })
+    { errHeaders = [(hLocation, "/s/auth?hash=" <> txt_encode hashText)] })
 
 
 -- | Show the auth page (passcode form) or auto-issue a permit if no passcode is required.
@@ -236,7 +229,7 @@ autoIssue sessionId hash link = do
     consumeSharedLink hash env.sharedLinkPool
   let SharedLinkHash hashText = hash
   throwIO (HTTPError err303
-    { errHeaders = [ (hLocation, "/s/" <> T.encodeUtf8 hashText)
+    { errHeaders = [ (hLocation, "/s/" <> txt_encode hashText)
                    , (hSetCookie, Cookies.renderSetCookie cookie)
                    ] })
 
@@ -261,7 +254,7 @@ sharedAuthPost sessionId _ SharedLinkAuth { hash = hashText, passcode = submitte
               when (link.linkType == SingleUse) do
                 consumeSharedLink hash pool
               throwIO (HTTPError err303
-                { errHeaders = [ (hLocation, "/s/" <> T.encodeUtf8 hashText)
+                { errHeaders = [ (hLocation, "/s/" <> txt_encode hashText)
                                , (hSetCookie, Cookies.renderSetCookie cookie)
                                ] })
             else
@@ -312,8 +305,8 @@ share sessionId _ req = do
       ShareIndefinite -> pure Indefinite
       ShareExpiry     -> do
         let hours = maybe 24 id expiryHours
-        now <- liftIO getCurrentTime
-        pure (Expiry (fromIntegral (hours * 3600) `addUTCTime` now))
+        now <- liftIO time_now
+        pure (Expiry (fromIntegral (hours * 3600) `time_add` now))
 
 
 -- | Return the hash of an active no-passcode share link for the given file, or 404.
@@ -330,7 +323,7 @@ shareForFile sessionId _ mClientPath = do
       Nothing -> throwSTM (HTTPError err404 { errBody = "Target not found" })
       Just tgt -> pure (targetRoot tgt)
   absPath <- fromClientPathChecked root clientPath
-  now <- liftIO getCurrentTime
+  now <- liftIO time_now
   all_ <- getAllSharedLinks env.sharedLinkPool
   let active l = not l.revoked
               && l.targetId == currentTargetId
@@ -378,7 +371,7 @@ shareLinks _ _ = do
 
 activeLinks :: SharedLinkPool -> Filehub (Html ())
 activeLinks pool = do
-  now  <- liftIO getCurrentTime
+  now  <- liftIO time_now
   all_ <- getAllSharedLinks pool
   let links = filter (\l -> not l.revoked && case l.linkType of { Expiry t -> t > now; _ -> True }) all_
   pure (Template.Shared.shareLinksModal links)
@@ -428,13 +421,13 @@ shareLinkRow _ _ mHash = do
 updateLink :: SessionId -> ConfirmLogin -> SharedLinkUpdate -> Filehub (Html ())
 updateLink _ _ upd = do
   env <- ask
-  now <- liftIO getCurrentTime
+  now <- liftIO time_now
   newLinkType <- case upd.linkType of
     ShareSingleUse  -> pure SingleUse
     ShareIndefinite -> pure Indefinite
     ShareExpiry     -> do
       let hours = maybe 24 id upd.expiryHours
-      pure (Expiry (fromIntegral (hours * 3600) `addUTCTime` now))
+      pure (Expiry (fromIntegral (hours * 3600) `time_add` now))
   let modifier :: SharedLink -> SharedLink
       modifier link = link
         { linkType = newLinkType

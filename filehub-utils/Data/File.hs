@@ -13,10 +13,8 @@ module Data.File
   )
   where
 
-import GHC.Generics (Generic)
-import Data.Time (UTCTime)
+import Filehub.Prelude
 import Network.Mime (MimeType)
-import Data.ByteString (ByteString)
 import Conduit (ConduitT, ResourceT)
 import Text.Debug (Debug (..))
 import Data.ClientPath (AbsPath (..))

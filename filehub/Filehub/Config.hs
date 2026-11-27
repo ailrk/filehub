@@ -10,9 +10,7 @@ module Filehub.Config
   )
   where
 
-import Control.Applicative ((<|>))
-import Control.Monad (join)
-import Data.Functor.Identity
+import Filehub.Prelude
 import Filehub.Auth.Types.OIDC qualified as Auth.OIDC
 import Filehub.Auth.Types.Simple qualified as Auth.Simple
 import Filehub.Locale (Locale (..))

@@ -1,8 +1,9 @@
 module Main (main) where
 
+import Filehub.Prelude
 import Filehub qualified
 import GHC.Stack (whoCreated)
-import Control.Exception (SomeException(..), catch, throwIO)
+import Control.Exception (SomeException(..))
 
 
 main :: IO ()

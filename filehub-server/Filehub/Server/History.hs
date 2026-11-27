@@ -2,11 +2,9 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module Filehub.Server.History (history) where
 
+import Filehub.Prelude
 import Control.Monad.Reader (asks)
 import Data.ClientPath (Root(..), AbsPath(..))
-import Data.Maybe (fromMaybe)
-import Data.Text (Text)
-import Data.Text qualified as T
 import Filehub.Env (Env(..))
 import Filehub.Handler (ConfirmLogin)
 import Filehub.History (getHistory)
@@ -21,15 +19,13 @@ import Target.File (FileSys)
 import Target.File qualified as TFile
 import Target.S3 (S3)
 import Target.S3 qualified as TS3
-import Target.Types (AnyTarget, TargetId, TargetHandler(..), handleTarget, Target)
-import UnliftIO (liftIO)
-import UnliftIO.STM (readTVarIO)
+import Target.Types (AnyTarget, TargetHandler(..), handleTarget, Target)
 
 
 targetLabel :: AnyTarget -> Text
 targetLabel t = fromMaybe "?" $ handleTarget t
   [ TargetHandler \(TFile.FileBackend { targetName = tn, root = Root (AbsPath p) } :: Target FileSys) ->
-      fromMaybe (T.pack (takeFileName p)) tn
+      fromMaybe (txt_pack (takeFileName p)) tn
   , TargetHandler \(TS3.S3Backend { bucket = b } :: Target S3) -> b
   ]
 

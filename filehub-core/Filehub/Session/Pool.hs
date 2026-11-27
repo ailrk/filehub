@@ -11,32 +11,30 @@ module Filehub.Session.Pool
   )
   where
 
+import Filehub.Prelude
 import Control.Concurrent.STM (throwSTM)
 import Control.Concurrent.Suspend qualified as Suspend
 import Control.Concurrent.Timer qualified as Timer
 import Control.Monad ((>=>))
 import Control.Monad.Reader (asks)
-import Data.Map.Strict qualified as M
-import Data.Time (addUTCTime)
-import Data.Time.Clock qualified as Time
 import Filehub.Error (FilehubError (..), Error' (..))
 import Filehub.Monad (Filehub)
 import Filehub.Session.Internal qualified as Session
 import Filehub.Session.Types (Session(..), SessionId)
 import Filehub.Session.Types qualified as Session
 import Filehub.Types (Env(..))
-import UnliftIO (MonadIO(..), newTVarIO, modifyTVar, atomically, STM, readTVar)
+import UnliftIO (newTVarIO, modifyTVar, atomically, STM, readTVar)
 
 
 new :: MonadIO m => m Session.Pool
 new = do
-  tvar <- newTVarIO M.empty
+  tvar <- newTVarIO map_empty
 
   let
       cleanUp = do
-        now <- Time.getCurrentTime
+        now <- time_now
         atomically do
-          modifyTVar tvar (M.filter (\session -> now <= session.expireDate))
+          modifyTVar tvar (map_filter (\session -> now <= session.expireDate))
 
   gc <- liftIO $ Timer.repeatedTimer cleanUp (Suspend.sDelay 60)
   pure $ Session.Pool tvar gc
@@ -47,7 +45,7 @@ newSession = do
   Session.Pool pool _ <- asks (.sessionPool)
   session             <- Session.createSession
   atomically do
-    modifyTVar pool (M.insert session.sessionId session)
+    modifyTVar pool (map_insert session.sessionId session)
   pure session
 
 
@@ -55,19 +53,19 @@ extendSession :: SessionId -> Filehub ()
 extendSession sessionId = do
   duration            <- asks (.sessionDuration)
   Session.Pool pool _ <- asks (.sessionPool)
-  now                 <- liftIO Time.getCurrentTime
+  now                 <- liftIO time_now
 
-  let up = maybe Nothing \session -> Just session { expireDate = duration `addUTCTime` now }
+  let up = maybe Nothing \session -> Just session { expireDate = duration `time_add` now }
 
   atomically do
-    modifyTVar pool (M.alter up sessionId)
+    modifyTVar pool (map_alter up sessionId)
 
 
 delete :: SessionId -> Filehub ()
 delete sessionId = do
   Session.Pool pool _ <- asks (.sessionPool)
   atomically do
-    modifyTVar pool (M.delete sessionId)
+    modifyTVar pool (map_delete sessionId)
 
 
 -- | Get a session.
@@ -84,7 +82,7 @@ get sessionId = do
   Session.Pool pool _ <- asks (.sessionPool)
   pure do
     m <- readTVar pool
-    case M.lookup sessionId m of
+    case map_lookup sessionId m of
       Just session -> pure session
       Nothing -> do
         throwSTM (FilehubError InvalidSession "Invalid session")
@@ -98,7 +96,7 @@ withSession_ sessionId f = do
     s <- getSTM
     (s1, o) <- f s
     let up = maybe Nothing \_ -> Just s1
-    modifyTVar pool (M.alter up sessionId)
+    modifyTVar pool (map_alter up sessionId)
     pure o
 
 

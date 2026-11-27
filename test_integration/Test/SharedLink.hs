@@ -1,18 +1,13 @@
 module Test.SharedLink (spec) where
 
-import Data.ByteString.Char8 qualified as BC
+import Filehub.Prelude
 import Data.ClientPath (AbsPath(..))
 import Data.File (File(..), FileInfo, defaultFileInfo)
 import Data.Map.Strict qualified as Map
-import Data.Maybe (isJust, isNothing)
-import Data.Text qualified as Text
-import Data.Time (addUTCTime, getCurrentTime)
 import Data.UUID qualified as UUID
 import Filehub.SharedLink
 import Target.Types (TargetId(..))
 import Test.Hspec
-import UnliftIO (MonadIO(..))
-import UnliftIO.STM (atomically, modifyTVar', readTVar)
 
 
 spec :: Spec
@@ -21,20 +16,20 @@ spec = do
   describe "mkSharedLinkHash" do
 
     it "produces a non-empty hash" do
-      let h = mkSharedLinkHash (BC.pack "hello")
+      let h = mkSharedLinkHash (bs_packChars "hello")
       let SharedLinkHash t = h
-      Text.null t `shouldBe` False
+      txt_null t `shouldBe` False
 
     it "result is at most 7 characters" do
-      let SharedLinkHash t = mkSharedLinkHash (BC.pack "some input")
-      Text.length t `shouldSatisfy` (<= 7)
+      let SharedLinkHash t = mkSharedLinkHash (bs_packChars "some input")
+      txt_length t `shouldSatisfy` (<= 7)
 
     it "is deterministic — same input yields the same hash" do
-      mkSharedLinkHash (BC.pack "hello") `shouldBe` mkSharedLinkHash (BC.pack "hello")
+      mkSharedLinkHash (bs_packChars "hello") `shouldBe` mkSharedLinkHash (bs_packChars "hello")
 
     it "different inputs produce different hashes" do
-      mkSharedLinkHash (BC.pack "hello") `shouldNotBe` mkSharedLinkHash (BC.pack "world")
-      mkSharedLinkHash (BC.pack "")     `shouldNotBe` mkSharedLinkHash (BC.pack "x")
+      mkSharedLinkHash (bs_packChars "hello") `shouldNotBe` mkSharedLinkHash (bs_packChars "world")
+      mkSharedLinkHash (bs_packChars "")     `shouldNotBe` mkSharedLinkHash (bs_packChars "x")
 
 
   describe "createSharedLink" do
@@ -55,7 +50,7 @@ spec = do
     it "hash is non-empty and at most 7 characters" do
       link <- createSharedLink sampleFile dummyTargetId Indefinite False Nothing
       let SharedLinkHash h = link.hash
-      Text.length h `shouldSatisfy` (\n -> n >= 1 && n <= 7)
+      txt_length h `shouldSatisfy` (\n -> n >= 1 && n <= 7)
 
     it "two links for the same file get different hashes (random salt)" do
       l1 <- createSharedLink sampleFile dummyTargetId Indefinite False Nothing
@@ -106,7 +101,7 @@ spec = do
       _ <- lookupSharedLink link.hash pool
       _ <- lookupSharedLink link.hash pool
       m <- poolMap pool
-      case Map.lookup link.hash m of
+      case map_lookup link.hash m of
         Nothing -> expectationFailure "link disappeared from pool"
         Just l  -> l.accessCount `shouldBe` 2
 
@@ -134,7 +129,7 @@ spec = do
       insertLink pool link
       revokeSharedLink link.hash pool
       m <- poolMap pool
-      case Map.lookup link.hash m of
+      case map_lookup link.hash m of
         Nothing -> expectationFailure "link disappeared from pool after revocation"
         Just l  -> l.revoked `shouldBe` True
 
@@ -150,7 +145,7 @@ dummyTargetId = TargetId UUID.nil
 
 insertLink :: MonadIO m => SharedLinkPool -> SharedLink -> m ()
 insertLink (SharedLinkPool poolVar) link =
-  atomically $ modifyTVar' poolVar (Map.insert link.hash link)
+  atomically $ modifyTVar' poolVar (map_insert link.hash link)
 
 poolMap :: MonadIO m => SharedLinkPool -> m (Map.Map SharedLinkHash SharedLink)
 poolMap (SharedLinkPool poolVar) = atomically (readTVar poolVar)

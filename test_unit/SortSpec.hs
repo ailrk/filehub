@@ -1,13 +1,9 @@
 {-# LANGUAGE LambdaCase #-}
 module SortSpec (spec) where
 
+import Filehub.Prelude
 import Data.ClientPath (AbsPath(..))
-import Data.Coerce (coerce)
 import Data.File (File(..), FileType(..), FileInfo, defaultFileInfo)
-import Data.Function (on)
-import Data.List (groupBy)
-import Data.Text (Text)
-import Data.Time (UTCTime, addUTCTime)
 import Filehub.Sort
 import System.FilePath (takeFileName)
 import Test.Hspec

@@ -1,6 +1,7 @@
 {-# LANGUAGE NumericUnderscores #-}
 module Main where
 
+import Filehub.Prelude
 import Criterion.Main
 
 import Data.ByteString.Char8 qualified as BC
@@ -17,7 +18,6 @@ import Lucid (renderBS)
 import Target.Types (TargetId(..))
 import Data.UUID.V4 qualified as UUID
 import UnliftIO.Async (mapConcurrently)
-import UnliftIO.STM (newTVarIO, readTVar, atomically)
 
 import Gen
 

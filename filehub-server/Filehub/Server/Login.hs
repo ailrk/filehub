@@ -1,12 +1,8 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Filehub.Server.Login where
 
-import Data.ByteString.Char8 qualified as BC
-import Data.Maybe (fromMaybe)
-import Data.String.Interpolate (i)
-import Data.Text (Text)
-import Data.Text.Encoding qualified as T
-import Data.Time (UTCTime (..), fromGregorian)
+import Filehub.Prelude
+import Data.Time (UTCTime (..))
 import Data.UUID qualified as UUID
 import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
 import Filehub.Auth.OIDC qualified as Auth.OIDC
@@ -31,7 +27,6 @@ import Network.HTTP.Types.Header (hLocation)
 import Network.URI qualified as URI
 import Prelude hiding (init, readFile)
 import Servant (Header , Headers , NoContent (..) , addHeader , err301 , err303    , errHeaders , noHeader, FromHttpApiData (..)  )
-import UnliftIO (throwIO, atomically)
 import Web.Cookie (SetCookie (..), defaultSetCookie, sameSiteStrict)
 import Filehub.Session.Pool (withSession, modifySession)
 
@@ -43,7 +38,7 @@ loginPage sessionId cookie Nothing = do
   if noLogin
      then go
      else do
-       case fmap T.encodeUtf8 cookie >>= parseHeader' >>= Cookies.fromCookies of
+       case fmap txt_encode cookie >>= parseHeader' >>= Cookies.fromCookies of
          Just authId' -> do
            authId <- withSession sessionId (pure . (.authId))
            if authId == Just authId'
@@ -120,7 +115,7 @@ loginAuthOIDCRedirect sessionId _ providerName = do
         HTTPError err303
           { errHeaders =
               [( "Location"
-               , BC.pack (URI.uriToString id url "")
+               , bs_packChars (URI.uriToString id url "")
                )]
           }
 
@@ -174,7 +169,7 @@ loginAuthOIDCCallback _ _ _ _ mErr mErrDescription _ _ = do
   let message = fromMaybe "" mErr <> ", " <> fromMaybe "" mErrDescription
   throwIO do
     HTTPError err303
-      { errHeaders = [( "Location" , "/login?error=\"" <> T.encodeUtf8 message <> "\"" )]
+      { errHeaders = [( "Location" , "/login?error=\"" <> txt_encode message <> "\"" )]
       }
 
 
@@ -206,7 +201,7 @@ logout sessionId _ = do
       ActiveUser.Pool.delete authId
       addHeader
         (setCookie
-          { setCookieExpires = Just (UTCTime (fromGregorian 1970 1 1) 0) })
+          { setCookieExpires = Just (UTCTime (time_fromGregorian 1970 1 1) 0) })
         . addHeader "/login"
         <$> pure NoContent
     Nothing -> noHeader . noHeader <$> pure NoContent

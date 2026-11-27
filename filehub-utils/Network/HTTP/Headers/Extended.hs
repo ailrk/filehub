@@ -1,7 +1,7 @@
 module Network.HTTP.Headers.Extended where
 
+import Filehub.Prelude
 import Web.HttpApiData (FromHttpApiData (..))
-import Data.ByteString (ByteString)
 
 
 parseHeader' :: FromHttpApiData a => ByteString -> Maybe a

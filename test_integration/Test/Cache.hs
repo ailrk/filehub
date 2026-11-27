@@ -1,9 +1,9 @@
 module Test.Cache (spec) where
 
+import Filehub.Prelude
 import Test.Hspec
 import Filehub.Monad (runFilehub, Filehub)
 import Util.Env (defaultEnv)
-import UnliftIO (MonadIO(..), bracket)
 import Cache.Key (mkCacheKey, SomeCacheKey(..))
 import Control.Service.Cache (MonadCache(..))
 import Filehub.Env (Env)

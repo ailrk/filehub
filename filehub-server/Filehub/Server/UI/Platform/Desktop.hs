@@ -9,34 +9,21 @@ module Filehub.Server.UI.Platform.Desktop
   )
   where
 
-import Data.ClientPath (AbsPath(..), Root(..))
-import Data.Coerce (coerce)
-import Data.DiskUsage (getDiskUsage, DiskUsage(..))
-import Data.Text (Text)
-import Data.Text qualified as T
+import Filehub.Prelude
+import Data.ClientPath (AbsPath(..))
 import Filehub.Locale (Phrase(..), phrase)
 import Filehub.Monad (Filehub)
 import Filehub.Plugin.Types (StaticPlugin(..), ContextMenuEntry(..), ToolbarEntry(..), UrlTemplate(..), EntryAction(..))
-import Filehub.Session (TargetView(..), getTargetViews, getCurrentTarget, makeStorageCurrentTarget, Storage(..), fromClientPathChecked)
+import Filehub.Session (makeStorageCurrentTarget, Storage(..), fromClientPathChecked)
 import Filehub.Server.UI.Platform.Common (sideBar)
-import Filehub.Session.Pool (withSession)
-import Filehub.Session.Types (TargetSessionData(..), Selected (..))
 import Filehub.Sort (sortFiles)
 import Filehub.Server.Util (withQueryParam)
-import Filehub.Storage.S3 qualified as S3
 import Filehub.Template (TemplateContext(..), runTemplate, makeTemplateContext)
 import Filehub.Template.Desktop qualified as Template.Desktop
 import Filehub.Types ( SessionId(..), ClientPath)
 import Lucid
 import Prelude hiding (readFile)
 import System.FilePath (takeFileName)
-import Control.Monad (join)
-import Control.Monad.Reader (MonadReader(..))
-import UnliftIO (readTVarIO, tryAny)
-import Target.File (FileSys, Target(..))
-import UnliftIO.Async (forConcurrently)
-import Target.S3 (S3)
-import Target.Types (handleTarget, targetHandler)
 
 
 editorModal :: SessionId -> Maybe ClientPath -> Filehub (Html ())
@@ -65,7 +52,7 @@ index sessionId = do
 i18nPayload :: Bool -> Phrase -> Text
 i18nPayload readOnly p = "window.filehubI18n=" <> obj <> ";"
   where
-    obj = "{" <> T.intercalate ","
+    obj = "{" <> txt_intercalate ","
       [ kv "delete"              p.contextmenu_delete
       , kv "rename"              p.contextmenu_rename
       , kv "copy"                p.contextmenu_copy
@@ -109,17 +96,17 @@ i18nPayload readOnly p = "window.filehubI18n=" <> obj <> ";"
       , "\"readOnly\":" <> if readOnly then "true" else "false"
       ] <> "}"
     kv key val = "\"" <> key <> "\":\"" <> escape val <> "\""
-    escape = T.replace "\t" "\\t" . T.replace "\r" "\\r" . T.replace "\n" "\\n" . T.replace "\"" "\\\"" . T.replace "\\" "\\\\"
+    escape = txt_replace "\t" "\\t" . txt_replace "\r" "\\r" . txt_replace "\n" "\\n" . txt_replace "\"" "\\\"" . txt_replace "\\" "\\\\"
 
 
 pluginsPayload :: [StaticPlugin] -> Text
 pluginsPayload ps = "window.filehubPlugins=" <> arr <> ";"
   where
-    arr = "[" <> T.intercalate "," (map encodePlugin ps) <> "]"
+    arr = "[" <> txt_intercalate "," (map encodePlugin ps) <> "]"
     encodePlugin p =
       "{\"name\":" <> str p.name <>
-      ",\"contextMenu\":[" <> T.intercalate "," (map encodeContextMenu p.contextMenu) <> "]" <>
-      ",\"toolbar\":[" <> T.intercalate "," (map encodeToolbar p.toolbar) <> "]" <>
+      ",\"contextMenu\":[" <> txt_intercalate "," (map encodeContextMenu p.contextMenu) <> "]" <>
+      ",\"toolbar\":[" <> txt_intercalate "," (map encodeToolbar p.toolbar) <> "]" <>
       "}"
     encodeToolbar (ToolbarEntry { mime, label, action }) =
       "{\"mime\":" <> str mime <>
@@ -136,7 +123,7 @@ pluginsPayload ps = "window.filehubPlugins=" <> arr <> ";"
     encodeAction (ScriptAction s) =
       "{\"type\":\"script\",\"value\":" <> str s <> "}"
     str t = "\"" <> escape t <> "\""
-    escape = T.replace "\t" "\\t" . T.replace "\r" "\\r" . T.replace "\n" "\\n" . T.replace "\"" "\\\"" . T.replace "\\" "\\\\"
+    escape = txt_replace "\t" "\\t" . txt_replace "\r" "\\r" . txt_replace "\n" "\\n" . txt_replace "\"" "\\\"" . txt_replace "\\" "\\\\"
 
 
 pluginsDataEl :: [StaticPlugin] -> [Text] -> Html ()

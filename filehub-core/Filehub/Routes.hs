@@ -26,8 +26,8 @@ module Filehub.Routes
   )
   where
 
+import Filehub.Prelude
 import Data.Data (Proxy(..))
-import Data.Text (Text)
 import Servant
     ( (:>),
       Get,
@@ -78,12 +78,10 @@ import Filehub.Types
     , AddTargetForm
     , AppearanceForm
     )
-import GHC.Generics (Generic)
 import Filehub.Handler ( ConfirmReadOnly, ConfirmMobilOnly, ConfirmDesktopOnly, ConfirmLogin
                        , ConfirmRateLimitLogin, ConfirmRateLimitUpload, ConfirmRateLimitDownload
                        , ConfirmRateLimitSearch, ConfirmRateLimitSharedLink
                        )
-import Data.ByteString (ByteString)
 import Conduit (ConduitT, ResourceT)
 import Amazonka.Data (Value)
 import Web.Cookie (SetCookie)

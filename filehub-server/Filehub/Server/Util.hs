@@ -6,13 +6,12 @@ module Filehub.Server.Util
   )
   where
 
+import Filehub.Prelude
 import Filehub.Error (FilehubError (..))
 import Prelude hiding (elem)
 import Prelude hiding (readFile)
 import Servant.Server (err400)
 import Filehub.Monad (Filehub)
-import UnliftIO (throwIO)
-import Control.Monad (when)
 
 
 -- | Ensure a query parameter presents, otherwise it's a client error

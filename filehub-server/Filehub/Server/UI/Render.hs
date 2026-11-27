@@ -19,6 +19,7 @@ module Filehub.Server.UI.Render
   )
   where
 
+import Filehub.Prelude
 import Data.File (FileInfo)
 import Filehub.Handler (ConfirmLogin)
 import Filehub.Monad
@@ -35,14 +36,11 @@ import Filehub.Template.Desktop qualified as Template.Desktop
 import Filehub.Template.Mobile qualified as Template.Mobile
 import Filehub.Template.Common qualified as Template
 import Filehub.Types
-import Filehub.Env (Env(..))
 import Lucid hiding ()
 import Prelude hiding (elem, readFile, init)
 import Prelude hiding (init, readFile)
-import Data.Text (Text)
 import Lucid.Htmx (HxSwapOOB(..), HxOn (..), Trigger (..))
 import Control.Monad.Reader (ask)
-import UnliftIO (readTVarIO)
 
 
 entry :: SessionId -> FileInfo -> Filehub (Html ())

@@ -13,16 +13,9 @@ module Filehub.Server.Settings
   , settingsUpdateAppearance
   ) where
 
-import Control.Concurrent.STM (writeTVar, modifyTVar)
+import Filehub.Prelude
 import Control.Monad.Reader (ask)
 import Data.ClientPath (AbsPath(..), Root(..))
-import Data.Map qualified as M
-import Data.Set (Set)
-import Data.Set qualified as Set
-import Data.String.Interpolate (i)
-import Data.Text (Text)
-import Data.Text qualified as T
-import Data.Text.IO qualified as T
 import Filehub.Error (FilehubError(..))
 import Filehub.Handler (ConfirmLogin)
 import Filehub.Locale (Locale(..))
@@ -40,7 +33,6 @@ import Target.File (FileSys, Target(..))
 import Target.File qualified as FS
 import Target.S3 qualified as S3
 import Target.Types (AnyTarget(..), TargetId, getTargetId, handleTarget, targetHandler)
-import UnliftIO (atomically, readTVarIO, throwIO, liftIO, newTVarIO)
 import Filehub.Template.Settings qualified as Template
 
 
@@ -76,7 +68,7 @@ settingsExport _ _ = do
     Just path -> do
       exists <- liftIO (doesFileExist path)
       if exists
-        then liftIO (T.readFile path)
+        then liftIO (txt_readFile path)
         else pure "# Dynamic config file not yet created.\n"
 
 
@@ -163,7 +155,7 @@ parseExactlyOne tomlText =
 
 
 dynNames :: [StaticPlugin] -> Set Text
-dynNames ps = Set.fromList (map (\(StaticPlugin { name }) -> name) ps)
+dynNames ps = set_fromList (map (\(StaticPlugin { name }) -> name) ps)
 
 
 pluginRemove :: Text -> [StaticPlugin] -> [StaticPlugin]
@@ -186,10 +178,10 @@ settingsAddTarget sessionId _ form = do
   env <- ask
   tgt <- case form.targetType of
     "fs" -> do
-      t <- FS.initialize FS.Config { root = T.unpack form.targetPath }
+      t <- FS.initialize FS.Config { root = txt_unpack form.targetPath }
       pure (AnyTarget t)
     "s3" -> do
-      t <- S3.initialize S3.Config { bucket = T.unpack form.targetPath }
+      t <- S3.initialize S3.Config { bucket = txt_unpack form.targetPath }
       pure (AnyTarget t)
     other ->
       throwIO (HTTPError (err400 { errBody = [i|Unknown target type: #{other}|] }))
@@ -282,20 +274,20 @@ addTargetToAllSessions env tid tgt = do
   sessions <- readTVarIO pool
   newTsds  <- liftIO $ traverse (\_ -> mkTargetSessionData tgt) sessions
   atomically $ modifyTVar pool \m ->
-    M.intersectionWith (insertSessionTarget tid) m newTsds
+    map_intersectionWith (insertSessionTarget tid) m newTsds
 
 
 removeTargetFromAllSessions :: Env -> TargetId -> Filehub ()
 removeTargetFromAllSessions env tid = do
   let Pool { pool } = env.sessionPool
-  atomically $ modifyTVar pool $ M.map (deleteSessionTarget tid)
+  atomically $ modifyTVar pool $ map_map (deleteSessionTarget tid)
 
 
 insertSessionTarget :: TargetId -> Session -> TargetSessionData -> Session
-insertSessionTarget tid s tsd = s { targets = M.insert tid tsd s.targets }
+insertSessionTarget tid s tsd = s { targets = map_insert tid tsd s.targets }
 
 deleteSessionTarget :: TargetId -> Session -> Session
-deleteSessionTarget tid s = s { targets = M.delete tid s.targets }
+deleteSessionTarget tid s = s { targets = map_delete tid s.targets }
 
 
 ------------------------------------

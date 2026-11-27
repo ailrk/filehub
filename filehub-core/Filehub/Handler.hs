@@ -25,10 +25,8 @@ module Filehub.Handler
   )
   where
 
+import Filehub.Prelude
 import Data.Bifunctor (Bifunctor(..))
-import Data.Text (Text)
-import Data.Text qualified as T
-import Data.Text.Encoding qualified as T
 import Data.Text.Lazy qualified as TL
 import Data.Text.Lazy.Encoding qualified as TL
 import Filehub.RateLimit qualified as RateLimit
@@ -44,12 +42,10 @@ import Prelude hiding (readFile)
 import Servant
 import Filehub.Cookie qualified as Cookies
 import Filehub.Monad (runFilehub, Filehub)
-import UnliftIO (MonadIO(..), atomically)
 import Data.ByteString.Lazy qualified as LBS
 import Control.Monad.Trans.Except (ExceptT(..), withExceptT)
 import Network.HTTP.Types.Header (hLocation)
 import Control.Monad.Trans.Maybe (MaybeT(..))
-import Control.Monad (guard)
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.Cookie (FromCookies(..))
 import Filehub.SharedLink (SharedLinkPermit)
@@ -182,12 +178,12 @@ data ConfirmRateLimitSharedLink = ConfirmRateLimitSharedLink
 clientIP :: Request -> Text
 clientIP req =
   case lookup "X-Forwarded-For" (requestHeaders req) of
-    Just xff -> T.strip . T.takeWhile (/= ',') $ T.decodeUtf8 xff
-    Nothing  -> stripPort . T.pack . show $ remoteHost req
+    Just xff -> txt_strip . txt_takeWhile (/= ',') $ txt_decode xff
+    Nothing  -> stripPort . txt_pack . show $ remoteHost req
   where
     stripPort t
-      | Just inner <- T.stripPrefix "[" t = T.takeWhile (/= ']') inner
-      | otherwise                          = T.takeWhile (/= ':') t
+      | Just inner <- txt_stripPrefix "[" t = txt_takeWhile (/= ']') inner
+      | otherwise                          = txt_takeWhile (/= ':') t
 
 
 checkRL :: RateLimiter -> Request -> Handler ()

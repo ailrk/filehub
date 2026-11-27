@@ -11,19 +11,10 @@ module Filehub.Template.Mobile
   )
   where
 
-import Control.Monad (join, when)
-import Data.ByteString (ByteString)
-import Data.ClientPath (ClientPath(..), AbsPath (..), Root (..))
-import Data.DiskUsage (DiskUsage(..))
+import Filehub.Prelude
+import Data.ClientPath (ClientPath(..), AbsPath (..))
 import Data.File (File(..), FileInfo, IsLink (..))
-import Data.Foldable (traverse_)
-import Data.Maybe (fromMaybe)
-import Data.String.Interpolate (iii, i)
-import Data.Text (Text)
-import Data.Text qualified as Text
-import Data.Text qualified as T
-import Data.Text.Encoding qualified as Text
-import Data.Time.Format (formatTime, defaultTimeLocale)
+import Data.String.Interpolate (iii)
 import Filehub.Locale (Phrase(..), phrase, Locale (..))
 import Filehub.Routes (Api(..))
 import Filehub.Session.Selected qualified as Selected
@@ -31,21 +22,15 @@ import Filehub.Size (toReadableSize)
 import Filehub.Template (Template, TemplateContext(..), runTemplate)
 import Filehub.Template.Common qualified as Template
 import Filehub.Template.Common
-  ( sideBarId, viewId, searchBar, toolBarId, tableId
+  ( viewId, searchBar, toolBarId, tableId
   , fileNameElement
   , sortIconName, sortIconMTime, sortIconSize, sortByText
   )
 import Filehub.Theme (Theme(..))
 import Lucid
 import System.FilePath (takeFileName)
-import Target.File (Target (..), FileSys)
-import Target.S3 (Target (..), S3)
-import Target.Types (targetHandler, AnyTarget, handleTarget)
-import Target.Types qualified as Target
 import Filehub.Session (TargetView(..))
 import Filehub.Session.Types (Selected(..))
-import Target.Dummy (DummyTarget)
-import Data.Coerce (coerce)
 import Control.Monad.Reader (asks, MonadReader (..))
 import Data.ClientPath.View (ClientPathView(..), AsClientPathView (..))
 import Lucid.Htmx (hxGet, hxPost, hxTrigger, hxEncoding, Trigger (..), hxConfirm, hxDelete, HtmxEvent (..), hxOn)
@@ -159,14 +144,14 @@ entry file = do
   TargetView { target } <- asks (.currentTarget)
   selected              <- asks (.selected)
 
-  let fileName = Text.pack (coerce takeFileName file.path)
-      mtimeStr = maybe "" (Text.pack . formatTime defaultTimeLocale "%Y-%m-%dT%H:%M:%S") file.mtime
-      atimeStr = maybe "" (Text.pack . formatTime defaultTimeLocale "%Y-%m-%dT%H:%M:%S") file.atime
-      sizeStr  = Text.pack (show (fromMaybe 0 file.size))
-      mimeStr  = Text.decodeUtf8 file.mimetype
+  let fileName = txt_pack (coerce takeFileName file.path)
+      mtimeStr = maybe "" (txt_pack . time_format "%Y-%m-%dT%H:%M:%S") file.mtime
+      atimeStr = maybe "" (txt_pack . time_format "%Y-%m-%dT%H:%M:%S") file.atime
+      sizeStr  = txt_pack (show (fromMaybe 0 file.size))
+      mimeStr  = txt_decode file.mimetype
       attrs :: [Attribute]
       attrs =
-        [ term "data-path" (Text.pack (coerce clientPath))
+        [ term "data-path" (txt_pack (coerce clientPath))
         , id_ [i|tr-#{hashPath}|]
         , class_ "table-item "
         , term "data-name" fileName
@@ -198,7 +183,7 @@ sizeElement :: FileInfo -> Html ()
 sizeElement file =
   span_ (toHtml displaySize)
     `with` [ class_ "field "
-           , title_ (Text.pack displaySize)
+           , title_ (txt_pack displaySize)
            ]
   where
     displaySize = toReadableSize $ fromMaybe 0 file.size
@@ -208,10 +193,10 @@ modifiedDateElement :: FileInfo -> Html ()
 modifiedDateElement file =
   span_ (toHtml displayTime)
     `with` [ class_ "field "
-           , title_ (Text.pack displayTime)
+           , title_ (txt_pack displayTime)
            ]
   where
-    displayTime = maybe mempty (formatTime defaultTimeLocale "%Y/%m/%d") file.mtime
+    displayTime = maybe mempty (time_format "%Y/%m/%d") file.mtime
 
 
 languagePanel :: Html ()
@@ -497,7 +482,7 @@ editorModal (ClientPath path, filename) content = do
   pure do
     div_ [ id_ editorModalId ] do
       form_ (asHtmx @"updateFile" hxPost ()
-            [ hxConfirm (Text.replace "{}" (Text.pack filename) confirm_save_edit)
+            [ hxConfirm (txt_replace "{}" (txt_pack filename) confirm_save_edit)
             , hxOn AfterRequest "document.getElementById('editor-modal').remove()"
             ]) do
         div_ do
@@ -520,7 +505,7 @@ editorModal (ClientPath path, filename) content = do
         input_ [ class_ "form-control "
                , type_ "text"
                , name_ "path"
-               , value_ (Text.pack path)
+               , value_ (txt_pack path)
                , style_ "display: none;"
                , placeholder_ "Filename"
                ]
@@ -535,7 +520,7 @@ editorModal (ClientPath path, filename) content = do
             , if readOnly then [ readonly_ "readonly" ] else mempty
             ]
           )
-          (toHtml (Text.decodeUtf8 content))
+          (toHtml (txt_decode content))
 
 
 ------------------------------------

@@ -1,10 +1,10 @@
 module Filehub.Auth.Types.AuthId (AuthId(..), createAuthId) where
 
+import Filehub.Prelude
 import Data.UUID (UUID)
 import Data.UUID.V4 qualified as UUID
 import Data.Hashable (Hashable)
 import Prelude hiding (readFile)
-import UnliftIO (MonadIO (..))
 
 
 newtype AuthId = AuthId UUID

@@ -7,11 +7,11 @@ module Filehub.Routes.LinkConf
   )
   where
 
+import Filehub.Prelude
 import Filehub.Routes (Api(..))
+import GHC.Generics (M1(..), K1(..), (:*:)(..), to)
 import Servant
-import Data.Text (Text)
 import Lucid.Htmx (Swap (..))
-import GHC.Generics
 import Filehub.Types (FilehubEvent)
 
 

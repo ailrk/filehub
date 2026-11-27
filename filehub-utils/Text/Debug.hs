@@ -6,18 +6,12 @@
 -- Debug typeclass for debug printing so we don't need to define custom Show instance.
 -- If the type already has a Show instance, just dervie it with `DerivingVia`
 module Text.Debug (Debug(..)) where
-import GHC.Generics
-
-import Data.ByteString (ByteString)
-import Data.ByteString qualified as B
+import Filehub.Prelude
+import GHC.Generics (Rep, from, (:+:)(..), (:*:)(..), C1, S1, D1, K1(..), U1(..), M1(..), Constructor, conName)
 import Data.ByteString.Lazy qualified as BL
-import Data.Text (Text)
-import Data.Text qualified as T
 import Data.Text.Lazy qualified as LT
 import Data.UUID (UUID)
-import Data.Time (UTCTime)
 import Web.JWT (JWT)
-import Data.List (intersperse)
 
 
 class Debug a where
@@ -73,10 +67,10 @@ instance Debug Float where          debug = show
 instance Debug Double where         debug = show
 instance Debug Bool where           debug = show
 instance Debug Char where           debug = show
-instance Debug Text where           debug = show . T.unpack
-instance Debug LT.Text where        debug = show . LT.unpack
-instance Debug ByteString where     debug = show . B.unpack
-instance Debug BL.ByteString where  debug = show . BL.unpack
+instance Debug Text where           debug = show . txt_unpack
+instance Debug LT.Text where        debug = show . lTxt_unpack
+instance Debug ByteString where     debug = show . bs_unpack
+instance Debug BL.ByteString where  debug = show . lBS_unpack
 instance Debug () where             debug = show
 instance Debug UUID where           debug = show
 instance Debug UTCTime where        debug = show

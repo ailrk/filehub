@@ -18,32 +18,23 @@ module Filehub.Server.File
   , serve
   ) where
 
+import Filehub.Prelude
 import Codec.Archive.Zip qualified as Zip
-import Conduit (ConduitT, ResourceT, MonadIO (..), runResourceT, runConduit, (.|))
+import Conduit (ConduitT, ResourceT, runResourceT, runConduit, (.|))
 import Conduit qualified
-import Control.Monad (when, unless, replicateM, join)
+import Control.Monad (replicateM)
 import Control.Monad.Reader (MonadReader(..))
 import Data.Binary.Builder qualified as BB
-import Data.ByteString (ByteString)
-import Data.ByteString.Char8 qualified as BC
 import Data.ClientPath (ClientPath (..), AbsPath (..), (<./>), Root (..))
 import Data.ClientPath qualified as ClientPath
 import Data.ClientPath.IO (validateAbsPath)
 import Data.ClientPath.View (ClientPathView(..), asClientPathView)
-import Data.Coerce (coerce)
 import Data.File (FileType(..), File(..), FileContent (..), defaultFileWithContent, FileInfo, IsLink (..))
-import Data.Foldable (for_)
-import Data.Maybe (fromMaybe, catMaybes)
 import Data.Ratio ((%))
-import Data.String.Interpolate (i)
-import Data.Text (Text)
-import Data.Text qualified as T
-import Data.Text.Encoding qualified as T
-import Data.Traversable (for)
 import Filehub.Error ( FilehubError(..), Error' (..) )
 import Filehub.Handler (ConfirmLogin, ConfirmReadOnly, ConfirmRateLimitUpload(..), ConfirmRateLimitDownload(..))
 import Filehub.Monad
-import Filehub.Notification.Types (Notification(..))
+import Filehub.Notification.Types (Notification(..), newTaskId)
 import Filehub.Orphan ()
 import Filehub.Server.File.Paste (paste)
 import Filehub.Server.File.Delete (delete)
@@ -60,7 +51,6 @@ import Filehub.Types ( NewFile(..) , NewFolder(..), UpdatedFile(..) , UpdatedFil
 import Lucid hiding (for_)
 import Network.HTTP.Types (ByteRange(..), parseByteRanges)
 import Network.HTTP.Types.Status (status404, status206, status200)
-import Network.Mime.Extended (isMime)
 import Network.Wai (Request(..), responseLBS, responseStream)
 import Prelude hiding (init, readFile)
 import Servant (Header , Headers  , addHeader, Tagged (..), Application, ServerError (..), FromHttpApiData (..), err404)
@@ -70,12 +60,8 @@ import System.FilePath (takeFileName, (</>), makeRelative, takeDirectory)
 import System.IO.Temp qualified as Temp
 import System.Random (randomRIO)
 import Text.Printf (printf)
-import Data.List (isPrefixOf)
-import Data.Set qualified as Set
-import UnliftIO (throwIO, newEmptyMVar, takeMVar, putMVar, onException)
-import UnliftIO.Async (forConcurrently_)
-import UnliftIO.STM (atomically, modifyTVar', readTVar, newTVarIO, writeTBQueue)
-import Worker.Task (newTaskId)
+import UnliftIO (newEmptyMVar, takeMVar, putMVar)
+import UnliftIO.STM (writeTBQueue)
 import Filehub.Session.Pool (withSession)
 import Filehub.Session.Types (TargetSessionData(..))
 import Filehub.Server.UI.Render (runUIPartialUpdate, UIPartialUpdate (..))
@@ -118,7 +104,7 @@ updateFile sessionId _ _ (UpdatedFile clientPath content) = do
   path  <- fromClientPathChecked root clientPath
   storage.write $ defaultFileWithContent
     { path     = path
-    , content  = FileContentRaw (T.encodeUtf8 content)
+    , content  = FileContentRaw (txt_encode content)
     }
   UI.view sessionId
 
@@ -137,7 +123,7 @@ newFile' sessionId name create = do
 
     pure ( dir, order, root)
 
-  let nameStr = T.unpack name
+  let nameStr = txt_unpack name
   when (null nameStr || '/' `elem` nameStr || '\0' `elem` nameStr || nameStr == "..") do
     throwIO (FilehubError InvalidPath "Invalid filename")
   path    <- validateAbsPath (coerce dir </> nameStr) (FilehubError InvalidPath ("<redacted>/" <> show name))
@@ -171,7 +157,7 @@ newFile sessionId _ _ (NewFile name) = do
     root            <- getRoot env s
     dir             <- readTVar td.currentDir
     pure (Target.Types.getTargetId t, root, dir)
-  let clientPath = ClientPath.toClientPath root (AbsPath (coerce dir </> T.unpack name))
+  let clientPath = ClientPath.toClientPath root (AbsPath (coerce dir </> txt_unpack name))
   withHistory sessionId (OpNewFile targetId clientPath) do
     newFile' sessionId name storage.new
 
@@ -185,7 +171,7 @@ newFolder sessionId _ _ (NewFolder name) = do
     root            <- getRoot env s
     dir             <- readTVar td.currentDir
     pure (Target.Types.getTargetId t, root, dir)
-  let clientPath = ClientPath.toClientPath root (AbsPath (coerce dir </> T.unpack name))
+  let clientPath = ClientPath.toClientPath root (AbsPath (coerce dir </> txt_unpack name))
   withHistory sessionId (OpNewFolder targetId clientPath) do
     newFile' sessionId name storage.newFolder
 
@@ -263,7 +249,7 @@ move sessionId _ _ (MoveFile src tgt) = do
          )
 
   taskId <- newTaskId
-  withSession sessionId \s -> modifyTVar' s.pendingTasks (Set.insert taskId)
+  withSession sessionId \s -> modifyTVar' s.pendingTasks (set_insert taskId)
   lk     <- newEmptyMVar
 
   srcPaths <- traverse (fromClientPathChecked root) src
@@ -385,7 +371,7 @@ download sessionId _ _ clientPaths = do
                 m <- Zip.mkEntrySelector relativePath
                 Zip.sinkEntry Zip.Zstd conduit m
 
-      tag <- T.pack <$> replicateM 8 (randomRIO ('a', 'z'))
+      tag <- txt_pack <$> replicateM 8 (randomRIO ('a', 'z'))
 
       let conduit =
             Conduit.bracketP
@@ -400,7 +386,7 @@ upload :: SessionId -> ConfirmLogin -> ConfirmReadOnly -> ConfirmRateLimitUpload
 upload sessionId _ _ _ multipart = do
   env           <- ask
   taskId        <- newTaskId
-  withSession sessionId \s -> modifyTVar' s.pendingTasks (Set.insert taskId)
+  withSession sessionId \s -> modifyTVar' s.pendingTasks (set_insert taskId)
   notifications <- withSession sessionId (pure . (.notifications))
   (targetId, root, dir) <- withSession sessionId \s -> do
     TargetView t td <- getCurrentTarget env s
@@ -424,7 +410,7 @@ upload sessionId _ _ _ multipart = do
     storage   <- makeStorageCurrentTarget sessionId
     forConcurrently_ multipart.files \filedata -> do
       storage.upload filedata
-      let clientPath = ClientPath.toClientPath root (AbsPath (coerce dir </> T.unpack filedata.fdFileName))
+      let clientPath = ClientPath.toClientPath root (AbsPath (coerce dir </> txt_unpack filedata.fdFileName))
       recordHistory sessionId (OpUpload targetId clientPath) True
       atomically do
         modifyTVar' uploadCounter (+ 1)
@@ -464,7 +450,7 @@ serve env sessionId _ _ = Tagged $ \req respond -> do
     root       <- withSession sessionId (getRoot env)
     storage    <- makeStorageCurrentTarget sessionId
     clientPath <- do
-      text <- T.decodeUtf8 <$> withQueryParam mFile
+      text <- txt_decode <$> withQueryParam mFile
       case parseUrlPiece @ClientPath text of
         Right c  -> pure c
         Left err -> throwIO do HTTPError err404 { errBody = [i|#{err}|] }
@@ -488,7 +474,7 @@ serve env sessionId _ _ = Tagged $ \req respond -> do
                                    Just (ByteRangeFrom s : _)     -> (status206, Just s, Just (fileSize - s))
                                    _                              -> (status200, Nothing, Nothing)
 
-          renderRangeHeader s e t = BC.pack $ printf "bytes %d-%d/%d" s e t
+          renderRangeHeader s e t = bs_packChars $ printf "bytes %d-%d/%d" s e t
 
           from = fromMaybe 0 mOff
           len  = fromMaybe 0 mLen
@@ -499,9 +485,9 @@ serve env sessionId _ _ = Tagged $ \req respond -> do
                     ]
                 ++ if status == status206
                       then [ ("Content-Range", renderRangeHeader from  to fileSize)
-                           , ("Content-Length", BC.pack (show len))
+                           , ("Content-Length", bs_packChars (show len))
                            ]
-                      else [ ("Content-Length", BC.pack (show fileSize)) ]
+                      else [ ("Content-Length", bs_packChars (show fileSize)) ]
 
       respond do
         responseStream status headers $ \send flush -> do

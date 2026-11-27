@@ -5,9 +5,7 @@ module Filehub.Plugin.Toml
   , pluginsCodec
   ) where
 
-import Control.Applicative ((<|>))
-import Data.Text (Text)
-import Data.Text qualified as T
+import Filehub.Prelude
 import Filehub.Plugin.Types
 import Toml (TomlCodec, (.=), Key)
 import Toml qualified
@@ -20,14 +18,14 @@ serializePlugins ps  = Toml.encode (pluginsCodec "plugin") (StaticPlugins ps)
 
 parsePlugins :: Text -> Either Text [StaticPlugin]
 parsePlugins t
-  | T.null (T.strip t) = Right []
+  | txt_null (txt_strip t) = Right []
   | otherwise = case Toml.decode (pluginsCodec "plugin") t of
-      Left errs -> Left (T.unlines (map (T.pack . show) errs))
+      Left errs -> Left (txt_unlines (map (txt_pack . show) errs))
       Right (StaticPlugins ps) -> Right ps
 
 
 pluginHint :: Text
-pluginHint = T.unlines
+pluginHint = txt_unlines
   [ "# Define plugins in TOML. Each plugin is a [[plugin]] table."
   , "#"
   , "# [[plugin]]"

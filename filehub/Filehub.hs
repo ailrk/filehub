@@ -8,17 +8,9 @@
 module Filehub (main , mainDev)
   where
 
+import Filehub.Prelude
 import Cache.InMemory
-import Control.Concurrent.STM (TVar)
-import Control.Exception (SomeException, throwIO)
-import Control.Monad (when)
 import Data.ClientPath (Root(..), AbsPath(..))
-import Data.Functor.Identity (Identity(..))
-import Data.Set qualified as Set
-import Data.String.Interpolate (i)
-import Data.Text qualified as T
-import Data.Text.IO qualified as T
-import Data.Time (secondsToNominalDiffTime)
 import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
 import Filehub.Auth.Types.OIDC (OIDCAuthProviders(..))
 import Filehub.Auth.Simple qualified as Auth.Simple
@@ -41,7 +33,6 @@ import Filehub.Theme (Theme)
 import LockManager.Local qualified
 import Network.HTTP.Client.TLS (newTlsManager)
 import Network.Wai.Handler.Warp (setPort, defaultSettings, runSettings)
-import Data.Maybe (fromMaybe)
 import Prelude hiding (init, readFile)
 import Servant.Conduit ()
 import System.Directory (doesFileExist)
@@ -51,9 +42,8 @@ import Target.File (Target(..), FileSys)
 import Target.S3 qualified as S3
 import Target.S3 (Target(..), S3)
 import Target.Types (AnyTarget (..), getTargetId, handleTarget, targetHandler)
-import UnliftIO (catch, hFlush, stdout, hSetBuffering, BufferMode (..), stderr)
+import UnliftIO (hFlush, stdout, hSetBuffering, BufferMode (..), stderr)
 import Log (logInfo_, runLogT)
-import UnliftIO.STM (newTVarIO, readTVarIO)
 import Control.Handle.Cache qualified as Cache
 import Control.Handle.EvtLog qualified as EvtLog
 import Control.Handle.LockManager qualified as LockManager
@@ -93,7 +83,7 @@ main = Log.withColoredStdoutLogger \logger -> do
         pure
         (Config.merge optionConfig (fileConfig <> dynFileConfig))
 
-  jsFileContents <- traverse T.readFile pluginJsFilePaths
+  jsFileContents <- traverse txt_readFile pluginJsFilePaths
 
   when (null targetConfigs.unTargets) do
     throwIO (userError "No target specified")
@@ -115,7 +105,7 @@ main = Log.withColoredStdoutLogger \logger -> do
     -- Static targets from CLI + file config
     targetsList    <- runLogT "targets" logger verbosity
                         $ fromTargetConfig targetConfigs.unTargets
-    let staticTids = Set.fromList (fst <$> targetsList)
+    let staticTids = set_fromList (fst <$> targetsList)
 
     -- Dynamic targets previously saved by the settings UI
     dynTargetsList <- runLogT "targets" logger verbosity
@@ -147,7 +137,7 @@ main = Log.withColoredStdoutLogger \logger -> do
       { port              = port
       , theme             = themeVar
       , sessionPool       = sessionPool
-      , sessionDuration   = secondsToNominalDiffTime (60 * 60)
+      , sessionDuration   = time_fromSeconds (60 * 60)
       , targets           = targetsVar
       , readOnly          = readOnly
       , locale            = localeVar
@@ -222,7 +212,7 @@ buildPersistCallback (Just path) themeVar localeVar dynPluginsVar dynTargetsVar 
         , plugins = StaticPlugins dynPlugins
         , targets = Targets (extractTargetConfig <$> dynTargets)
         }
-  T.writeFile path (Config.Toml.serializeConfig dynCfg)
+  txt_writeFile path (Config.Toml.serializeConfig dynCfg)
 
 
 -- | Reconstruct a TargetConfig from an initialised AnyTarget for persistence.
@@ -233,7 +223,7 @@ extractTargetConfig t =
       [ targetHandler @FileSys \(FileBackend { root = Root (AbsPath fp) }) ->
             FSTargetConfig (FS.Config { root = fp })
       , targetHandler @S3 \(S3Backend { bucket = b }) ->
-            S3TargetConfig (S3.Config { bucket = T.unpack b })
+            S3TargetConfig (S3.Config { bucket = txt_unpack b })
       ]
 
 

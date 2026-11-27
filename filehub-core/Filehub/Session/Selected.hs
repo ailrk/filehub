@@ -10,6 +10,7 @@ module Filehub.Session.Selected
   )
   where
 
+import Filehub.Prelude
 import Data.ClientPath (ClientPath)
 import Data.List (union)
 import Data.Monoid (Sum(..))
@@ -22,9 +23,6 @@ import Prelude qualified
 import Target.Types (AnyTarget)
 import Filehub.Session.Pool (withSession)
 import UnliftIO (STM, readTVar, modifyTVar)
-import Data.Traversable (for)
-import Data.Foldable (for_)
-import Data.Maybe (catMaybes)
 
 
 toList :: Selected -> [ClientPath]

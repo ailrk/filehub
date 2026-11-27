@@ -1,13 +1,11 @@
 module Util.Env where
 
+import Filehub.Prelude
 import Cache.InMemory qualified
 import Control.Handle.Cache qualified as Cache
 import Control.Handle.LockManager qualified as LockManager
 import Data.ClientPath (Root(..), AbsPath(..))
 import Data.Maybe (fromJust)
-import Data.Set qualified as Set
-import Data.Text qualified as Text
-import Data.Time (secondsToNominalDiffTime)
 import Data.UUID qualified as UUID
 import Control.Handle.EvtLog qualified as EvtLog
 import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
@@ -20,7 +18,6 @@ import Filehub.RateLimit qualified as RateLimit
 import Filehub.Session.Pool qualified as Session.Pool
 import Filehub.SharedLink qualified as SharedLink
 import Filehub.Theme (Theme(..))
-import GHC.Conc (newTVarIO)
 import LockManager.Local qualified
 import Log (mkLogger, LogMessage(..), Logger, LogLevel (..))
 import Network.HTTP.Client.TLS (newTlsManager)
@@ -80,7 +77,7 @@ defaultEnv = do
           , plugins           = pluginsVar
           , dynamicPlugins    = dynPluginsVar
           , dynamicTargets    = dynTargetsVar
-          , staticTargetIds   = Set.singleton tid
+          , staticTargetIds   = set_singleton tid
           , persistDynConfig  = pure ()
           , dynamicConfigPath = Nothing
           , rateLimiters      = rateLimiters
@@ -91,7 +88,7 @@ defaultEnv = do
 
 nullLogger :: IO Logger
 nullLogger = mkLogger "" $ \msg -> do
-  putStrLn (Text.unpack $ "    " <> msg.lmMessage)
+  putStrLn (txt_unpack $ "    " <> msg.lmMessage)
   pure ()
 
 

@@ -10,12 +10,7 @@ module Filehub.Template.Settings
   , settingsTargetsSection
   ) where
 
-import Data.Foldable (traverse_)
-import Data.Maybe (fromMaybe)
-import Data.Set (Set)
-import Data.Set qualified as Set
-import Data.Text (Text)
-import Data.Text qualified as T
+import Filehub.Prelude
 import Filehub.Locale (Locale(..))
 import Filehub.Plugin.Types
 import Filehub.Plugin.Toml qualified as Plugin.Toml
@@ -74,7 +69,7 @@ newPluginAreaId :: Text
 newPluginAreaId = "plugin-new-area"
 
 pluginItemId :: Text -> Text
-pluginItemId name = "plugin-" <> T.replace " " "-" (T.toLower name)
+pluginItemId name = "plugin-" <> txt_replace " " "-" (txt_toLower name)
 
 targetsListId :: Text
 targetsListId = "settings-targets"
@@ -160,7 +155,7 @@ pluginsPanelWithNewForm ps dynNames mErr tomlContent =
 
 pluginRow :: Set Text -> StaticPlugin -> Html ()
 pluginRow dynNames p
-  | Set.member p.name dynNames = pluginItem p
+  | set_member p.name dynNames = pluginItem p
   | otherwise                  = pluginItemStatic p
 
 
@@ -269,7 +264,7 @@ targetRow staticTids (tid, t) =
     div_ [class_ "target-row-info"] do
       icon
       span_ [class_ "target-row-name"] label
-    if Set.member tid staticTids
+    if set_member tid staticTids
       then i_ [class_ "bx bx-lock-alt"] mempty
       else button_ [ class_ "btn btn-icon btn-urgent"
                    , term "hx-delete" (settingsDeleteTargetUrl tid)
@@ -290,8 +285,8 @@ targetRow staticTids (tid, t) =
         [ targetHandler @S3 \(S3Backend { bucket = b }) ->
             toHtml ("s3: " <> b)
         , targetHandler @FileSys \(FileBackend { root = Root (AbsPath p) }) ->
-            let display = if Set.member tid staticTids then takeFileName p else p
-            in toHtml ("fs: " <> T.pack display)
+            let display = if set_member tid staticTids then takeFileName p else p
+            in toHtml ("fs: " <> txt_pack display)
         ]
 
 

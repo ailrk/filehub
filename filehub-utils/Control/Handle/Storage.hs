@@ -1,9 +1,9 @@
 module Control.Handle.Storage where
 
 
+import Filehub.Prelude
 import Conduit (ResourceT)
 import Data.File (FileInfo, FileWithContent)
-import Data.ByteString (ByteString)
 import Data.ClientPath (ClientPath, AbsPath)
 import Data.Conduit (ConduitT)
 import Prelude hiding (readFile, writeFile)

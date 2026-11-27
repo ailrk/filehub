@@ -8,6 +8,7 @@ module Filehub.Server.UI.Platform.Mobile
   )
   where
 
+import Filehub.Prelude
 import Data.ClientPath (AbsPath(..))
 import Filehub.Server.UI.Platform.Common (sideBar)
 import Filehub.Server.Util (withQueryParam)
@@ -20,13 +21,10 @@ import Filehub.Types (ClientPath)
 import Lucid
 import Prelude hiding (readFile)
 import System.FilePath (takeFileName)
-import Data.Coerce (coerce)
 import Filehub.Monad (Filehub)
-import Control.Monad.Reader (asks, MonadReader (..))
-import UnliftIO (atomically)
+import Control.Monad.Reader (MonadReader (..))
 import Filehub.Session.Selected (AllSelected(..))
 import Filehub.Session.Pool (withSession)
-import Control.Monad (join)
 
 
 index :: SessionId -> Filehub (Html ())

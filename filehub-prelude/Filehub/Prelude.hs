@@ -36,6 +36,9 @@ module Filehub.Prelude
   , txt_dropEnd
   , txt_takeWhile
   , txt_dropWhile
+  , txt_dropAround
+  , txt_cons
+  , txt_uncons
   , txt_head
   , txt_last
   , txt_tail
@@ -51,6 +54,9 @@ module Filehub.Prelude
   , txt_replace
   , txt_encode
   , txt_decode
+  , txt_decodeStrict
+  , UnicodeException
+  , txt_decodeLatin1
 
     ------------------------------------------------------------
     -- * Text  (lazy)
@@ -60,6 +66,18 @@ module Filehub.Prelude
   , lTxt_unpack
   , lTxt_fromStrict
   , lTxt_toStrict
+
+    ------------------------------------------------------------
+    -- * Text  file I/O
+    ------------------------------------------------------------
+  , txt_putStr
+  , txt_putStrLn
+  , txt_readFile
+  , txt_writeFile
+  , txt_appendFile
+  , lTxt_readFile
+  , lTxt_writeFile
+  , lTxt_appendFile
 
     ------------------------------------------------------------
     -- * ByteString  (strict)
@@ -92,6 +110,11 @@ module Filehub.Prelude
   , bs_foldr
   , bs_any
   , bs_all
+  , bs_encodeBase64
+  , bs_decodeBase64
+  , bs_readFile
+  , bs_writeFile
+  , bs_appendFile
 
     ------------------------------------------------------------
     -- * ByteString  (lazy)
@@ -108,6 +131,9 @@ module Filehub.Prelude
   , lBS_fromStrict
   , lBS_fromChunks
   , lBS_toChunks
+  , lBS_readFile
+  , lBS_writeFile
+  , lBS_appendFile
 
     ------------------------------------------------------------
     -- * Map  (strict)
@@ -256,6 +282,8 @@ module Filehub.Prelude
     -- * Function
     ------------------------------------------------------------
   , (&)
+  , (|>)
+  , (<|)
   , on
   , fix
 
@@ -278,6 +306,7 @@ module Filehub.Prelude
   , readIORef
   , writeIORef
   , modifyIORef'
+  , atomicModifyIORef'
 
     ------------------------------------------------------------
     -- * STM / TVar
@@ -296,14 +325,17 @@ module Filehub.Prelude
     ------------------------------------------------------------
     -- * IO / Exceptions
     ------------------------------------------------------------
+  , tryIO
   , throwIO
   , try
   , catch
+  , onException
   , handle
   , bracket
   , finally
   , MonadIO (..)
   , MonadUnliftIO (..)
+  , SomeException
 
     ------------------------------------------------------------
     -- * String interpolation
@@ -319,19 +351,45 @@ module Filehub.Prelude
   , async
   , wait
   , cancel
+
+    ------------------------------------------------------------
+    -- * Time
+    ------------------------------------------------------------
+  , UTCTime
+  , NominalDiffTime
+  , DiffTime
+  , Day
+  , POSIXTime
+  , Pico
+  , time_now
+  , time_add
+  , time_diff
+  , time_format
+  , time_parse
+  , time_locale
+  , time_fromSeconds
+  , time_toSeconds
+  , time_secondsToDiff
+  , time_fromGregorian
+  , time_getPOSIX
+  , time_posixToUTC
+  , time_utcToPosix
   ) where
 
 
 import Data.Text (Text)
 import Data.Text qualified as T
+import Data.Text.IO qualified as TIO
 import Data.Text.Lazy qualified as LT
+import Data.Text.Lazy.IO qualified as LTIO
 import Data.Text.Encoding qualified as TE
-import Data.Text.Encoding.Error (lenientDecode)
+import Data.Text.Encoding.Error (lenientDecode, UnicodeException)
 
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as BS
 import Data.ByteString.Char8 qualified as BC
 import Data.ByteString.Lazy qualified as LBS
+import Data.ByteString.Base64 qualified as B64
 import Data.Word (Word8)
 import Data.Int (Int64)
 
@@ -363,17 +421,27 @@ import Data.Coerce (coerce)
 import Data.Functor.Identity (Identity (..))
 import GHC.Generics (Generic)
 
-import Data.IORef (IORef, newIORef, readIORef, writeIORef, modifyIORef')
+import Data.IORef (IORef)
+import UnliftIO.IORef (newIORef, readIORef, writeIORef, modifyIORef', atomicModifyIORef')
 
 import Control.Concurrent.STM (STM, TVar, newTVar, readTVar, writeTVar, modifyTVar, modifyTVar')
 import UnliftIO
-  ( newTVarIO, readTVarIO, atomically
-  , throwIO, try, catch, handle, bracket, finally
-  , MonadIO (..), MonadUnliftIO (..) )
+  ( newTVarIO, readTVarIO, atomically, tryIO
+  , throwIO, try, catch, onException, handle, bracket, finally
+  , MonadIO (..), MonadUnliftIO (..), SomeException )
 
 import Data.String.Interpolate (i)
 
 import UnliftIO.Async (forConcurrently, forConcurrently_, Async, async, wait, cancel)
+
+import Data.Time
+  ( UTCTime, NominalDiffTime, DiffTime, Day
+  , getCurrentTime, addUTCTime, diffUTCTime
+  , secondsToNominalDiffTime, nominalDiffTimeToSeconds
+  , secondsToDiffTime, fromGregorian )
+import Data.Time.Format (formatTime, parseTimeM, defaultTimeLocale, TimeLocale)
+import Data.Time.Clock.POSIX (POSIXTime, getPOSIXTime, posixSecondsToUTCTime, utcTimeToPOSIXSeconds)
+import Data.Fixed (Pico)
 
 
 -- Text (strict)
@@ -482,6 +550,15 @@ txt_takeWhile = T.takeWhile
 txt_dropWhile :: (Char -> Bool) -> Text -> Text
 txt_dropWhile = T.dropWhile
 
+txt_dropAround :: (Char -> Bool) -> Text -> Text
+txt_dropAround = T.dropAround
+
+txt_cons :: Char -> Text -> Text
+txt_cons = T.cons
+
+txt_uncons :: Text -> Maybe (Char, Text)
+txt_uncons = T.uncons
+
 txt_head :: Text -> Char
 txt_head = T.head
 
@@ -527,6 +604,12 @@ txt_encode = TE.encodeUtf8
 txt_decode :: ByteString -> Text
 txt_decode = TE.decodeUtf8With lenientDecode
 
+txt_decodeStrict :: ByteString -> Either UnicodeException Text
+txt_decodeStrict = TE.decodeUtf8'
+
+txt_decodeLatin1 :: ByteString -> Text
+txt_decodeLatin1 = TE.decodeLatin1
+
 
 -- Text (lazy)
 
@@ -541,6 +624,33 @@ lTxt_fromStrict = LT.fromStrict
 
 lTxt_toStrict :: LText -> Text
 lTxt_toStrict = LT.toStrict
+
+
+-- Text file I/O
+
+txt_putStr :: Text -> IO ()
+txt_putStr = TIO.putStr
+
+txt_putStrLn :: Text -> IO ()
+txt_putStrLn = TIO.putStrLn
+
+txt_readFile :: FilePath -> IO Text
+txt_readFile = TIO.readFile
+
+txt_writeFile :: FilePath -> Text -> IO ()
+txt_writeFile = TIO.writeFile
+
+txt_appendFile :: FilePath -> Text -> IO ()
+txt_appendFile = TIO.appendFile
+
+lTxt_readFile :: FilePath -> IO LText
+lTxt_readFile = LTIO.readFile
+
+lTxt_writeFile :: FilePath -> LText -> IO ()
+lTxt_writeFile = LTIO.writeFile
+
+lTxt_appendFile :: FilePath -> LText -> IO ()
+lTxt_appendFile = LTIO.appendFile
 
 
 -- ByteString (strict)
@@ -626,6 +736,21 @@ bs_any = BS.any
 bs_all :: (Word8 -> Bool) -> ByteString -> Bool
 bs_all = BS.all
 
+bs_encodeBase64 :: ByteString -> ByteString
+bs_encodeBase64 = B64.encode
+
+bs_decodeBase64 :: ByteString -> Either String ByteString
+bs_decodeBase64 = B64.decode
+
+bs_readFile :: FilePath -> IO ByteString
+bs_readFile = BS.readFile
+
+bs_writeFile :: FilePath -> ByteString -> IO ()
+bs_writeFile = BS.writeFile
+
+bs_appendFile :: FilePath -> ByteString -> IO ()
+bs_appendFile = BS.appendFile
+
 
 -- ByteString (lazy)
 
@@ -663,6 +788,15 @@ lBS_fromChunks = LBS.fromChunks
 
 lBS_toChunks :: LByteString -> [ByteString]
 lBS_toChunks = LBS.toChunks
+
+lBS_readFile :: FilePath -> IO LByteString
+lBS_readFile = LBS.readFile
+
+lBS_writeFile :: FilePath -> LByteString -> IO ()
+lBS_writeFile = LBS.writeFile
+
+lBS_appendFile :: FilePath -> LByteString -> IO ()
+lBS_appendFile = LBS.appendFile
 
 
 -- Map (strict)
@@ -882,3 +1016,56 @@ seq_index = SSeq.index
 
 seq_append :: Seq a -> Seq a -> Seq a
 seq_append = (><)
+
+
+-- Pipe operators
+
+infixl 1 |>
+(|>) :: a -> (a -> b) -> b
+(|>) = (&)
+
+infixr 0 <|
+(<|) :: (a -> b) -> a -> b
+(<|) = ($)
+
+
+-- Time
+
+time_now :: IO UTCTime
+time_now = getCurrentTime
+
+time_add :: NominalDiffTime -> UTCTime -> UTCTime
+time_add = addUTCTime
+
+time_diff :: UTCTime -> UTCTime -> NominalDiffTime
+time_diff = diffUTCTime
+
+time_format :: String -> UTCTime -> String
+time_format fmt t = formatTime defaultTimeLocale fmt t
+
+time_parse :: MonadFail m => String -> String -> m UTCTime
+time_parse = parseTimeM True defaultTimeLocale
+
+time_locale :: TimeLocale
+time_locale = defaultTimeLocale
+
+time_fromSeconds :: Pico -> NominalDiffTime
+time_fromSeconds = secondsToNominalDiffTime
+
+time_toSeconds :: NominalDiffTime -> Pico
+time_toSeconds = nominalDiffTimeToSeconds
+
+time_secondsToDiff :: Integer -> DiffTime
+time_secondsToDiff = secondsToDiffTime
+
+time_fromGregorian :: Integer -> Int -> Int -> Day
+time_fromGregorian = fromGregorian
+
+time_getPOSIX :: IO POSIXTime
+time_getPOSIX = getPOSIXTime
+
+time_posixToUTC :: POSIXTime -> UTCTime
+time_posixToUTC = posixSecondsToUTCTime
+
+time_utcToPosix :: UTCTime -> POSIXTime
+time_utcToPosix = utcTimeToPOSIXSeconds

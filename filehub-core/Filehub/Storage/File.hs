@@ -16,49 +16,39 @@
 -- When updating, we first delete the cache, then write the full update.
 module Filehub.Storage.File where
 
+import Filehub.Prelude
 import Cache.Key (CacheKey, SomeCacheKey (..))
 import Codec.Archive.Zip qualified as Zip
 import Conduit (ConduitT, ResourceT, (.|), runResourceT)
 import Conduit qualified
-import Control.Monad (unless)
-import Control.Monad (when, forM_)
 import Control.Service.Cache (MonadCache(..))
 import Control.Service.Cache qualified as Cache
 import Control.Service.LockManager qualified as LockManager
-import Data.ByteString (ByteString, readFile)
 import Data.ByteString qualified as B
 import Data.ByteString.Builder (Builder)
 import Data.ByteString.Builder qualified as BB
-import Data.ByteString.Lazy qualified as BL
 import Data.ClientPath (AbsPath(..), withinRoot)
 import Data.ClientPath (ClientPath)
 import Data.ClientPath qualified as ClientPath
 import Data.ClientPath.IO (validateAbsPath)
-import Data.Coerce (coerce)
 import Data.Conduit.Binary qualified as Conduit
 import Data.File (File (..), FileInfo, FileType (..), FileWithContent, FileContent (..), defaultFileWithContent, IsLink (..))
 import Data.Generics.Labels ()
 import Data.Kind (Type)
 import Data.List (sort)
-import Data.String.Interpolate (i)
-import Data.Text qualified as T
-import Data.Text.Encoding qualified as T
-import Data.Time (secondsToNominalDiffTime)
 import Filehub.Error (FilehubError(..), Error' (..))
 import Filehub.Monad (Filehub)
 import GHC.TypeLits (Symbol)
 import Log (logAttention, logAttention_)
 import Log (logTrace_, logInfo)
 import Network.Mime (defaultMimeLookup)
-import Data.ByteString qualified as BS
-import Prelude hiding (read, readFile, writeFile)
+import Prelude hiding (read, writeFile)
 import Servant.Multipart (Mem, FileData (..))
 import System.FilePath ((</>), takeDirectory, takeFileName)
 import System.IO.Error (isDoesNotExistError)
 import System.IO.Temp qualified as Temp
 import Target.File (Target(..), FileSys)
 import UnliftIO (MonadIO (..), throwIO, tryIO, onException, IOException, Handler (..), catch, withFile, IOMode (..), hClose, withTempFile, SomeException)
-import UnliftIO.Async (forConcurrently_)
 import UnliftIO.Directory (doesDirectoryExist, pathIsSymbolicLink, removeFile, makeAbsolute, getFileSize, getAccessTime, getModificationTime, doesPathExist, doesFileExist, createDirectoryIfMissing, renameFile, copyFile, listDirectory, removeDirectoryRecursive, withCurrentDirectory)
 import UnliftIO.Retry (recovering, limitRetries, exponentialBackoff)
 
@@ -88,11 +78,11 @@ createCacheKey identifier = Cache.mkCacheKey [cacheKeyPrefix, toCacheKeyComponen
 
 getMimetype :: MonadIO m => AbsPath -> m ByteString
 getMimetype path = do
-  let ext = defaultMimeLookup (T.pack (coerce path))
+  let ext = defaultMimeLookup (txt_pack (coerce path))
   if ext /= "application/octet-stream"
     then pure ext
     else do
-      header <- liftIO $ tryIO $ withFile (coerce path) ReadMode (`BS.hGet` 512)
+      header <- liftIO $ tryIO $ withFile (coerce path) ReadMode (`B.hGet` 512)
       pure $ case header of
         Left  _  -> ext
         Right bs -> sniffMimetype bs `orElse` ext
@@ -103,44 +93,44 @@ getMimetype path = do
 sniffMimetype :: ByteString -> ByteString
 sniffMimetype bs
   -- images
-  | "\x89PNG\r\n\x1a\n"   `BS.isPrefixOf` bs                        = "image/png"
-  | "\xFF\xD8\xFF"        `BS.isPrefixOf` bs                        = "image/jpeg"
-  | "GIF87a"              `BS.isPrefixOf` bs                        = "image/gif"
-  | "GIF89a"              `BS.isPrefixOf` bs                        = "image/gif"
-  | "RIFF"                `BS.isPrefixOf` bs
-      && "WEBP"           `BS.isInfixOf`  BS.take 12 bs             = "image/webp"
-  | "BM"                  `BS.isPrefixOf` bs                        = "image/bmp"
-  | "\x00\x00\x01\x00"    `BS.isPrefixOf` bs                        = "image/x-icon"
-  | "\x00\x00\x00\x0C\x6A\x50\x20\x20" `BS.isPrefixOf` bs           = "image/jp2"
-  | "II\x2A\x00"          `BS.isPrefixOf` bs                        = "image/tiff"
-  | "MM\x00\x2A"          `BS.isPrefixOf` bs                        = "image/tiff"
+  | "\x89PNG\r\n\x1a\n"   `bs_isPrefixOf` bs                        = "image/png"
+  | "\xFF\xD8\xFF"        `bs_isPrefixOf` bs                        = "image/jpeg"
+  | "GIF87a"              `bs_isPrefixOf` bs                        = "image/gif"
+  | "GIF89a"              `bs_isPrefixOf` bs                        = "image/gif"
+  | "RIFF"                `bs_isPrefixOf` bs
+      && "WEBP"           `bs_isInfixOf`  bs_take 12 bs             = "image/webp"
+  | "BM"                  `bs_isPrefixOf` bs                        = "image/bmp"
+  | "\x00\x00\x01\x00"    `bs_isPrefixOf` bs                        = "image/x-icon"
+  | "\x00\x00\x00\x0C\x6A\x50\x20\x20" `bs_isPrefixOf` bs           = "image/jp2"
+  | "II\x2A\x00"          `bs_isPrefixOf` bs                        = "image/tiff"
+  | "MM\x00\x2A"          `bs_isPrefixOf` bs                        = "image/tiff"
   -- documents
-  | "%PDF"                `BS.isPrefixOf` bs                        = "application/pdf"
+  | "%PDF"                `bs_isPrefixOf` bs                        = "application/pdf"
   -- archives
-  | "PK\x03\x04"          `BS.isPrefixOf` bs                        = "application/zip"
-  | "\x1f\x8b"            `BS.isPrefixOf` bs                        = "application/gzip"
-  | "BZh"                 `BS.isPrefixOf` bs                        = "application/x-bzip2"
-  | "\xFD7zXZ\x00"        `BS.isPrefixOf` bs                        = "application/x-xz"
-  | "7z\xBC\xAF\x27\x1C"  `BS.isPrefixOf` bs                        = "application/x-7z-compressed"
-  | "Rar!\x1A\x07"        `BS.isPrefixOf` bs                        = "application/vnd.rar"
+  | "PK\x03\x04"          `bs_isPrefixOf` bs                        = "application/zip"
+  | "\x1f\x8b"            `bs_isPrefixOf` bs                        = "application/gzip"
+  | "BZh"                 `bs_isPrefixOf` bs                        = "application/x-bzip2"
+  | "\xFD7zXZ\x00"        `bs_isPrefixOf` bs                        = "application/x-xz"
+  | "7z\xBC\xAF\x27\x1C"  `bs_isPrefixOf` bs                        = "application/x-7z-compressed"
+  | "Rar!\x1A\x07"        `bs_isPrefixOf` bs                        = "application/vnd.rar"
   -- audio
-  | "ID3"                 `BS.isPrefixOf` bs                        = "audio/mpeg"
-  | "\xFF\xFB"            `BS.isPrefixOf` bs                        = "audio/mpeg"
-  | "\xFF\xF3"            `BS.isPrefixOf` bs                        = "audio/mpeg"
-  | "\xFF\xF2"            `BS.isPrefixOf` bs                        = "audio/mpeg"
-  | "OggS"                `BS.isPrefixOf` bs                        = "audio/ogg"
-  | "fLaC"                `BS.isPrefixOf` bs                        = "audio/flac"
-  | "RIFF"                `BS.isPrefixOf` bs                        = "audio/wav"
+  | "ID3"                 `bs_isPrefixOf` bs                        = "audio/mpeg"
+  | "\xFF\xFB"            `bs_isPrefixOf` bs                        = "audio/mpeg"
+  | "\xFF\xF3"            `bs_isPrefixOf` bs                        = "audio/mpeg"
+  | "\xFF\xF2"            `bs_isPrefixOf` bs                        = "audio/mpeg"
+  | "OggS"                `bs_isPrefixOf` bs                        = "audio/ogg"
+  | "fLaC"                `bs_isPrefixOf` bs                        = "audio/flac"
+  | "RIFF"                `bs_isPrefixOf` bs                        = "audio/wav"
   -- video
-  | "\x1aE\xDF\xA3"       `BS.isPrefixOf` bs                        = "video/webm"
-  | "ftyp"                `BS.isInfixOf`  BS.take 12 bs             = "video/mp4"
+  | "\x1aE\xDF\xA3"       `bs_isPrefixOf` bs                        = "video/webm"
+  | "ftyp"                `bs_isInfixOf`  bs_take 12 bs             = "video/mp4"
   -- text heuristic: all bytes are printable ASCII or common whitespace
   | isLikelyText bs                                                 = "text/plain"
   | otherwise                                                       = "application/octet-stream"
   where
     isLikelyText chunk =
-      let sample = BS.take 512 chunk
-       in not (BS.null sample) && BS.all (\w -> w >= 9 && w <= 126 || w >= 128) sample
+      let sample = bs_take 512 chunk
+       in not (bs_null sample) && bs_all (\w -> w >= 9 && w <= 126 || w >= 128) sample
 
 
 get :: AbsPath -> Filehub FileInfo
@@ -187,12 +177,12 @@ get path = do
             pure file
 
         | otherwise -> do
-            logAttention_ (T.pack ("[97zcsm] get: invalid path" ++ show path))
+            logAttention_ (txt_pack ("[97zcsm] get: invalid path" ++ show path))
             throwIO (FilehubError InvalidPath "get: invalid path")
   where
     cacheKey  = createCacheKey @"file" @FileInfo (coerce BB.string8 path)
     cacheDeps = [ SomeCacheKey (createCacheKey @"dir" @[FileInfo] (BB.string8 (coerce takeDirectory path))) ]
-    cacheTTL  = Just (secondsToNominalDiffTime 10)
+    cacheTTL  = Just (time_fromSeconds 10)
 
 
 isDirectory :: AbsPath -> Filehub Bool
@@ -221,13 +211,13 @@ read File { path = AbsPath path } = do
   case mCached of
     Just cached -> pure cached
     Nothing -> do
-      bytes <- liftIO $ readFile path
+      bytes <- liftIO $ bs_readFile path
       cacheInsert cacheKey cacheDeps cacheTTL bytes
       pure bytes
   where
     cacheKey  = createCacheKey @"file-content" @ByteString (BB.string8 path)
     cacheDeps = [ SomeCacheKey (createCacheKey @"file" @FileInfo (BB.string8 path)) ]
-    cacheTTL  = Just (secondsToNominalDiffTime 10)
+    cacheTTL  = Just (time_fromSeconds 10)
 
 
 readStream :: FileInfo -> Maybe Integer -> Maybe Integer -> Filehub (ConduitT () ByteString (ResourceT IO) ())
@@ -414,7 +404,7 @@ ls path = do
       pure files
   where
     cacheKey = createCacheKey @"dir" @[FileInfo] (coerce BB.string8 path)
-    cacheTTL = Just (secondsToNominalDiffTime 10)
+    cacheTTL = Just (time_fromSeconds 10)
 
 
 lsCwd :: AbsPath -> Filehub [FileInfo]
@@ -428,9 +418,9 @@ lsCwd currentDir = do
 
 upload :: AbsPath -> FileData Mem -> Filehub ()
 upload currentDir file = do
-  let mimetype = T.encodeUtf8 file.fdFileCType
-  let name     = T.unpack file.fdFileName
-  let bytes    = BL.toStrict file.fdPayload
+  let mimetype = txt_encode file.fdFileCType
+  let name     = txt_unpack file.fdFileName
+  let bytes    = lBS_toStrict file.fdPayload
   validateFileName name
   fullPath <- toFilePath currentDir name
   write $ defaultFileWithContent

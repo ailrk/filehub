@@ -13,6 +13,7 @@ module Target.Types
   )
   where
 
+import Filehub.Prelude
 import Control.Applicative (asum)
 import Data.ByteString.Builder (Builder)
 import Data.ByteString.Builder qualified as BB
@@ -26,8 +27,6 @@ import Prelude hiding (readFile, writeFile)
 import Servant (ToHttpApiData (..), FromHttpApiData (..))
 import Text.Debug (Debug(..))
 import Data.Aeson (FromJSON, ToJSON)
-import GHC.Generics (Generic)
-import Data.Foldable (for_)
 
 
 newtype TargetId = TargetId UUID

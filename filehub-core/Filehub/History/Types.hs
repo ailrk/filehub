@@ -12,22 +12,15 @@ module Filehub.History.Types
   , describeOperation
   ) where
 
+import Filehub.Prelude
 import Data.ClientPath (ClientPath(..))
-import Data.List (find)
 import Data.Foldable (toList)
-import Data.Sequence (Seq, (|>))
 import Data.Sequence qualified as Seq
-import Data.Text (Text)
-import Data.Text qualified as T
-import Data.Time (UTCTime, getCurrentTime)
 import Filehub.SharedLink (SharedLinkHash)
 import Filehub.Session.Types (SessionId)
 import Network.URI.Encode qualified as URI.Encode
 import System.FilePath (takeFileName)
 import Target.Types (TargetId)
-import UnliftIO (liftIO)
-import UnliftIO.STM (atomically, modifyTVar', newTVarIO, readTVar)
-import Control.Concurrent.STM (TVar)
 
 
 maxHistory :: Int
@@ -70,7 +63,7 @@ newHistory = History <$> newTVarIO Seq.empty <*> newTVarIO 0
 addEntry :: History -> HistoryEntry -> IO ()
 addEntry h entry = atomically $ modifyTVar' h.entries \s ->
   let s' = if Seq.length s >= maxHistory then Seq.drop 1 s else s
-   in s' |> entry
+   in s' Seq.|> entry
 
 
 getHistory :: History -> IO [HistoryEntry]
@@ -92,15 +85,15 @@ nextId h = atomically do
 
 describeOperation :: Operation -> Text
 describeOperation = \case
-  OpRename    _ from to -> T.pack $ clientName from <> " → " <> clientName to
-  OpNewFile   _ p       -> T.pack $ clientName p
-  OpNewFolder _ p       -> T.pack $ clientName p
-  OpMove      _ srcs _  -> T.pack $ show (length srcs) <> " item(s)"
-  OpDelete    _ ps      -> T.pack $ show (length ps) <> " item(s)"
-  OpUpload    _ p       -> T.pack $ clientName p
-  OpCopy      _ n       -> T.pack $ show n <> " item(s)"
-  OpPaste     _ _ fs    -> T.pack $ show (length fs) <> " item(s)"
-  OpShare     _ p _     -> T.pack $ clientName p
+  OpRename    _ from to -> txt_pack $ clientName from <> " → " <> clientName to
+  OpNewFile   _ p       -> txt_pack $ clientName p
+  OpNewFolder _ p       -> txt_pack $ clientName p
+  OpMove      _ srcs _  -> txt_pack $ show (length srcs) <> " item(s)"
+  OpDelete    _ ps      -> txt_pack $ show (length ps) <> " item(s)"
+  OpUpload    _ p       -> txt_pack $ clientName p
+  OpCopy      _ n       -> txt_pack $ show n <> " item(s)"
+  OpPaste     _ _ fs    -> txt_pack $ show (length fs) <> " item(s)"
+  OpShare     _ p _     -> txt_pack $ clientName p
   OpRevokeLink _ _      -> ""
 
 

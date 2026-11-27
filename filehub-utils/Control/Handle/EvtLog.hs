@@ -11,16 +11,13 @@ module Control.Handle.EvtLog
   )
   where
 
-import Data.ByteString (ByteString)
-import Data.String.Interpolate (iii, i)
+import Filehub.Prelude
+import Data.String.Interpolate (iii)
 import Database.SQLite.Simple (Connection, Query, Only (..), type (:.) (..))
-import UnliftIO (MonadIO, liftIO, throwIO)
 import Database.SQLite.Simple qualified as Sqlite
 import Database.SQLite.Simple.ToRow
 import Database.SQLite.Simple.FromRow
-import Data.Time (UTCTime)
 import Data.ByteString.Lazy qualified as BL
-import Control.Monad (when)
 
 
 data EvtLog = EvtLog

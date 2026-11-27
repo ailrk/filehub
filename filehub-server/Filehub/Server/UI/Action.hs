@@ -17,17 +17,8 @@ module Filehub.Server.UI.Action
   )
   where
 
+import Filehub.Prelude hiding (cancel)
 import Control.Monad.Reader (MonadReader(ask))
-import Data.ClientPath (Root, AbsPath)
-import Data.ClientPath qualified as ClientPath
-import Data.Coerce (coerce)
-import Data.File (FileInfo, File(..))
-import Data.List qualified as L
-import Data.Maybe (fromMaybe)
-import Data.String.Interpolate (i)
-import Data.Text (Text)
-import Data.Text qualified as Text
-import Data.Text.Encoding qualified as T
 import Filehub.Error (FilehubError(..), Error' (..))
 import Filehub.Handler (ConfirmLogin)
 import Filehub.Locale (Locale)
@@ -35,24 +26,18 @@ import Filehub.Monad
 import Filehub.Orphan ()
 import Filehub.Orphan ()
 import Filehub.Server.UI.Render (index, UIPartialUpdate (..), runUIPartialUpdate)
-import Filehub.Server.Util (withQueryParam)
-import Filehub.Session (TargetView (..), getRoot, getTargetViews, getCurrentTarget, makeStorageCurrentTarget)
+import Filehub.Session (TargetView (..), getTargetViews, getCurrentTarget)
 import Filehub.Session.Copy qualified as Copy
 import Filehub.Session.Pool (withSession, withSession_, modifySession)
 import Filehub.Session.Selected (AllSelected(..))
 import Filehub.Session.Selected qualified as Selected
-import Filehub.Session.Types (Selected (..), Layout (..), Storage(..))
-import Filehub.Sort qualified as Sort
+import Filehub.Session.Types (Selected (..), Layout (..))
 import Filehub.Theme qualified as Theme
 import Filehub.Types
 import Lucid hiding ()
-import Network.Mime (MimeType, defaultMimeLookup)
-import Network.Mime.Extended (isMime)
 import Prelude hiding (elem, readFile, init)
 import Prelude hiding (init, readFile)
 import Servant (Header , Headers  , addHeader, NoContent (..))
-import System.FilePath (takeDirectory, takeFileName)
-import UnliftIO (throwIO, writeTVar, readTVar)
 
 
 -- | Reset navigation-sensitive state: selections and UI.

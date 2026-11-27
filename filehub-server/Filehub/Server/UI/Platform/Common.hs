@@ -4,6 +4,7 @@ module Filehub.Server.UI.Platform.Common
   )
   where
 
+import Filehub.Prelude
 import Data.ClientPath (AbsPath(..), Root(..))
 import Data.DiskUsage (getDiskUsage, DiskUsage(..))
 import Filehub.Monad (Filehub)
@@ -14,10 +15,8 @@ import Filehub.Storage.S3 qualified as S3
 import Filehub.Template (runTemplate, makeTemplateContext)
 import Filehub.Template.Common qualified as Template
 import Lucid
-import Control.Monad (join)
 import Control.Monad.Reader (ask)
-import UnliftIO (tryAny, readTVarIO)
-import UnliftIO.Async (forConcurrently)
+import UnliftIO (tryAny)
 import Target.File (FileSys, Target(..))
 import Target.S3 (S3)
 import Target.Types (targetHandler, handleTarget)

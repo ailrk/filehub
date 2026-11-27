@@ -8,7 +8,7 @@ module Filehub.Plugin.Types
   , StaticPlugins(..)
   ) where
 
-import Data.Text (Text)
+import Filehub.Prelude
 
 
 newtype UrlTemplate = UrlTemplate { unUrlTemplate :: Text }

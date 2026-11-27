@@ -1,5 +1,6 @@
 module Filehub.Server.Search where
 
+import Filehub.Prelude
 import Filehub.Handler (ConfirmLogin, ConfirmRateLimitSearch(..))
 import Filehub.Monad
 import Filehub.Orphan ()
@@ -13,7 +14,6 @@ import Filehub.Types (Display (..), SearchWord)
 import Lucid hiding (for_)
 import Prelude hiding (init, readFile)
 import Filehub.Session.Pool (withSession)
-import Control.Monad (join)
 
 
 search :: SessionId -> ConfirmLogin -> ConfirmRateLimitSearch -> SearchWord -> Filehub (Html ())

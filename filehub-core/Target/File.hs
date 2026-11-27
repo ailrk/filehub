@@ -1,14 +1,11 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module Target.File where
 
+import Filehub.Prelude
 import Target.Types (TargetId(..), Target, IsTarget(..), HasTargetId(..))
-import Data.Text (Text)
-import Data.String.Interpolate (i)
 import Data.UUID.V4 qualified as UUID
 import Text.Debug (Debug(..))
 import Data.ClientPath (AbsPath (..), Root (..))
-import Data.Coerce (coerce)
-import UnliftIO (MonadIO(..))
 import UnliftIO.Directory (makeAbsolute)
 import Log (logInfo_, MonadLog)
 

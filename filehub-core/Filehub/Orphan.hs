@@ -5,11 +5,11 @@
 --
 -- The dumpster of all orphan instances.
 module Filehub.Orphan () where
+import Filehub.Prelude
 import Servant (ToHttpApiData, URI)
 import Servant.API (ToHttpApiData(..))
-import Data.Text qualified as T
 import Network.URI qualified as URI
 
 
 instance ToHttpApiData URI where
-  toUrlPiece uri = T.pack (URI.uriToString id uri "")
+  toUrlPiece uri = txt_pack (URI.uriToString id uri "")

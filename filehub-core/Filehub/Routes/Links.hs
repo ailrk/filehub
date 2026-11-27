@@ -3,6 +3,7 @@ module Filehub.Routes.Links
   )
   where
 
+import Filehub.Prelude
 import Filehub.Routes (Api(..))
 import Servant (Link)
 import Servant.Links ( AsLink, allFieldLinks )

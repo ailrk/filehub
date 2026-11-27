@@ -5,12 +5,12 @@ module Filehub.ActiveUser.Pool
   )
   where
 
+import Filehub.Prelude
 import Filehub.ActiveUser.Types qualified as ActiveUser
 import Filehub.ActiveUser.Types (ActiveUser(..))
 import Data.HashTable.IO qualified as HashTable
 import Filehub.Env
 import Filehub.Auth.Types (AuthId)
-import UnliftIO (MonadIO (..))
 import Filehub.Monad (Filehub)
 import Control.Monad.Reader (asks)
 

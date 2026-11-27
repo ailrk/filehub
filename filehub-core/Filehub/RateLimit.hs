@@ -7,14 +7,9 @@ module Filehub.RateLimit
   , check
   ) where
 
-import Control.Monad (forever, void)
-import Data.Map.Strict (Map)
-import Data.Map.Strict qualified as Map
-import Data.Maybe (fromMaybe)
-import Data.Text (Text)
-import Data.Time (UTCTime, NominalDiffTime, addUTCTime, getCurrentTime)
+import Filehub.Prelude
+import Control.Monad (forever)
 import UnliftIO.Concurrent (forkIO, threadDelay)
-import UnliftIO.STM (TVar, newTVarIO, atomically, readTVar, writeTVar)
 
 
 data RateLimiter = RateLimiter
@@ -38,16 +33,16 @@ new maxR win = do
 -- The per-key list is bounded by maxRequests elements.
 check :: RateLimiter -> Text -> IO Bool
 check rl key = do
-  now <- getCurrentTime
+  now <- time_now
   atomically do
     m <- readTVar rl.store
-    let ts     = fromMaybe [] (Map.lookup key m)
-        cutoff = addUTCTime (negate rl.window) now
+    let ts     = fromMaybe [] (map_lookup key m)
+        cutoff = time_add (negate rl.window) now
         recent = filter (> cutoff) ts
         ok     = length recent < rl.maxRequests
     if ok
       then do
-        writeTVar rl.store (Map.insert key (now : recent) m)
+        writeTVar rl.store (map_insert key (now : recent) m)
         pure True
       else pure False
 
@@ -58,10 +53,10 @@ check rl key = do
 startEviction :: RateLimiter -> IO ()
 startEviction rl = void $ forkIO $ forever do
   threadDelay intervalUs
-  now <- getCurrentTime
+  now <- time_now
   atomically do
-    let cutoff = addUTCTime (negate rl.window) now
-    modifyStore (Map.filter (any (> cutoff)))
+    let cutoff = time_add (negate rl.window) now
+    modifyStore (map_filter (any (> cutoff)))
   where
     intervalUs  = round (realToFrac rl.window * 1_000_000 :: Double)
     modifyStore f = readTVar rl.store >>= writeTVar rl.store . f

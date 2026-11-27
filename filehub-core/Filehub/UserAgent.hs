@@ -1,8 +1,6 @@
 module Filehub.UserAgent where
 
-import Data.Text qualified as T
-import Data.Text.Encoding qualified as T
-import Data.ByteString (ByteString)
+import Filehub.Prelude
 
 
 data DeviceType
@@ -22,5 +20,5 @@ detectDeviceType ua
   | hasAny ["windows", "macintosh", "x11", "linux"]                           = Desktop
   | otherwise                                                                 = Unknown
   where
-    t = T.toLower (T.decodeUtf8 ua)
-    hasAny keywords = any (`T.isInfixOf` t) keywords
+    t = txt_toLower (txt_decode ua)
+    hasAny keywords = any (`txt_isInfixOf` t) keywords

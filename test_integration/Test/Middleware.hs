@@ -1,5 +1,6 @@
 module Test.Middleware (spec) where
 
+import Filehub.Prelude
 import Data.ByteString.Char8 qualified as ByteString
 import Filehub.Server qualified as Filehub
 import Network.HTTP.Types.Header
@@ -19,5 +20,5 @@ spec = with (Filehub.application <$> defaultEnv) $ do
         liftIO $ do
           simpleStatus s `shouldBe` status200
           case lookup hSetCookie $ simpleHeaders s of
-            Just raw -> ByteString.unpack raw `shouldContain` "sessionId="
+            Just raw -> bs_unpackChars raw `shouldContain` "sessionId="
             Nothing -> expectationFailure ("No Set-Cookie header. " <> show (simpleHeaders s))

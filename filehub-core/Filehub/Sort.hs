@@ -6,8 +6,8 @@
 -- sorted with higher priority by default.
 module Filehub.Sort (SortFileBy(..), sortFiles) where
 
+import Filehub.Prelude
 import Data.ClientPath (AbsPath(..))
-import Data.Coerce (coerce)
 import Data.File (File(..), FileType(..), FileInfo)
 import Data.List ( sortOn )
 import Data.Ord (Down(..))

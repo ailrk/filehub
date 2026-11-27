@@ -15,21 +15,12 @@ module Filehub.Template.Desktop
   )
   where
 
-import Control.Monad (when, join)
+import Filehub.Prelude
 import Control.Monad.Reader (asks, MonadReader (..))
-import Data.DiskUsage (DiskUsage(..))
-import Data.ByteString (ByteString)
-import Data.ClientPath (ClientPath(..), AbsPath (..), Root (..))
+import Data.ClientPath (ClientPath(..), AbsPath (..))
 import Data.ClientPath.View (ClientPathView(..), AsClientPathView (..))
-import Data.Coerce (coerce)
 import Data.File (File(..), FileType(..), FileInfo, IsLink (..))
-import Data.Foldable (traverse_)
-import Data.Maybe (fromMaybe)
-import Data.String.Interpolate (iii, i)
-import Data.Text (Text)
-import Data.Text qualified as T
-import Data.Text.Encoding qualified as T
-import Data.Time.Format (formatTime, defaultTimeLocale)
+import Data.String.Interpolate (iii)
 import Filehub.Locale (Locale(..), Phrase (..), phrase)
 import Filehub.Routes (Api(..))
 import Filehub.Routes.Links ( apiLinks )
@@ -39,7 +30,7 @@ import Filehub.Session.Types (Layout(..), Selected(..))
 import Filehub.Template (Template, TemplateContext(..), runTemplate)
 import Filehub.Template.Htmx (asHtmx)
 import Filehub.Template.Common
-  ( bold, modal, sideBarId, viewId, searchBar, tableId
+  ( bold, modal, viewId, searchBar, tableId
   , fileNameElement, sizeElement, modifiedDateElement
   , sortIconName, sortIconMTime, sortIconSize, sortByText
   )
@@ -50,10 +41,6 @@ import Lucid.Htmx (hxGet, hxEncoding, hxPost, hxTrigger, Trigger (..), hxDelete,
 import Network.Mime.Extended (isMime)
 import Servant.Extended (linkToText)
 import System.FilePath (takeFileName)
-import Target.File (FileSys, Target (..))
-import Target.S3 (S3, Target (..))
-import Target.Types (targetHandler, AnyTarget, handleTarget)
-import Target.Types qualified as Target
 
 
 ------------------------------------
@@ -276,8 +263,8 @@ themeBtn = do
   theme <- asks (.theme)
   pure do
     let (tooltip, iconClass, themeName) = case theme of
-          Light -> (control_panel_dark,  "bx bxs-moon", "light" :: T.Text)
-          Dark  -> (control_panel_light, "bx bxs-sun",  "dark"  :: T.Text)
+          Light -> (control_panel_dark,  "bx bxs-moon", "light" :: Text)
+          Dark  -> (control_panel_light, "bx bxs-sun",  "dark"  :: Text)
     button_ [ class_ "btn btn-control tooltip"
             , type_ "button"
             , term "data-action" "toggle-theme"
@@ -389,7 +376,7 @@ editorModal (ClientPath path, filename) content = do
   pure do
     modal [ id_ editorModalId ] do
       form_ (asHtmx @"updateFile" hxPost ()
-            [ hxConfirm (T.replace "{}" (T.pack filename) confirm_save_edit)
+            [ hxConfirm (txt_replace "{}" (txt_pack filename) confirm_save_edit)
             , hxOn AfterRequest "this.closest('.modal').dispatchEvent(new Event('Close'))"
             ]) do
         span_ [ class_ "modal-title-bar " ] do
@@ -405,7 +392,7 @@ editorModal (ClientPath path, filename) content = do
                  , term "data-close-modal" "true"
                  ] do
               i_ [ class_ "bx bx-x"] mempty
-        input_ [ class_ "form-control ", type_ "hidden", name_ "path", value_ (T.pack path) ]
+        input_ [ class_ "form-control ", type_ "hidden", name_ "path", value_ (txt_pack path) ]
         textarea_
           (mconcat
             [ [ class_ "form-control "
@@ -417,7 +404,7 @@ editorModal (ClientPath path, filename) content = do
             , if readOnly then [ readonly_ "readonly" ] else mempty
             ]
           )
-          (toHtml (T.decodeUtf8 content))
+          (toHtml (txt_decode content))
 
 
 ------------------------------------
@@ -495,11 +482,11 @@ entry file = do
   TargetView target _ <- asks (.currentTarget)
 
   let ClientPathView { clientPath, hashPath } = asClientPathView root file.path
-      fileName = T.pack (coerce takeFileName file.path)
-      mtimeStr = maybe "" (T.pack . formatTime defaultTimeLocale "%Y-%m-%dT%H:%M:%S") file.mtime
-      atimeStr = maybe "" (T.pack . formatTime defaultTimeLocale "%Y-%m-%dT%H:%M:%S") file.atime
-      sizeStr  = T.pack (show (fromMaybe 0 file.size))
-      mimeStr  = T.decodeUtf8 file.mimetype
+      fileName = txt_pack (coerce takeFileName file.path)
+      mtimeStr = maybe "" (txt_pack . time_format "%Y-%m-%dT%H:%M:%S") file.mtime
+      atimeStr = maybe "" (txt_pack . time_format "%Y-%m-%dT%H:%M:%S") file.atime
+      sizeStr  = txt_pack (show (fromMaybe 0 file.size))
+      mimeStr  = txt_decode file.mimetype
 
   pure do
     tr_ do
@@ -510,7 +497,7 @@ entry file = do
       td_ $ modifiedDateElement file
       td_ $ sizeElement file
       `with`
-        ( [ term "data-path" (T.pack (coerce clientPath))
+        ( [ term "data-path" (txt_pack (coerce clientPath))
           , term "data-ftype" (fileType file)
           , term "data-name" fileName
           , term "data-mtime" mtimeStr
@@ -553,18 +540,18 @@ thumbnail file = do
   selected            <- asks (.selected)
 
   let ClientPathView { clientPath, hashPath } = asClientPathView root file.path
-      fileName = T.pack (coerce takeFileName file.path)
-      mtimeStr = maybe "" (T.pack . formatTime defaultTimeLocale "%Y-%m-%dT%H:%M:%S") file.mtime
-      atimeStr = maybe "" (T.pack . formatTime defaultTimeLocale "%Y-%m-%dT%H:%M:%S") file.atime
-      sizeStr  = T.pack (show (fromMaybe 0 file.size))
-      mimeStr  = T.decodeUtf8 file.mimetype
+      fileName = txt_pack (coerce takeFileName file.path)
+      mtimeStr = maybe "" (txt_pack . time_format "%Y-%m-%dT%H:%M:%S") file.mtime
+      atimeStr = maybe "" (txt_pack . time_format "%Y-%m-%dT%H:%M:%S") file.atime
+      sizeStr  = txt_pack (show (fromMaybe 0 file.size))
+      mimeStr  = txt_decode file.mimetype
 
   pure $
     (div_ do
       previewElement clientPath file
       fileNameElement file target False `with` [ class_ "thumbnail-name" ])
     `with`
-      ( [ term "data-path" (T.pack (coerce clientPath))
+      ( [ term "data-path" (txt_pack (coerce clientPath))
         , term "data-ftype" (fileType file)
         , term "data-name" fileName
         , term "data-mtime" mtimeStr
@@ -591,7 +578,7 @@ previewElement :: ClientPath -> FileInfo -> Html ()
 previewElement (ClientPath cp) file = do
   div_ [ class_ "thumbnail-preview " ] do
     div_ [  class_ "image-wrapper " ] do
-      let serveUrl = "/serve?file=" <> T.pack cp
+      let serveUrl = "/serve?file=" <> txt_pack cp
       if
          | file.mimetype `isMime` "image" ->
            img_ [ src_ serveUrl

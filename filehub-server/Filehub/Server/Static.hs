@@ -2,18 +2,12 @@
 
 module Filehub.Server.Static where
 
-import Control.Applicative (Alternative((<|>)))
+import Filehub.Prelude
 import Control.Monad.Reader (asks)
 import Crypto.Hash.SHA256 qualified as SHA256
 import Data.Aeson (object, KeyValue (..), Value)
-import Data.ByteString (ByteString)
 import Data.ByteString.Base64 qualified as Base64
-import Data.ByteString.Char8 qualified as BC
 import Data.List qualified as L
-import Data.Map.Strict qualified as M
-import Data.Maybe (fromMaybe)
-import Data.String.Interpolate (i)
-import Data.Text qualified as T
 import Filehub.Env (Env(..))
 import Filehub.Error ( FilehubError(..) )
 import Filehub.Monad
@@ -27,7 +21,6 @@ import Filehub.Types (Theme(..))
 import Network.Mime qualified as Mime
 import Prelude hiding (init, readFile)
 import Servant (Header , Headers  , addHeader    , err404     , errBody)
-import UnliftIO (throwIO)
 
 
 themeCss :: SessionId -> Filehub ByteString
@@ -36,8 +29,8 @@ themeCss sessionId = do
   customThemeLight <- (fmap . fmap) Theme.customTheme2Css (asks (.customThemeLight))
   withSession sessionId \s -> pure
     case s.theme of
-      Dark  -> fromMaybe "no-theme" $ customThemeDark <|> M.lookup "theme-dark.css" staticFiles
-      Light -> fromMaybe "no-theme" $ customThemeLight <|> M.lookup "theme-light.css" staticFiles
+      Dark  -> fromMaybe "no-theme" $ customThemeDark <|> map_lookup "theme-dark.css" staticFiles
+      Light -> fromMaybe "no-theme" $ customThemeLight <|> map_lookup "theme-light.css" staticFiles
 
 
 -- The production implementation uses static files embeded in the executable, while the
@@ -54,14 +47,14 @@ static :: [FilePath] -> Filehub (Headers '[ Header "Content-Type" String
                                           , Header "ETag" String ] ByteString)
 static paths = do
   let path = L.intercalate "/" paths
-  content <- case M.lookup path staticFiles of
+  content <- case map_lookup path staticFiles of
     Just c -> pure c
     Nothing -> throwIO do HTTPError (err404 { errBody = [i|File doesn't exist|]})
 
-  let mimetype = Mime.defaultMimeLookup (T.pack path)
-  let etag    = "\"" <> BC.unpack (Base64.encode (SHA256.hash content)) <> "\""
+  let mimetype = Mime.defaultMimeLookup (txt_pack path)
+  let etag    = "\"" <> bs_unpackChars (Base64.encode (SHA256.hash content)) <> "\""
   pure
-    . addHeader (BC.unpack mimetype)
+    . addHeader (bs_unpackChars mimetype)
     . addHeader "public, no-cache"
     . addHeader etag
     $ content
@@ -70,7 +63,7 @@ static paths = do
 -- It's for PWA. More on https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Manifest
 manifest :: Filehub Value
 manifest = do
-  let t = T.pack
+  let t = txt_pack
   pure $
     object
       [ "name"       .= t "FileHub"

@@ -21,28 +21,18 @@ module Filehub.SharedLink
   , issuePermit
   ) where
 
+import Filehub.Prelude
 import Crypto.Hash.SHA256 qualified as SHA256
-import Data.ByteString (ByteString)
-import Data.ByteString qualified as B
-import Data.ByteString.Char8 qualified as BC
 import Data.ClientPath (AbsPath(..))
-import Data.Coerce (coerce)
 import Data.File (File(..), FileInfo)
 import Target.Types (TargetId)
 import Data.Map (Map)
 import Data.Map.Strict qualified as Map
-import Data.Set (Set)
-import Data.Set qualified as Set
-import Data.Text (Text)
-import Data.Text qualified as Text
-import Data.Time (getCurrentTime, UTCTime)
 import Data.UUID (UUID)
 import Data.UUID.V4 qualified as UUID
 import Data.Vector (Vector)
 import Data.Vector qualified as V
 import Servant (FromHttpApiData(..), ToHttpApiData(..))
-import UnliftIO (MonadIO(..))
-import UnliftIO.STM (newTVarIO, writeTVar, atomically, readTVar, modifyTVar', TVar)
 
 
 data SharedLinkType
@@ -115,9 +105,9 @@ shortHash :: ByteString -> Text
 shortHash input =
   let digest = SHA256.hash input
       num    = bsToInteger digest
-   in Text.pack $ take 7 (toBase62 num)
+   in txt_pack $ take 7 (toBase62 num)
   where
-    bsToInteger = B.foldl' (\acc b -> acc * 256 + fromIntegral b) 0
+    bsToInteger = bs_foldl' (\acc b -> acc * 256 + fromIntegral b) 0
 
 
 mkSharedLinkHash :: ByteString -> SharedLinkHash
@@ -126,9 +116,9 @@ mkSharedLinkHash input = SharedLinkHash (shortHash input)
 
 createSharedLink :: MonadIO m => FileInfo -> TargetId -> SharedLinkType -> Bool -> Maybe SharedLinkPasscode -> m SharedLink
 createSharedLink file tgtId linkType readonly mPasscode = do
-  now <- liftIO getCurrentTime
+  now <- liftIO time_now
   salt <- liftIO UUID.nextRandom
-  let hash = mkSharedLinkHash (coerce BC.pack file.path <> BC.pack (show salt))
+  let hash = mkSharedLinkHash (coerce bs_packChars file.path <> bs_packChars (show salt))
   pure SharedLink
     { file        = file
     , hash        = hash
@@ -145,57 +135,57 @@ createSharedLink file tgtId linkType readonly mPasscode = do
 revokeSharedLink :: MonadIO m => SharedLinkHash -> SharedLinkPool -> m ()
 revokeSharedLink hash (SharedLinkPool pool) = atomically do
   modifyTVar' pool \m -> do
-    Map.update (\link -> Just (link { revoked = True })) hash m
+    map_update (\link -> Just (link { revoked = True })) hash m
 
 
 lookupSharedLink :: MonadIO m => SharedLinkHash -> SharedLinkPool -> m (Maybe SharedLink)
 lookupSharedLink hash (SharedLinkPool pool) = do
-  now <- liftIO getCurrentTime
+  now <- liftIO time_now
   atomically do
     m <- readTVar pool
-    case Map.lookup hash m of
+    case map_lookup hash m of
       Just link@SharedLink { linkType, accessCount } -> do
         case linkType of
           SingleUse -> pure (Just link)
           Expiry date -> do
             if date < now
                then do
-                 writeTVar pool (Map.delete hash m)
+                 writeTVar pool (map_delete hash m)
                  pure Nothing
                else do
                  let newLink = link { accessCount = accessCount + 1}
-                 writeTVar pool (Map.insert hash newLink m)
+                 writeTVar pool (map_insert hash newLink m)
                  pure (Just newLink)
           Indefinite -> do
             let newLink = link { accessCount = accessCount + 1}
-            writeTVar pool (Map.insert hash newLink m)
+            writeTVar pool (map_insert hash newLink m)
             pure (Just newLink)
       Nothing -> pure Nothing
 
 
 getSharedLink :: MonadIO m => SharedLinkHash -> SharedLinkPool -> m (Maybe SharedLink)
 getSharedLink hash (SharedLinkPool pool) =
-  Map.lookup hash <$> atomically (readTVar pool)
+  map_lookup hash <$> atomically (readTVar pool)
 
 
 getAllSharedLinks :: MonadIO m => SharedLinkPool -> m [SharedLink]
 getAllSharedLinks (SharedLinkPool pool) =
-  Map.elems <$> atomically (readTVar pool)
+  map_elems <$> atomically (readTVar pool)
 
 
 consumeSharedLink :: MonadIO m => SharedLinkHash -> SharedLinkPool -> m ()
 consumeSharedLink hash (SharedLinkPool pool) = atomically do
-  modifyTVar' pool $ Map.adjust (\l -> l { accessCount = l.accessCount + 1 }) hash
+  modifyTVar' pool $ map_adjust (\l -> l { accessCount = l.accessCount + 1 }) hash
 
 
 updateSharedLink :: MonadIO m => SharedLinkHash -> (SharedLink -> SharedLink) -> SharedLinkPool -> m ()
 updateSharedLink hash f (SharedLinkPool pool) = atomically do
-  modifyTVar' pool (Map.adjust f hash)
+  modifyTVar' pool (map_adjust f hash)
 
 
 addSharedLink :: MonadIO m => SharedLink -> SharedLinkPool -> m ()
 addSharedLink link (SharedLinkPool pool) = atomically do
-  modifyTVar' pool (Map.insert link.hash link)
+  modifyTVar' pool (map_insert link.hash link)
 
 
 newShareLinkPool :: MonadIO m => m SharedLinkPool
@@ -221,5 +211,5 @@ issuePermit mExisting hash = do
   let hashes = case mExisting of
         Just (SharedLinkPermitSet _ hs) -> hs
         Nothing                         -> mempty
-      newSet = SharedLinkPermitSet permit (Set.insert hash hashes)
+      newSet = SharedLinkPermitSet permit (set_insert hash hashes)
   pure (permit, newSet)

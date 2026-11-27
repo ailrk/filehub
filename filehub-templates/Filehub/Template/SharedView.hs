@@ -9,16 +9,11 @@ module Filehub.Template.SharedView
   , linkEditModal
   ) where
 
-import Control.Monad (when)
+import Filehub.Prelude
 import Data.ClientPath (ClientPath(..), AbsPath(..))
 import Data.ClientPath qualified as ClientPath
-import Data.Coerce (coerce)
 import Data.File (File(..), FileType(..), FileInfo, IsLink(..))
-import Data.Maybe (fromMaybe, isJust)
 import Data.String.Interpolate (iii)
-import Data.Text (Text)
-import Data.Text qualified as T
-import Data.Time.Format (formatTime, defaultTimeLocale)
 import Filehub.Session (targetRoot)
 import Filehub.SharedLink (SharedLink(..), SharedLinkHash(..), SharedLinkType(..))
 import Filehub.Template.Common (icon, sizeElement, modifiedDateElement, withDefault)
@@ -68,11 +63,11 @@ sharedPage link target files mCurrentPath = do
       span_ [ class_ "field shared-title" ] do
         i_ [ class_ "bx bxs-share-alt" ] mempty
         span_ [ class_ "shared-link-name" ] do
-          toHtml $ (T.pack . takeFileName . coerce) link.file.path
+          toHtml $ (txt_pack . takeFileName . coerce) link.file.path
       when link.readonly do
         span_ [ class_ "shared-readonly-badge" ] "read-only"
     parentPath (ClientPath cp) =
-      T.intercalate "/" . init . T.splitOn "/" . T.pack $ cp
+      txt_intercalate "/" . init . txt_splitOn "/" . txt_pack $ cp
 
 
 fileRow :: SharedLink -> AnyTarget -> FileInfo -> Html ()
@@ -82,7 +77,7 @@ fileRow link target file = do
       span_ [ class_ "field" ] do
         icon file
         span_ (toHtml displayName)
-          `with` [ title_ (T.pack displayName) ]
+          `with` [ title_ (txt_pack displayName) ]
       case file.isLink of
         BrokenLink -> mempty
         _ -> case file.content of
@@ -151,7 +146,7 @@ sharedPreviewPage link target file clientPath mTextContent = do
         " Download"
     previewContent
       | file.mimetype `isMime` "image" =
-          img_ [ src_ fileUrl, class_ "shared-preview-img", alt_ (T.pack displayName) ]
+          img_ [ src_ fileUrl, class_ "shared-preview-img", alt_ (txt_pack displayName) ]
       | file.mimetype `isMime` "video" =
           video_ [ src_ fileUrl, controls_ "", class_ "shared-preview-video" ] mempty
       | file.mimetype `isMime` "audio" =
@@ -282,7 +277,7 @@ linkRow link =
     typeLabel = case link.linkType of
       SingleUse  -> "Single-use" :: Text
       Indefinite -> "Indefinite"
-      Expiry t   -> "Expires " <> T.pack (formatTime defaultTimeLocale "%Y-%m-%d %H:%M" t)
+      Expiry t   -> "Expires " <> txt_pack (time_format "%Y-%m-%d %H:%M" t)
 
 
 -- | Full modal replacement showing the edit form for one link.

@@ -5,19 +5,12 @@
 -- The custom logger for filehub.
 module Filehub.Log (withColoredStdoutLogger) where
 
+import Filehub.Prelude
 import System.IO (stdout, hFlush)
-import Data.Time (defaultTimeLocale, UTCTime)
-import Data.Text (Text)
-import Data.Text qualified as T
-import Data.Text.IO qualified as T
-import Data.Text.Encoding qualified as T
-import Data.ByteString qualified as B
 import Log.Internal.Logger (withLogger, Logger)
 import Data.Aeson (Value)
-import Data.Time.Format (formatTime)
 import Data.Aeson.Types (emptyObject)
 import Data.Aeson.Encode.Pretty (Config(..), defConfig, encodePretty', Indent (..))
-import UnliftIO (MonadUnliftIO (..))
 import Log.Data (LogMessage (..), LogLevel (..), showLogLevel)
 import Log (mkLogger)
 
@@ -25,7 +18,7 @@ import Log (mkLogger)
 withColoredStdoutLogger :: MonadUnliftIO m => (Logger -> m r) -> m r
 withColoredStdoutLogger act = withRunInIO \unlift -> do
   logger <- mkLogger "stdout" \msg -> do
-    T.putStrLn (showColoredLogMessage Nothing msg)
+    txt_putStrLn (showColoredLogMessage Nothing msg)
     hFlush stdout
   withLogger logger (unlift . act)
 
@@ -33,14 +26,14 @@ withColoredStdoutLogger act = withRunInIO \unlift -> do
 -- | Render a 'LogMessage' to 'Text'.
 showColoredLogMessage :: Maybe UTCTime -> LogMessage -> Text
 showColoredLogMessage mInsertionTime LogMessage{..}
-  = T.concat $ [
-    T.pack (formatTime defaultTimeLocale "%Y-%m-%d %H:%M:%S" lmTime)
+  = txt_concat $ [
+    txt_pack (time_format "%Y-%m-%d %H:%M:%S" lmTime)
   , case mInsertionTime of
       Nothing -> " "
-      Just it -> T.pack (formatTime defaultTimeLocale " (%H:%M:%S) " it)
-  , colorize lmLevel . T.toUpper $ showLogLevel lmLevel
+      Just it -> txt_pack (time_format " (%H:%M:%S) " it)
+  , colorize lmLevel . txt_toUpper $ showLogLevel lmLevel
   , " "
-  , colorize lmLevel . T.intercalate "/" $ lmComponent : lmDomain
+  , colorize lmLevel . txt_intercalate "/" $ lmComponent : lmDomain
   , ": "
   , lmMessage
   ] ++ if lmData == emptyObject
@@ -48,7 +41,7 @@ showColoredLogMessage mInsertionTime LogMessage{..}
     else [" ", textifyData lmData]
   where
     textifyData :: Value -> Text
-    textifyData = T.decodeUtf8 . B.toStrict . encodePretty' defConfig {
+    textifyData = txt_decode . lBS_toStrict . encodePretty' defConfig {
       confIndent = Spaces 2
     }
 

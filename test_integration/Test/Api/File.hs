@@ -1,8 +1,8 @@
 {-# OPTIONS_GHC -Wno-type-defaults #-}
 module Test.Api.File (spec) where
 
+import Filehub.Prelude
 import Control.Concurrent (threadDelay)
-import Control.Monad (forM_)
 import Filehub.Server qualified as Filehub
 import System.Directory (createDirectoryIfMissing, removePathForcibly, doesFileExist, doesDirectoryExist)
 import System.FilePath ((</>))

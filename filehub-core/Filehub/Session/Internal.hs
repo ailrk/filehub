@@ -4,15 +4,9 @@ module Filehub.Session.Internal
   )
   where
 
+import Filehub.Prelude
 import Control.Monad.Reader (asks)
 import Data.ClientPath (AbsPath(..), Root(..))
-import Data.Coerce (coerce)
-import Data.Map qualified as M
-import Data.Map.Strict (Map)
-import Data.Set qualified as Set
-import Data.Time (UTCTime, addUTCTime, NominalDiffTime)
-import Data.Time qualified as Time
-import Data.Traversable (for)
 import Data.UUID.V4 qualified as UUID
 import Filehub.Monad (Filehub)
 import Filehub.Session.Types (Session(..), TargetSessionData(..), Selected (..), CopyState (..), Layout (..))
@@ -22,8 +16,8 @@ import Filehub.UserAgent qualified as UserAgent
 import Target.File (FileSys)
 import Target.File (Target(..))
 import Target.Types (AnyTarget (..), TargetId, execTarget, targetHandler, IsTarget (..))
-import UnliftIO (MonadIO(..), atomically, writeTVar)
-import UnliftIO.STM (newTBQueueIO, newTVarIO, readTVarIO)
+import UnliftIO (atomically, writeTVar)
+import UnliftIO.STM (newTBQueueIO)
 
 
 createSessionId :: Filehub SessionId
@@ -33,8 +27,8 @@ createSessionId = SessionId <$> liftIO UUID.nextRandom
 createExpireDate :: Filehub UTCTime
 createExpireDate = do
   duration <- asks (.sessionDuration)
-  current  <- liftIO Time.getCurrentTime
-  pure $ duration `addUTCTime` current
+  current  <- liftIO time_now
+  pure $ duration `time_add` current
 
 
 createSession :: Filehub Session
@@ -45,7 +39,7 @@ createSession = do
   sessionId       <- createSessionId
   expireDate      <- createExpireDate
   notifications   <- liftIO (newTBQueueIO 16)
-  pendingTasks    <- newTVarIO Set.empty
+  pendingTasks    <- newTVarIO set_empty
   currentTargetId <- newTVarIO . fst . head $ ts
   targets         <- createTargets ts
   pure Session
@@ -55,7 +49,7 @@ createSession = do
     , resolution        = Nothing
     , deviceType        = UserAgent.Unknown
     , expireDate        = expireDate
-    , targets           = targets -- targetToSessionData <$> M.fromList targets
+    , targets           = targets -- targetToSessionData <$> map_fromList targets
     , copyState         = NoCopyPaste
     , currentTargetId   = currentTargetId
     , sidebarCollapsed  = False
@@ -78,7 +72,7 @@ createTargets ts = do
             writeTVar td.currentDir (coerce x.root)
       ]
     pure (tid, td)
-  pure $ M.fromList tds
+  pure $ map_fromList tds
 
   where
     mkDef = do
@@ -89,4 +83,4 @@ createTargets ts = do
 
 
 extendSession :: NominalDiffTime -> Session -> Session
-extendSession extension session = session { expireDate = extension `addUTCTime` session.expireDate  }
+extendSession extension session = session { expireDate = extension `time_add` session.expireDate  }

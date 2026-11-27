@@ -1,5 +1,6 @@
 module Data.ClientPathSpec (spec) where
 
+import Filehub.Prelude
 import Data.Char (isPrint)
 import Data.ClientPath qualified as ClientPath
 import Data.ClientPath (AbsPath(..), Root(..), newAbsPath, (<./>))
@@ -8,7 +9,6 @@ import Network.URI.Encode qualified as URI
 import System.FilePath ((</>), normalise)
 import Test.Hspec
 import Test.QuickCheck
-import Data.Coerce (coerce)
 
 
 spec :: Spec

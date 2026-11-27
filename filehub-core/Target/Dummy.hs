@@ -1,6 +1,7 @@
 {- HLINT ignore "Avoid restricted function" -}
 module Target.Dummy (DummyTarget, newDummyTarget) where
 
+import Filehub.Prelude
 import Target.Types (TargetId(..), Target, IsTarget(..), HasTargetId(..))
 import Data.UUID.V4 qualified as UUID
 import System.IO.Unsafe (unsafePerformIO)

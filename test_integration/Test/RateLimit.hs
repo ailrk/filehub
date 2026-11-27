@@ -1,5 +1,6 @@
 module Test.RateLimit (spec) where
 
+import Filehub.Prelude
 import Control.Monad (replicateM_)
 import Filehub.Env (Env(..))
 import Filehub.RateLimit (RateLimiters(..))

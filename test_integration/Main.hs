@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 module Main where
 
+import Filehub.Prelude
 import Test.Api.File qualified
 import Test.Api.Login qualified
 import Test.Cache qualified

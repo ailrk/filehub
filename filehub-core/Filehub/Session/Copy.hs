@@ -7,10 +7,10 @@ module Filehub.Session.Copy
   )
   where
 
+import Filehub.Prelude
 import Control.Handle.Storage (Storage(..))
 import Data.ClientPath (Root(..), AbsPath(..), ClientPath(..))
 import Data.ClientPath qualified as ClientPath
-import Data.Maybe (fromMaybe)
 import Filehub.Monad (Filehub)
 import Filehub.Session.Types (SessionId, CopyState (..))
 import Target.File (FileSys, Target(..))

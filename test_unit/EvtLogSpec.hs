@@ -1,7 +1,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module EvtLogSpec (spec) where
 
-import Control.Exception (bracket)
+import Filehub.Prelude
 import Control.Handle.EvtLog
 import Control.Handle.EvtLog qualified as EvtLog
 import Data.ByteString.Lazy.Char8 qualified as LBS

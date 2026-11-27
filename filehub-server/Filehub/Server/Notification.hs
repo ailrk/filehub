@@ -1,10 +1,8 @@
 {-# LANGUAGE NumericUnderscores #-}
 module Filehub.Server.Notification (listen) where
 
-import Conduit (ConduitT, yield, MonadIO (..), MonadUnliftIO (..))
-import Control.Monad (when, join)
-import Control.Monad.Fix (fix)
-import Data.Set qualified as Set
+import Filehub.Prelude
+import Conduit (ConduitT, yield)
 import Filehub.Handler (ConfirmLogin)
 import Filehub.Monad (Filehub)
 import Filehub.Notification.Types (Notification(..))
@@ -13,7 +11,7 @@ import Control.Concurrent.STM (retry)
 import GHC.Conc (registerDelay)
 import Prelude hiding (init, readFile)
 import Servant.API.EventStream (RecommendedEventSourceHeaders, recommendedEventSourceHeaders)
-import UnliftIO.STM (readTBQueue, atomically, isEmptyTBQueue, modifyTVar', readTVar, STM, TBQueue, orElse)
+import UnliftIO.STM (readTBQueue, isEmptyTBQueue, TBQueue, orElse)
 import Filehub.Session.Pool (withSession)
 import Filehub.Session (Session(..))
 
@@ -67,9 +65,9 @@ startStream s = withRunInIO \runInIO -> pure $ fix \loop -> do
 
     handleN n loop = case n of
       TaskCompleted taskId _ -> do
-        modifyTVar' s.pendingTasks (Set.delete taskId)
+        modifyTVar' s.pendingTasks (set_delete taskId)
         tasksRemaining <- readTVar s.pendingTasks
-        if Set.null tasksRemaining
+        if set_null tasksRemaining
            then do
              clearQueue s.notifications
              pure do yield n; loop

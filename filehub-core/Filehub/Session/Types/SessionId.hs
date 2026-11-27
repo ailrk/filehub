@@ -1,5 +1,6 @@
 module Filehub.Session.Types.SessionId (SessionId(..)) where
 
+import Filehub.Prelude
 import Data.UUID (UUID)
 import Data.Hashable (Hashable)
 

@@ -5,11 +5,11 @@ module Filehub.Auth.Types
   )
   where
 
+import Filehub.Prelude
 import Prelude hiding (readFile)
 import Filehub.Auth.Types.Simple qualified as Auth.Simple
 import Filehub.Auth.Types.OIDC qualified as Auth.OIDC
 import Filehub.Auth.Types.AuthId (AuthId(..), createAuthId)
-import GHC.Generics (Generic)
 import Text.Debug (Debug)
 
 

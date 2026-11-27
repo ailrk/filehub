@@ -17,20 +17,19 @@ module Filehub.History
   , describeOperation
   ) where
 
+import Filehub.Prelude
 import Control.Monad.Reader (asks)
-import Data.Time (getCurrentTime)
 import Filehub.Env (Env(..))
 import Filehub.Error (FilehubError)
 import Filehub.History.Types
 import Filehub.Monad (Filehub)
 import Filehub.Session.Types (SessionId)
-import UnliftIO (liftIO, throwIO, try)
 
 
 recordHistory :: SessionId -> Operation -> Bool -> Filehub ()
 recordHistory sessionId op succeeded = do
   h   <- asks (.history)
-  now <- liftIO getCurrentTime
+  now <- liftIO time_now
   eid <- liftIO (nextId h)
   let entry = HistoryEntry { entryId = eid, timestamp = now, sessionId
                            , operation = op, succeeded }

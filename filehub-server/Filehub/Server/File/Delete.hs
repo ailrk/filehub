@@ -3,18 +3,15 @@
 
 module Filehub.Server.File.Delete (delete) where
 
-import Control.Monad (when)
+import Filehub.Prelude
 import Control.Monad.Reader (MonadReader(..))
 import Data.ClientPath (ClientPath (..), Root(..), AbsPath(..))
-import Data.Maybe (fromMaybe)
 import Data.ClientPath.View (ClientPathView(..), asClientPathView)
-import Data.Foldable (for_)
 import Data.Ratio ((%))
-import Data.String.Interpolate (i)
 import Filehub.Handler (ConfirmLogin, ConfirmReadOnly)
 import Filehub.History (Operation(..), recordHistory)
 import Filehub.Monad
-import Filehub.Notification.Types (Notification(..))
+import Filehub.Notification.Types (Notification(..), newTaskId)
 import Filehub.Orphan ()
 import Filehub.Server.UI qualified as UI
 import Filehub.Session (SessionId(..), Session(..), TargetView(..), getRoot, getTargetViews, makeStorageCurrentTarget, makeStorageForTarget, getCurrentTarget)
@@ -26,10 +23,7 @@ import Lucid hiding (for_)
 import Lucid.Htmx (HxSwapOOB(..), Swap (..))
 import Prelude hiding (init, readFile)
 import Servant (Header , Headers  , addHeader)
-import UnliftIO.Async (forConcurrently_)
-import UnliftIO.STM (atomically, modifyTVar', readTVar, newTVarIO, writeTBQueue, newTQueueIO, writeTQueue)
-import Data.Set qualified as Set
-import Worker.Task (newTaskId)
+import UnliftIO.STM (writeTBQueue, newTQueueIO, writeTQueue)
 import Filehub.Server.Util (throttle)
 import Control.Concurrent.STM (flushTQueue)
 import UnliftIO (newEmptyMVar, takeMVar, putMVar, finally, onException)
@@ -52,7 +46,7 @@ delete :: SessionId -> ConfirmLogin -> ConfirmReadOnly
 delete sessionId _ _ clientPaths deleteSelected = do
   taskId    <- newTaskId
   env       <- ask
-  withSession sessionId \s -> modifyTVar' s.pendingTasks (Set.insert taskId)
+  withSession sessionId \s -> modifyTVar' s.pendingTasks (set_insert taskId)
   ( notifications
     , root
     , AllSelected { count , allSelected }

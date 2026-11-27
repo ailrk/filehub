@@ -7,6 +7,7 @@
 -- to create the final `Config`.
 module Filehub.Config.Options (parseOptions , Options(..)) where
 
+import Filehub.Prelude
 import Filehub.Config
 import Filehub.Auth.Types.Simple qualified as Auth.Simple
 import Options.Applicative

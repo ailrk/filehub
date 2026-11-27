@@ -55,6 +55,7 @@ module Filehub.Session
   )
   where
 
+import Filehub.Prelude
 import Control.Handle.Storage (Storage(..))
 import Filehub.Session.Handle
 import Filehub.Session.Types (TargetView(..), Session(..), SessionId(..))

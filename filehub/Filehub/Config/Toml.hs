@@ -8,17 +8,12 @@
 -- OIDC doesn't have an cli option.
 module Filehub.Config.Toml (parseConfigFile, serializeConfig) where
 
-import Control.Applicative ((<|>))
+import Filehub.Prelude
 import Control.Category ((>>>))
-import Control.Exception (throwIO)
-import Data.Coerce (coerce)
-import Data.Text (Text)
-import Data.Text qualified as T
 import Filehub.Auth.Types.OIDC qualified as Auth.OIDC
 import Filehub.Auth.Types.Simple qualified as Auth.Simple
 import Filehub.Config
 import Filehub.Locale (Locale(..))
-import Filehub.Plugin.Types (StaticPlugins(..))
 import Filehub.Plugin.Toml qualified as Plugin.Toml
 import Filehub.Theme (Theme (..), CustomTheme(..))
 import Network.URI (URI)
@@ -222,12 +217,12 @@ _URI = uriText >>> Toml._Text
     uriText :: TomlBiMap URI Text
     uriText = Toml.BiMap forward backward
 
-    forward uri = Right . T.pack . URI.uriToString id uri $ ""
+    forward uri = Right . txt_pack . URI.uriToString id uri $ ""
     backward t = maybe
       (Left (Toml.ArbitraryError "invalid uri"))
       Right
-      (URI.parseURI (T.unpack t))
+      (URI.parseURI (txt_unpack t))
 
 
 colorHex :: Key -> TomlCodec Text
-colorHex key = Toml.validateIf (\s -> "#" `T.isPrefixOf` s && T.length s == 7) Toml._Text key
+colorHex key = Toml.validateIf (\s -> "#" `txt_isPrefixOf` s && txt_length s == 7) Toml._Text key

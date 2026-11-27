@@ -6,9 +6,7 @@ module Filehub.Cookie
   , renderSetCookie
   ) where
 
-import Data.ByteString (ByteString)
-import Data.Functor ((<&>))
-import Data.Text.Encoding qualified as T
+import Filehub.Prelude
 import Data.UUID qualified as UUID
 import Filehub.Auth.Types (AuthId (..))
 import Filehub.SharedLink (SharedLinkPermit(..))
@@ -24,7 +22,7 @@ newtype Cookies' = Cookies' Cookies
 
 instance FromHttpApiData Cookies' where
   parseHeader     = return . Cookies' . Cookie.parseCookies
-  parseQueryParam = return . Cookies' . Cookie.parseCookies . T.encodeUtf8
+  parseQueryParam = return . Cookies' . Cookie.parseCookies . txt_encode
 
 
 class FromCookies a where
@@ -66,7 +64,7 @@ getAuthId (Cookies' cookies) = lookup "authId" cookies >>= UUID.fromASCIIBytes <
 getDisplay :: Cookies' -> Maybe Display
 getDisplay (Cookies' cookies) = do
   bytes <- lookup "display" cookies
-  either (const Nothing) Just (parseUrlPiece (T.decodeUtf8 bytes))
+  either (const Nothing) Just (parseUrlPiece (txt_decode bytes))
 
 
 getSharedLinkPermit :: Cookies' -> Maybe SharedLinkPermit

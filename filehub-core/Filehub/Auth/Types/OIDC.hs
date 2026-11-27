@@ -23,12 +23,9 @@ module Filehub.Auth.Types.OIDC
   where
 
 
+import Filehub.Prelude
 import Data.Aeson (FromJSON)
-import Data.Text (Text)
-import Data.Time (UTCTime)
-import Data.Time.Clock.POSIX qualified as Time
 import Filehub.Orphan ()
-import GHC.Generics (Generic)
 import GHC.Records (HasField(..))
 import Network.URI (URI(..))
 import Prelude hiding (init, readFile)
@@ -36,7 +33,6 @@ import Servant.Conduit ()
 import Web.JWT (JWT, VerifiedJWT, JWTClaimsSet (..))
 import Web.JWT qualified as JWT
 import Text.Debug (Debug)
-import Data.Functor.Identity (Identity)
 
 newtype OIDCState    = OIDCState Text
 newtype CodeVerifier = CodeVerifier Text
@@ -124,10 +120,10 @@ instance HasField "sub" User (Maybe Text) where
   getField (User (Token { idToken })) = JWT.stringOrURIToText <$> (JWT.claims idToken).sub
 
 instance HasField "exp" User (Maybe UTCTime) where
-  getField (User (Token { idToken })) = Time.posixSecondsToUTCTime . JWT.secondsSinceEpoch <$> (JWT.claims idToken).exp
+  getField (User (Token { idToken })) = time_posixToUTC . JWT.secondsSinceEpoch <$> (JWT.claims idToken).exp
 
 instance HasField "iat" User (Maybe UTCTime) where
-  getField (User (Token { idToken })) = Time.posixSecondsToUTCTime . JWT.secondsSinceEpoch <$> (JWT.claims idToken).iat
+  getField (User (Token { idToken })) = time_posixToUTC . JWT.secondsSinceEpoch <$> (JWT.claims idToken).iat
 
 instance HasField "accessToken"  User (Maybe Text) where
   getField (User (Token { accessToken })) = accessToken

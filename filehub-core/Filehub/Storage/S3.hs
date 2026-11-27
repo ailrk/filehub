@@ -15,6 +15,7 @@
 -- When updating, we first delete the cache, then write the full update.
 module Filehub.Storage.S3 where
 
+import Filehub.Prelude
 import Amazonka (send, runResourceT, toBody, ResponseBody (..), RequestBody)
 import Amazonka.Data qualified as Amazonka
 import Amazonka.S3 (Object(..), CommonPrefix, CompletedMultipartUpload (CompletedMultipartUpload'), BucketName (..), ObjectKey (..))
@@ -30,30 +31,18 @@ import Cache.Key (CacheKey, SomeCacheKey (..))
 import Codec.Archive.Zip qualified as Zip
 import Conduit (ResourceT, MonadTrans (..), sinkLazy)
 import Conduit qualified
-import Control.Monad (void)
 import Control.Service.Cache (MonadCache(..))
 import Control.Service.Cache qualified as Cache
 import Control.Service.LockManager qualified as LockManager
-import Data.ByteString (ByteString)
-import Data.ByteString qualified as ByteString
 import Data.ByteString.Builder (Builder)
 import Data.ByteString.Builder qualified as Builder
-import Data.ByteString.Char8 qualified as Char8
-import Data.ByteString.Lazy qualified as LBS
 import Data.ClientPath (AbsPath (..))
-import Data.Coerce (coerce)
 import Data.Conduit ( ConduitT, (.|), await, runConduit, yield )
 import Data.File (File (..), FileType (..), FileInfo, FileWithContent, FileContent (..), defaultFileWithContent, IsLink (..))
-import Data.Function (fix, (&))
 import Data.Generics.Labels ()
 import Data.Kind (Type)
-import Data.List (sort)
-import Data.List (uncons)
+import Data.List (sort, uncons)
 import Data.List.NonEmpty qualified as NonEmpty
-import Data.Maybe (fromMaybe)
-import Data.Text qualified as Text
-import Data.Text.Encoding qualified as Text
-import Data.Time (secondsToNominalDiffTime)
 import Filehub.Error (Error'(InvalidPath, CopyError), FilehubError(FilehubError))
 import Filehub.Monad (Filehub)
 import GHC.TypeLits (Symbol)
@@ -61,15 +50,12 @@ import Lens.Micro ( (?~), (.~), (^.) )
 import Log (logAttention_)
 import Network.Mime (defaultMimeLookup)
 import Prelude hiding (read, readFile, writeFile)
-import Prelude hiding (read, readFile, writeFile)
 import Servant.Multipart (Mem, FileData (..))
 import System.FilePath (takeDirectory, (</>))
 import System.IO.Temp qualified as Temp
 import Target.S3 (Target(..), S3)
 import Target.Types (TargetId)
 import Target.Types qualified as Target
-import UnliftIO (MonadIO (..), throwIO, onException, catch, SomeException)
-import UnliftIO.Async (forConcurrently_)
 import UnliftIO.Directory (removeFile)
 
 
@@ -97,7 +83,7 @@ get (s3@S3Backend { targetId }) path = do
     Just cached -> pure cached
     Nothing -> do
       let bucket  = BucketName s3.bucket
-          key     = ObjectKey (coerce Text.pack path)
+          key     = ObjectKey (coerce txt_pack path)
           request = Amazonka.newHeadObject bucket key
       resp <- send s3.env request
       if resp ^. Amazonka.headObjectResponse_httpStatus == 200
@@ -110,7 +96,7 @@ get (s3@S3Backend { targetId }) path = do
                 , atime    = Nothing
                 , mtime    = mtime
                 , size     = size
-                , mimetype = maybe "application/octet-stream" Text.encodeUtf8 contentType
+                , mimetype = maybe "application/octet-stream" txt_encode contentType
                 , isLink   = NotLink
                 , content  = Regular
                 }
@@ -121,7 +107,7 @@ get (s3@S3Backend { targetId }) path = do
   where
     cacheKey  =  createCacheKey @"file" @FileInfo targetId (coerce Builder.string8 path)
     cacheDeps = [ SomeCacheKey (createCacheKey @"file" @FileInfo targetId "") ]
-    cacheTTL  = Just (secondsToNominalDiffTime 10)
+    cacheTTL  = Just (time_fromSeconds 10)
 
 
 -- | Because S3 doesn't have real directory, we need to list all keys in the
@@ -135,7 +121,7 @@ isDirectory s3@S3Backend { targetId } filePath = do
     Nothing -> do
       let bucket  = BucketName s3.bucket
           request = Amazonka.newListObjectsV2 bucket
-                  & Amazonka.listObjectsV2_prefix ?~ Text.pack (coerce normalizeDirPath filePath)
+                  & Amazonka.listObjectsV2_prefix ?~ txt_pack (coerce normalizeDirPath filePath)
                   & Amazonka.listObjectsV2_maxKeys ?~ 1
       resp <- send s3.env request
       let result = maybe False (> 0) (resp ^. Amazonka.listObjectsV2Response_keyCount)
@@ -152,13 +138,13 @@ read s3@S3Backend { targetId }  file = do
     Nothing -> do
       stream <- readStream s3 file Nothing Nothing
       chunks <- liftIO $ runResourceT . Conduit.runConduit $ stream Conduit..| Conduit.sinkList
-      let result = LBS.toStrict (LBS.fromChunks chunks)
+      let result = lBS_toStrict (lBS_fromChunks chunks)
       cacheInsert cacheKey cacheDeps cacheTTL result
       pure result
   where
     cacheKey  = createCacheKey @"file-content" @ByteString targetId (coerce Builder.string8 file.path)
     cacheDeps = [ SomeCacheKey (createCacheKey @"file" @FileInfo targetId (coerce Builder.string8 file.path)) ]
-    cacheTTL  = Just (secondsToNominalDiffTime 10)
+    cacheTTL  = Just (time_fromSeconds 10)
 
 
 readStream :: Target S3
@@ -168,22 +154,22 @@ readStream :: Target S3
            -> Filehub (ConduitT () ByteString (ResourceT IO) ())
 readStream s3 file mOff mMax = do
   let bucket  = BucketName s3.bucket
-      key     = ObjectKey (coerce Text.pack file.path)
+      key     = ObjectKey (coerce txt_pack file.path)
       range   = case (mOff, mMax) of
                   (Just off, Just len) -> Just $ mconcat [ "bytes="
-                                                         , Char8.pack (show off)
+                                                         , bs_packChars (show off)
                                                          , "-"
-                                                         , Char8.pack (show (off + len - 1))
+                                                         , bs_packChars (show (off + len - 1))
                                                          ]
                   (Just off, Nothing)  -> Just $ mconcat [ "bytes="
-                                                         , Char8.pack (show off)
+                                                         , bs_packChars (show off)
                                                          , "-"
                                                          ]
                   (Nothing, Just len)  -> Just $ mconcat [ "bytes=0-"
-                                                         , Char8.pack (show (len - 1)) -- be careful with off by 1
+                                                         , bs_packChars (show (len - 1)) -- be careful with off by 1
                                                          ]
                   (Nothing, Nothing)   -> Nothing
-      request = (Amazonka.newGetObject bucket key) { range = Text.decodeUtf8 <$> range }
+      request = (Amazonka.newGetObject bucket key) { range = txt_decode <$> range }
   pure $ do
     resp <- lift $ send s3.env request
     let (ResponseBody conduit) = resp ^. Amazonka.getObjectResponse_body
@@ -232,16 +218,16 @@ write s3@S3Backend { targetId } File { content, mimetype, size = mSize, path } =
     writePutObject :: AbsPath -> RequestBody -> Filehub ()
     writePutObject filePath body =
       let bucket  = BucketName s3.bucket
-          key     = ObjectKey (coerce Text.pack filePath)
-          request = (Amazonka.newPutObject bucket key body) { contentType = Just (Text.decodeUtf8 mimetype) } :: PutObject
+          key     = ObjectKey (coerce txt_pack filePath)
+          request = (Amazonka.newPutObject bucket key body) { contentType = Just (txt_decode mimetype) } :: PutObject
        in void $ send s3.env request
 
     writeMultipart :: ConduitT () ByteString (ResourceT IO) () -> Filehub ()
     writeMultipart conduit = do
       let bucket   = BucketName s3.bucket
-          key      = ObjectKey (coerce Text.pack path)
+          key      = ObjectKey (coerce txt_pack path)
           partSize = 5 * 1024 * 1024
-          request  = (Amazonka.newCreateMultipartUpload bucket key) { contentType = Just (Text.decodeUtf8 mimetype) } :: CreateMultipartUpload
+          request  = (Amazonka.newCreateMultipartUpload bucket key) { contentType = Just (txt_decode mimetype) } :: CreateMultipartUpload
       createMultipartUploadResp <- send s3.env request
       let uploadId = createMultipartUploadResp.uploadId
       let abort = void (send s3.env (Amazonka.newAbortMultipartUpload bucket key uploadId))
@@ -280,26 +266,26 @@ data ChunkBuilder
 
 chunkBuilderToByteString :: ChunkBuilder -> ByteString
 chunkBuilderToByteString = \case
-  ChunkBuilder builder _ -> ByteString.toStrict . Builder.toLazyByteString $ builder
+  ChunkBuilder builder _ -> lBS_toStrict . Builder.toLazyByteString $ builder
   ChunkBuilded bytes     -> bytes
 
 
 chunkBuilderSize :: ChunkBuilder -> Int
 chunkBuilderSize = \case
   ChunkBuilder _ size -> size
-  ChunkBuilded bytes  -> ByteString.length bytes
+  ChunkBuilded bytes  -> bs_length bytes
 
 
 -- | It's slow if any one parameter is ChunkBuiled.
 instance Semigroup ChunkBuilder where
   ChunkBuilder b1 s1 <> ChunkBuilder b2 s2 = ChunkBuilder (b1 <> b2) (s1 + s2)
-  ChunkBuilded b1 <> c2 = ChunkBuilder (Builder.byteString b1) (ByteString.length b1) <> c2
-  c1 <> ChunkBuilded b2 = c1 <> ChunkBuilder (Builder.byteString b2) (ByteString.length b2)
+  ChunkBuilded b1 <> c2 = ChunkBuilder (Builder.byteString b1) (bs_length b1) <> c2
+  c1 <> ChunkBuilded b2 = c1 <> ChunkBuilder (Builder.byteString b2) (bs_length b2)
 
 
 -- Chunk a ByteString Conduit into exact n-byte pieces and track chunk count
 chunking :: MonadIO m => Int -> ConduitT ByteString (Int, ChunkBuilder) m ()
-chunking chunkSize = flip fix (1, ChunkBuilder (Builder.byteString ByteString.empty) 0)
+chunking chunkSize = flip fix (1, ChunkBuilder (Builder.byteString bs_empty) 0)
   \rec (idx, acc) -> do
     mBytes <- await
     case mBytes of
@@ -310,12 +296,12 @@ chunking chunkSize = flip fix (1, ChunkBuilder (Builder.byteString ByteString.em
             | otherwise       -> pure ()
           ChunkBuilded _ -> pure ()
       Just bytes -> do
-        let combined  = acc <> ChunkBuilder (Builder.byteString bytes) (ByteString.length bytes)
+        let combined  = acc <> ChunkBuilder (Builder.byteString bytes) (bs_length bytes)
         let cbSize    = chunkBuilderSize combined
         if cbSize >= chunkSize
           then do
             let combinedBytes = chunkBuilderToByteString combined
-            let (chunk, rest) = ByteString.splitAt chunkSize combinedBytes
+            let (chunk, rest) = bs_splitAt chunkSize combinedBytes
             yield (idx, ChunkBuilded chunk)
             rec (idx + 1, ChunkBuilder (Builder.byteString rest) (cbSize - chunkSize))
           else
@@ -332,8 +318,8 @@ mv s3@S3Backend { targetId } cpPairs = do
                    else (fmap LockManager.mkLockKey [src, dst])
     LockManager.withLocks locks do
       let bucket  = BucketName s3.bucket
-          destKey = ObjectKey (coerce Text.pack dst)
-          request = Amazonka.newCopyObject bucket (coerce Text.pack src) destKey
+          destKey = ObjectKey (coerce txt_pack dst)
+          request = Amazonka.newCopyObject bucket (coerce txt_pack src) destKey
       resp <- send s3.env request
       case resp.copyObjectResult of
         Just _ -> do
@@ -341,7 +327,7 @@ mv s3@S3Backend { targetId } cpPairs = do
           cacheDelete (SomeCacheKey (createCacheKey @"dir" @[FileInfo] targetId (Builder.string8 (coerce takeDirectory dst))))
           coerce delete' s3 src
         Nothing ->
-          logAttention_ (Text.pack $ "S3 Copy Failed for " <> (coerce src))
+          logAttention_ (txt_pack $ "S3 Copy Failed for " <> (coerce src))
 
 
 rename :: Target S3 -> AbsPath -> String -> Filehub ()
@@ -359,7 +345,7 @@ delete s3 filePath = LockManager.withLock (LockManager.mkLockKey filePath) do
 delete' :: Target S3 -> AbsPath -> Filehub ()
 delete' s3@S3Backend { targetId } filePath = do
   let bucket = BucketName s3.bucket
-      key    = ObjectKey (coerce Text.pack filePath)
+      key    = ObjectKey (coerce txt_pack filePath)
   void $ send s3.env (Amazonka.newDeleteObject bucket key)
   cacheDelete (SomeCacheKey (createCacheKey @"file"        @FileInfo targetId (coerce Builder.string8 filePath)))
   cacheDelete (SomeCacheKey (createCacheKey @"dir"         @[FileInfo] targetId ""))
@@ -375,7 +361,7 @@ ls s3@S3Backend { targetId } _ = do
       Nothing -> do
         let bucket  = BucketName s3.bucket
             request = Amazonka.newListObjectsV2 bucket
-                    & Amazonka.listObjectsV2_prefix ?~ Text.pack "" -- root
+                    & Amazonka.listObjectsV2_prefix ?~ txt_pack "" -- root
         resp <- send s3.env request
         let files  = maybe [] (fmap toFile) $ resp ^. Amazonka.listObjectsV2Response_contents
             dirs   = maybe [] (fmap toDir)  $ resp ^. Amazonka.listObjectsV2Response_commonPrefixes
@@ -388,12 +374,12 @@ ls s3@S3Backend { targetId } _ = do
         pure result
   where
     cacheKey = createCacheKey @"dir" @[FileInfo] targetId ""
-    cacheTTL = Just (secondsToNominalDiffTime 10)
+    cacheTTL = Just (time_fromSeconds 10)
 
     toDir (commonPrefix :: CommonPrefix) =
       let dirPath = fromMaybe mempty $ commonPrefix ^. Amazonka.commonPrefix_prefix
        in File
-         { path     = coerce Text.unpack dirPath
+         { path     = coerce txt_unpack dirPath
          , atime    = Nothing
          , mtime    = Nothing
          , size     = Nothing
@@ -405,7 +391,7 @@ ls s3@S3Backend { targetId } _ = do
     toFile (object :: Object) =
       let filePath = Amazonka.toText $ object ^. Amazonka.object_key
        in File
-         { path     = coerce Text.unpack filePath
+         { path     = coerce txt_unpack filePath
          , atime    = Nothing
          , mtime    = Just (object ^. Amazonka.object_lastModified)
          , size     = Just (object ^. Amazonka.object_size)
@@ -426,7 +412,7 @@ getBucketSize s3@S3Backend { targetId } = do
     Just cached -> pure cached
     Nothing -> do
       result <- go 0 Nothing
-      cacheInsert cacheKey [] (Just (secondsToNominalDiffTime 60)) result
+      cacheInsert cacheKey [] (Just (time_fromSeconds 60)) result
       pure result
   where
     cacheKey = createCacheKey @"bucket-size" @Integer targetId ""
@@ -444,9 +430,9 @@ getBucketSize s3@S3Backend { targetId } = do
 
 upload :: Target S3 -> FileData Mem -> Filehub ()
 upload s3 file = do
-  let mimetype = Text.encodeUtf8 file.fdFileCType
-      name     = coerce Text.unpack file.fdFileName
-      bytes    = LBS.toStrict (file.fdPayload)
+  let mimetype = txt_encode file.fdFileCType
+      name     = coerce txt_unpack file.fdFileName
+      bytes    = lBS_toStrict (file.fdPayload)
   write s3 $ defaultFileWithContent
     { path     = name
     , mimetype = mimetype
