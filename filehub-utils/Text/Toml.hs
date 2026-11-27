@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 module Text.Toml
   ( TomlValue(..)
   , TomlTable

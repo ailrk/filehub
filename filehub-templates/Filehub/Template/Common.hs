@@ -1,5 +1,6 @@
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE NamedFieldPuns #-}
 module Filehub.Template.Common
   ( bootstrap
   , offline

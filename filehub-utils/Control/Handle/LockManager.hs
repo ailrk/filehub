@@ -1,3 +1,4 @@
+{-# LANGUAGE RankNTypes #-}
 module Control.Handle.LockManager where
 
 import LockManager.Key (LockKey)

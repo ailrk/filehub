@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 module Filehub.History.Types
   ( History(..)
   , HistoryEntry(..)

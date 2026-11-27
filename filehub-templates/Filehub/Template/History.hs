@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 module Filehub.Template.History (historyModal) where
 
 import Filehub.Prelude

@@ -5,6 +5,7 @@
 -- This module defines all application-level errors. Each error maps to a
 -- corresponding HTTP error. Errors can either be handled in the backend or
 -- returned to the frontend.
+{-# LANGUAGE DeriveAnyClass #-}
 module Filehub.Error
   ( FilehubError(..)
   , Error'(..)

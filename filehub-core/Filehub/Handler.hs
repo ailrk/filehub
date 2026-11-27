@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 module Filehub.Handler
   ( toServantHandler
   , readOnlyHandler

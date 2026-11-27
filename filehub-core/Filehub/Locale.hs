@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TemplateHaskell #-}
 -- |
 -- Maintainer  :  jimmy@ailrk.com

@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
 module Filehub.Auth.Types
   ( AuthId(..)
   , Auth(..)

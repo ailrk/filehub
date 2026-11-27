@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 module Data.Queue (Queue, empty, push, pop, size) where
 
 

@@ -1,4 +1,6 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE RankNTypes #-}
 module Cache.Key (SomeCacheKey(..), CacheKey(..), mkCacheKey) where
 
 import Data.ByteString (ByteString)

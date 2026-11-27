@@ -1,3 +1,4 @@
+{-# LANGUAGE RankNTypes #-}
 module Control.Handle.Cache where
 
 import Cache.InMemory (InMemoryCache(..))

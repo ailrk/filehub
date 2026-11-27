@@ -20,22 +20,17 @@ common shared
   default-extensions:     BlockArguments
                           DataKinds
                           DerivingStrategies
-                          DeriveGeneric
-                          DeriveAnyClass
                           GeneralizedNewtypeDeriving
                           DuplicateRecordFields
                           FlexibleContexts
                           ImportQualifiedPost
-                          LambdaCase
                           NoFieldSelectors
                           OverloadedRecordDot
                           OverloadedStrings
                           QuasiQuotes
-                          RankNTypes
                           ScopedTypeVariables
                           StrictData
                           TypeApplications
-                          TypeOperators
                           FlexibleInstances
 
   -- Force all warnings to be on and selectively disable some

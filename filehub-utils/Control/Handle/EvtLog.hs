@@ -1,4 +1,6 @@
+{-# LANGUAGE ExplicitNamespaces #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE TypeOperators #-}
 module Control.Handle.EvtLog
   ( EvtLog
   , LogEvt(..)
