@@ -45,10 +45,10 @@ import Prelude hiding (read, writeFile)
 import Servant.Multipart (Mem, FileData (..))
 import System.FilePath ((</>), takeDirectory, takeFileName)
 import System.IO.Error (isDoesNotExistError)
-import System.IO.Temp qualified as Temp
+import System.IO (openTempFile)
 import Target.File (Target(..), FileSys)
-import UnliftIO (MonadIO (..), throwIO, tryIO, onException, IOException, Handler (..), catch, withFile, IOMode (..), hClose, withTempFile, SomeException)
-import UnliftIO.Directory (doesDirectoryExist, pathIsSymbolicLink, removeFile, makeAbsolute, getFileSize, getAccessTime, getModificationTime, doesPathExist, doesFileExist, createDirectoryIfMissing, renameFile, copyFile, listDirectory, removeDirectoryRecursive, withCurrentDirectory)
+import UnliftIO (IOException, Handler (..), withFile, IOMode (..), hClose, withTempFile)
+import UnliftIO.Directory (doesDirectoryExist, pathIsSymbolicLink, removeFile, makeAbsolute, getFileSize, getAccessTime, getModificationTime, doesPathExist, doesFileExist, createDirectoryIfMissing, renameFile, copyFile, listDirectory, removeDirectoryRecursive, withCurrentDirectory, getTemporaryDirectory, canonicalizePath)
 import UnliftIO.Retry (recovering, limitRetries, exponentialBackoff)
 
 
@@ -444,8 +444,8 @@ download fileSys clientPath = do
     Regular    -> readStream file Nothing Nothing
     Dir     -> do
       (zipPath, _) <- liftIO do
-        tempDir <- Temp.getCanonicalTemporaryDirectory
-        Temp.openTempFile tempDir "DXXXXXX.zip"
+        tempDir <- getTemporaryDirectory >>= canonicalizePath
+        openTempFile tempDir "DXXXXXX.zip"
 
       onException
         (Zip.createArchive zipPath do

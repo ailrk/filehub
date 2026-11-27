@@ -49,11 +49,11 @@ import Network.Mime (defaultMimeLookup)
 import Prelude hiding (read, readFile, writeFile)
 import Servant.Multipart (Mem, FileData (..))
 import System.FilePath (takeDirectory, (</>))
-import System.IO.Temp qualified as Temp
+import System.IO (openTempFile)
 import Target.S3 (Target(..), S3)
 import Target.Types (TargetId)
 import Target.Types qualified as Target
-import UnliftIO.Directory (removeFile)
+import UnliftIO.Directory (removeFile, getTemporaryDirectory, canonicalizePath)
 
 
 
@@ -450,8 +450,8 @@ download s3 path = do
     Regular    -> readStream s3 file Nothing Nothing
     Dir        -> do
       (zipPath, _) <- liftIO do
-        tempDir <- Temp.getCanonicalTemporaryDirectory
-        Temp.openTempFile tempDir "DXXXXXX.zip"
+        tempDir <- getTemporaryDirectory >>= canonicalizePath
+        openTempFile tempDir "DXXXXXX.zip"
 
       onException
         (Zip.createArchive zipPath do

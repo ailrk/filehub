@@ -55,9 +55,9 @@ import Network.Wai (Request(..), responseLBS, responseStream)
 import Prelude hiding (init, readFile)
 import Servant (Header , Headers  , addHeader, Tagged (..), Application, ServerError (..), FromHttpApiData (..), err404)
 import Servant.Multipart (MultipartData(..), Mem, FileData(..))
-import System.Directory (removeFile)
+import System.Directory (removeFile, getTemporaryDirectory, canonicalizePath)
 import System.FilePath (takeFileName, (</>), makeRelative, takeDirectory)
-import System.IO.Temp qualified as Temp
+import System.IO (openTempFile)
 import System.Random (randomRIO)
 import Text.Printf (printf)
 import UnliftIO (newEmptyMVar, takeMVar, putMVar)
@@ -352,8 +352,8 @@ download sessionId _ _ clientPaths = do
 
     _ -> do
       (zipPath, _) <- liftIO do
-        tempDir <- Temp.getCanonicalTemporaryDirectory
-        Temp.openTempFile tempDir "DXXXXXX.zip"
+        tempDir <- getTemporaryDirectory >>= canonicalizePath
+        openTempFile tempDir "DXXXXXX.zip"
 
       absPaths <- traverse (fromClientPathChecked root) clientPaths
       files <- traverse storage.get absPaths

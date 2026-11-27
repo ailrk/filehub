@@ -1,7 +1,6 @@
 {-# LANGUAGE FieldSelectors #-}
 module Text.Fuzzy (Fuzzy(..), filter) where
 
-import Data.Char (toLower)
 import Data.Text (Text)
 import Data.Text qualified as T
 import Prelude hiding (filter)
