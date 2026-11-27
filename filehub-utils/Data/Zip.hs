@@ -99,26 +99,26 @@ writeLocalEntry h entry = do
 writeCentralDirectory :: Handle -> [EntryInfo] -> IO ()
 writeCentralDirectory h entries = do
   cdOffset <- fromIntegral <$> hTell h
-  forM_ entries $ \EntryInfo{..} ->
+  forM_ entries $ \ei ->
     LBS.hPut h . Build.toLazyByteString $
       Build.word32LE 0x02014B50             -- central dir signature
       <> Build.word16LE 20                  -- version made by
       <> Build.word16LE 20                  -- version needed
       <> Build.word16LE 0x0800             -- general purpose: UTF-8
-      <> Build.word16LE eiMethod
+      <> Build.word16LE ei.eiMethod
       <> Build.word16LE dosTime
       <> Build.word16LE dosDate
-      <> Build.word32LE eiCRC32
-      <> Build.word32LE eiCompSize
-      <> Build.word32LE eiUncompSize
-      <> Build.word16LE (fromIntegral (BS.length eiName))
+      <> Build.word32LE ei.eiCRC32
+      <> Build.word32LE ei.eiCompSize
+      <> Build.word32LE ei.eiUncompSize
+      <> Build.word16LE (fromIntegral (BS.length ei.eiName))
       <> Build.word16LE 0                   -- extra field length
       <> Build.word16LE 0                   -- file comment length
       <> Build.word16LE 0                   -- disk number start
       <> Build.word16LE 0                   -- internal file attributes
       <> Build.word32LE 0                   -- external file attributes
-      <> Build.word32LE eiOffset            -- relative offset of local header
-      <> Build.byteString eiName
+      <> Build.word32LE ei.eiOffset         -- relative offset of local header
+      <> Build.byteString ei.eiName
   cdSize <- subtract cdOffset . fromIntegral <$> hTell h
   let n = fromIntegral (length entries) :: Word16
   LBS.hPut h . Build.toLazyByteString $

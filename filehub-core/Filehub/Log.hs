@@ -25,20 +25,20 @@ withColoredStdoutLogger act = withRunInIO \unlift -> do
 
 -- | Render a 'LogMessage' to 'Text'.
 showColoredLogMessage :: Maybe UTCTime -> LogMessage -> Text
-showColoredLogMessage mInsertionTime LogMessage{..}
+showColoredLogMessage mInsertionTime msg
   = txt_concat $ [
-    txt_pack (time_format "%Y-%m-%d %H:%M:%S" lmTime)
+    txt_pack (time_format "%Y-%m-%d %H:%M:%S" msg.lmTime)
   , case mInsertionTime of
       Nothing -> " "
       Just it -> txt_pack (time_format " (%H:%M:%S) " it)
-  , colorize lmLevel . txt_toUpper $ showLogLevel lmLevel
+  , colorize msg.lmLevel . txt_toUpper $ showLogLevel msg.lmLevel
   , " "
-  , colorize lmLevel . txt_intercalate "/" $ lmComponent : lmDomain
+  , colorize msg.lmLevel . txt_intercalate "/" $ msg.lmComponent : msg.lmDomain
   , ": "
-  , lmMessage
-  ] ++ if lmData == emptyObject
+  , msg.lmMessage
+  ] ++ if msg.lmData == emptyObject
     then []
-    else [" ", textifyData lmData]
+    else [" ", textifyData msg.lmData]
   where
     textifyData :: Value -> Text
     textifyData = txt_decode . lBS_toStrict . encodePretty' defConfig {

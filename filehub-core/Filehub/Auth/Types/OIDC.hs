@@ -1,4 +1,6 @@
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE StandaloneDeriving #-}
 module Filehub.Auth.Types.OIDC
   ( Provider(..)
   , OIDCAuthProviders(..)

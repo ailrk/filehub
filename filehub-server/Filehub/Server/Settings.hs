@@ -264,7 +264,7 @@ mkTargetSessionData tgt = do
   currentDir   <- newTVarIO initDir
   sortedFileBy <- newTVarIO ByModifiedDown
   selected     <- newTVarIO NoSelection
-  pure TargetSessionData {..}
+  pure TargetSessionData { currentDir = currentDir, sortedFileBy = sortedFileBy, selected = selected }
 
 
 addTargetToAllSessions :: Env -> TargetId -> AnyTarget -> Filehub ()

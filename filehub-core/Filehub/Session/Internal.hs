@@ -79,7 +79,7 @@ createTargets ts = do
       currentDir   <- newTVarIO (AbsPath "")
       sortedFileBy <- newTVarIO ByModifiedDown
       selected     <- newTVarIO NoSelection
-      pure TargetSessionData {..}
+      pure TargetSessionData { currentDir = currentDir, sortedFileBy = sortedFileBy, selected = selected }
 
 
 extendSession :: NominalDiffTime -> Session -> Session

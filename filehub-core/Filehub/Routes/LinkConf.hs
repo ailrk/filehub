@@ -1,4 +1,5 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -Wno-unused-type-patterns #-}
 module Filehub.Routes.LinkConf
   ( apiLinksConf

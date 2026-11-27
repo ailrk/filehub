@@ -1,6 +1,7 @@
-{-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 -- |
 -- Maintainer  :  jimmy@ailrk.com
@@ -87,7 +88,7 @@ cacheKeyPrefix :: Builder
 cacheKeyPrefix = "st:s3:"
 
 
-createCacheKey :: forall (s :: Symbol) (a :: Type) . CacheKeyComponent s a => TargetId -> Builder -> CacheKey a
+createCacheKey :: forall s a . CacheKeyComponent s a => TargetId -> Builder -> CacheKey a
 createCacheKey targetId identifier = Cache.mkCacheKey
   [cacheKeyPrefix, Target.targetIdBuilder targetId, toCacheKeyComponent @s @a, identifier]
 

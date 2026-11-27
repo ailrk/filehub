@@ -1,4 +1,5 @@
 {- HLINT ignore "Avoid restricted function" -}
+{-# LANGUAGE TypeFamilies #-}
 module Target.Dummy (DummyTarget, newDummyTarget) where
 
 import Filehub.Prelude

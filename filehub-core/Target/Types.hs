@@ -1,3 +1,4 @@
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE TypeFamilies #-}
 module Target.Types
   ( AnyTarget(..)
