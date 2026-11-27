@@ -2,7 +2,7 @@
 , amazonka-s3, base, base64-bytestring, bcrypt, binary, breakpoint
 , bytestring, case-insensitive, conduit, conduit-extra, containers
 , cookie, criterion, cryptohash-sha256, cryptonite, deepseq
-, directory, file-embed, filepath, fuzzy, generic-lens, hashable
+, directory, file-embed, filepath, generic-lens, hashable
 , hashtables, hspec, hspec-wai, http-api-data, http-client
 , http-client-tls, http-types, jwt, lib, log-base, lucid, microlens
 , mime-types, mtl, network, network-uri, optparse-applicative
@@ -25,7 +25,7 @@ mkDerivation {
     aeson aeson-pretty amazonka amazonka-core amazonka-s3 base
     base64-bytestring bcrypt binary breakpoint bytestring
     case-insensitive conduit conduit-extra containers cookie
-    cryptohash-sha256 cryptonite directory file-embed filepath fuzzy
+    cryptohash-sha256 cryptonite directory file-embed filepath
     generic-lens hashable hashtables http-api-data http-client
     http-client-tls http-types jwt log-base lucid microlens mime-types
     mtl network network-uri optparse-applicative psqueues random

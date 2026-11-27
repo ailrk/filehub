@@ -1,10 +1,13 @@
 module Control.Handle.Cache where
 
-import Filehub.Prelude
 import Cache.InMemory (InMemoryCache(..))
 import Cache.InMemory qualified as InMemory
 import Cache.Key (CacheKey, SomeCacheKey)
+import Control.Monad (void)
 import Data.Data (Typeable)
+import Data.IORef (readIORef, atomicModifyIORef')
+import Data.Time.Clock (getCurrentTime, NominalDiffTime)
+import UnliftIO (MonadIO, liftIO)
 
 
 data Cache m = Cache
@@ -20,25 +23,26 @@ makeInMemoryCache (InMemoryCache ref) =
   Cache
     { lookup = \key -> do
         cache <- liftIO (readIORef ref)
-        now <- liftIO time_now
+        now <- liftIO getCurrentTime
         case InMemory.lookup now key cache of
           Just (value, cache') -> do
-            atomicModifyIORef' ref (const (cache', ()))
+            liftIO $ atomicModifyIORef' ref (const (cache', ()))
             pure value
           Nothing -> pure Nothing
 
     , insert = \key mDeps mTTL value -> do
-        now <- liftIO time_now
-        void do
+        now <- liftIO getCurrentTime
+        liftIO $ void $
           atomicModifyIORef' ref
             \cache -> (InMemory.insert now key mDeps mTTL value cache, ())
 
-    , delete = \key -> do
-        void do
+    , delete = \key ->
+        liftIO $ void $
           atomicModifyIORef' ref
             \cache -> (InMemory.delete key cache, ())
 
-    , flush  = void do
+    , flush  =
+        liftIO $ void $
           atomicModifyIORef' ref
             \cache -> (InMemory.empty cache.capacity, ())
     }

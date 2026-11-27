@@ -1,8 +1,10 @@
 module System.FilePath.Extended (expandVars, timeIt) where
 
-import Filehub.Prelude
+import Data.Maybe (fromMaybe)
+import Data.Time.Clock (getCurrentTime, diffUTCTime)
 import System.Environment (lookupEnv)
 import Data.Char (isAlphaNum)
+import UnliftIO (MonadIO, liftIO)
 
 
 -- |  A simple util to expand environment variables embeded in a filepath.
@@ -34,8 +36,8 @@ isVarChar x = isAlphaNum x || x == '_'
 
 timeIt :: MonadIO m => String -> m a -> m a
 timeIt label action = do
-    start <- liftIO time_now
+    start <- liftIO getCurrentTime
     val   <- action
-    end   <- liftIO time_now
-    liftIO $ putStrLn $ label ++ " took: " ++ show (time_diff end start)
+    end   <- liftIO getCurrentTime
+    liftIO $ putStrLn $ label ++ " took: " ++ show (diffUTCTime end start)
     pure val

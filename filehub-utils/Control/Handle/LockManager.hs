@@ -1,7 +1,7 @@
 module Control.Handle.LockManager where
 
-import Filehub.Prelude
 import LockManager.Key (LockKey)
+import UnliftIO (MonadUnliftIO, withRunInIO)
 import LockManager.Local qualified as Local
 
 

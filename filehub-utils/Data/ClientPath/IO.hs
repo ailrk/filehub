@@ -1,7 +1,7 @@
 module Data.ClientPath.IO (validateAbsPath) where
 
 
-import Filehub.Prelude
+import Control.Monad.IO.Class (MonadIO)
 import Data.ClientPath (AbsPath(..))
 
 

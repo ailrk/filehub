@@ -1,7 +1,7 @@
 module Control.Handle.Storage where
 
 
-import Filehub.Prelude
+import Data.ByteString (ByteString)
 import Conduit (ResourceT)
 import Data.File (FileInfo, FileWithContent)
 import Data.ClientPath (ClientPath, AbsPath)

@@ -3,8 +3,9 @@
 
 module Lucid.Htmx where
 
-import Filehub.Prelude
 import Data.Char (isUpper, toLower)
+import Data.Text (Text)
+import Data.Text qualified as T
 import Lucid
 import Lucid.Base (makeAttribute)
 import Servant (Link)
@@ -50,7 +51,7 @@ instance Show Trigger where
     show Submit    = "submit"
     show Load      = "load"
     show Intersect = "intersect"
-    show (Every t) = "every " <> txt_unpack t
+    show (Every t) = "every " <> T.unpack t
 
 
 -- | Htmx event.
@@ -90,13 +91,13 @@ class IsHtmxCustomEvent a where
 
 asCamelCase :: Text -> Text
 asCamelCase t =
-  case txt_uncons t of
-    Just (c, cs) -> txt_cons (toLower c) cs
+  case T.uncons t of
+    Just (c, cs) -> T.cons (toLower c) cs
     Nothing -> t
 
 
 htmxEventAsCamel :: HtmxEvent -> Text
-htmxEventAsCamel e = asCamelCase (txt_pack (show e))
+htmxEventAsCamel e = asCamelCase (T.pack (show e))
 
 
 htmxEventAsKebab :: HtmxEvent -> Text
@@ -106,13 +107,13 @@ htmxEventAsKebab e = toLCKebab (htmxEventAsCamel e)
 -- | Convert camel case string to lower case kebab case.
 toLCKebab :: Text -> Text
 toLCKebab t =
-  case txt_uncons t of
-    Just (c, cs) ->  txt_cons (toLower c) (txt_foldr trans txt_empty cs)
-    Nothing      -> txt_empty
+  case T.uncons t of
+    Just (c, cs) ->  T.cons (toLower c) (T.foldr trans T.empty cs)
+    Nothing      -> T.empty
   where
     trans c acc
-      | isUpper c = txt_cons '-' (txt_cons (toLower c) acc)
-      | otherwise = txt_cons c acc
+      | isUpper c = T.cons '-' (T.cons (toLower c) acc)
+      | otherwise = T.cons c acc
 
 
 -- | Method Attributes (taking Link)
@@ -162,7 +163,7 @@ instance HxOn Text where
 instance HxOn HtmxEvent where
   hxOn event script =
     let eventName = htmxEventAsKebab event
-        cleanName = txt_replace "htmx:" "" eventName
+        cleanName = T.replace "htmx:" "" eventName
     in makeAttribute ("hx-on::" <> cleanName) script
 
 
@@ -174,8 +175,8 @@ instance IsHtmxCustomEvent evt => HxOn (HtmxCustomEvent evt) where
 instance HxOn Trigger where
   hxOn event script =
     let
-        eventName = txt_pack (show event)
-        cleanName = txt_replace "htmx:" "" eventName
+        eventName = T.pack (show event)
+        cleanName = T.replace "htmx:" "" eventName
     in
         makeAttribute ("hx-on::" <> cleanName) script
 
@@ -188,7 +189,7 @@ class HxTrigger a where
 
 
 instance HxTrigger Trigger where
-    hxTrigger t = makeAttribute "hx-trigger" (txt_pack $ show t)
+    hxTrigger t = makeAttribute "hx-trigger" (T.pack $ show t)
 
 
 instance HxTrigger HtmxEvent where
@@ -212,7 +213,7 @@ class HxSwap a where
 
 
 instance HxSwap Swap where
-    hxSwap s = makeAttribute "hx-swap" (txt_pack $ show s)
+    hxSwap s = makeAttribute "hx-swap" (T.pack $ show s)
 
 
 instance HxSwap Text where
@@ -234,7 +235,7 @@ instance HxSwapOOB Bool where
 
 -- | Use for: hx-swap-oob="outerHTML" (Defaulting to the element's ID)
 instance HxSwapOOB Swap where
-  hxSwapOOB s = makeAttribute "hx-swap-oob" (txt_pack $ show s)
+  hxSwapOOB s = makeAttribute "hx-swap-oob" (T.pack $ show s)
 
 
 -- | Use for: hx-swap-oob="innerHTML:#some-id"

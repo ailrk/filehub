@@ -123,8 +123,7 @@ library filehub-utils
   import:                 shared
   hs-source-dirs:         filehub-utils
   c-sources:              filehub-utils/cbits/disk_usage.c
-  build-depends:          filehub:filehub-prelude,
-                          hashable,
+  build-depends:          hashable,
                           string-interpolate,
                           sqlite-simple,
                           unliftio,
@@ -172,6 +171,7 @@ library filehub-utils
                           Servant.Extended
                           System.FilePath.Extended
                           Text.Debug
+                          Text.Fuzzy
 
 library filehub-core
   import:                 shared
@@ -354,7 +354,6 @@ library filehub-templates
                           containers,
                           string-interpolate,
                           filepath,
-                          fuzzy,
                           time
   exposed-modules:        Filehub.Template
                           Filehub.Template.Desktop

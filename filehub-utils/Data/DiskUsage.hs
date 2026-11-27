@@ -1,8 +1,8 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
 module Data.DiskUsage (DiskUsage(..), getDiskUsage) where
 
-import Filehub.Prelude
 import Data.Word (Word8, Word64)
+import UnliftIO (MonadIO, liftIO, tryIO)
 import Foreign.C.String (withCString)
 import Foreign.C.Types (CInt(..))
 import Foreign.Marshal.Alloc (alloca)

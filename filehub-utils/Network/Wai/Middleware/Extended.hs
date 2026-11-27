@@ -4,13 +4,16 @@ module Network.Wai.Middleware.Extended
   )
   where
 
-import Filehub.Prelude
+import Data.ByteString (ByteString)
+import Data.ByteString.Char8 qualified as BC
 import Data.CaseInsensitive qualified as CI
+import Data.List (intersperse)
+import Data.Set (Set)
+import Data.Set qualified as Set
 import Network.HTTP.Types (HeaderName)
 import Network.HTTP.Types.Header (hSetCookie)
 import Network.Wai
 import Network.Wai.Middleware.AddHeaders
-import Prelude hiding (readFile)
 
 
 exposeHeaders :: Middleware
@@ -20,7 +23,7 @@ exposeHeaders = addHeaders
   where
     headers :: ByteString
     headers
-      = bs_packChars
+      = BC.pack
       $ mconcat
       $ intersperse ","
       [ "X-Filehub-Selected-Count"
@@ -34,10 +37,10 @@ dedupHeadersKeepLast app req respond =
   where
     -- Keep the last occurrence of each header
     keepLastHeaders :: [(HeaderName, ByteString)] -> [(HeaderName, ByteString)]
-    keepLastHeaders = reverse . go set_empty . reverse
+    keepLastHeaders = reverse . go Set.empty . reverse
       where
         go _ [] = []
         go seen ((k,v):xs)
           | k == hSetCookie = (k,v) : go seen xs
-          | CI.foldedCase k `set_member` seen = go seen xs
-          | otherwise = (k,v) : go (set_insert (CI.foldedCase k) seen) xs
+          | CI.foldedCase k `Set.member` seen = go seen xs
+          | otherwise = (k,v) : go (Set.insert (CI.foldedCase k) seen) xs

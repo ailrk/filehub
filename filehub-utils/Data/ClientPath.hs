@@ -27,12 +27,12 @@ module Data.ClientPath
   )
   where
 
-import Filehub.Prelude
 import Data.Aeson (ToJSON(..))
-import Data.List (stripPrefix)
+import Data.List (stripPrefix, isPrefixOf)
 import Network.URI.Encode qualified as URI.Encode
 import Servant (FromHttpApiData (..), ToHttpApiData (..))
 import System.FilePath ((</>), normalise, isAbsolute, dropTrailingPathSeparator)
+import Data.Coerce (coerce)
 import Text.Debug (Debug(..))
 import Data.Hashable (Hashable)
 

@@ -1,9 +1,13 @@
 module Cache.Key (SomeCacheKey(..), CacheKey(..), mkCacheKey) where
 
-import Filehub.Prelude
+import Data.ByteString (ByteString)
 import Data.ByteString.Builder (Builder)
 import Data.ByteString.Builder qualified as Builder
+import Data.ByteString.Lazy (toStrict)
+import Data.Function (on)
 import Data.Hashable (Hashable (..))
+import Data.List (intersperse)
+import GHC.Generics (Generic)
 import Control.Category ((>>>))
 
 
@@ -33,5 +37,5 @@ mkCacheKey =
   intersperse (Builder.charUtf8 ':')
   >>> mconcat
   >>> Builder.toLazyByteString
-  >>> lBS_toStrict
+  >>> toStrict
   >>> CacheKey

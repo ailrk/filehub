@@ -162,7 +162,7 @@ pathBreadcrumb = do
 
 search :: SearchWord -> [FileInfo] -> ([FileInfo] -> Template (Html ())) -> Template (Html ())
 search (SearchWord searchWord) files table = do
-  let scored = Fuzzy.filter searchWord files "" "" (\f -> txt_pack (takeFileName (coerce f.path))) False
+  let scored = Fuzzy.filter searchWord files (\f -> txt_pack (takeFileName (coerce f.path))) False
       sorted = sortBy (comparing (Down . Fuzzy.score)) scored
   table (map Fuzzy.original sorted)
 

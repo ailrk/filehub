@@ -1,6 +1,6 @@
 module Network.HTTP.Headers.Extended where
 
-import Filehub.Prelude
+import Data.ByteString (ByteString)
 import Web.HttpApiData (FromHttpApiData (..))
 
 

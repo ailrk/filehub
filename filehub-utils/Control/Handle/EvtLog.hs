@@ -11,8 +11,12 @@ module Control.Handle.EvtLog
   )
   where
 
-import Filehub.Prelude
-import Data.String.Interpolate (iii)
+import Control.Exception (throwIO)
+import Control.Monad (when)
+import Control.Monad.IO.Class (MonadIO, liftIO)
+import Data.ByteString (ByteString)
+import Data.String.Interpolate (i, iii)
+import Data.Time (UTCTime)
 import Database.SQLite.Simple (Connection, Query, Only (..), type (:.) (..))
 import Database.SQLite.Simple qualified as Sqlite
 import Database.SQLite.Simple.ToRow

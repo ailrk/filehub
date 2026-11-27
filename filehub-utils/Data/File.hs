@@ -13,7 +13,9 @@ module Data.File
   )
   where
 
-import Filehub.Prelude
+import Data.ByteString (ByteString)
+import Data.Time (UTCTime)
+import GHC.Generics (Generic)
 import Network.Mime (MimeType)
 import Conduit (ConduitT, ResourceT)
 import Text.Debug (Debug (..))

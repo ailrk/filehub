@@ -15,11 +15,20 @@ module Cache.InMemory
   )
   where
 
-import Filehub.Prelude
 import Cache.Key (CacheKey (..), SomeCacheKey(..))
+import Data.Coerce (coerce)
+import Data.Function ((&))
 import Data.Dynamic (Dynamic, fromDynamic, Typeable, toDyn)
 import Data.HashPSQ (HashPSQ)
 import Data.HashPSQ qualified as HashPSQ
+import Data.IORef (IORef, newIORef)
+import Data.Map.Strict (Map)
+import Data.Map.Strict qualified as Map
+import Data.Maybe (fromMaybe)
+import Data.Set (Set)
+import Data.Set qualified as Set
+import Data.Time (UTCTime, NominalDiffTime, addUTCTime)
+import GHC.Generics (Generic)
 import Prelude hiding (lookup)
 
 
@@ -51,10 +60,10 @@ reachable key graph = go mempty [key]
   where
     go seen [] = seen
     go seen (x:xs)
-      | set_member x seen = go seen xs
+      | Set.member x seen = go seen xs
       | otherwise =
-          let neighbors = map_findWithDefault mempty x graph
-           in go (set_insert x seen) (set_toList neighbors ++ xs)
+          let neighbors = Map.findWithDefault mempty x graph
+           in go (Set.insert x seen) (Set.toList neighbors ++ xs)
 
 
 new ::  Int -> IO InMemoryCache
@@ -132,7 +141,7 @@ insertDyn now key deps mTTL value cache
   & updateDependencies
   & trim
   where
-    entry = Entry value (fmap (`time_add` now) mTTL)
+    entry = Entry value (fmap (`addUTCTime` now) mTTL)
     (mEvicted, queue) = HashPSQ.insertView key cache.tick entry cache.queue
     updateDependencies c =
       case deps of
@@ -142,7 +151,7 @@ insertDyn now key deps mTTL value cache
                 let cacheDeps = coerce @_ @(Map SomeCacheKey (Set SomeCacheKey)) c.dependencies
                  in coerce $
                    foldr
-                    (map_alter (Just . (set_insert key) . fromMaybe mempty))
+                    (Map.alter (Just . (Set.insert key) . fromMaybe mempty))
                     cacheDeps deps
             }
 
@@ -180,8 +189,8 @@ delete key cache@Cache { dependencies = dependencies } =
   cache
     { queue = foldr HashPSQ.delete cache.queue toDelete
     , dependencies = coerce
-                   $ fmap (`set_difference` toDelete)
-                   $ foldr map_delete (coerce dependencies)
+                   $ fmap (`Set.difference` toDelete)
+                   $ foldr Map.delete (coerce dependencies)
                    $ toDelete
     }
   where

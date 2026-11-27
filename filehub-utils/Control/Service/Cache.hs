@@ -5,8 +5,8 @@ module Control.Service.Cache
   )
   where
 
-import Filehub.Prelude
 import Cache.Key (CacheKey, mkCacheKey, SomeCacheKey (..))
+import Data.Time.Clock (NominalDiffTime)
 import Data.Dynamic (Typeable)
 import Prelude hiding (lookup)
 
