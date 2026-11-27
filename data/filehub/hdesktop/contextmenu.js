@@ -202,9 +202,9 @@ function buildMenuSidebar(tab) {
     return menu;
 }
 function buildPluginItems(filePath, fileName, fileMime) {
-    const plugins = (typeof filehubPlugins !== 'undefined' && filehubPlugins) ? filehubPlugins : [];
     const items = [];
-    for (const plugin of plugins) {
+    const tomlPlugins = (typeof filehubPlugins !== 'undefined' && filehubPlugins) ? filehubPlugins : [];
+    for (const plugin of tomlPlugins) {
         for (const entry of plugin.contextMenu) {
             if (!fileMime.startsWith(entry.mime))
                 continue;
@@ -221,6 +221,26 @@ function buildPluginItems(filePath, fileName, fileMime) {
                         const url = substituteUrl(entry.action.value, filePath, fileName, fileMime, '');
                         window.open(url, '_blank');
                     }
+                }
+            });
+            items.push(el);
+        }
+    }
+    const jsPlugins = window.filehub?._jsPlugins ?? [];
+    for (const plugin of jsPlugins) {
+        for (const entry of (plugin.contextMenu ?? [])) {
+            if (!fileMime.startsWith(entry.mime))
+                continue;
+            const el = makeClickItem(entry.label ?? plugin.name, 'bx-link-external', () => {
+                if (typeof entry.script === 'function') {
+                    entry.script({ filePath, fileName, mimeType: fileMime }, createPluginUI());
+                }
+                else if (typeof entry.script === 'string') {
+                    executePluginScript(entry.script, filePath, fileName, fileMime);
+                }
+                else if (entry.url) {
+                    const url = substituteUrl(entry.url, filePath, fileName, fileMime, '');
+                    window.open(url, '_blank');
                 }
             });
             items.push(el);

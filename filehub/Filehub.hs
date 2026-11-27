@@ -86,11 +86,14 @@ main = Log.withColoredStdoutLogger \logger -> do
     , simpleAuthUserRecords = simpleAuthLoginUsers
     , oidcAuthProviders     = oidcAuthProviders
     , plugins               = plugins
+    , pluginJsFiles         = pluginJsFilePaths
     } <-
       either
         (\err -> throwIO (userError err))
         pure
         (Config.merge optionConfig (fileConfig <> dynFileConfig))
+
+  jsFileContents <- traverse T.readFile pluginJsFilePaths
 
   when (null targetConfigs.unTargets) do
     throwIO (userError "No target specified")
@@ -170,6 +173,7 @@ main = Log.withColoredStdoutLogger \logger -> do
       , persistDynConfig  = persistCallback
       , dynamicConfigPath = dynamicConfigPath
       , rateLimiters      = rateLimiters
+      , pluginJsFiles     = jsFileContents
       }
 
   go env `catch` handler

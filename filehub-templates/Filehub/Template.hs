@@ -10,6 +10,7 @@ module Filehub.Template
 import Control.Monad.Reader (ReaderT, runReader, asks, MonadReader (..))
 import Data.ClientPath (AbsPath, Root)
 import Data.Functor.Identity (Identity)
+import Data.Text (Text)
 import Filehub.Auth.Types.OIDC (OIDCAuthProviders)
 import Filehub.Auth.Types.Simple (SimpleAuthUserDB)
 import Filehub.Env qualified as Env
@@ -54,6 +55,7 @@ data TemplateContext = TemplateContext
   , simpleAuthUserDB  :: ~SimpleAuthUserDB
   , oidcAuthProviders :: ~OIDCAuthProviders
   , plugins           :: ~[StaticPlugin]
+  , pluginJsFiles     :: ~[Text]
   }
 
 
@@ -72,6 +74,7 @@ makeTemplateContext sessionId = do
   simpleAuthUserDB  <- asks (.simpleAuthUserDB)
   oidcAuthProviders <- asks (.oidcAuthProviders)
   plugins           <- readTVarIO =<< asks (.plugins)
+  pluginJsFiles     <- asks (.pluginJsFiles)
 
   withSession sessionId \s -> do
     display       <- getDisplay s
@@ -100,4 +103,5 @@ makeTemplateContext sessionId = do
       , simpleAuthUserDB   = simpleAuthUserDB
       , oidcAuthProviders  = oidcAuthProviders
       , plugins            = plugins
+      , pluginJsFiles      = pluginJsFiles
       }

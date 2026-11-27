@@ -59,7 +59,7 @@ index sessionId = do
   toolBar' <- toolBar sessionId
   let i18nScript = script_ [type_ "text/javascript"] $
         i18nPayload ctx.readOnly (phrase ctx.locale)
-  pure $ runTemplate ctx (Template.Desktop.index (i18nScript <> pluginsDataEl ctx.plugins) sideBar' view' toolBar')
+  pure $ runTemplate ctx (Template.Desktop.index (i18nScript <> pluginsDataEl ctx.plugins ctx.pluginJsFiles) sideBar' view' toolBar')
 
 
 i18nPayload :: Bool -> Phrase -> Text
@@ -139,10 +139,12 @@ pluginsPayload ps = "window.filehubPlugins=" <> arr <> ";"
     escape = T.replace "\t" "\\t" . T.replace "\r" "\\r" . T.replace "\n" "\\n" . T.replace "\"" "\\\"" . T.replace "\\" "\\\\"
 
 
-pluginsDataEl :: [StaticPlugin] -> Html ()
-pluginsDataEl ps =
-  div_ [id_ "filehub-plugins"] $
-    script_ [type_ "text/javascript"] (pluginsPayload ps)
+pluginsDataEl :: [StaticPlugin] -> [Text] -> Html ()
+pluginsDataEl ps jsFiles =
+  div_ [id_ "filehub-plugins"] $ do
+    script_ [type_ "text/javascript"]
+      (pluginsPayload ps <> "\nwindow.filehub=window.filehub||{_jsPlugins:[],registerPlugin:function(d){this._jsPlugins.push(d);}};")
+    mapM_ (\src -> script_ [type_ "text/javascript"] ("(function(){\n" <> src <> "\n})();")) jsFiles
 
 
 view :: SessionId -> Filehub (Html ())

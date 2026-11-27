@@ -164,6 +164,14 @@ dioptional2 :: TomlCodec a -> TomlCodec (Maybe (Maybe a))
 dioptional2 = Toml.dioptional . Toml.dioptional
 
 
+pluginJsFilesCodec :: Key -> TomlCodec [FilePath]
+pluginJsFilesCodec key =
+  Toml.dimap
+    (\xs -> if null xs then Nothing else Just xs)
+    (maybe [] id)
+    (Toml.dioptional (Toml.arrayOf Toml._String key))
+
+
 
 
 config :: TomlCodec (Config Maybe)
@@ -179,6 +187,7 @@ config = Config
   <*> (simpleAuthUserRecords               "login")       .= (.simpleAuthUserRecords)
   <*> (oidcAuthProviders                   "oidc")        .= (.oidcAuthProviders)
   <*> (Plugin.Toml.pluginsCodec             "plugin")      .= (.plugins)
+  <*> (pluginJsFilesCodec                   "plugin_js")   .= (.pluginJsFiles)
 
 
 serializeConfig :: Config Maybe -> Text
@@ -199,7 +208,7 @@ parseConfigFile (Just filePath) = do
       targets' <- traverse expand (coerce @_ @[TargetConfig] c.targets)
       pure $ c { targets = coerce @_ @Targets targets' }
 parseConfigFile _ =
-  pure (Config Nothing Nothing Nothing Nothing Nothing Nothing Nothing mempty mempty mempty mempty)
+  pure (Config Nothing Nothing Nothing Nothing Nothing Nothing Nothing mempty mempty mempty mempty [])
 
 
 ------------------------------

@@ -282,6 +282,21 @@ function initTomlEditors() {
     document.querySelectorAll('textarea.toml-textarea')
         .forEach(initTomlEditor);
 }
+function executeJsPluginToolbarEntry(entry, filePath, fileName, fileMime) {
+    if (typeof entry.script === 'function') {
+        entry.script({ filePath, fileName, mimeType: fileMime }, createPluginUI());
+    }
+    else if (typeof entry.script === 'string') {
+        runPluginScript(entry.script, filePath, fileName, fileMime);
+    }
+    else if (entry.url) {
+        const url = entry.url
+            .replace('{file_path}', encodeURIComponent(filePath))
+            .replace('{file_name}', encodeURIComponent(fileName))
+            .replace('{mime_type}', encodeURIComponent(fileMime));
+        window.open(url, '_blank');
+    }
+}
 function updatePluginToolbarActions() {
     const container = document.getElementById('plugin-toolbar-actions');
     if (!container)
@@ -346,6 +361,20 @@ function updatePluginToolbarActions() {
                         .replace('{share_url}', '');
                     window.open(url, '_blank');
                 }
+            });
+            container.appendChild(btn);
+        }
+    }
+    const jsPlugins = window.filehub?._jsPlugins ?? [];
+    for (const plugin of jsPlugins) {
+        for (const entry of (plugin.toolbar ?? [])) {
+            if (!fileMime.startsWith(entry.mime))
+                continue;
+            const btn = document.createElement('button');
+            btn.className = 'btn btn-control plugin-toolbar-btn';
+            btn.textContent = entry.label ?? plugin.name;
+            btn.addEventListener('click', () => {
+                executeJsPluginToolbarEntry(entry, filePath, fileName, fileMime);
             });
             container.appendChild(btn);
         }

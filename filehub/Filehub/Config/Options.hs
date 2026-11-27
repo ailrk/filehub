@@ -155,6 +155,15 @@ locale = option auto
         ]
 
 
+pluginJsFile :: Parser FilePath
+pluginJsFile = option str
+             $ mconcat
+             $ [ long "plugin-js"
+               , metavar "PATH"
+               , help "JavaScript plugin file (can be specified multiple times)"
+               ]
+
+
 config :: Parser (Config Maybe)
 config =
   Config
@@ -169,6 +178,7 @@ config =
   <*> simpleAuthUserRecords
   <*> pure mempty
   <*> pure mempty
+  <*> many pluginJsFile
 
 
 options :: Parser Options

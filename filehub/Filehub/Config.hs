@@ -36,6 +36,7 @@ data Config f = Config
   , simpleAuthUserRecords :: SimpleAuthUserRecords
   , oidcAuthProviders     :: OidcAuthProviders
   , plugins               :: StaticPlugins
+  , pluginJsFiles         :: [FilePath]
   }
 
 
@@ -67,10 +68,11 @@ instance Semigroup (Config Maybe) where
     , simpleAuthUserRecords = a.simpleAuthUserRecords <> b.simpleAuthUserRecords
     , oidcAuthProviders     = a.oidcAuthProviders <> b.oidcAuthProviders
     , plugins               = a.plugins <> b.plugins
+    , pluginJsFiles         = a.pluginJsFiles <> b.pluginJsFiles
     }
 
 instance Monoid (Config Maybe) where
-  mempty = Config Nothing Nothing Nothing Nothing Nothing Nothing Nothing mempty mempty mempty mempty
+  mempty = Config Nothing Nothing Nothing Nothing Nothing Nothing Nothing mempty mempty mempty mempty []
 
 
 -- | The second config overrides the first one.
@@ -87,6 +89,7 @@ merge cfg1 cfg2 = do
   let simpleAuthLoginUsers = mconcat [cfg1.simpleAuthUserRecords, cfg2.simpleAuthUserRecords]
   let oidcAuthProviders    = mconcat [cfg1.oidcAuthProviders , cfg2.oidcAuthProviders]
   let plugins              = mconcat [cfg1.plugins, cfg2.plugins]
+  let pluginJsFiles        = cfg1.pluginJsFiles <> cfg2.pluginJsFiles
   pure
     Config
       { port                  = Identity port
@@ -100,4 +103,5 @@ merge cfg1 cfg2 = do
       , simpleAuthUserRecords = simpleAuthLoginUsers
       , oidcAuthProviders     = oidcAuthProviders
       , plugins               = plugins
+      , pluginJsFiles         = pluginJsFiles
       }
