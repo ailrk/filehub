@@ -17,7 +17,6 @@ import Filehub.Prelude
 import Control.Applicative (asum)
 import Data.ByteString.Builder (Builder)
 import Data.ByteString.Builder qualified as BB
-import Data.Generics.Labels ()
 import Data.Hashable (Hashable)
 import Data.Typeable (Typeable, cast)
 import Data.UUID (UUID)

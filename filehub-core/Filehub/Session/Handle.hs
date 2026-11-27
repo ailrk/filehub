@@ -27,8 +27,6 @@ import Control.Monad.Reader (MonadReader (..))
 import Data.ClientPath (AbsPath (..), Root (..), ClientPath, withinRoot)
 import Data.ClientPath (fromClientPath)
 import Data.File (File (..), FileWithContent, FileContent (..), extractFileInfo)
-import Data.Generics.Labels ()
-import Data.Generics.Labels ()
 import Data.Typeable (cast)
 import Filehub.Display qualified as Display
 import Filehub.Error (Error' (..))

@@ -1,7 +1,6 @@
 module Filehub.Display (Resolution(..), Display(..), classify) where
 
 import Filehub.Prelude
-import Data.Generics.Labels ()
 import Servant (ToHttpApiData(..), FromHttpApiData(..))
 import Web.FormUrlEncoded (FromForm(..), parseUnique)
 import Text.Read (readMaybe)

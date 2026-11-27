@@ -33,7 +33,6 @@ import Data.ClientPath qualified as ClientPath
 import Data.ClientPath.IO (validateAbsPath)
 import Data.Conduit.Binary qualified as Conduit
 import Data.File (File (..), FileInfo, FileType (..), FileWithContent, FileContent (..), defaultFileWithContent, IsLink (..))
-import Data.Generics.Labels ()
 import Data.Kind (Type)
 import Data.List (sort)
 import Filehub.Error (FilehubError(..), Error' (..))

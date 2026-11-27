@@ -2,7 +2,7 @@
 , amazonka-s3, base, base64-bytestring, bcrypt, binary, breakpoint
 , bytestring, case-insensitive, conduit, conduit-extra, containers
 , cookie, criterion, cryptohash-sha256, cryptonite, deepseq
-, directory, file-embed, filepath, generic-lens, hashable
+, directory, file-embed, filepath, hashable
 , hashtables, hspec, hspec-wai, http-api-data, http-client
 , http-client-tls, http-types, jwt, lib, log-base, lucid, microlens
 , mime-types, mtl, network, network-uri, optparse-applicative

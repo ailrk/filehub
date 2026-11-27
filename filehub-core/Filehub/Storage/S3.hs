@@ -24,7 +24,6 @@ import Amazonka.S3.CompleteMultipartUpload (CompleteMultipartUpload(..))
 import Amazonka.S3.CopyObject (CopyObjectResponse(..))
 import Amazonka.S3.CreateMultipartUpload (CreateMultipartUpload(..), CreateMultipartUploadResponse(..))
 import Amazonka.S3.GetObject (GetObject(..))
-import Amazonka.S3.Lens qualified as Amazonka
 import Amazonka.S3.PutObject (PutObject(..))
 import Amazonka.S3.UploadPart (UploadPartResponse(..))
 import Cache.Key (CacheKey, SomeCacheKey (..))
@@ -39,14 +38,12 @@ import Data.ByteString.Builder qualified as Builder
 import Data.ClientPath (AbsPath (..))
 import Data.Conduit ( ConduitT, (.|), await, runConduit, yield )
 import Data.File (File (..), FileType (..), FileInfo, FileWithContent, FileContent (..), defaultFileWithContent, IsLink (..))
-import Data.Generics.Labels ()
 import Data.Kind (Type)
 import Data.List (sort, uncons)
 import Data.List.NonEmpty qualified as NonEmpty
 import Filehub.Error (Error'(InvalidPath, CopyError), FilehubError(FilehubError))
 import Filehub.Monad (Filehub)
 import GHC.TypeLits (Symbol)
-import Lens.Micro ( (?~), (.~), (^.) )
 import Log (logAttention_)
 import Network.Mime (defaultMimeLookup)
 import Prelude hiding (read, readFile, writeFile)
@@ -57,6 +54,7 @@ import Target.S3 (Target(..), S3)
 import Target.Types (TargetId)
 import Target.Types qualified as Target
 import UnliftIO.Directory (removeFile)
+
 
 
 class CacheKeyComponent (s :: Symbol) a              where toCacheKeyComponent :: Builder
@@ -86,11 +84,11 @@ get (s3@S3Backend { targetId }) path = do
           key     = ObjectKey (coerce txt_pack path)
           request = Amazonka.newHeadObject bucket key
       resp <- send s3.env request
-      if resp ^. Amazonka.headObjectResponse_httpStatus == 200
+      if resp.httpStatus == 200
          then do
-          let mtime       = resp ^. Amazonka.headObjectResponse_lastModified
-              size        = resp ^. Amazonka.headObjectResponse_contentLength
-              contentType = resp ^. Amazonka.headObjectResponse_contentType
+          let mtime       = resp.lastModified
+              size        = resp.contentLength
+              contentType = resp.contentType
               file = File
                 { path     = path
                 , atime    = Nothing
@@ -120,11 +118,12 @@ isDirectory s3@S3Backend { targetId } filePath = do
     Just _                        -> pure False
     Nothing -> do
       let bucket  = BucketName s3.bucket
-          request = Amazonka.newListObjectsV2 bucket
-                  & Amazonka.listObjectsV2_prefix ?~ txt_pack (coerce normalizeDirPath filePath)
-                  & Amazonka.listObjectsV2_maxKeys ?~ 1
+          request = (Amazonka.newListObjectsV2 bucket)
+                  { prefix  = Just (txt_pack (coerce normalizeDirPath filePath))
+                  , maxKeys = Just 1
+                  }
       resp <- send s3.env request
-      let result = maybe False (> 0) (resp ^. Amazonka.listObjectsV2Response_keyCount)
+      let result = maybe False (> 0) resp.keyCount
       pure result
   where
     cacheKey = createCacheKey @"file" @FileInfo targetId (coerce Builder.string8 filePath)
@@ -172,7 +171,7 @@ readStream s3 file mOff mMax = do
       request = (Amazonka.newGetObject bucket key) { range = txt_decode <$> range }
   pure $ do
     resp <- lift $ send s3.env request
-    let (ResponseBody conduit) = resp ^. Amazonka.getObjectResponse_body
+    let (ResponseBody conduit) = resp.body
     conduit
 
 
@@ -360,11 +359,11 @@ ls s3@S3Backend { targetId } _ = do
         pure cached
       Nothing -> do
         let bucket  = BucketName s3.bucket
-            request = Amazonka.newListObjectsV2 bucket
-                    & Amazonka.listObjectsV2_prefix ?~ txt_pack "" -- root
+            request = (Amazonka.newListObjectsV2 bucket)
+                    { prefix = Just (txt_pack "") } -- root
         resp <- send s3.env request
-        let files  = maybe [] (fmap toFile) $ resp ^. Amazonka.listObjectsV2Response_contents
-            dirs   = maybe [] (fmap toDir)  $ resp ^. Amazonka.listObjectsV2Response_commonPrefixes
+        let files  = maybe [] (fmap toFile) resp.contents
+            dirs   = maybe [] (fmap toDir)  resp.commonPrefixes
             result = files <> dirs
         cacheInsert
           cacheKey
@@ -377,7 +376,7 @@ ls s3@S3Backend { targetId } _ = do
     cacheTTL = Just (time_fromSeconds 10)
 
     toDir (commonPrefix :: CommonPrefix) =
-      let dirPath = fromMaybe mempty $ commonPrefix ^. Amazonka.commonPrefix_prefix
+      let dirPath = fromMaybe mempty commonPrefix.prefix
        in File
          { path     = coerce txt_unpack dirPath
          , atime    = Nothing
@@ -389,12 +388,12 @@ ls s3@S3Backend { targetId } _ = do
          }
 
     toFile (object :: Object) =
-      let filePath = Amazonka.toText $ object ^. Amazonka.object_key
+      let filePath = Amazonka.toText object.key
        in File
          { path     = coerce txt_unpack filePath
          , atime    = Nothing
-         , mtime    = Just (object ^. Amazonka.object_lastModified)
-         , size     = Just (object ^. Amazonka.object_size)
+         , mtime    = Just object.lastModified
+         , size     = Just object.size
          , mimetype = defaultMimeLookup filePath -- content type can be unreliable because it's derived from the extension.
          , isLink   = NotLink
          , content  = Regular
@@ -417,12 +416,11 @@ getBucketSize s3@S3Backend { targetId } = do
   where
     cacheKey = createCacheKey @"bucket-size" @Integer targetId ""
     go acc token = do
-      let req = Amazonka.newListObjectsV2 (BucketName s3.bucket)
-                & Amazonka.listObjectsV2_continuationToken .~ token
+      let req = (Amazonka.newListObjectsV2 (BucketName s3.bucket))
+                { continuationToken = token }
       resp <- send s3.env req
-      let sizes = sum $ maybe [] (fmap (\o -> o ^. Amazonka.object_size))
-                      $ resp ^. Amazonka.listObjectsV2Response_contents
-          nextToken = resp ^. Amazonka.listObjectsV2Response_nextContinuationToken
+      let sizes = sum $ maybe [] (fmap (.size)) resp.contents
+          nextToken = resp.nextContinuationToken
       case nextToken of
         Just t  -> go (acc + sizes) (Just t)
         Nothing -> pure (acc + sizes)
