@@ -218,7 +218,6 @@ library filehub-core
                           mime-types,
                           servant-multipart,
                           conduit-extra,
-                          retry,
                           suspend,
                           wai,
                           transformers,

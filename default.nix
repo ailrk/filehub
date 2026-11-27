@@ -6,7 +6,7 @@
 , hashtables, hspec, hspec-wai, http-api-data, http-client
 , http-client-tls, http-types, jwt, lib, log-base, lucid
 , mime-types, mtl, network, network-uri, optparse-applicative
-, psqueues, QuickCheck, random, resourcet, retry, servant
+, psqueues, QuickCheck, random, resourcet, servant
 , servant-client, servant-conduit, servant-event-stream
 , servant-lucid, servant-multipart, servant-server, split
 , sqlite-simple, stm, string-interpolate, suspend, template-haskell
@@ -29,7 +29,7 @@ mkDerivation {
     hashable hashtables http-api-data http-client
     http-client-tls http-types jwt log-base lucid mime-types
     mtl network network-uri optparse-applicative psqueues random
-    resourcet retry servant servant-client servant-conduit
+    resourcet servant servant-client servant-conduit
     servant-event-stream servant-lucid servant-multipart servant-server
     split sqlite-simple stm string-interpolate suspend template-haskell
     text time timers transformers transformers-base
