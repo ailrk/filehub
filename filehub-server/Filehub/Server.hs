@@ -21,7 +21,6 @@
 module Filehub.Server (application) where
 
 import Filehub.Prelude
-import Conduit (MonadIO (..), MonadUnliftIO (..))
 import Data.Aeson ((.:), withObject)
 import Data.Aeson.Types (parseMaybe)
 import Data.ByteString.Char8 qualified as BC
@@ -74,8 +73,6 @@ import Servant (Context (..), Header, Headers, addHeader, err400, err500, serveW
 import Servant.Server.Generic (AsServerT)
 import Target.Types (TargetId)
 import Target.Types qualified as Target
-import UnliftIO (try, throwIO)
-import UnliftIO.Exception (catch)
 import Web.Cookie (SetCookie (..), defaultSetCookie)
 import Control.Monad.Reader (MonadReader(..))
 import Network.HTTP.Headers.Extended (parseHeader')
