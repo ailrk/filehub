@@ -104,6 +104,18 @@ library
                           Filehub.Config.Toml
                           Paths_filehub
 
+library filehub-prelude
+  import:                 shared
+  hs-source-dirs:         filehub-prelude
+  build-depends:          containers,
+                          unliftio,
+                          stm,
+                          string-interpolate,
+                          text,
+                          bytestring
+  exposed-modules:        Filehub.Prelude
+
+
 library filehub-utils
   import:                 shared
   hs-source-dirs:         filehub-utils
