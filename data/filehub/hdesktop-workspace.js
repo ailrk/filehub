@@ -126,12 +126,12 @@ function renderWorkspaceLabel() {
 // ---------------------------------------------------------------------------
 // HLink operations
 // ---------------------------------------------------------------------------
-export function addHLink(targetId, path, label) {
+export function addHLink(targetId, path, clientPath, mime, label) {
     const ws = workspaces.get(activeWorkspaceId);
     if (!ws)
         throw new Error('no active workspace');
     const id = 'hlink-' + (hlinkCounter++);
-    const hLink = { id, targetId, path, label, x: 80, y: 80 };
+    const hLink = { id, targetId, path, clientPath, mime, label, x: 80, y: 80 };
     ws.hLinks.set(id, hLink);
     return hLink;
 }

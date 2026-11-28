@@ -128,7 +128,7 @@ function buildMenu1(item, readOnly) {
         const targetId = getActiveTargetId();
         if (targetId) {
             const addToHomeEl = makeClickItem('Add to Home', 'bxs-home', () => {
-                Workspace.addHLink(targetId, path, item.dataset.name ?? null);
+                Workspace.addHLink(targetId, path, path, item.dataset.mime ?? '', item.dataset.name ?? null);
                 Home.refresh();
             });
             menu.appendChild(document.createElement('hr'));

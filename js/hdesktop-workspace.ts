@@ -25,6 +25,8 @@ export interface HLink {
   id: string;
   targetId: string;
   path: string;
+  clientPath: string;
+  mime: string;
   label: string | null;
   x: number;
   y: number;
@@ -194,11 +196,11 @@ function renderWorkspaceLabel(): void {
 // HLink operations
 // ---------------------------------------------------------------------------
 
-export function addHLink(targetId: string, path: string, label: string | null): HLink {
+export function addHLink(targetId: string, path: string, clientPath: string, mime: string, label: string | null): HLink {
   const ws = workspaces.get(activeWorkspaceId);
   if (!ws) throw new Error('no active workspace');
   const id = 'hlink-' + (hlinkCounter++);
-  const hLink: HLink = { id, targetId, path, label, x: 80, y: 80 };
+  const hLink: HLink = { id, targetId, path, clientPath, mime, label, x: 80, y: 80 };
   ws.hLinks.set(id, hLink);
   return hLink;
 }

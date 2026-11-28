@@ -50,14 +50,13 @@ function makeIcon(lnk: HLink): HTMLElement {
   el.style.left = lnk.x + 'px';
   el.style.top  = lnk.y + 'px';
 
-  const iconEl = document.createElement('i');
-  iconEl.className = 'bx ' + fileIcon(lnk.path);
+  const previewEl = makePreview(lnk);
 
   const labelEl = document.createElement('span');
   labelEl.className = 'hlink-label';
   labelEl.textContent = lnk.label ?? basename(lnk.path);
 
-  el.appendChild(iconEl);
+  el.appendChild(previewEl);
   el.appendChild(labelEl);
 
   el.addEventListener('dblclick', () => openHLink(lnk));
@@ -69,6 +68,45 @@ function makeIcon(lnk: HLink): HTMLElement {
 
   attachDrag(el, lnk);
   return el;
+}
+
+// ---------------------------------------------------------------------------
+// Preview element (mirrors the Haskell previewElement template)
+// ---------------------------------------------------------------------------
+
+function makePreview(lnk: HLink): HTMLElement {
+  const serveUrl = '/serve?file=' + encodeURIComponent(lnk.clientPath);
+  const wrapper  = document.createElement('div');
+  wrapper.className = 'thumbnail-preview';
+
+  const inner = document.createElement('div');
+  inner.className = 'image-wrapper';
+
+  if (lnk.mime.startsWith('image/')) {
+    const img = document.createElement('img');
+    img.src              = serveUrl;
+    img.draggable        = false;
+    img.loading          = 'lazy';
+    img.setAttribute('fetchpriority', 'low');
+    inner.appendChild(img);
+  } else if (lnk.mime.startsWith('video/')) {
+    const vid = document.createElement('video');
+    vid.src      = serveUrl;
+    vid.muted    = true;
+    vid.loop     = true;
+    vid.setAttribute('preload', 'metadata');
+    vid.setAttribute('playsinline', '');
+    vid.className = 'thumbnail-video';
+    vid.draggable = false;
+    inner.appendChild(vid);
+  } else {
+    const icon = document.createElement('i');
+    icon.className = 'bx ' + fileIcon(lnk.path);
+    inner.appendChild(icon);
+  }
+
+  wrapper.appendChild(inner);
+  return wrapper;
 }
 
 // ---------------------------------------------------------------------------
