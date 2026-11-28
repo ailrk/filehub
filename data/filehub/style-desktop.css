@@ -563,7 +563,7 @@ body.has-taskbar #index {
   display: flex;
   align-items: center;
   gap: 5px;
-  height: 32px;
+  height: 38px;
   flex: 1 1 0;
   min-width: 80px;
   max-width: 200px;
