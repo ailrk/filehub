@@ -1,11 +1,24 @@
 import { i18n } from './i18n.js';
 import * as Modal from './modal.js';
+import * as Home from './hdesktop-home.js';
+import * as Workspace from './hdesktop-workspace.js';
 import Viewer from './viewer.js';
 import { createPluginUI } from './hdesktop-pluginUI.js';
 import * as NodeGraph from './hdesktop-nodeGraph.js';
 function openViewer(path) {
     const v = new Viewer(path);
     v.show();
+}
+function getActiveTargetId() {
+    const tab = document.querySelector('.target-tab.current-target');
+    if (!tab)
+        return null;
+    const hxGet = tab.getAttribute('hx-get') ?? '';
+    return new URLSearchParams(hxGet.split('?')[1] ?? '').get('target');
+}
+function isHomeTarget() {
+    const tab = document.querySelector('.target-tab.current-target');
+    return tab?.dataset.targetType === 'home';
 }
 export function register() {
     document.addEventListener('contextmenu', onContextMenu);
@@ -111,6 +124,17 @@ function buildMenu1(item, readOnly) {
         Modal.showFileDetailModal(item.dataset.name ?? '', item.dataset.mtime ?? '', item.dataset.atime ?? '', item.dataset.size ?? '0', item.dataset.mime ?? '');
     });
     menu.appendChild(detailEl);
+    if (!isHomeTarget()) {
+        const targetId = getActiveTargetId();
+        if (targetId) {
+            const addToHomeEl = makeClickItem('Add to Home', 'bxs-home', () => {
+                Workspace.addHLink(targetId, path, item.dataset.name ?? null);
+                Home.refresh();
+            });
+            menu.appendChild(document.createElement('hr'));
+            menu.appendChild(addToHomeEl);
+        }
+    }
     const pluginItems = buildPluginItems(path, item.dataset.name ?? '', item.dataset.mime ?? '');
     if (pluginItems.length > 0) {
         menu.appendChild(document.createElement('hr'));

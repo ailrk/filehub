@@ -21,9 +21,19 @@ export interface WindowSaveState {
   width: number; height: number;
 }
 
+export interface HLink {
+  id: string;
+  targetId: string;
+  path: string;
+  label: string | null;
+  x: number;
+  y: number;
+}
+
 export interface WorkspaceSaveState {
   id: string;
   name: string;
+  hLinks: HLink[];
 }
 
 export interface ProjectState {
@@ -44,6 +54,7 @@ interface ManagedWindow {
 interface Workspace {
   id: string;
   name: string;
+  hLinks: Map<string, HLink>;
 }
 
 // ---------------------------------------------------------------------------
@@ -56,6 +67,8 @@ const chipEls    = new Map<string, HTMLElement>();
 let activeWorkspaceId = '';
 let focusedWindowId: string | null = null;
 let wsCounter = 1;
+let hlinkCounter = 1;
+const switchListeners: Array<() => void> = [];
 
 let chipContainer: HTMLElement | null = null;
 let workspaceBtnEl: HTMLElement | null = null;
@@ -100,7 +113,7 @@ export function init(): void {
 
 function addWorkspace(name: string): Workspace {
   const id = 'ws-' + (wsCounter++);
-  const ws: Workspace = { id, name };
+  const ws: Workspace = { id, name, hLinks: new Map() };
   workspaces.set(id, ws);
   return ws;
 }
@@ -124,6 +137,7 @@ function switchWorkspace(toId: string): void {
   refreshChips();
   renderWorkspaceLabel();
   closeWsPopup();
+  for (const cb of switchListeners) cb();
 }
 
 // ---------------------------------------------------------------------------
@@ -174,6 +188,41 @@ function renderWorkspaceLabel(): void {
   if (!workspaceBtnEl) return;
   const ws = workspaces.get(activeWorkspaceId);
   workspaceBtnEl.textContent = ws?.name ?? '';
+}
+
+// ---------------------------------------------------------------------------
+// HLink operations
+// ---------------------------------------------------------------------------
+
+export function addHLink(targetId: string, path: string, label: string | null): HLink {
+  const ws = workspaces.get(activeWorkspaceId);
+  if (!ws) throw new Error('no active workspace');
+  const id = 'hlink-' + (hlinkCounter++);
+  const hLink: HLink = { id, targetId, path, label, x: 80, y: 80 };
+  ws.hLinks.set(id, hLink);
+  return hLink;
+}
+
+export function removeHLink(id: string): void {
+  workspaces.get(activeWorkspaceId)?.hLinks.delete(id);
+}
+
+export function moveHLink(id: string, x: number, y: number): void {
+  const hLink = workspaces.get(activeWorkspaceId)?.hLinks.get(id);
+  if (hLink) { hLink.x = x; hLink.y = y; }
+}
+
+export function relabelHLink(id: string, label: string | null): void {
+  const hLink = workspaces.get(activeWorkspaceId)?.hLinks.get(id);
+  if (hLink) hLink.label = label;
+}
+
+export function getHLinks(): HLink[] {
+  return Array.from(workspaces.get(activeWorkspaceId)?.hLinks.values() ?? []);
+}
+
+export function addSwitchListener(cb: () => void): void {
+  switchListeners.push(cb);
 }
 
 // ---------------------------------------------------------------------------

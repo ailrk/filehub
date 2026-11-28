@@ -18,12 +18,15 @@ import Filehub.Session (makeStorageCurrentTarget, Storage(..), fromClientPathChe
 import Filehub.Server.UI.Platform.Common (sideBar)
 import Filehub.Sort (sortFiles)
 import Filehub.Server.Util (withQueryParam)
+import Filehub.Session.Types (TargetView(..))
 import Filehub.Template (TemplateContext(..), runTemplate, makeTemplateContext)
 import Filehub.Template.Desktop qualified as Template.Desktop
 import Filehub.Types ( SessionId(..), ClientPath)
 import Lucid
 import Prelude hiding (readFile)
 import System.FilePath (takeFileName)
+import Target.Home (Home)
+import Target.Types (handleTarget, targetHandler, AnyTarget(..))
 
 
 editorModal :: SessionId -> Maybe ClientPath -> Filehub (Html ())
@@ -136,12 +139,18 @@ pluginsDataEl ps jsFiles =
 
 view :: SessionId -> Filehub (Html ())
 view sessionId = do
-  ctx@TemplateContext { sortedBy = order } <- makeTemplateContext sessionId
-  storage <- makeStorageCurrentTarget sessionId
-  table <- do
-    files <- sortFiles order <$> storage.lsCwd
-    pure $ runTemplate ctx (Template.Desktop.table files)
-  pure $ Template.Desktop.view table
+  ctx@TemplateContext { sortedBy = order, currentTarget = TargetView (AnyTarget tgt) _ } <- makeTemplateContext sessionId
+  case handleTarget (AnyTarget tgt) [ targetHandler @Home \_ -> homeCanvas ] of
+    Just canvas -> pure $ Template.Desktop.view canvas
+    Nothing -> do
+      storage <- makeStorageCurrentTarget sessionId
+      table <- do
+        files <- sortFiles order <$> storage.lsCwd
+        pure $ runTemplate ctx (Template.Desktop.table files)
+      pure $ Template.Desktop.view table
+  where
+    homeCanvas :: Html ()
+    homeCanvas = div_ [ id_ "home-canvas", class_ "home-canvas" ] mempty
 
 
 toolBar :: SessionId -> Filehub (Html ())

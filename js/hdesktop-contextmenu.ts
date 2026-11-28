@@ -8,6 +8,8 @@ declare var filehubPlugins: FilehubPlugin[] | undefined;
 
 import { i18n } from './i18n.js';
 import * as Modal from './modal.js';
+import * as Home from './hdesktop-home.js';
+import * as Workspace from './hdesktop-workspace.js';
 import Viewer from './viewer.js';
 import { createPluginUI } from './hdesktop-pluginUI.js';
 import * as NodeGraph from './hdesktop-nodeGraph.js';
@@ -15,6 +17,18 @@ import * as NodeGraph from './hdesktop-nodeGraph.js';
 function openViewer(path: string) {
   const v = new Viewer(path);
   v.show();
+}
+
+function getActiveTargetId(): string | null {
+  const tab = document.querySelector<HTMLElement>('.target-tab.current-target');
+  if (!tab) return null;
+  const hxGet = tab.getAttribute('hx-get') ?? '';
+  return new URLSearchParams(hxGet.split('?')[1] ?? '').get('target');
+}
+
+function isHomeTarget(): boolean {
+  const tab = document.querySelector<HTMLElement>('.target-tab.current-target');
+  return tab?.dataset.targetType === 'home';
 }
 
 export function register(): void {
@@ -136,6 +150,18 @@ function buildMenu1(item: HTMLElement, readOnly: boolean): HTMLElement {
     );
   });
   menu.appendChild(detailEl);
+
+  if (!isHomeTarget()) {
+    const targetId = getActiveTargetId();
+    if (targetId) {
+      const addToHomeEl = makeClickItem('Add to Home', 'bxs-home', () => {
+        Workspace.addHLink(targetId, path, item.dataset.name ?? null);
+        Home.refresh();
+      });
+      menu.appendChild(document.createElement('hr'));
+      menu.appendChild(addToHomeEl);
+    }
+  }
 
   const pluginItems = buildPluginItems(path, item.dataset.name ?? '', item.dataset.mime ?? '');
   if (pluginItems.length > 0) {

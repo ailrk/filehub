@@ -14,6 +14,8 @@ const chipEls = new Map();
 let activeWorkspaceId = '';
 let focusedWindowId = null;
 let wsCounter = 1;
+let hlinkCounter = 1;
+const switchListeners = [];
 let chipContainer = null;
 let workspaceBtnEl = null;
 let wsPopup = null;
@@ -48,7 +50,7 @@ export function init() {
 // ---------------------------------------------------------------------------
 function addWorkspace(name) {
     const id = 'ws-' + (wsCounter++);
-    const ws = { id, name };
+    const ws = { id, name, hLinks: new Map() };
     workspaces.set(id, ws);
     return ws;
 }
@@ -73,6 +75,8 @@ function switchWorkspace(toId) {
     refreshChips();
     renderWorkspaceLabel();
     closeWsPopup();
+    for (const cb of switchListeners)
+        cb();
 }
 // ---------------------------------------------------------------------------
 // Workspace popup
@@ -118,6 +122,39 @@ function renderWorkspaceLabel() {
         return;
     const ws = workspaces.get(activeWorkspaceId);
     workspaceBtnEl.textContent = ws?.name ?? '';
+}
+// ---------------------------------------------------------------------------
+// HLink operations
+// ---------------------------------------------------------------------------
+export function addHLink(targetId, path, label) {
+    const ws = workspaces.get(activeWorkspaceId);
+    if (!ws)
+        throw new Error('no active workspace');
+    const id = 'hlink-' + (hlinkCounter++);
+    const hLink = { id, targetId, path, label, x: 80, y: 80 };
+    ws.hLinks.set(id, hLink);
+    return hLink;
+}
+export function removeHLink(id) {
+    workspaces.get(activeWorkspaceId)?.hLinks.delete(id);
+}
+export function moveHLink(id, x, y) {
+    const hLink = workspaces.get(activeWorkspaceId)?.hLinks.get(id);
+    if (hLink) {
+        hLink.x = x;
+        hLink.y = y;
+    }
+}
+export function relabelHLink(id, label) {
+    const hLink = workspaces.get(activeWorkspaceId)?.hLinks.get(id);
+    if (hLink)
+        hLink.label = label;
+}
+export function getHLinks() {
+    return Array.from(workspaces.get(activeWorkspaceId)?.hLinks.values() ?? []);
+}
+export function addSwitchListener(cb) {
+    switchListeners.push(cb);
 }
 // ---------------------------------------------------------------------------
 // Window management

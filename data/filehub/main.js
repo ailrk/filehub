@@ -10,6 +10,7 @@ import * as MobileCloseSidebar from './hmobile-closeSidebar.js';
 import * as MobilePanel from './hmobile-panel.js';
 import * as MobileSelected from './hmobile-selected.js';
 import * as Modal from './modal.js';
+import * as Home from './hdesktop-home.js';
 import * as NodeGraph from './hdesktop-nodeGraph.js';
 import * as Workspace from './hdesktop-workspace.js';
 import Viewer from './viewer.js';
@@ -39,6 +40,9 @@ document.addEventListener('DOMContentLoaded', () => {
         document.addEventListener('click', openPluginScriptOnClick);
         Workspace.init();
         NodeGraph.init();
+        const homeCanvas = document.getElementById('home-canvas');
+        if (homeCanvas)
+            Home.mount(homeCanvas);
     }
     if (display === 'Mobile') {
         MobileCloseSidebar.register();
@@ -71,6 +75,13 @@ document.addEventListener('DOMContentLoaded', () => {
             DesktopSelected.collectFromHtml();
             updatePluginToolbarActions();
             patchRegisterPlugin();
+            const homeCanvas = document.getElementById('home-canvas');
+            if (homeCanvas && !Home.isMounted()) {
+                Home.mount(homeCanvas);
+            }
+            else if (!homeCanvas && Home.isMounted()) {
+                Home.unmount();
+            }
         }
         initTomlEditors();
         initPluginToggles();

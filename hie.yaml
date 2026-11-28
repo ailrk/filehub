@@ -3,6 +3,9 @@ cradle:
     - path: "filehub"
       component: "lib:filehub"
 
+    - path: "filehub-prelude"
+      component: "lib:filehub-prelude"
+
     - path: "filehub-utils"
       component: "lib:filehub-utils"
 
