@@ -1,8 +1,8 @@
-import { i18n } from '../i18n.js';
-import * as ModalBuilder from '../modal-builder.js';
-import Viewer from '../viewer.js';
-import { createPluginUI } from '../plugin-ui.js';
-import * as NodeGraph from '../node-graph.js';
+import { i18n } from './i18n.js';
+import * as Modal from './modal.js';
+import Viewer from './viewer.js';
+import { createPluginUI } from './hdesktop-pluginUI.js';
+import * as NodeGraph from './hdesktop-nodeGraph.js';
 function openViewer(path) {
     const v = new Viewer(path);
     v.show();
@@ -95,7 +95,7 @@ function buildMenu1(item, readOnly) {
     menu.appendChild(dl);
     if (!readOnly) {
         const renameEl = makeClickItem(t.rename, 'bxs-rename', () => {
-            ModalBuilder.showRenameModal(path);
+            Modal.showRenameModal(path);
         });
         menu.appendChild(renameEl);
         menu.appendChild(makeItem(t.delete, 'bxs-trash', {
@@ -104,11 +104,11 @@ function buildMenu1(item, readOnly) {
         }));
     }
     const shareEl = makeClickItem(t.share, 'bxs-share-alt', () => {
-        ModalBuilder.showShareModal(path);
+        Modal.showShareModal(path);
     });
     menu.appendChild(shareEl);
     const detailEl = makeClickItem(t.details, 'bx-detail', () => {
-        ModalBuilder.showFileDetailModal(item.dataset.name ?? '', item.dataset.mtime ?? '', item.dataset.atime ?? '', item.dataset.size ?? '0', item.dataset.mime ?? '');
+        Modal.showFileDetailModal(item.dataset.name ?? '', item.dataset.mtime ?? '', item.dataset.atime ?? '', item.dataset.size ?? '0', item.dataset.mime ?? '');
     });
     menu.appendChild(detailEl);
     const pluginItems = buildPluginItems(path, item.dataset.name ?? '', item.dataset.mime ?? '');
@@ -157,10 +157,10 @@ function buildMenuBackground() {
     const t = i18n();
     const menu = makeMenu();
     menu.appendChild(makeClickItem(t.new_folder, 'bxs-folder-plus', () => {
-        ModalBuilder.showNewFolderModal();
+        Modal.showNewFolderModal();
     }));
     menu.appendChild(makeClickItem(t.new_file, 'bxs-file-plus', () => {
-        ModalBuilder.showNewFileModal();
+        Modal.showNewFileModal();
     }));
     menu.appendChild(makeClickItem(t.upload, 'bx-upload', () => {
         document.getElementById('file-input')?.click();

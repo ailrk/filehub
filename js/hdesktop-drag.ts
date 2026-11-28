@@ -1,10 +1,9 @@
-declare var htmx: any;
-
 /*
  * Desktop drag-and-drop for moving files into folders,
  * and dragging files from the OS into #view to upload.
  * Registered once on document — no re-registration after htmx swaps.
  */
+declare var htmx: any;
 
 export function register() {
   document.addEventListener('dragstart',  onDragStart);

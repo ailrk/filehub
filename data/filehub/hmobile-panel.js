@@ -2,7 +2,7 @@
  * Mobile panel / sidebar management — replaces _hyperscript attribute scripts.
  * Registered once on document at startup; survives all htmx swaps.
  */
-import { showShareModal, showNewFileModal, showNewFolderModal } from '../modal-builder.js';
+import { showShareModal, showNewFileModal, showNewFolderModal } from './modal.js';
 export function register() {
     document.addEventListener('click', onDocumentClick);
     document.body.addEventListener('htmx:beforeRequest', (e) => {

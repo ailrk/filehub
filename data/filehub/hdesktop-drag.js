@@ -1,8 +1,3 @@
-/*
- * Desktop drag-and-drop for moving files into folders,
- * and dragging files from the OS into #view to upload.
- * Registered once on document — no re-registration after htmx swaps.
- */
 export function register() {
     document.addEventListener('dragstart', onDragStart);
     document.addEventListener('drop', onDrop);

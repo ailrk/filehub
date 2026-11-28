@@ -5,7 +5,7 @@
 
 declare var htmx: any;
 
-import { showShareModal, showNewFileModal, showNewFolderModal } from '../modal-builder.js';
+import { showShareModal, showNewFileModal, showNewFolderModal } from './modal.js';
 
 export function register() {
   document.addEventListener('click', onDocumentClick);

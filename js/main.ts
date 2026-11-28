@@ -8,22 +8,21 @@ declare global {
 
 import * as Balloon from './balloon.js';
 import * as Cookie from './cookie.js';
-import * as DesktopContextmenu from './hdesktop/contextmenu.js';
-import * as DesktopDrag from './hdesktop/drag.js';
-import * as DesktopScroll from './hdesktop/scroll.js';
-import * as DesktopSelected from './hdesktop/selected.js';
-import * as DesktopSort from './hdesktop/sort.js';
-import * as MobileCloseSidebar from './hmobile/closeSidebar.js';
-import * as MobileSelected from './hmobile/selected.js';
-import * as MobilePanel from './hmobile/panel.js';
+import * as DesktopContextmenu from './hdesktop-contextmenu.js';
+import * as DesktopDrag from './hdesktop-drag.js';
+import * as DesktopScroll from './hdesktop-scroll.js';
+import * as DesktopSelected from './hdesktop-selected.js';
+import * as DesktopSort from './hdesktop-sort.js';
+import * as MobileCloseSidebar from './hmobile-closeSidebar.js';
+import * as MobilePanel from './hmobile-panel.js';
+import * as MobileSelected from './hmobile-selected.js';
 import * as Modal from './modal.js';
-import * as ModalBuilder from './modal-builder.js';
-import { createPluginUI } from './plugin-ui.js';
-import * as Workspace from './workspace.js';
-import * as NodeGraph from './node-graph.js';
+import * as NodeGraph from './hdesktop-nodeGraph.js';
+import * as Workspace from './hdesktop-workspace.js';
 import Viewer from './viewer.js';
 import type { DeleteProgressed, MoveProgressed, PasteProgressed, TaskCompleted, TaskFailed, UploadProgressed } from './def.js';
 import { Display } from './def.js';
+import { createPluginUI } from './hdesktop-pluginUI.js';
 import { i18n } from './i18n.js';
 
 const balloonWaitTime = 2000;
@@ -50,6 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
     DesktopSort.register();
     document.addEventListener('click', closeDropdowns);
     document.addEventListener('htmx:afterSettle', closeDropdowns);
+    document.addEventListener('click', openPluginScriptOnClick);
     Workspace.init();
     NodeGraph.init();
   }
@@ -65,7 +65,6 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('filehub:themeChanged', handleThemeChanged);
   document.addEventListener('click', openViewerOnClick);
   document.addEventListener('click', openBlankOnClick);
-  document.addEventListener('click', openPluginScriptOnClick);
   document.body.addEventListener('htmx:responseError', handleError);
 
   document.body.addEventListener('htmx:beforeRequest', (e: any) => {
@@ -152,8 +151,8 @@ function onActionClick(e: MouseEvent): void {
   const btn = (e.target as Element).closest<HTMLElement>('[data-action]');
   if (!btn) return;
   switch (btn.dataset.action) {
-    case 'new-folder':     ModalBuilder.showNewFolderModal(); break;
-    case 'new-file':       ModalBuilder.showNewFileModal();   break;
+    case 'new-folder':     Modal.showNewFolderModal(); break;
+    case 'new-file':       Modal.showNewFileModal();   break;
     case 'toggle-theme':   handleToggleTheme(btn);            break;
     case 'toggle-sidebar': handleToggleSidebar();             break;
   }
@@ -253,7 +252,9 @@ function htmxProcessOOB(data: { htmxResponse: string | null }) {
 }
 
 
-// ─── TOML editor ─────────────────────────────────────────────────────────────
+// ---------------------------------------------------------------------------
+// TOML editor
+// ---------------------------------------------------------------------------
 
 function highlightToml(raw: string): string {
   const esc = (s: string) =>
@@ -464,7 +465,7 @@ function initPluginToggles() {
   });
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ---------------------------------------------------------------------------
 
 function startListenSSE() {
   if (evtSource && evtSource.readyState !== EventSource.CLOSED) return;

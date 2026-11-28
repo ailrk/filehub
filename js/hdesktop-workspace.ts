@@ -4,8 +4,8 @@
  * serialized to a file for save/load without server involvement.
  */
 
-import { createWindow, WindowHandle, WindowOptions } from './window.js';
-import * as NodeGraph from './node-graph.js';
+import { createWindow, WindowHandle, WindowOptions } from './hdesktop-window.js';
+import * as NodeGraph from './hdesktop-nodeGraph.js';
 
 // ---------------------------------------------------------------------------
 // Types

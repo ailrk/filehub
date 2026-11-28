@@ -1,11 +1,11 @@
 import * as Balloon from './balloon.js';
-import * as Workspace from './workspace.js';
-export type { WindowHandle } from './window.js';
+import * as Workspace from './hdesktop-workspace.js';
+export type { WindowHandle } from './hdesktop-window.js';
 
 declare var htmx: any;
 
 export interface PluginUI {
-  window(opts?: { title?: string; width?: number; height?: number }): import('./window.js').WindowHandle;
+  window(opts?: { title?: string; width?: number; height?: number }): import('./hdesktop-window.js').WindowHandle;
   notify(msg: string, kind?: 'info' | 'error'): void;
   fetch(path: string, opts?: RequestInit): Promise<Response>;
   selectedFiles(): string[];

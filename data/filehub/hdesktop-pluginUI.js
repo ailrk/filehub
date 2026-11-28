@@ -1,5 +1,5 @@
 import * as Balloon from './balloon.js';
-import * as Workspace from './workspace.js';
+import * as Workspace from './hdesktop-workspace.js';
 export function createPluginUI(pluginName) {
     return {
         window(opts = {}) {

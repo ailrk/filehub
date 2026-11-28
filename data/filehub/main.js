@@ -1,20 +1,19 @@
 'use strict';
 import * as Balloon from './balloon.js';
 import * as Cookie from './cookie.js';
-import * as DesktopContextmenu from './hdesktop/contextmenu.js';
-import * as DesktopDrag from './hdesktop/drag.js';
-import * as DesktopScroll from './hdesktop/scroll.js';
-import * as DesktopSelected from './hdesktop/selected.js';
-import * as DesktopSort from './hdesktop/sort.js';
-import * as MobileCloseSidebar from './hmobile/closeSidebar.js';
-import * as MobileSelected from './hmobile/selected.js';
-import * as MobilePanel from './hmobile/panel.js';
+import * as DesktopContextmenu from './hdesktop-contextmenu.js';
+import * as DesktopDrag from './hdesktop-drag.js';
+import * as DesktopScroll from './hdesktop-scroll.js';
+import * as DesktopSelected from './hdesktop-selected.js';
+import * as DesktopSort from './hdesktop-sort.js';
+import * as MobileCloseSidebar from './hmobile-closeSidebar.js';
+import * as MobilePanel from './hmobile-panel.js';
+import * as MobileSelected from './hmobile-selected.js';
 import * as Modal from './modal.js';
-import * as ModalBuilder from './modal-builder.js';
-import { createPluginUI } from './plugin-ui.js';
-import * as Workspace from './workspace.js';
-import * as NodeGraph from './node-graph.js';
+import * as NodeGraph from './hdesktop-nodeGraph.js';
+import * as Workspace from './hdesktop-workspace.js';
 import Viewer from './viewer.js';
+import { createPluginUI } from './hdesktop-pluginUI.js';
 import { i18n } from './i18n.js';
 const balloonWaitTime = 2000;
 let viewer = null;
@@ -37,6 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
         DesktopSort.register();
         document.addEventListener('click', closeDropdowns);
         document.addEventListener('htmx:afterSettle', closeDropdowns);
+        document.addEventListener('click', openPluginScriptOnClick);
         Workspace.init();
         NodeGraph.init();
     }
@@ -50,7 +50,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('filehub:themeChanged', handleThemeChanged);
     document.addEventListener('click', openViewerOnClick);
     document.addEventListener('click', openBlankOnClick);
-    document.addEventListener('click', openPluginScriptOnClick);
     document.body.addEventListener('htmx:responseError', handleError);
     document.body.addEventListener('htmx:beforeRequest', (e) => {
         const targetIsIndex = e.detail.target?.id === 'index';
@@ -127,10 +126,10 @@ function onActionClick(e) {
         return;
     switch (btn.dataset.action) {
         case 'new-folder':
-            ModalBuilder.showNewFolderModal();
+            Modal.showNewFolderModal();
             break;
         case 'new-file':
-            ModalBuilder.showNewFileModal();
+            Modal.showNewFileModal();
             break;
         case 'toggle-theme':
             handleToggleTheme(btn);
@@ -226,7 +225,9 @@ function htmxProcessOOB(data) {
         htmx.swap(document.body, data.htmxResponse, { swapStyle: 'none' });
     }
 }
-// ─── TOML editor ─────────────────────────────────────────────────────────────
+// ---------------------------------------------------------------------------
+// TOML editor
+// ---------------------------------------------------------------------------
 function highlightToml(raw) {
     const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const hlValue = (val) => {
@@ -435,7 +436,7 @@ function initPluginToggles() {
         });
     });
 }
-// ─────────────────────────────────────────────────────────────────────────────
+// ---------------------------------------------------------------------------
 function startListenSSE() {
     if (evtSource && evtSource.readyState !== EventSource.CLOSED)
         return;

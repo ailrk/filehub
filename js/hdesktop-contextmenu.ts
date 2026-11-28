@@ -6,11 +6,11 @@ interface ToolbarEntry    { mime: string; label: string; action: EntryAction; }
 interface FilehubPlugin   { name: string; contextMenu: ContextMenuEntry[]; toolbar: ToolbarEntry[]; }
 declare var filehubPlugins: FilehubPlugin[] | undefined;
 
-import { i18n } from '../i18n.js';
-import * as ModalBuilder from '../modal-builder.js';
-import Viewer from '../viewer.js';
-import { createPluginUI } from '../plugin-ui.js';
-import * as NodeGraph from '../node-graph.js';
+import { i18n } from './i18n.js';
+import * as Modal from './modal.js';
+import Viewer from './viewer.js';
+import { createPluginUI } from './hdesktop-pluginUI.js';
+import * as NodeGraph from './hdesktop-nodeGraph.js';
 
 function openViewer(path: string) {
   const v = new Viewer(path);
@@ -111,7 +111,7 @@ function buildMenu1(item: HTMLElement, readOnly: boolean): HTMLElement {
 
   if (!readOnly) {
     const renameEl = makeClickItem(t.rename, 'bxs-rename', () => {
-      ModalBuilder.showRenameModal(path);
+      Modal.showRenameModal(path);
     });
     menu.appendChild(renameEl);
 
@@ -122,12 +122,12 @@ function buildMenu1(item: HTMLElement, readOnly: boolean): HTMLElement {
   }
 
   const shareEl = makeClickItem(t.share, 'bxs-share-alt', () => {
-    ModalBuilder.showShareModal(path);
+    Modal.showShareModal(path);
   });
   menu.appendChild(shareEl);
 
   const detailEl = makeClickItem(t.details, 'bx-detail', () => {
-    ModalBuilder.showFileDetailModal(
+    Modal.showFileDetailModal(
       item.dataset.name ?? '',
       item.dataset.mtime ?? '',
       item.dataset.atime ?? '',
@@ -193,10 +193,10 @@ function buildMenuBackground(): HTMLElement {
   const menu = makeMenu();
 
   menu.appendChild(makeClickItem(t.new_folder, 'bxs-folder-plus', () => {
-    ModalBuilder.showNewFolderModal();
+    Modal.showNewFolderModal();
   }));
   menu.appendChild(makeClickItem(t.new_file, 'bxs-file-plus', () => {
-    ModalBuilder.showNewFileModal();
+    Modal.showNewFileModal();
   }));
   menu.appendChild(makeClickItem(t.upload, 'bx-upload', () => {
     document.getElementById('file-input')?.click();

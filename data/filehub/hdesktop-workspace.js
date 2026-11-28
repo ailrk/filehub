@@ -3,8 +3,8 @@
  * Renders and updates the taskbar. Designed so ProjectState can later be
  * serialized to a file for save/load without server involvement.
  */
-import { createWindow } from './window.js';
-import * as NodeGraph from './node-graph.js';
+import { createWindow } from './hdesktop-window.js';
+import * as NodeGraph from './hdesktop-nodeGraph.js';
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------

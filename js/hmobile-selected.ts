@@ -15,7 +15,7 @@ declare var htmx: any;
 import {
   ObservableCell,
   createObservableCell
-} from '../containers/Observable.js'
+} from './observable.js'
 
 
 /* selectedIds is a local buffer holding the currently selected entries on the table.
