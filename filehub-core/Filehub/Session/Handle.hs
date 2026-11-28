@@ -40,6 +40,7 @@ import Filehub.Types (Display (..), Env(..))
 import Filehub.UserAgent qualified as UserAgent
 import Log (logAttention)
 import Prelude hiding (read, readFile, writeFile)
+import Target.Home (Home)
 import Target.File (Target(..), FileSys)
 import Target.S3 (S3)
 import Target.Types (handleTarget, targetHandler, AnyTarget (..), HasTargetId (..), TargetId)
@@ -311,16 +312,38 @@ makeStorageFileSys target currentDir =
         Nothing -> throwIO (FilehubError TargetError "Target is not valid file system direcotry")
 
 
+makeStorageHome :: Storage Filehub
+makeStorageHome =
+  Storage
+    { get         = \_ -> throwIO (FilehubError TargetError "Home target is read-only")
+    , read        = \_ -> throwIO (FilehubError TargetError "Home target is read-only")
+    , readStream  = \_ _ _ -> throwIO (FilehubError TargetError "Home target is read-only")
+    , ls          = \_ -> pure []
+    , cd          = \_ -> pure ()
+    , isDirectory = \_ -> pure False
+    , doesExist   = \_ -> pure False
+    , write       = \_ -> throwIO (FilehubError TargetError "Home target is read-only")
+    , mv          = \_ -> throwIO (FilehubError TargetError "Home target is read-only")
+    , rename      = \_ _ -> throwIO (FilehubError TargetError "Home target is read-only")
+    , delete      = \_ -> throwIO (FilehubError TargetError "Home target is read-only")
+    , new         = \_ -> throwIO (FilehubError TargetError "Home target is read-only")
+    , newFolder   = \_ -> throwIO (FilehubError TargetError "Home target is read-only")
+    , lsCwd       = pure []
+    , upload      = \_ -> throwIO (FilehubError TargetError "Home target is read-only")
+    , download    = \_ -> throwIO (FilehubError TargetError "Home target is read-only")
+    }
+
+
 makeStorage' :: AnyTarget -> TVar AbsPath -> Filehub (Storage Filehub)
 makeStorage' target currentDir = do
-  let s3Storage   = makeStorageS3 target
-      fileStorage = makeStorageFileSys target currentDir
-      onError     = do
-        throwIO (FilehubError TargetError "Invalid target")
+  let s3Storage      = makeStorageS3 target
+      fileStorage    = makeStorageFileSys target currentDir
+      onError        = throwIO (FilehubError TargetError "Invalid target")
 
   fromMaybe onError $ handleTarget target
-    [ targetHandler @FileSys \_ -> pure fileStorage
-    , targetHandler @S3      \_ -> pure s3Storage
+    [ targetHandler @FileSys  \_ -> pure fileStorage
+    , targetHandler @S3       \_ -> pure s3Storage
+    , targetHandler @Home     \_ -> pure makeStorageHome
     ]
 
 

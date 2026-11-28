@@ -261,6 +261,7 @@ library filehub-core
                           Filehub.Types
                           Filehub.UserAgent
                           Paths_filehub
+                          Target.Home
                           Target.Dummy
                           Target.File
                           Target.S3

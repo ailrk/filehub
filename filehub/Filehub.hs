@@ -37,6 +37,7 @@ import Prelude hiding (init, readFile)
 import Servant.Conduit ()
 import System.Directory (doesFileExist)
 import System.Environment (withArgs)
+import Target.Home qualified as Home
 import Target.File qualified as FS
 import Target.File (Target(..), FileSys)
 import Target.S3 qualified as S3
@@ -106,15 +107,19 @@ main = Log.withColoredStdoutLogger \logger -> do
     sessionPool    <- Session.Pool.new
     activeUserPool <- ActiveUser.Pool.new
 
+    -- Home virtual target — always present, always first
+    homeTarget  <- liftIO Home.newHomeTarget
+    let homeEntry = (getTargetId (AnyTarget homeTarget), AnyTarget homeTarget)
+
     -- Static targets from CLI + file config
     targetsList    <- runLogT "targets" logger verbosity
                         $ fromTargetConfig targetConfigs.unTargets
-    let staticTids = set_fromList (fst <$> targetsList)
+    let staticTids = set_fromList (fst <$> (homeEntry : targetsList))
 
     -- Dynamic targets previously saved by the settings UI
     dynTargetsList <- runLogT "targets" logger verbosity
                         $ fromTargetConfig dynFileConfig.targets.unTargets
-    targetsVar     <- newTVarIO (targetsList ++ dynTargetsList)
+    targetsVar     <- newTVarIO (homeEntry : targetsList ++ dynTargetsList)
     dynTargetsVar  <- newTVarIO (snd <$> dynTargetsList)
 
     let basePlugins = plugins.unStaticPlugins

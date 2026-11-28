@@ -51,6 +51,7 @@ import Lucid.Htmx (hxGet, HxTrigger (..), HxPost (..))
 import Network.Mime.Extended (isMime)
 import System.FilePath (splitPath, takeFileName)
 import Data.DiskUsage (DiskUsage(..))
+import Target.Home (Home)
 import Target.Dummy (DummyTarget)
 import Target.File (FileSys, Target(..))
 import Target.S3 (S3, Target(..))
@@ -292,7 +293,8 @@ controlPanel
     sep = span_ [ style_ "display:inline-block; width: 20px"]  mempty
     newBtnGroup target = fromMaybe mempty do
       handleTarget target
-        [ targetHandler @S3 \_ -> do
+        [ targetHandler @Home \_ -> mempty
+        , targetHandler @S3 \_ -> do
             newFileBtn
         , targetHandler @FileSys \_ -> do
             newFolderBtn
@@ -406,7 +408,8 @@ fileNameElement file target withIcon = do
     name = span_ (toHtml displayName)
     displayName =
       fromMaybe "-" $ handleTarget target
-        [ targetHandler @S3          \_ -> coerce file.path
+        [ targetHandler @Home     \_ -> coerce takeFileName file.path
+        , targetHandler @S3          \_ -> coerce file.path
         , targetHandler @FileSys     \_ -> coerce takeFileName file.path
         , targetHandler @DummyTarget \_ -> coerce takeFileName file.path
         ]
@@ -513,12 +516,14 @@ sideBar targets (TargetView currentTarget _) = do
         div_ [ class_ "target-tab-row1" ] do
           span_ [ class_ "field" ] do
             fromMaybe mempty $ handleTarget target
-              [ targetHandler @S3          \_ -> i_ [ class_ "bx bxs-cube"  ] mempty
+              [ targetHandler @Home     \_ -> i_ [ class_ "bx bxs-home"  ] mempty
+              , targetHandler @S3          \_ -> i_ [ class_ "bx bxs-cube"  ] mempty
               , targetHandler @FileSys     \_ -> i_ [ class_ "bx bx-folder" ] mempty
               , targetHandler @DummyTarget \_ -> i_ [ class_ "bx bxs-cube"  ] mempty
               ]
             fromMaybe mempty $ handleTarget target
-              [ targetHandler @S3      \(S3Backend { bucket }) -> span_ [iii| /#{bucket} |]
+              [ targetHandler @Home \_ -> span_ "Home"
+              , targetHandler @S3      \(S3Backend { bucket }) -> span_ [iii| /#{bucket} |]
               , targetHandler @FileSys \(FileBackend { root = Root (AbsPath root) }) -> span_ [iii| /#{takeFileName root} |]
               , targetHandler @DummyTarget \_ -> span_ "dummy"
               ]
@@ -551,7 +556,9 @@ sideBar targets (TargetView currentTarget _) = do
         targetAttr t = [class_ " current-target" | Target.getTargetId currentTarget == Target.getTargetId t]
         targetDataAttrs t =
           fromMaybe [] $ handleTarget t
-            [ targetHandler @S3 \(S3Backend { bucket }) ->
+            [ targetHandler @Home \_ ->
+                [ term "data-target-type" "home" ]
+            , targetHandler @S3 \(S3Backend { bucket }) ->
                 [ term "data-target-type" "s3"
                 , term "data-target-name" bucket
                 , term "data-target-info" [iii| [#{target_s3}] #{bucket} |]
