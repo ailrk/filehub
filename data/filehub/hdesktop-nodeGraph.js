@@ -2,16 +2,16 @@
  * Node graph — types, runtime, sockets, cables, and orchestrator.
  */
 const nodes = new Map();
-const connections = new Map();
-let connCounter = 0;
+const cables = new Map();
+let cableCounter = 0;
 function registerNode(windowId, hasOutput) {
     nodes.set(windowId, { inputHandlers: new Map(), hasOutput });
 }
 function unregisterNode(windowId) {
     nodes.delete(windowId);
-    for (const [id, c] of connections) {
+    for (const [id, c] of cables) {
         if (c.fromWindowId === windowId || c.toWindowId === windowId) {
-            connections.delete(id);
+            cables.delete(id);
         }
     }
 }
@@ -19,33 +19,33 @@ function registerInputHandler(windowId, socketName, handler) {
     nodes.get(windowId)?.inputHandlers.set(socketName, handler);
 }
 function connect(fromWindowId, toWindowId, toSocketName) {
-    const id = 'conn-' + (++connCounter);
-    connections.set(id, { id, fromWindowId, toWindowId, toSocketName });
+    const id = 'cable-' + (++cableCounter);
+    cables.set(id, { id, fromWindowId, toWindowId, toSocketName });
     return id;
 }
-function disconnect(connId) {
-    connections.delete(connId);
+function disconnect(cableId) {
+    cables.delete(cableId);
 }
-function getConnectionsFrom(windowId) {
-    return [...connections.values()].filter(c => c.fromWindowId === windowId);
+function getCablesFrom(windowId) {
+    return [...cables.values()].filter(c => c.fromWindowId === windowId);
 }
-function getConnectionsTo(windowId) {
-    return [...connections.values()].filter(c => c.toWindowId === windowId);
+function getCablesTo(windowId) {
+    return [...cables.values()].filter(c => c.toWindowId === windowId);
 }
 function runtimeEmit(fromWindowId, data) {
-    for (const c of getConnectionsFrom(fromWindowId))
+    for (const c of getCablesFrom(fromWindowId))
         deliver(c, data, new Set([fromWindowId]));
 }
-function deliver(conn, data, visited) {
-    const handler = nodes.get(conn.toWindowId)?.inputHandlers.get(conn.toSocketName);
+function deliver(cable, data, visited) {
+    const handler = nodes.get(cable.toWindowId)?.inputHandlers.get(cable.toSocketName);
     if (!handler)
         return;
     Promise.resolve(handler(data)).then(result => {
-        if (result === null || visited.has(conn.toWindowId))
+        if (result === null || visited.has(cable.toWindowId))
             return;
         const nextVisited = new Set(visited);
-        nextVisited.add(conn.toWindowId);
-        for (const next of getConnectionsFrom(conn.toWindowId))
+        nextVisited.add(cable.toWindowId);
+        for (const next of getCablesFrom(cable.toWindowId))
             deliver(next, result, nextVisited);
     });
 }
@@ -152,7 +152,7 @@ function makeSocketEl(kind, windowId, name) {
     return el;
 }
 let cableSvg;
-const cables = new Map();
+const cablePaths = new Map();
 let drag = null;
 function cableInit() {
     cableSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -166,36 +166,36 @@ function cableInit() {
     document.addEventListener('mousemove', onCableMove);
     document.addEventListener('mouseup', onCableUp);
 }
-function addCable(connId, fromWindowId, toWindowId, toSocketName) {
+function addCable(cableId, fromWindowId, toWindowId, toSocketName) {
     const path = makeCablePath(false);
     path.addEventListener('click', (e) => {
         e.stopPropagation();
-        disconnect(connId);
-        removeCable(connId);
+        disconnect(cableId);
+        removeCable(cableId);
     });
     cableSvg.appendChild(path);
-    cables.set(connId, { id: connId, fromWindowId, toWindowId, toSocketName, path });
-    redrawCable(connId);
+    cablePaths.set(cableId, { id: cableId, fromWindowId, toWindowId, toSocketName, path });
+    redrawCable(cableId);
 }
-function removeCable(connId) {
-    cables.get(connId)?.path.remove();
-    cables.delete(connId);
+function removeCable(cableId) {
+    cablePaths.get(cableId)?.path.remove();
+    cablePaths.delete(cableId);
 }
 function cableSetWindowVisible(windowId, visible) {
-    for (const c of cables.values()) {
+    for (const c of cablePaths.values()) {
         if (c.fromWindowId === windowId || c.toWindowId === windowId) {
             c.path.style.visibility = visible ? '' : 'hidden';
         }
     }
 }
 function redrawForWindow(windowId) {
-    for (const [id, c] of cables) {
+    for (const [id, c] of cablePaths) {
         if (c.fromWindowId === windowId || c.toWindowId === windowId)
             redrawCable(id);
     }
 }
-function redrawCable(connId) {
-    const c = cables.get(connId);
+function redrawCable(cableId) {
+    const c = cablePaths.get(cableId);
     if (!c)
         return;
     const from = getCenter(c.fromWindowId, 'output', '');
@@ -243,8 +243,8 @@ function onCableUp(_e) {
         return;
     drag.ghost.remove();
     if (drag.snap) {
-        const connId = connect(drag.fromWindowId, drag.snap.windowId, drag.snap.socketName);
-        addCable(connId, drag.fromWindowId, drag.snap.windowId, drag.snap.socketName);
+        const cableId = connect(drag.fromWindowId, drag.snap.windowId, drag.snap.socketName);
+        addCable(cableId, drag.fromWindowId, drag.snap.windowId, drag.snap.socketName);
     }
     getAllInputs().forEach(i => i.el.classList.remove('node-socket-snap'));
     drag = null;
@@ -332,14 +332,25 @@ export function onWindowVisible(windowId, visible) {
     cableSetWindowVisible(windowId, visible);
 }
 export function onWindowClosed(windowId) {
-    for (const c of [...getConnectionsFrom(windowId), ...getConnectionsTo(windowId)]) {
+    for (const c of [...getCablesFrom(windowId), ...getCablesTo(windowId)]) {
         removeCable(c.id);
     }
     unregisterNode(windowId);
     socketUnregisterWindow(windowId);
 }
+export function getCablesState() {
+    return [...cables.values()].map(c => ({
+        fromWindowId: c.fromWindowId,
+        toWindowId: c.toWindowId,
+        toSocketName: c.toSocketName,
+    }));
+}
+export function restoreCable(fromWindowId, toWindowId, toSocketName) {
+    const cableId = connect(fromWindowId, toWindowId, toSocketName);
+    addCable(cableId, fromWindowId, toWindowId, toSocketName);
+}
 export function isNodeWindow(windowId) {
-    return getConnectionsFrom(windowId).length > 0 ||
-        getConnectionsTo(windowId).length > 0 ||
+    return getCablesFrom(windowId).length > 0 ||
+        getCablesTo(windowId).length > 0 ||
         getOutputEl(windowId) !== null;
 }

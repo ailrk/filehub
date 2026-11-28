@@ -111,10 +111,16 @@ export function createWindow(opts = {}) {
                 win.style.height = opts.height + 'px';
             win.style.visibility = 'hidden';
             document.body.appendChild(win);
-            const w = win.offsetWidth;
-            const h = win.offsetHeight;
-            win.style.left = Math.round((window.innerWidth - w) / 2) + 'px';
-            win.style.top = Math.round((window.innerHeight - h) / 2) + 'px';
+            if (opts.x != null && opts.y != null) {
+                win.style.left = opts.x + 'px';
+                win.style.top = opts.y + 'px';
+            }
+            else {
+                const w = win.offsetWidth;
+                const h = win.offsetHeight;
+                win.style.left = Math.round((window.innerWidth - w) / 2) + 'px';
+                win.style.top = Math.round((window.innerHeight - h) / 2) + 'px';
+            }
             win.style.visibility = '';
             bringToFront(win);
             handle.onFocus?.();

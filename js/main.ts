@@ -104,7 +104,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (display === 'Desktop') initVideoHover();
   });
 
-  if (display === 'Desktop') patchRegisterPlugin();
+  if (display === 'Desktop') {
+    patchRegisterPlugin();
+    restoreNodeWindows();
+  }
 
   document.addEventListener('animationend', (e: AnimationEvent) => {
     const el = e.target as Element;
@@ -427,6 +430,66 @@ function updatePluginToolbarActions() {
     }
   }
 }
+
+function restoreNodeWindows(): void {
+  const restore = Workspace.takePendingRestore();
+  if (!restore) return;
+
+  Workspace.beginBatchRestore();
+  const idMap = new Map<string, string>();
+
+  for (const savedWin of restore.windows) {
+    const def = NodeGraph.getDef(savedWin.pluginName);
+    if (!def) continue;
+
+    Workspace.setRestoreWorkspaceId(savedWin.workspaceId);
+    const { inputs, output } = NodeGraph.preparePorts(savedWin.pluginName, def);
+    let restoredHandle: ReturnType<typeof Workspace.openWindow> | null = null;
+
+    const baseUi = createPluginUI(savedWin.pluginName);
+    const patchedUi = {
+      ...baseUi,
+      window(opts: Parameters<typeof baseUi.window>[0] = {}) {
+        const handle = Workspace.openWindow(savedWin.pluginName, {
+          ...opts,
+          title: savedWin.title,
+          x: savedWin.x,
+          y: savedWin.y,
+          width: savedWin.width,
+          height: savedWin.height,
+        });
+        idMap.set(savedWin.id, handle.id);
+        restoredHandle = handle;
+        return handle;
+      },
+    };
+
+    def.run(inputs, output, patchedUi);
+    Workspace.setRestoreWorkspaceId(null);
+
+    if (restoredHandle) {
+      const h = restoredHandle as ReturnType<typeof Workspace.openWindow>;
+      if (savedWin.minimized) {
+        h.minimize();
+        NodeGraph.onWindowVisible(h.id, false);
+      } else if (savedWin.workspaceId !== Workspace.getActiveWorkspaceId()) {
+        h.setWorkspaceHidden(true);
+        NodeGraph.onWindowVisible(h.id, false);
+      }
+    }
+  }
+
+  for (const conn of restore.cables) {
+    const fromId = idMap.get(conn.fromWindowId);
+    const toId   = idMap.get(conn.toWindowId);
+    if (fromId && toId) {
+      NodeGraph.restoreCable(fromId, toId, conn.toSocketName);
+    }
+  }
+
+  Workspace.commitBatchRestore();
+}
+
 
 // Wrap window.filehub.registerPlugin so node defs are picked up automatically
 // each time plugins are (re-)registered after an htmx swap.

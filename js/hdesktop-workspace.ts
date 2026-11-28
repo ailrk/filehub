@@ -42,12 +42,21 @@ export interface WorkspaceSaveState {
   hLinks: HLink[];
 }
 
+export interface CableSaveState {
+  fromWindowId: string;
+  toWindowId:   string;
+  toSocketName: string;
+}
+
 export interface ProjectState {
-  version: 1;
+  version: number;
   workspaces: WorkspaceSaveState[];
   activeWorkspaceId: string;
   windows: WindowSaveState[];
+  cables: CableSaveState[];
 }
+
+export const PROJECT_STATE_VERSION = 1;
 
 interface ManagedWindow {
   handle: WindowHandle;
@@ -79,14 +88,101 @@ const switchListeners: Array<() => void> = [];
 let chipContainer: HTMLElement | null = null;
 let workspaceBtnEl: HTMLElement | null = null;
 let wsPopup: HTMLElement | null = null;
+let _pendingRestore: { windows: WindowSaveState[]; cables: CableSaveState[] } | null = null;
+let _suppressSave = false;
+let _forceWorkspaceId: string | null = null;
+
+// ---------------------------------------------------------------------------
+// Persistence
+// ---------------------------------------------------------------------------
+
+const STORAGE_KEY = 'filehub-project';
+
+function serializeState(): ProjectState {
+  return {
+    version: PROJECT_STATE_VERSION,
+    activeWorkspaceId,
+    workspaces: Array.from(workspaces.values()).map(ws => ({
+      id: ws.id,
+      name: ws.name,
+      hLinks: Array.from(ws.hLinks.values()),
+    })),
+    windows: Array.from(windows.entries()).flatMap(([id, mw]) => {
+      try {
+        const root = mw.handle.root;
+        return [{
+          id,
+          pluginName: mw.pluginName,
+          title: mw.title,
+          workspaceId: mw.workspaceId,
+          minimized: mw.minimized,
+          x:      parseInt(root.style.left)   || 0,
+          y:      parseInt(root.style.top)    || 0,
+          width:  parseInt(root.style.width)  || 400,
+          height: parseInt(root.style.height) || 300,
+        }];
+      } catch { return []; }
+    }),
+    cables: NodeGraph.getCablesState(),
+  };
+}
+
+function saveState(): void {
+  if (_suppressSave) return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(serializeState()));
+  } catch {}
+}
+
+export function beginBatchRestore(): void { _suppressSave = true; }
+export function setRestoreWorkspaceId(id: string | null): void { _forceWorkspaceId = id; }
+export function commitBatchRestore(): void { _suppressSave = false; saveState(); }
+export function getActiveWorkspaceId(): string { return activeWorkspaceId; }
+
+function loadState(): ProjectState | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const state = JSON.parse(raw) as ProjectState;
+    if (state.version !== PROJECT_STATE_VERSION) return null;
+    return state;
+  } catch {
+    return null;
+  }
+}
+
+function restoreState(state: ProjectState): void {
+  for (const wsSave of state.workspaces) {
+    const ws: Workspace = { id: wsSave.id, name: wsSave.name, hLinks: new Map() };
+    for (const lnk of wsSave.hLinks) {
+      ws.hLinks.set(lnk.id, lnk);
+      const lnum = parseInt(lnk.id.slice('hlink-'.length)) || 0;
+      if (lnum >= hlinkCounter) hlinkCounter = lnum + 1;
+    }
+    workspaces.set(ws.id, ws);
+    const wnum = parseInt(ws.id.slice('ws-'.length)) || 0;
+    if (wnum >= wsCounter) wsCounter = wnum + 1;
+  }
+  activeWorkspaceId = workspaces.has(state.activeWorkspaceId)
+    ? state.activeWorkspaceId
+    : state.workspaces[0]?.id ?? '';
+}
 
 // ---------------------------------------------------------------------------
 // Init
 // ---------------------------------------------------------------------------
 
 export function init(): void {
-  const ws = addWorkspace('Workspace 1');
-  activeWorkspaceId = ws.id;
+  const saved = loadState();
+  if (saved && saved.workspaces.length > 0) {
+    restoreState(saved);
+    if (saved.windows.length > 0 || (saved.cables?.length ?? 0) > 0) {
+      _pendingRestore = { windows: saved.windows, cables: saved.cables ?? [] };
+    }
+  } else {
+    const ws = addWorkspace('Workspace 1');
+    activeWorkspaceId = ws.id;
+  }
 
   const taskbar = document.createElement('div');
   taskbar.id = 'filehub-taskbar';
@@ -144,6 +240,7 @@ function switchWorkspace(toId: string): void {
   renderWorkspaceLabel();
   closeWsPopup();
   for (const cb of switchListeners) cb();
+  saveState();
 }
 
 // ---------------------------------------------------------------------------
@@ -210,21 +307,23 @@ export function addHLink(
   const id = 'hlink-' + (hlinkCounter++);
   const hLink: HLink = { id, targetId, path, clientPath, mime, icon, mtime, atime, size, label, x: 80, y: 80 };
   ws.hLinks.set(id, hLink);
+  saveState();
   return hLink;
 }
 
 export function removeHLink(id: string): void {
   workspaces.get(activeWorkspaceId)?.hLinks.delete(id);
+  saveState();
 }
 
 export function moveHLink(id: string, x: number, y: number): void {
   const hLink = workspaces.get(activeWorkspaceId)?.hLinks.get(id);
-  if (hLink) { hLink.x = x; hLink.y = y; }
+  if (hLink) { hLink.x = x; hLink.y = y; saveState(); }
 }
 
 export function relabelHLink(id: string, label: string | null): void {
   const hLink = workspaces.get(activeWorkspaceId)?.hLinks.get(id);
-  if (hLink) hLink.label = label;
+  if (hLink) { hLink.label = label; saveState(); }
 }
 
 export function getHLinks(): HLink[] {
@@ -233,6 +332,12 @@ export function getHLinks(): HLink[] {
 
 export function addSwitchListener(cb: () => void): void {
   switchListeners.push(cb);
+}
+
+export function takePendingRestore(): { windows: WindowSaveState[]; cables: CableSaveState[] } | null {
+  const v = _pendingRestore;
+  _pendingRestore = null;
+  return v;
 }
 
 // ---------------------------------------------------------------------------
@@ -246,12 +351,13 @@ export function openWindow(pluginName: string, opts: WindowOptions = {}): Window
 
   const handle = createWindow(opts);
   const id = handle.id;
+  const workspaceId = _forceWorkspaceId ?? activeWorkspaceId;
 
   const mw: ManagedWindow = {
     handle,
     pluginName,
     title: opts.title ?? pluginName,
-    workspaceId: activeWorkspaceId,
+    workspaceId,
     minimized: false,
   };
   windows.set(id, mw);
@@ -269,6 +375,7 @@ export function openWindow(pluginName: string, opts: WindowOptions = {}): Window
     mw.minimized = true;
     if (focusedWindowId === id) focusedWindowId = null;
     updateChip(id);
+    saveState();
   };
 
   handle.onClose = () => {
@@ -276,9 +383,15 @@ export function openWindow(pluginName: string, opts: WindowOptions = {}): Window
     removeChip(id);
     if (focusedWindowId === id) focusedWindowId = null;
     NodeGraph.onWindowClosed(id);
+    saveState();
   };
 
-  createChip(mw, id);
+  handle.root.addEventListener('mouseup', () => saveState(), true);
+
+  if (workspaceId === activeWorkspaceId) {
+    createChip(mw, id);
+  }
+  saveState();
 
   return handle;
 }
