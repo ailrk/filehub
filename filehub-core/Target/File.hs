@@ -4,7 +4,8 @@ module Target.File where
 
 import Filehub.Prelude
 import Target.Types (TargetId(..), Target, IsTarget(..), HasTargetId(..))
-import Data.UUID.V4 qualified as UUID
+import Data.UUID.V5 qualified as UUID
+import Data.UUID (UUID)
 import Text.Debug (Debug(..))
 import Data.ClientPath (AbsPath (..), Root (..))
 import UnliftIO.Directory (makeAbsolute)
@@ -46,9 +47,12 @@ instance IsTarget FileSys where
 instance Debug (Config FileSys) where debug = show
 
 
+targetNs :: UUID
+targetNs = UUID.generateNamed UUID.namespaceDNS (bs_unpack $ txt_encode (txt_pack "filehub.target.filesys"))
+
 initialize :: (MonadLog m, MonadIO m) => Config FileSys -> m (Target FileSys)
 initialize opt = do
-  targetId <- liftIO $ TargetId <$> UUID.nextRandom
   root     <- (Root . AbsPath) <$> makeAbsolute opt.root
+  let targetId = TargetId $ UUID.generateNamed targetNs (bs_unpack $ txt_encode (txt_pack (coerce root)))
   logInfo_ [i|[99s5fd] Initialized: #{targetId} - FS #{root}|]
   pure $ FileBackend targetId Nothing root

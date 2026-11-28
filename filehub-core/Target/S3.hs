@@ -9,7 +9,8 @@ import Filehub.Prelude
 import Target.Types (TargetId(..), Target, IsTarget(..), HasTargetId(..))
 import Amazonka.Env qualified as Amazonka
 import Amazonka.Types qualified as Amazonka
-import Data.UUID.V4 qualified as UUID
+import Data.UUID.V5 qualified as UUID
+import Data.UUID (UUID)
 import Amazonka qualified
 import Text.Read (readMaybe)
 import Network.URI qualified as URI
@@ -59,10 +60,13 @@ instance Debug (Config S3) where debug = show
 
 -- | The default `discover` method only discover `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`,
 --   and `AWS_SESSION_TOKEN`. To set custom endpoint url, we also need to hand `AWS_ENDPOINT_URL`.
+targetNs :: UUID
+targetNs = UUID.generateNamed UUID.namespaceDNS (bs_unpack $ txt_encode (txt_pack "filehub.target.s3"))
+
 initialize :: (MonadLog m, MonadIO m) => Config S3 -> m (Target S3)
 initialize opt = do
-  targetId   <- liftIO $ TargetId <$> UUID.nextRandom
-  let bucket =  txt_pack opt.bucket
+  let bucket   = txt_pack opt.bucket
+      targetId = TargetId $ UUID.generateNamed targetNs (bs_unpack $ txt_encode bucket)
   service    <- liftIO makeS3Service
   env        <- liftIO do Amazonka.configureService service <$> Amazonka.newEnv Amazonka.discover
   logInfo_ [i|[ive9d4] Initialized: #{targetId} - S3 #{bucket}|]

@@ -3,7 +3,7 @@ module Target.Home (Home, newHomeTarget) where
 
 import Filehub.Prelude
 import Target.Types (TargetId(..), Target, IsTarget(..), HasTargetId(..))
-import Data.UUID.V4 qualified as UUID
+import Data.UUID.V5 qualified as UUID
 import Text.Debug (Debug(..))
 
 
@@ -23,5 +23,8 @@ instance IsTarget Home where
   data instance Config Home = Config ()
 
 
-newHomeTarget :: IO (Target Home)
-newHomeTarget = HomeTarget . TargetId <$> UUID.nextRandom
+homeTargetId :: TargetId
+homeTargetId = TargetId $ UUID.generateNamed UUID.namespaceDNS (bs_unpack $ txt_encode (txt_pack "filehub.target.home"))
+
+newHomeTarget :: Target Home
+newHomeTarget = HomeTarget homeTargetId

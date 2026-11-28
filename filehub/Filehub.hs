@@ -108,7 +108,7 @@ main = Log.withColoredStdoutLogger \logger -> do
     activeUserPool <- ActiveUser.Pool.new
 
     -- Home virtual target — always present, always first
-    homeTarget  <- liftIO Home.newHomeTarget
+    let homeTarget = Home.newHomeTarget
     let homeEntry = (getTargetId (AnyTarget homeTarget), AnyTarget homeTarget)
 
     -- Static targets from CLI + file config
