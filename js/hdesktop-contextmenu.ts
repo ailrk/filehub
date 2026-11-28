@@ -155,7 +155,15 @@ function buildMenu1(item: HTMLElement, readOnly: boolean): HTMLElement {
     const targetId = getActiveTargetId();
     if (targetId) {
       const addToHomeEl = makeClickItem('Add to Home', 'bxs-home', () => {
-        Workspace.addHLink(targetId, path, path, item.dataset.mime ?? '', item.dataset.name ?? null);
+        Workspace.addHLink(
+          targetId, path, path,
+          item.dataset.mime  ?? '',
+          item.dataset.icon  ?? 'bx bxs-file-blank',
+          item.dataset.mtime ?? '',
+          item.dataset.atime ?? '',
+          item.dataset.size  ?? '0',
+          item.dataset.name  ?? null,
+        );
         Home.refresh();
       });
       menu.appendChild(document.createElement('hr'));
@@ -388,7 +396,7 @@ function substituteUrl(template: string, filePath: string, fileName: string, fil
 }
 
 
-function makeMenu(): HTMLElement {
+export function makeMenu(): HTMLElement {
   const el = document.createElement('div');
   el.className = 'dropdown-content';
   el.id = 'contextmenu';
@@ -396,7 +404,7 @@ function makeMenu(): HTMLElement {
 }
 
 
-function makeItem(label: string, icon: string, attrs: Record<string, string>): HTMLElement {
+export function makeItem(label: string, icon: string, attrs: Record<string, string>): HTMLElement {
   const el = document.createElement('div');
   el.className = 'dropdown-item';
   el.innerHTML = `<i class="bx ${icon}"></i><span>${label}</span>`;
@@ -405,7 +413,7 @@ function makeItem(label: string, icon: string, attrs: Record<string, string>): H
 }
 
 
-function makeClickItem(label: string, icon: string, onClick: () => void): HTMLElement {
+export function makeClickItem(label: string, icon: string, onClick: () => void): HTMLElement {
   const el = document.createElement('div');
   el.className = 'dropdown-item';
   el.innerHTML = `<i class="bx ${icon}"></i><span>${label}</span>`;
@@ -438,7 +446,7 @@ function initMenu(menu: HTMLElement, pageX: number, pageY: number): void {
 }
 
 
-function initMenuFixed(menu: HTMLElement, clientX: number, clientY: number): void {
+export function initMenuFixed(menu: HTMLElement, clientX: number, clientY: number): void {
   menu.style.position = 'fixed';
   menu.style.display  = 'block';
   menu.style.left = clientX + 'px';

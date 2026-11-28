@@ -10,6 +10,7 @@ module Filehub.Template.Common
   , searchBar
   , controlPanel
   , icon
+  , iconClass
   , open
   , bold
   , modal
@@ -305,18 +306,18 @@ controlPanel
         ]
 
 
-icon :: FileInfo -> Html ()
-icon file =
+iconClass :: FileInfo -> Text
+iconClass file =
   case file.isLink of
-    BrokenLink -> i_ [ class_ "bx bx-link-external .urgent "] mempty
+    BrokenLink -> "bx bx-link-external"
     _          ->
       case file.content of
-        Dir -> i_ [ class_ "bx bxs-folder "] mempty
+        Dir -> "bx bxs-folder"
         Regular
-         | file.mimetype `isMime` "application/pdf"                       -> i_ [ class_ "bx bxs-file-pdf"] mempty
-         | file.mimetype `isMime` "video" || file.mimetype `isMime` "mp4" -> i_ [ class_ "bx bxs-videos"] mempty
-         | file.mimetype `isMime` "audio" || file.mimetype `isMime` "mp3" -> i_ [ class_ "bx bxs-music"] mempty
-         | file.mimetype `isMime` "image"                                 -> i_ [ class_ "bx bx-image"] mempty
+         | file.mimetype `isMime` "application/pdf"                       -> "bx bxs-file-pdf"
+         | file.mimetype `isMime` "video" || file.mimetype `isMime` "mp4" -> "bx bxs-videos"
+         | file.mimetype `isMime` "audio" || file.mimetype `isMime` "mp3" -> "bx bxs-music"
+         | file.mimetype `isMime` "image"                                 -> "bx bx-image"
          | file.mimetype `isMime` "application/x-tar"
             || file.mimetype `isMime` "application/x-bzip-compressed-tar"
             || file.mimetype `isMime` "application/x-tgz"
@@ -328,9 +329,12 @@ icon file =
             || file.mimetype `isMime` "application/zip"
             || file.mimetype `isMime` "application/gzip"
             || file.mimetype `isMime` "application/zstd"
-            || file.mimetype `isMime` "application/vnd.rar"                -> i_ [ class_ "bx bxs-file-archive"] mempty
-          | file.mimetype `isMime` "text"                                  -> i_ [ class_ "bx bxs-file"] mempty
-          | otherwise                                                      -> i_ [ class_ "bx bxs-file-blank "] mempty
+            || file.mimetype `isMime` "application/vnd.rar"                -> "bx bxs-file-archive"
+          | file.mimetype `isMime` "text"                                  -> "bx bxs-file"
+          | otherwise                                                      -> "bx bxs-file-blank"
+
+icon :: FileInfo -> Html ()
+icon file = i_ [ class_ (iconClass file) ] mempty
 
 
 open :: [StaticPlugin] -> Root -> ClientPath -> FileInfo -> [Attribute]
@@ -360,7 +364,7 @@ open plugins root clientPath file =
           | file.mimetype `isMime` "image" ->
                [ term "data-action" "open-viewer" ]
           | file.mimetype `isMime` "text" ->
-               asHtmx @"editorModal" hxGet (Just clientPath) [ term "hx-indicator" "#global-spinner" ]
+               asHtmx @"editorModal" hxGet (Just clientPath, Nothing) [ term "hx-indicator" "#global-spinner" ]
           | otherwise -> []
   where
     allViewers = concatMap (.viewer) plugins

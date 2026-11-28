@@ -52,6 +52,12 @@ textarea:focus {
 
 #index.sidebar-collapsed { --sidebar-width: 0px; }
 
+#index.sidebar-collapsed #side-bar {
+  border-color: transparent;
+  box-shadow: none;
+  margin-left: 0;
+}
+
 #control-panel {
   grid-area: control-panel;
   background-color: var(--background1);
@@ -775,10 +781,13 @@ body.has-taskbar #index {
 /* ------------------------------------------------------------------ */
 
 .home-canvas {
-  position: relative;
-  width: 100%;
-  height: 100%;
+  position: fixed;
+  left: var(--sidebar-width);
+  top: 0;
+  right: 0;
+  bottom: var(--taskbar-h);
   overflow: hidden;
+  transition: left 0.3s var(--ease);
 }
 
 .hlink-icon {

@@ -309,6 +309,7 @@ data Api mode = Api
                           :> AuthProtect "session"
                           :> AuthProtect "login"
                           :> QueryParam "file" ClientPath
+                          :> QueryParam "target" TargetId
                           :> Get '[HTML] (Html ())
 
 

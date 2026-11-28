@@ -13,8 +13,10 @@ import Filehub.Prelude
 import Data.ClientPath (AbsPath(..))
 import Filehub.Locale (Phrase(..), phrase)
 import Filehub.Monad (Filehub)
+import Filehub.Types (Env(..))
+import Control.Monad.Reader (MonadReader(..))
 import Filehub.Plugin.Types (StaticPlugin(..), ContextMenuEntry(..), ToolbarEntry(..), UrlTemplate(..), EntryAction(..))
-import Filehub.Session (makeStorageCurrentTarget, Storage(..), fromClientPathChecked)
+import Filehub.Session (makeStorageCurrentTarget, makeStorageForTarget, targetRoot, Storage(..), fromClientPathChecked)
 import Filehub.Server.UI.Platform.Common (sideBar)
 import Filehub.Sort (sortFiles)
 import Filehub.Server.Util (withQueryParam)
@@ -26,13 +28,26 @@ import Lucid
 import Prelude hiding (readFile)
 import System.FilePath (takeFileName)
 import Target.Home (Home)
-import Target.Types (handleTarget, targetHandler, AnyTarget(..))
+import Target.Types (TargetId, handleTarget, targetHandler, AnyTarget(..))
 
 
-editorModal :: SessionId -> Maybe ClientPath -> Filehub (Html ())
-editorModal sessionId mClientPath = do
-  ctx@TemplateContext{ root } <- makeTemplateContext sessionId
-  storage      <- makeStorageCurrentTarget sessionId
+editorModal :: SessionId -> Maybe ClientPath -> Maybe TargetId -> Filehub (Html ())
+editorModal sessionId mClientPath mTargetId = do
+  ctx          <- makeTemplateContext sessionId
+  env          <- ask
+  (root, storage) <- case mTargetId of
+    Just tid -> do
+      targets <- readTVarIO env.targets
+      case lookup tid targets of
+        Just anyTarget -> do
+          s <- makeStorageForTarget sessionId anyTarget
+          pure (targetRoot anyTarget, s)
+        Nothing -> do
+          s <- makeStorageCurrentTarget sessionId
+          pure (ctx.root, s)
+    Nothing -> do
+      s <- makeStorageCurrentTarget sessionId
+      pure (ctx.root, s)
   clientPath   <- withQueryParam mClientPath
   p            <- fromClientPathChecked root clientPath
   file         <- storage.get p
@@ -43,13 +58,16 @@ editorModal sessionId mClientPath = do
 
 index :: SessionId -> Filehub (Html ())
 index sessionId = do
-  ctx      <- makeTemplateContext sessionId
-  sideBar' <- sideBar sessionId
-  view'    <- view sessionId
-  toolBar' <- toolBar sessionId
+  ctx@TemplateContext { currentTarget = TargetView (AnyTarget tgt) _ } <- makeTemplateContext sessionId
+  sideBar'      <- sideBar sessionId
+  view'         <- view sessionId
+  toolBar'      <- toolBar sessionId
+  controlPanel' <- case handleTarget (AnyTarget tgt) [ targetHandler @Home \_ -> mempty ] of
+    Just empty -> pure empty
+    Nothing    -> pure $ runTemplate ctx Template.Desktop.controlPanel
   let i18nScript = script_ [type_ "text/javascript"] $
         i18nPayload ctx.readOnly (phrase ctx.locale)
-  pure $ runTemplate ctx (Template.Desktop.index (i18nScript <> pluginsDataEl ctx.plugins ctx.pluginJsFiles) sideBar' view' toolBar')
+  pure $ runTemplate ctx (Template.Desktop.index (i18nScript <> pluginsDataEl ctx.plugins ctx.pluginJsFiles) sideBar' view' toolBar' controlPanel')
 
 
 i18nPayload :: Bool -> Phrase -> Text
@@ -155,5 +173,7 @@ view sessionId = do
 
 toolBar :: SessionId -> Filehub (Html ())
 toolBar sessionId = do
-  ctx <- makeTemplateContext sessionId
-  pure $ runTemplate ctx Template.Desktop.toolBar
+  ctx@TemplateContext { currentTarget = TargetView (AnyTarget tgt) _ } <- makeTemplateContext sessionId
+  case handleTarget (AnyTarget tgt) [ targetHandler @Home \_ -> mempty ] of
+    Just empty -> pure empty
+    Nothing    -> pure $ runTemplate ctx Template.Desktop.toolBar

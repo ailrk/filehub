@@ -32,6 +32,7 @@ import Filehub.Template.Common
   ( bold, modal, viewId, searchBar, tableId
   , fileNameElement, sizeElement, modifiedDateElement
   , sortIconName, sortIconMTime, sortIconSize, sortByText
+  , iconClass
   )
 import Filehub.Template.Common qualified as Template
 import Filehub.Theme (Theme (..))
@@ -69,9 +70,9 @@ index :: Html ()
       -> Html ()
       -> Html ()
       -> Html ()
+      -> Html ()
       -> Template (Html ())
-index i18nScript sideBar' view' toolBar' = do
-  controlPanel' <- controlPanel
+index i18nScript sideBar' view' toolBar' controlPanel' = do
   sidebarCollapsed <- asks (.sidebarCollapsed)
   pure do
     div_ [ id_ "index" ] do
@@ -503,6 +504,7 @@ entry file = do
           , term "data-atime" atimeStr
           , term "data-size" sizeStr
           , term "data-mime" mimeStr
+          , term "data-icon" (iconClass file)
           , id_ [i|tr-#{hashPath}|]
           , class_ "table-item "
           , draggable_ "true"
@@ -557,6 +559,7 @@ thumbnail file = do
         , term "data-atime" atimeStr
         , term "data-size" sizeStr
         , term "data-mime" mimeStr
+        , term "data-icon" (iconClass file)
         , id_ [i|tr-#{hashPath}|]
         , class_ "thumbnail table-item "
         , draggable_ "true"

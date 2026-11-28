@@ -84,8 +84,13 @@ class Viewer {
   canvas: HTMLElement;
   footer: HTMLElement;
 
-  constructor(initialPath: string) {
+  serveUrlOverride?: string;
+  mimeOverride?: string;
+
+  constructor(initialPath: string, serveUrlOverride?: string, mimeOverride?: string) {
     this.currentPath = initialPath;
+    this.serveUrlOverride = serveUrlOverride;
+    this.mimeOverride = mimeOverride;
     this.id = getUniqueID();
 
     const template = document.createElement('div');
@@ -112,10 +117,11 @@ class Viewer {
     const items = mediaItems();
     const idx = items.findIndex(el => el.dataset.path === this.currentPath);
     const el = items[idx];
-    if (!el) return;
 
-    const mime = el.dataset.mime ?? '';
-    const url = `/serve?file=${el.dataset.path ?? ''}`;
+    const mime = this.mimeOverride ?? el?.dataset.mime ?? '';
+    const url  = this.serveUrlOverride ?? `/serve?file=${el?.dataset.path ?? ''}`;
+
+    if (!el && !this.serveUrlOverride) return;
 
     let content: HTMLElement = document.createElement('div');
     content.innerHTML = 'No content';
@@ -158,19 +164,21 @@ class Viewer {
     this.canvas.innerHTML = '';
     this.canvas.appendChild(content);
 
-    this.title.textContent = decodeURIComponent(el.dataset.path ?? '').split('/').pop() ?? '';
+    this.title.textContent = decodeURIComponent(el?.dataset.path ?? this.currentPath).split('/').pop() ?? '';
 
     content.classList.add('fade');
     this.currentContent = content;
 
-    const start = Math.max(0, idx - 20);
-    const end   = Math.min(items.length, idx + 21);
-    for (let j = start; j < end; j++) {
-      if (j === idx) continue;
-      const item = items[j];
-      if ((item.dataset.mime ?? '').startsWith('image')) {
-        const preImg = new Image();
-        preImg.src = `/serve?file=${item.dataset.path ?? ''}`;
+    if (el) {
+      const start = Math.max(0, idx - 20);
+      const end   = Math.min(items.length, idx + 21);
+      for (let j = start; j < end; j++) {
+        if (j === idx) continue;
+        const item = items[j];
+        if ((item.dataset.mime ?? '').startsWith('image')) {
+          const preImg = new Image();
+          preImg.src = `/serve?file=${item.dataset.path ?? ''}`;
+        }
       }
     }
   }

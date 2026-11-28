@@ -30,6 +30,7 @@ import Filehub.Server.UI.Platform.Common qualified as Server.Common
 import Filehub.Server.UI.Platform.Desktop qualified as Server.Desktop
 import Filehub.Server.UI.Platform.Mobile qualified as Server.Mobile
 import Filehub.Session (getDisplay, withSession, Layout(..))
+import Target.Types (TargetId)
 import Filehub.Template (runTemplate, makeTemplateContext)
 import Filehub.Template.Desktop qualified as Template.Desktop
 import Filehub.Template.Mobile qualified as Template.Mobile
@@ -112,12 +113,12 @@ toolBar sessionId = do
     _       -> Server.Mobile.toolBar sessionId
 
 
-editorModal :: SessionId -> ConfirmLogin -> Maybe ClientPath -> Filehub (Html ())
-editorModal sessionId _ mClientPath = do
+editorModal :: SessionId -> ConfirmLogin -> Maybe ClientPath -> Maybe TargetId -> Filehub (Html ())
+editorModal sessionId _ mClientPath mTargetId = do
   display <- withSession sessionId getDisplay
   case display of
-    Mobile    -> Server.Mobile.editorModal sessionId mClientPath
-    Desktop   -> Server.Desktop.editorModal sessionId mClientPath
+    Mobile    -> Server.Mobile.editorModal sessionId mClientPath mTargetId
+    Desktop   -> Server.Desktop.editorModal sessionId mClientPath mTargetId
     NoDisplay -> error "impossible"
 
 

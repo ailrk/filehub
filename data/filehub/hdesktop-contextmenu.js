@@ -128,7 +128,7 @@ function buildMenu1(item, readOnly) {
         const targetId = getActiveTargetId();
         if (targetId) {
             const addToHomeEl = makeClickItem('Add to Home', 'bxs-home', () => {
-                Workspace.addHLink(targetId, path, path, item.dataset.mime ?? '', item.dataset.name ?? null);
+                Workspace.addHLink(targetId, path, path, item.dataset.mime ?? '', item.dataset.icon ?? 'bx bxs-file-blank', item.dataset.mtime ?? '', item.dataset.atime ?? '', item.dataset.size ?? '0', item.dataset.name ?? null);
                 Home.refresh();
             });
             menu.appendChild(document.createElement('hr'));
@@ -337,13 +337,13 @@ function substituteUrl(template, filePath, fileName, fileMime, shareUrl) {
         .replace('{download_url}', encodeURIComponent(downloadUrl))
         .replace('{share_url}', encodeURIComponent(shareUrl));
 }
-function makeMenu() {
+export function makeMenu() {
     const el = document.createElement('div');
     el.className = 'dropdown-content';
     el.id = 'contextmenu';
     return el;
 }
-function makeItem(label, icon, attrs) {
+export function makeItem(label, icon, attrs) {
     const el = document.createElement('div');
     el.className = 'dropdown-item';
     el.innerHTML = `<i class="bx ${icon}"></i><span>${label}</span>`;
@@ -351,7 +351,7 @@ function makeItem(label, icon, attrs) {
         el.setAttribute(k, v);
     return el;
 }
-function makeClickItem(label, icon, onClick) {
+export function makeClickItem(label, icon, onClick) {
     const el = document.createElement('div');
     el.className = 'dropdown-item';
     el.innerHTML = `<i class="bx ${icon}"></i><span>${label}</span>`;
@@ -381,7 +381,7 @@ function initMenu(menu, pageX, pageY) {
         menu.addEventListener('animationend', () => menu.remove(), { once: true });
     });
 }
-function initMenuFixed(menu, clientX, clientY) {
+export function initMenuFixed(menu, clientX, clientY) {
     menu.style.position = 'fixed';
     menu.style.display = 'block';
     menu.style.left = clientX + 'px';

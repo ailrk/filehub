@@ -4,6 +4,9 @@
 
 import * as Workspace from './hdesktop-workspace.js';
 import type { HLink } from './hdesktop-workspace.js';
+import { makeMenu, makeClickItem, initMenuFixed } from './hdesktop-contextmenu.js';
+import * as Modal from './modal.js';
+import Viewer from './viewer.js';
 
 declare var htmx: any;
 
@@ -50,23 +53,20 @@ function makeIcon(lnk: HLink): HTMLElement {
   el.style.left = lnk.x + 'px';
   el.style.top  = lnk.y + 'px';
 
-  const previewEl = makePreview(lnk);
+  el.appendChild(makePreview(lnk));
 
   const labelEl = document.createElement('span');
   labelEl.className = 'hlink-label';
   labelEl.textContent = lnk.label ?? basename(lnk.path);
-
-  el.appendChild(previewEl);
   el.appendChild(labelEl);
 
-  el.addEventListener('dblclick', () => openHLink(lnk));
   el.addEventListener('contextmenu', (e) => {
     e.preventDefault();
     e.stopPropagation();
-    showIconMenu(lnk, e.clientX, e.clientY);
+    showHLinkMenu(lnk, e.clientX, e.clientY);
   });
 
-  attachDrag(el, lnk);
+  attachDrag(el, lnk, () => openHLink(lnk));
   return el;
 }
 
@@ -75,7 +75,7 @@ function makeIcon(lnk: HLink): HTMLElement {
 // ---------------------------------------------------------------------------
 
 function makePreview(lnk: HLink): HTMLElement {
-  const serveUrl = '/serve?file=' + encodeURIComponent(lnk.clientPath);
+  const serveUrl = '/serve?file=' + encodeURIComponent(lnk.clientPath) + '&target=' + encodeURIComponent(lnk.targetId);
   const wrapper  = document.createElement('div');
   wrapper.className = 'thumbnail-preview';
 
@@ -84,16 +84,16 @@ function makePreview(lnk: HLink): HTMLElement {
 
   if (lnk.mime.startsWith('image/')) {
     const img = document.createElement('img');
-    img.src              = serveUrl;
-    img.draggable        = false;
-    img.loading          = 'lazy';
+    img.src     = serveUrl;
+    img.draggable = false;
+    img.loading = 'lazy';
     img.setAttribute('fetchpriority', 'low');
     inner.appendChild(img);
   } else if (lnk.mime.startsWith('video/')) {
     const vid = document.createElement('video');
-    vid.src      = serveUrl;
-    vid.muted    = true;
-    vid.loop     = true;
+    vid.src     = serveUrl;
+    vid.muted   = true;
+    vid.loop    = true;
     vid.setAttribute('preload', 'metadata');
     vid.setAttribute('playsinline', '');
     vid.className = 'thumbnail-video';
@@ -101,7 +101,7 @@ function makePreview(lnk: HLink): HTMLElement {
     inner.appendChild(vid);
   } else {
     const icon = document.createElement('i');
-    icon.className = 'bx ' + fileIcon(lnk.path);
+    icon.className = lnk.icon;
     inner.appendChild(icon);
   }
 
@@ -110,121 +110,182 @@ function makePreview(lnk: HLink): HTMLElement {
 }
 
 // ---------------------------------------------------------------------------
-// Drag
+// Drag — onClick fires only when pointer didn't move (not a drag)
 // ---------------------------------------------------------------------------
 
-function attachDrag(el: HTMLElement, lnk: HLink): void {
-  let dragging = false;
+function attachDrag(el: HTMLElement, lnk: HLink, onClick: () => void): void {
+  let active = false;
+  let didMove = false;
   let startX = 0, startY = 0, origX = 0, origY = 0;
 
   el.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) return;
-    dragging = true;
-    startX = e.clientX; startY = e.clientY;
-    origX = lnk.x;      origY = lnk.y;
+    active  = true;
+    didMove = false;
+    startX  = e.clientX; startY = e.clientY;
+    origX   = lnk.x;    origY  = lnk.y;
     el.setPointerCapture(e.pointerId);
-    el.classList.add('dragging');
     e.preventDefault();
   });
 
   el.addEventListener('pointermove', (e) => {
-    if (!dragging) return;
+    if (!active) return;
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
-    el.style.left = (origX + dx) + 'px';
-    el.style.top  = (origY + dy) + 'px';
+    if (Math.abs(dx) + Math.abs(dy) > 5) {
+      didMove = true;
+      el.classList.add('dragging');
+    }
+    if (didMove) {
+      el.style.left = (origX + dx) + 'px';
+      el.style.top  = (origY + dy) + 'px';
+    }
   });
 
   el.addEventListener('pointerup', (e) => {
-    if (!dragging) return;
-    dragging = false;
+    if (!active) return;
+    active = false;
     el.classList.remove('dragging');
-    const dx = e.clientX - startX;
-    const dy = e.clientY - startY;
-    Workspace.moveHLink(lnk.id, origX + dx, origY + dy);
-    lnk.x = origX + dx;
-    lnk.y = origY + dy;
+    if (didMove) {
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      Workspace.moveHLink(lnk.id, origX + dx, origY + dy);
+      lnk.x = origX + dx;
+      lnk.y = origY + dy;
+    } else {
+      onClick();
+    }
   });
 }
 
 // ---------------------------------------------------------------------------
-// Open (navigate to target)
+// Open: behaves like clicking the file in storage
 // ---------------------------------------------------------------------------
 
 function openHLink(lnk: HLink): void {
-  const tab = document.querySelector<HTMLElement>(`.target-tab[hx-get*="target=${encodeURIComponent(lnk.targetId)}"]`);
-  if (tab) {
+  const enc       = encodeURIComponent(lnk.clientPath);
+  const targetEnc = encodeURIComponent(lnk.targetId);
+  const serveUrl  = `/serve?file=${enc}&target=${targetEnc}`;
+
+  if (lnk.mime === 'inode/directory') {
+    goToSource(lnk);
+    return;
+  }
+
+  if (lnk.mime.startsWith('image/') || lnk.mime.startsWith('video/') || lnk.mime.startsWith('audio/')) {
+    new Viewer(lnk.clientPath, serveUrl, lnk.mime).show();
+    return;
+  }
+
+  if (lnk.mime === 'application/pdf') {
+    window.open(serveUrl, '_blank');
+    return;
+  }
+
+  htmx.ajax('GET', `/modal/editor?file=${enc}&target=${targetEnc}`, { target: '#index', swap: 'beforeend' });
+}
+
+// ---------------------------------------------------------------------------
+// Go to source: navigate to the file's storage location (no viewer)
+// ---------------------------------------------------------------------------
+
+function goToSource(lnk: HLink): void {
+  const tab = findTargetTab(lnk.targetId);
+  if (!tab) return;
+
+  const isCurrentTarget = tab.classList.contains('current-target');
+  const targetDir = lnk.mime === 'inode/directory' ? lnk.clientPath : dirPath(lnk.clientPath);
+
+  const doCD = () => fireHtmxGet('/cd?dir=' + encodeURIComponent(targetDir));
+
+  if (isCurrentTarget) {
+    doCD();
+  } else {
+    document.body.addEventListener('htmx:afterSettle', doCD, { once: true });
     htmx.trigger(tab, 'click');
   }
 }
 
 // ---------------------------------------------------------------------------
-// Icon context menu
+// Context menu
 // ---------------------------------------------------------------------------
 
-function showIconMenu(lnk: HLink, clientX: number, clientY: number): void {
-  document.getElementById('hlink-menu')?.remove();
+function showHLinkMenu(lnk: HLink, clientX: number, clientY: number): void {
+  document.getElementById('contextmenu')?.remove();
 
-  const menu = document.createElement('div');
-  menu.id = 'hlink-menu';
-  menu.className = 'dropdown-content';
-  menu.style.cssText = `position:fixed;display:block;left:${clientX}px;top:${clientY}px;z-index:600`;
+  const menu = makeMenu();
+  const enc  = encodeURIComponent(lnk.clientPath);
 
-  const removeEl = document.createElement('div');
-  removeEl.className = 'dropdown-item';
-  removeEl.innerHTML = `<i class="bx bx-trash"></i><span>Remove</span>`;
-  removeEl.addEventListener('click', () => {
-    Workspace.removeHLink(lnk.id);
-    menu.remove();
-    render();
-  });
+  menu.appendChild(makeClickItem('Go to source', 'bxs-navigation', () => goToSource(lnk)));
 
-  const renameEl = document.createElement('div');
-  renameEl.className = 'dropdown-item';
-  renameEl.innerHTML = `<i class="bx bxs-rename"></i><span>Rename</span>`;
-  renameEl.addEventListener('click', () => {
-    menu.remove();
+  const dl = document.createElement('a');
+  dl.className = 'dropdown-item';
+  dl.href = '/download?file=' + enc;
+  dl.innerHTML = `<i class="bx bx-download"></i><span>Download</span>`;
+  menu.appendChild(dl);
+
+  menu.appendChild(makeClickItem('Share', 'bxs-share-alt', () => {
+    Modal.showShareModal(lnk.clientPath);
+  }));
+
+  menu.appendChild(makeClickItem('Details', 'bx-detail', () => {
+    Modal.showFileDetailModal(
+      lnk.label ?? basename(lnk.path),
+      lnk.mtime,
+      lnk.atime,
+      lnk.size,
+      lnk.mime,
+    );
+  }));
+
+  menu.appendChild(document.createElement('hr'));
+
+  menu.appendChild(makeClickItem('Rename label', 'bxs-rename', () => {
     const newLabel = prompt('Label', lnk.label ?? basename(lnk.path));
     if (newLabel !== null) {
       Workspace.relabelHLink(lnk.id, newLabel || null);
       render();
     }
-  });
+  }));
 
-  menu.appendChild(renameEl);
-  menu.appendChild(removeEl);
+  menu.appendChild(makeClickItem('Remove from Home', 'bx-trash', () => {
+    Workspace.removeHLink(lnk.id);
+    render();
+  }));
+
   document.body.appendChild(menu);
-
-  requestAnimationFrame(() => {
-    const rect = menu.getBoundingClientRect();
-    if (rect.right  > window.innerWidth)  menu.style.left = (clientX - rect.width)  + 'px';
-    if (rect.bottom > window.innerHeight) menu.style.top  = (clientY - rect.height) + 'px';
-  });
-
-  const close = (e: MouseEvent) => {
-    if (!menu.contains(e.target as Node)) {
-      menu.remove();
-      document.removeEventListener('click', close, true);
-    }
-  };
-  document.addEventListener('click', close, true);
+  initMenuFixed(menu, clientX, clientY);
 }
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function basename(path: string): string {
-  return path.split('/').filter(Boolean).pop() ?? path;
+function findTargetTab(targetId: string): HTMLElement | null {
+  for (const tab of document.querySelectorAll<HTMLElement>('.target-tab')) {
+    const hxGet = tab.getAttribute('hx-get') ?? '';
+    const tid   = new URLSearchParams(hxGet.split('?')[1] ?? '').get('target');
+    if (tid === targetId) return tab;
+  }
+  return null;
 }
 
-function fileIcon(path: string): string {
-  const ext = path.split('.').pop()?.toLowerCase() ?? '';
-  if (['jpg','jpeg','png','gif','webp','svg','bmp'].includes(ext)) return 'bxs-image';
-  if (['mp4','webm','mkv','mov','avi'].includes(ext))               return 'bx-movie';
-  if (['mp3','ogg','flac','wav','aac'].includes(ext))               return 'bxs-music';
-  if (['pdf'].includes(ext))                                        return 'bxs-file-pdf';
-  if (['zip','tar','gz','bz2','xz','7z'].includes(ext))             return 'bxs-archive';
-  if (['hs','ts','js','py','rs','go','c','cpp','java'].includes(ext)) return 'bxs-file-js';
-  return 'bxs-file-blank';
+function fireHtmxGet(url: string): void {
+  const el = document.createElement('div');
+  el.setAttribute('hx-get', url);
+  el.setAttribute('hx-swap', 'none');
+  document.body.appendChild(el);
+  htmx.process(el);
+  htmx.trigger(el, 'click');
+  requestAnimationFrame(() => el.remove());
+}
+
+function dirPath(clientPath: string): string {
+  const parts = clientPath.split('/').filter(Boolean);
+  parts.pop();
+  return '/' + parts.join('/');
+}
+
+function basename(path: string): string {
+  return path.split('/').filter(Boolean).pop() ?? path;
 }

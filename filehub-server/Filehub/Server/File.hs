@@ -41,10 +41,11 @@ import Filehub.Server.Util (withQueryParam)
 import Filehub.History (Operation(..), withHistory, recordHistory)
 import Network.URI.Encode qualified as URI.Encode
 import Target.Types qualified
-import Filehub.Session (SessionId(..), Session(..), Storage(..), getRoot, TargetView (..), getCurrentTarget, makeStorageCurrentTarget, fromClientPathChecked, CopyState(..), withSession, TargetSessionData(..))
+import Filehub.Session (SessionId(..), Session(..), Storage(..), getRoot, TargetView (..), getCurrentTarget, makeStorageCurrentTarget, makeStorageForTarget, targetRoot, fromClientPathChecked, CopyState(..), withSession, TargetSessionData(..))
+import Target.Types (TargetId)
 import Filehub.Session.Copy qualified as Copy
 import Filehub.Sort qualified as Sort
-import Filehub.Types ( NewFile(..) , NewFolder(..), UpdatedFile(..) , UpdatedFile(..) , FilehubEvent (..), RenameFile (..), MoveFile (..), Env)
+import Filehub.Types ( NewFile(..) , NewFolder(..), UpdatedFile(..) , UpdatedFile(..) , FilehubEvent (..), RenameFile (..), MoveFile (..), Env(..))
 import Lucid hiding (for_)
 import Network.HTTP.Types (ByteRange(..), parseByteRanges)
 import Network.HTTP.Types.Status (status404, status206, status200)
@@ -433,13 +434,29 @@ upload sessionId _ _ _ multipart = do
 
 serve :: Env -> SessionId -> ConfirmLogin -> ConfirmRateLimitDownload -> Tagged Filehub Application
 serve env sessionId _ _ = Tagged $ \req respond -> do
-  let query = queryString req
-  let mFile = join $ lookup "file" query
+  let query    = queryString req
+  let mFile    = join $ lookup "file"   query
+  let mTargetQ = join $ lookup "target" query
 
   -- Lookup the file
   res <- runFilehub env do
-    root       <- withSession sessionId (getRoot env)
-    storage    <- makeStorageCurrentTarget sessionId
+    -- Optionally serve from a specific target (bypasses session's current target)
+    (root, storage) <- case mTargetQ >>= either (const Nothing) Just . parseUrlPiece @TargetId . txt_decode of
+      Just tid -> do
+        targets <- readTVarIO env.targets
+        case lookup tid targets of
+          Just target -> do
+            s <- makeStorageForTarget sessionId target
+            pure (targetRoot target, s)
+          Nothing -> do
+            r <- withSession sessionId (getRoot env)
+            s <- makeStorageCurrentTarget sessionId
+            pure (r, s)
+      Nothing -> do
+        r <- withSession sessionId (getRoot env)
+        s <- makeStorageCurrentTarget sessionId
+        pure (r, s)
+
     clientPath <- do
       text <- txt_decode <$> withQueryParam mFile
       case parseUrlPiece @ClientPath text of

@@ -13,11 +13,12 @@ import Data.ClientPath (AbsPath(..))
 import Filehub.Server.UI.Platform.Common (sideBar)
 import Filehub.Server.Util (withQueryParam)
 import Filehub.Template (makeTemplateContext, runTemplate, TemplateContext(..))
-import Filehub.Session (SessionId, Storage(..), getTargetViews, getRoot, makeStorageCurrentTarget, fromClientPathChecked, AllSelected(..), withSession)
+import Filehub.Session (SessionId, Storage(..), getTargetViews, getRoot, makeStorageCurrentTarget, makeStorageForTarget, targetRoot, fromClientPathChecked, AllSelected(..), withSession)
+import Target.Types (TargetId, AnyTarget(..))
 import Filehub.Session.Selected qualified as Selected
 import Filehub.Sort (sortFiles)
 import Filehub.Template.Mobile qualified as Template.Mobile
-import Filehub.Types (ClientPath)
+import Filehub.Types (ClientPath, Env(..))
 import Lucid
 import Prelude hiding (readFile)
 import System.FilePath (takeFileName)
@@ -46,20 +47,30 @@ toolBar sessionId = do
   pure $ runTemplate ctx (Template.Mobile.toolBar)
 
 
-editorModal :: SessionId -> Maybe ClientPath -> Filehub (Html ())
-editorModal sessionId mClientPath = do
+editorModal :: SessionId -> Maybe ClientPath -> Maybe TargetId -> Filehub (Html ())
+editorModal sessionId mClientPath mTargetId = do
   env <- ask
-  join $ withSession sessionId \s -> do
-    root    <- getRoot env s
-    pure do
-      storage      <- makeStorageCurrentTarget sessionId
-      ctx          <- makeTemplateContext sessionId
-      clientPath   <- withQueryParam mClientPath
-      p            <- fromClientPathChecked root clientPath
-      file         <- storage.get p
-      content      <- storage.read file
-      let filename = coerce takeFileName p
-      pure $ runTemplate ctx (Template.Mobile.editorModal (clientPath, filename) content)
+  ctx <- makeTemplateContext sessionId
+  (root, storage) <- case mTargetId of
+    Just tid -> do
+      targets <- readTVarIO env.targets
+      case lookup tid targets of
+        Just anyTarget -> do
+          s <- makeStorageForTarget sessionId anyTarget
+          pure (targetRoot anyTarget, s)
+        Nothing -> do
+          s <- makeStorageCurrentTarget sessionId
+          pure (ctx.root, s)
+    Nothing -> do
+      r <- withSession sessionId (getRoot env)
+      s <- makeStorageCurrentTarget sessionId
+      pure (r, s)
+  clientPath   <- withQueryParam mClientPath
+  p            <- fromClientPathChecked root clientPath
+  file         <- storage.get p
+  content      <- storage.read file
+  let filename = coerce takeFileName p
+  pure $ runTemplate ctx (Template.Mobile.editorModal (clientPath, filename) content)
 
 
 view :: SessionId -> Filehub (Html ())
