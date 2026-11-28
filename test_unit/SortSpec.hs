@@ -2,6 +2,7 @@
 module SortSpec (spec) where
 
 import Filehub.Prelude
+import Data.Time (addUTCTime)
 import Data.ClientPath (AbsPath(..))
 import Data.File (File(..), FileType(..), FileInfo, defaultFileInfo)
 import Filehub.Sort

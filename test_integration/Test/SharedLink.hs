@@ -1,6 +1,7 @@
 module Test.SharedLink (spec) where
 
 import Filehub.Prelude
+import Data.Time (getCurrentTime, addUTCTime)
 import Data.ClientPath (AbsPath(..))
 import Data.File (File(..), FileInfo, defaultFileInfo)
 import Data.Map.Strict qualified as Map

@@ -1,6 +1,7 @@
 module Util.Env where
 
 import Filehub.Prelude
+import Data.Time (secondsToNominalDiffTime)
 import Cache.InMemory qualified
 import Control.Handle.Cache qualified as Cache
 import Control.Handle.LockManager qualified as LockManager
