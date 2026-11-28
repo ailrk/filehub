@@ -340,6 +340,56 @@ export function takePendingRestore(): { windows: WindowSaveState[]; cables: Cabl
   return v;
 }
 
+export interface WindowInfo {
+  pluginName:  string;
+  title:       string;
+  workspaceId: string;
+  minimized:   boolean;
+  handle:      WindowHandle;
+}
+
+export function getWindowIds(): string[] {
+  return [...windows.keys()];
+}
+
+export function getWindowInfo(id: string): WindowInfo | undefined {
+  const mw = windows.get(id);
+  if (!mw) return undefined;
+  return { pluginName: mw.pluginName, title: mw.title, workspaceId: mw.workspaceId, minimized: mw.minimized, handle: mw.handle };
+}
+
+export function closeWindowNow(id: string): void {
+  const mw = windows.get(id);
+  if (!mw) return;
+  mw.handle.minimize();  // sets display:none so close() fires synchronously
+  mw.handle.close();
+}
+
+export function applyWindowGeometry(id: string, x: number, y: number, w: number, h: number): void {
+  const mw = windows.get(id);
+  if (!mw) return;
+  const root = mw.handle.root;
+  root.style.left   = x + 'px';
+  root.style.top    = y + 'px';
+  root.style.width  = w + 'px';
+  root.style.height = h + 'px';
+  root.dispatchEvent(new CustomEvent('filehub:windowmoved'));
+}
+
+export function applyWindowMinimized(id: string, minimized: boolean): void {
+  const mw = windows.get(id);
+  if (!mw || mw.minimized === minimized) return;
+  if (minimized) {
+    mw.handle.minimize();
+  } else {
+    mw.minimized = false;
+    mw.handle.root.style.display = '';
+    void mw.handle.root.offsetWidth;
+    mw.handle.root.dispatchEvent(new CustomEvent('filehub:windowmoved'));
+    updateChip(id);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Window management
 // ---------------------------------------------------------------------------

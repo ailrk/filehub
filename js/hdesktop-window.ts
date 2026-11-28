@@ -5,7 +5,6 @@
  */
 
 let _topZ = 800;
-let _winCounter = 0;
 
 // Each window occupies a band of Z_BAND z-index slots:
 //   +0  window body
@@ -33,6 +32,7 @@ export interface WindowHandle {
 }
 
 export interface WindowOptions {
+  id?:     string;
   title?:  string;
   width?:  number;
   height?: number;
@@ -41,7 +41,7 @@ export interface WindowOptions {
 }
 
 export function createWindow(opts: WindowOptions = {}): WindowHandle {
-  const id  = 'fw-' + (++_winCounter);
+  const id = opts.id ?? crypto.randomUUID();
   const win = document.createElement('div');
   win.className = 'filehub-window';
 

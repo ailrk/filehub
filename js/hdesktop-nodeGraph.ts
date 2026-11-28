@@ -341,7 +341,7 @@ function onCableMove(e: MouseEvent): void {
     }
   }
 
-  if (!snap) getAllInputPorts().forEach(i => i.el.classList.remove('node-socket-snap'))
+  if (!snap) getAllInputPorts().forEach(i => i.el.classList.remove('node-port-snap'))
   drag.snap = snap
   drag.ghost.setAttribute('d', bezier(from.x, from.y, tx, ty))
 }
@@ -501,6 +501,16 @@ export function getCablesState(): Array<{ fromWindowId: string; toWindowId: stri
 export function restoreCable(fromWindowId: string, toWindowId: string, toPortName: string): void {
   const cableId = connect(fromWindowId, toWindowId, toPortName);
   addCable(cableId, fromWindowId, toWindowId, toPortName);
+}
+
+export function removeCableByEndpoints(fromWindowId: string, toWindowId: string, toPortName: string): void {
+  for (const [id, c] of cables) {
+    if (c.fromWindowId === fromWindowId && c.toWindowId === toWindowId && c.toPortName === toPortName) {
+      disconnect(id);
+      removeCable(id);
+      return;
+    }
+  }
 }
 
 export function isNodeWindow(windowId: string): boolean {

@@ -401,58 +401,96 @@ function updatePluginToolbarActions() {
         }
     }
 }
+function openNodeWindow(savedWin) {
+    const def = NodeGraph.getDef(savedWin.pluginName);
+    if (!def)
+        return null;
+    Workspace.setRestoreWorkspaceId(savedWin.workspaceId);
+    const { inputs, output } = NodeGraph.preparePorts(savedWin.pluginName, def);
+    let restoredHandle = null;
+    const baseUi = createPluginUI(savedWin.pluginName);
+    const patchedUi = {
+        ...baseUi,
+        window(opts = {}) {
+            const handle = Workspace.openWindow(savedWin.pluginName, {
+                ...opts,
+                id: savedWin.id,
+                title: savedWin.title,
+                x: savedWin.x,
+                y: savedWin.y,
+                width: savedWin.width,
+                height: savedWin.height,
+            });
+            restoredHandle = handle;
+            return handle;
+        },
+    };
+    def.run(inputs, output, patchedUi);
+    Workspace.setRestoreWorkspaceId(null);
+    if (restoredHandle) {
+        const h = restoredHandle;
+        if (savedWin.minimized) {
+            h.minimize();
+            NodeGraph.onWindowVisible(h.id, false);
+        }
+        else if (savedWin.workspaceId !== Workspace.getActiveWorkspaceId()) {
+            h.setWorkspaceHidden(true);
+            NodeGraph.onWindowVisible(h.id, false);
+        }
+    }
+    return restoredHandle;
+}
+export function reconcileWindows(newWindows, newCables) {
+    Workspace.beginBatchRestore();
+    const currentNodeIds = new Set(Workspace.getWindowIds().filter(id => {
+        const info = Workspace.getWindowInfo(id);
+        return info && NodeGraph.getDef(info.pluginName) !== undefined;
+    }));
+    const newWinMap = new Map(newWindows.map(w => [w.id, w]));
+    // Close node windows absent from new state (synchronous via minimize-then-close)
+    for (const id of currentNodeIds) {
+        if (!newWinMap.has(id))
+            Workspace.closeWindowNow(id);
+    }
+    // Open windows new to this state
+    for (const savedWin of newWindows) {
+        if (!currentNodeIds.has(savedWin.id))
+            openNodeWindow(savedWin);
+    }
+    // Update geometry and minimized state of existing windows
+    for (const savedWin of newWindows) {
+        if (currentNodeIds.has(savedWin.id)) {
+            Workspace.applyWindowGeometry(savedWin.id, savedWin.x, savedWin.y, savedWin.width, savedWin.height);
+            Workspace.applyWindowMinimized(savedWin.id, savedWin.minimized);
+        }
+    }
+    // Diff cables against the now-current window set
+    const existingIds = new Set(Workspace.getWindowIds());
+    const currentCableSet = new Set(NodeGraph.getCablesState()
+        .filter(c => existingIds.has(c.fromWindowId) && existingIds.has(c.toWindowId))
+        .map(c => `${c.fromWindowId}|${c.toWindowId}|${c.toPortName}`));
+    const newCableSet = new Set(newCables
+        .filter(c => existingIds.has(c.fromWindowId) && existingIds.has(c.toWindowId))
+        .map(c => `${c.fromWindowId}|${c.toWindowId}|${c.toPortName}`));
+    for (const key of currentCableSet) {
+        if (!newCableSet.has(key)) {
+            const [from, to, port] = key.split('|');
+            NodeGraph.removeCableByEndpoints(from, to, port);
+        }
+    }
+    for (const c of newCables) {
+        const key = `${c.fromWindowId}|${c.toWindowId}|${c.toPortName}`;
+        if (!currentCableSet.has(key) && existingIds.has(c.fromWindowId) && existingIds.has(c.toWindowId)) {
+            NodeGraph.restoreCable(c.fromWindowId, c.toWindowId, c.toPortName);
+        }
+    }
+    Workspace.commitBatchRestore();
+}
 function restoreNodeWindows() {
     const restore = Workspace.takePendingRestore();
     if (!restore)
         return;
-    Workspace.beginBatchRestore();
-    const idMap = new Map();
-    for (const savedWin of restore.windows) {
-        const def = NodeGraph.getDef(savedWin.pluginName);
-        if (!def)
-            continue;
-        Workspace.setRestoreWorkspaceId(savedWin.workspaceId);
-        const { inputs, output } = NodeGraph.preparePorts(savedWin.pluginName, def);
-        let restoredHandle = null;
-        const baseUi = createPluginUI(savedWin.pluginName);
-        const patchedUi = {
-            ...baseUi,
-            window(opts = {}) {
-                const handle = Workspace.openWindow(savedWin.pluginName, {
-                    ...opts,
-                    title: savedWin.title,
-                    x: savedWin.x,
-                    y: savedWin.y,
-                    width: savedWin.width,
-                    height: savedWin.height,
-                });
-                idMap.set(savedWin.id, handle.id);
-                restoredHandle = handle;
-                return handle;
-            },
-        };
-        def.run(inputs, output, patchedUi);
-        Workspace.setRestoreWorkspaceId(null);
-        if (restoredHandle) {
-            const h = restoredHandle;
-            if (savedWin.minimized) {
-                h.minimize();
-                NodeGraph.onWindowVisible(h.id, false);
-            }
-            else if (savedWin.workspaceId !== Workspace.getActiveWorkspaceId()) {
-                h.setWorkspaceHidden(true);
-                NodeGraph.onWindowVisible(h.id, false);
-            }
-        }
-    }
-    for (const conn of restore.cables) {
-        const fromId = idMap.get(conn.fromWindowId);
-        const toId = idMap.get(conn.toWindowId);
-        if (fromId && toId) {
-            NodeGraph.restoreCable(fromId, toId, conn.toPortName);
-        }
-    }
-    Workspace.commitBatchRestore();
+    reconcileWindows(restore.windows, restore.cables);
 }
 // Wrap window.filehub.registerPlugin so node defs are picked up automatically
 // each time plugins are (re-)registered after an htmx swap.

@@ -4,7 +4,6 @@
  * click-outside-to-close. Multiple windows stack via shared z-index counter.
  */
 let _topZ = 800;
-let _winCounter = 0;
 // Each window occupies a band of Z_BAND z-index slots:
 //   +0  window body
 //   +1  per-window overlays (ports, etc.)
@@ -15,7 +14,7 @@ function bringToFront(el) {
     el.dispatchEvent(new CustomEvent('filehub:windowmoved'));
 }
 export function createWindow(opts = {}) {
-    const id = 'fw-' + (++_winCounter);
+    const id = opts.id ?? crypto.randomUUID();
     const win = document.createElement('div');
     win.className = 'filehub-window';
     /* --- title bar --- */

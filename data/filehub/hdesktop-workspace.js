@@ -259,6 +259,48 @@ export function takePendingRestore() {
     _pendingRestore = null;
     return v;
 }
+export function getWindowIds() {
+    return [...windows.keys()];
+}
+export function getWindowInfo(id) {
+    const mw = windows.get(id);
+    if (!mw)
+        return undefined;
+    return { pluginName: mw.pluginName, title: mw.title, workspaceId: mw.workspaceId, minimized: mw.minimized, handle: mw.handle };
+}
+export function closeWindowNow(id) {
+    const mw = windows.get(id);
+    if (!mw)
+        return;
+    mw.handle.minimize(); // sets display:none so close() fires synchronously
+    mw.handle.close();
+}
+export function applyWindowGeometry(id, x, y, w, h) {
+    const mw = windows.get(id);
+    if (!mw)
+        return;
+    const root = mw.handle.root;
+    root.style.left = x + 'px';
+    root.style.top = y + 'px';
+    root.style.width = w + 'px';
+    root.style.height = h + 'px';
+    root.dispatchEvent(new CustomEvent('filehub:windowmoved'));
+}
+export function applyWindowMinimized(id, minimized) {
+    const mw = windows.get(id);
+    if (!mw || mw.minimized === minimized)
+        return;
+    if (minimized) {
+        mw.handle.minimize();
+    }
+    else {
+        mw.minimized = false;
+        mw.handle.root.style.display = '';
+        void mw.handle.root.offsetWidth;
+        mw.handle.root.dispatchEvent(new CustomEvent('filehub:windowmoved'));
+        updateChip(id);
+    }
+}
 // ---------------------------------------------------------------------------
 // Window management
 // ---------------------------------------------------------------------------

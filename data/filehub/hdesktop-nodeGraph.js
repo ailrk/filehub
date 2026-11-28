@@ -234,7 +234,7 @@ function onCableMove(e) {
         }
     }
     if (!snap)
-        getAllInputPorts().forEach(i => i.el.classList.remove('node-socket-snap'));
+        getAllInputPorts().forEach(i => i.el.classList.remove('node-port-snap'));
     drag.snap = snap;
     drag.ghost.setAttribute('d', bezier(from.x, from.y, tx, ty));
 }
@@ -348,6 +348,15 @@ export function getCablesState() {
 export function restoreCable(fromWindowId, toWindowId, toPortName) {
     const cableId = connect(fromWindowId, toWindowId, toPortName);
     addCable(cableId, fromWindowId, toWindowId, toPortName);
+}
+export function removeCableByEndpoints(fromWindowId, toWindowId, toPortName) {
+    for (const [id, c] of cables) {
+        if (c.fromWindowId === fromWindowId && c.toWindowId === toWindowId && c.toPortName === toPortName) {
+            disconnect(id);
+            removeCable(id);
+            return;
+        }
+    }
 }
 export function isNodeWindow(windowId) {
     return getCablesFrom(windowId).length > 0 ||
