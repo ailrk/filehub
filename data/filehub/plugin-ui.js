@@ -1,9 +1,9 @@
 import * as Balloon from './balloon.js';
-import { createWindow } from './window.js';
-export function createPluginUI() {
+import * as Workspace from './workspace.js';
+export function createPluginUI(pluginName) {
     return {
         window(opts = {}) {
-            return createWindow(opts);
+            return Workspace.openWindow(pluginName, opts);
         },
         notify(msg, kind = 'info') {
             Balloon.pushBalloon({

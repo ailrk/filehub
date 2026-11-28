@@ -2,6 +2,7 @@ import { i18n } from '../i18n.js';
 import * as ModalBuilder from '../modal-builder.js';
 import Viewer from '../viewer.js';
 import { createPluginUI } from '../plugin-ui.js';
+import * as NodeGraph from '../node-graph.js';
 function openViewer(path) {
     const v = new Viewer(path);
     v.show();
@@ -210,7 +211,7 @@ function buildPluginItems(filePath, fileName, fileMime) {
                 continue;
             const el = makeClickItem(entry.label, 'bx-link-external', () => {
                 if (entry.action.type === 'script') {
-                    executePluginScript(entry.action.value, filePath, fileName, fileMime);
+                    executePluginScript(entry.action.value, filePath, fileName, fileMime, plugin.name);
                 }
                 else {
                     const needsShare = entry.action.value.includes('{share_url}');
@@ -233,15 +234,34 @@ function buildPluginItems(filePath, fileName, fileMime) {
                 continue;
             const el = makeClickItem(entry.label ?? plugin.name, 'bx-link-external', () => {
                 if (typeof entry.script === 'function') {
-                    entry.script({ filePath, fileName, mimeType: fileMime }, createPluginUI());
+                    entry.script({ filePath, fileName, mimeType: fileMime }, createPluginUI(plugin.name));
                 }
                 else if (typeof entry.script === 'string') {
-                    executePluginScript(entry.script, filePath, fileName, fileMime);
+                    executePluginScript(entry.script, filePath, fileName, fileMime, plugin.name);
                 }
                 else if (entry.url) {
                     const url = substituteUrl(entry.url, filePath, fileName, fileMime, '');
                     window.open(url, '_blank');
                 }
+            });
+            items.push(el);
+        }
+    }
+    // Node plugins — appear for every file, opt-in by plugin declaration
+    const jsPluginsAll = window.filehub?._jsPlugins ?? [];
+    const nodePlugins = jsPluginsAll.filter(p => !!p.node);
+    if (nodePlugins.length > 0) {
+        const sep = document.createElement('div');
+        sep.className = 'context-menu-separator';
+        items.push(sep);
+        for (const plugin of nodePlugins) {
+            const el = makeClickItem(plugin.name, 'bx-git-network', () => {
+                const def = NodeGraph.getDef(plugin.name);
+                if (!def)
+                    return;
+                const { inputs, output } = NodeGraph.preparePorts(plugin.name, def);
+                const ui = createPluginUI(plugin.name);
+                def.run(inputs, output, ui);
             });
             items.push(el);
         }
@@ -271,14 +291,14 @@ async function openWithShare(filePath, fileName, fileMime, urlTemplate) {
     const url = substituteUrl(urlTemplate, filePath, fileName, fileMime, shareUrl);
     window.open(url, '_blank');
 }
-function executePluginScript(script, filePath, fileName, fileMime) {
+function executePluginScript(script, filePath, fileName, fileMime, pluginName) {
     try {
         const run = new Function(script + '\nreturn run;')();
         if (typeof run !== 'function') {
             console.error('Plugin script must define a function named "run"');
             return;
         }
-        run({ filePath, fileName, mimeType: fileMime }, createPluginUI());
+        run({ filePath, fileName, mimeType: fileMime }, createPluginUI(pluginName));
     }
     catch (e) {
         console.error('Plugin script error:', e);

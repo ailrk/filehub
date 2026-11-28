@@ -408,7 +408,7 @@ hr {
   background-color: var(--background1);
   box-shadow: var(--shadow-lg);
   overflow: hidden;
-  animation: zoomIn 130ms var(--ease);
+  animation: zoomIn 60ms var(--ease);
 }
 
 .modal.closing         { animation: fadeOut  90ms var(--ease) forwards; }
@@ -515,12 +515,12 @@ hr {
   min-width: 260px;
   min-height: 180px;
   background: var(--background1);
-  border: 1px solid var(--border);
+  border: 1.5px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
   resize: both;
   overflow: hidden;
-  animation: zoomIn 130ms var(--ease);
+  animation: zoomIn 60ms var(--ease);
 }
 .filehub-window-maximized {
   inset: 0 !important;

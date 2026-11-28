@@ -499,3 +499,272 @@ textarea:focus {
   display: block;
   animation: controlPanelDropdownIn 120ms var(--ease);
 }
+
+
+/* -------------------------------------------------------------------------
+ * Taskbar + Workspace
+ * ---------------------------------------------------------------------- */
+
+:root { --taskbar-h: 48px; }
+
+body.has-taskbar #index {
+  height: calc(100vh - var(--taskbar-h));
+}
+
+#filehub-taskbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--taskbar-h);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  background: var(--background2);
+  border-top: 1px solid var(--border);
+  z-index: 600;
+  overflow: hidden;
+}
+
+.filehub-workspace-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  height: 38px;
+  padding: 0 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--frontground);
+  background: var(--background3);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  transition: background var(--fast) var(--ease);
+}
+
+.filehub-workspace-btn:hover {
+  background: var(--secondary);
+  color: var(--on-secondary);
+}
+
+.filehub-taskbar-chips {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.filehub-taskbar-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  flex: 1 1 0;
+  min-width: 80px;
+  max-width: 200px;
+  padding: 0 4px 0 10px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  color: var(--muted);
+  background: var(--background3);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--fast) var(--ease),
+              color     var(--fast) var(--ease),
+              border-color var(--fast) var(--ease);
+}
+
+.filehub-taskbar-chip:hover {
+  color: var(--frontground);
+  background: var(--background1);
+}
+
+/* Focused / active window */
+.filehub-taskbar-chip.chip-active {
+  color: var(--frontground);
+  background: var(--background1);
+  border-color: var(--secondary);
+  box-shadow: inset 0 -2px 0 var(--secondary);
+}
+
+/* Minimized window — slightly dimmed */
+.filehub-taskbar-chip.chip-minimized {
+  color: var(--muted);
+  opacity: 0.65;
+}
+
+.filehub-taskbar-chip.chip-minimized.chip-active {
+  opacity: 1;
+}
+
+.filehub-taskbar-chip > i {
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.filehub-taskbar-chip > span {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.filehub-taskbar-chip-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: none;
+  outline: none;
+  padding: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background var(--fast) var(--ease), color var(--fast) var(--ease);
+}
+
+.filehub-taskbar-chip-close:hover {
+  background: var(--danger, #e53e3e);
+  color: #fff;
+}
+
+.filehub-taskbar-chip-close i { font-size: 0.8rem; }
+
+/* Workspace switcher popup */
+.filehub-ws-popup {
+  position: fixed;
+  min-width: 160px;
+  background: var(--background2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+  z-index: 700;
+  padding: 4px 0;
+  animation: popIn 120ms var(--ease);
+}
+
+.filehub-ws-popup-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 14px;
+  font-size: 0.82rem;
+  color: var(--frontground);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--fast) var(--ease);
+}
+
+.filehub-ws-popup-item:hover { background: var(--background3); }
+
+.filehub-ws-popup-item.active {
+  color: var(--secondary);
+  font-weight: 600;
+}
+
+.filehub-ws-popup-sep {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+.filehub-ws-popup-new { color: var(--muted); }
+
+
+/* -------------------------------------------------------------------------
+ * Node graph — sockets
+ * ---------------------------------------------------------------------- */
+
+/* Output = green triangle-pill; Input = amber circle */
+.node-socket {
+  position: fixed;
+  /* z-index set dynamically to windowZIndex + 1 so sockets always sit
+     one slot above their own window and below any window brought to front */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: filter 100ms var(--ease), transform 100ms var(--ease),
+              box-shadow 100ms var(--ease);
+}
+
+/* Output socket — filled circle in secondary colour */
+.node-socket-output {
+  width:  14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--secondary);
+  border: 2px solid var(--secondary);
+  cursor: grab;
+  transition: box-shadow 100ms var(--ease), transform 100ms var(--ease);
+}
+.node-socket-output:hover,
+.node-socket-output.node-socket-snap {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--secondary) 35%, transparent);
+  transform: scale(1.2);
+}
+
+/* Input socket — hollow circle (background shows through) */
+.node-socket-input {
+  width:  14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--background2);
+  border: 2px solid var(--secondary);
+  cursor: cell;
+  transition: background 100ms var(--ease), box-shadow 100ms var(--ease),
+              transform 100ms var(--ease);
+}
+.node-socket-input:hover,
+.node-socket-input.node-socket-snap {
+  background: var(--secondary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--secondary) 35%, transparent);
+  transform: scale(1.2);
+}
+
+.node-socket-label {
+  position: absolute;
+  font-size: 0.6rem;
+  color: var(--muted);
+  white-space: nowrap;
+  pointer-events: none;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.node-socket-output .node-socket-label { right: 18px; }
+.node-socket-input  .node-socket-label { left:  18px; }
+
+/* -------------------------------------------------------------------------
+ * Node graph — cables (SVG)
+ * ---------------------------------------------------------------------- */
+
+#node-cables-svg { pointer-events: none; }
+
+.node-cable {
+  fill:            none;
+  stroke:          var(--secondary);
+  stroke-width:    2;
+  stroke-linecap:  round;
+  transition:      stroke 80ms;
+}
+
+.node-cable:hover {
+  stroke:       var(--danger, #e53e3e);
+  stroke-width: 3;
+}
+
+.node-cable-drag {
+  stroke-dasharray: 6 4;
+  opacity: 0.6;
+}

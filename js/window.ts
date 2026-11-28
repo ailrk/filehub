@@ -5,16 +5,31 @@
  */
 
 let _topZ = 800;
+let _winCounter = 0;
+
+// Each window occupies a band of Z_BAND z-index slots:
+//   +0  window body
+//   +1  per-window overlays (sockets, etc.)
+const Z_BAND = 10;
 
 function bringToFront(el: HTMLElement) {
-  _topZ++;
+  _topZ += Z_BAND;
   el.style.zIndex = String(_topZ);
+  el.dispatchEvent(new CustomEvent('filehub:windowmoved'));
 }
 
 export interface WindowHandle {
+  readonly id: string;
+  readonly root: HTMLElement;   // outer .filehub-window element
   readonly body: HTMLElement;
+  onFocus?:    () => void;
+  onMinimize?: () => void;
+  onClose?:    () => void;
   show(): void;
   close(): void;
+  minimize(): void;
+  restore(): void;
+  setWorkspaceHidden(hidden: boolean): void;
 }
 
 export interface WindowOptions {
@@ -24,6 +39,7 @@ export interface WindowOptions {
 }
 
 export function createWindow(opts: WindowOptions = {}): WindowHandle {
+  const id  = 'fw-' + (++_winCounter);
   const win = document.createElement('div');
   win.className = 'filehub-window';
 
@@ -37,6 +53,13 @@ export function createWindow(opts: WindowOptions = {}): WindowHandle {
 
   const controls = document.createElement('div');
   controls.className = 'filehub-window-controls';
+
+  /* --- minimize --- */
+  const minBtn = document.createElement('button');
+  minBtn.className = 'filehub-window-btn';
+  minBtn.setAttribute('aria-label', 'Minimize');
+  minBtn.innerHTML = `<i class="bx bx-minus"></i>`;
+  minBtn.addEventListener('click', () => handle.minimize());
 
   /* --- maximize / restore --- */
   type SavedGeom = { left: string; top: string; width: string; height: string };
@@ -71,6 +94,7 @@ export function createWindow(opts: WindowOptions = {}): WindowHandle {
   closeBtn.innerHTML = `<i class="bx bx-x"></i>`;
   closeBtn.addEventListener('click', () => handle.close());
 
+  controls.appendChild(minBtn);
   controls.appendChild(maxBtn);
   controls.appendChild(closeBtn);
   titlebar.appendChild(titleEl);
@@ -83,8 +107,15 @@ export function createWindow(opts: WindowOptions = {}): WindowHandle {
   win.appendChild(titlebar);
   win.appendChild(body);
 
+  /* Declare handle early so event listeners can reference it safely.
+   * All listeners fire asynchronously so handle is always assigned by then. */
+  let handle!: WindowHandle;
+
   /* --- bring to front on any click --- */
-  win.addEventListener('mousedown', () => bringToFront(win), { capture: true });
+  win.addEventListener('mousedown', () => {
+    bringToFront(win);
+    handle.onFocus?.();
+  }, { capture: true });
 
   /* --- drag --- */
   titlebar.addEventListener('mousedown', (e: MouseEvent) => {
@@ -98,6 +129,7 @@ export function createWindow(opts: WindowOptions = {}): WindowHandle {
     const onMove = (ev: MouseEvent) => {
       win.style.left = (ev.clientX - ox) + 'px';
       win.style.top  = (ev.clientY - oy) + 'px';
+      win.dispatchEvent(new CustomEvent('filehub:windowmoved'));
     };
     const onUp = () => {
       document.removeEventListener('mousemove', onMove);
@@ -107,15 +139,15 @@ export function createWindow(opts: WindowOptions = {}): WindowHandle {
     document.addEventListener('mouseup',   onUp);
   });
 
-  /* --- public handle --- */
-  const handle: WindowHandle = {
+  handle = {
+    id,
+    root: win,
     body,
 
     show() {
       if (opts.width)  win.style.width  = opts.width  + 'px';
       if (opts.height) win.style.height = opts.height + 'px';
 
-      // Append hidden first so we can measure real dimensions, then center
       win.style.visibility = 'hidden';
       document.body.appendChild(win);
       const w = win.offsetWidth;
@@ -125,11 +157,45 @@ export function createWindow(opts: WindowOptions = {}): WindowHandle {
       win.style.visibility = '';
 
       bringToFront(win);
+      handle.onFocus?.();
+      win.dispatchEvent(new CustomEvent('filehub:windowmoved'));
+      // zoomIn animation uses transform:scale which skews getBoundingClientRect;
+      // fire again after animation so sockets get the correct final rect.
+      win.addEventListener('animationend', () => {
+        win.dispatchEvent(new CustomEvent('filehub:windowmoved'));
+      }, { once: true });
     },
 
     close() {
+      if (win.style.display === 'none') {
+        win.remove();
+        handle.onClose?.();
+        return;
+      }
       win.classList.add('filehub-window-closing');
-      win.addEventListener('animationend', () => win.remove(), { once: true });
+      win.addEventListener('animationend', () => {
+        win.remove();
+        handle.onClose?.();
+      }, { once: true });
+    },
+
+    minimize() {
+      win.style.display = 'none';
+      handle.onMinimize?.();
+    },
+
+    restore() {
+      win.style.display = '';
+      // Force reflow so getBoundingClientRect is accurate when sockets reposition
+      void win.offsetWidth;
+      bringToFront(win);
+      handle.onFocus?.();
+      win.dispatchEvent(new CustomEvent('filehub:windowmoved'));
+    },
+
+    setWorkspaceHidden(hidden: boolean) {
+      win.style.visibility = hidden ? 'hidden' : '';
+      win.style.pointerEvents = hidden ? 'none' : '';
     },
   };
 

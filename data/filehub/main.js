@@ -12,6 +12,8 @@ import * as MobilePanel from './hmobile/panel.js';
 import * as Modal from './modal.js';
 import * as ModalBuilder from './modal-builder.js';
 import { createPluginUI } from './plugin-ui.js';
+import * as Workspace from './workspace.js';
+import * as NodeGraph from './node-graph.js';
 import Viewer from './viewer.js';
 import { i18n } from './i18n.js';
 const balloonWaitTime = 2000;
@@ -35,6 +37,8 @@ document.addEventListener('DOMContentLoaded', () => {
         DesktopSort.register();
         document.addEventListener('click', closeDropdowns);
         document.addEventListener('htmx:afterSettle', closeDropdowns);
+        Workspace.init();
+        NodeGraph.init();
     }
     if (display === 'Mobile') {
         MobileCloseSidebar.register();
@@ -67,12 +71,15 @@ document.addEventListener('DOMContentLoaded', () => {
             DesktopScroll.rebind();
             DesktopSelected.collectFromHtml();
             updatePluginToolbarActions();
+            patchRegisterPlugin();
         }
         initTomlEditors();
         initPluginToggles();
         if (display === 'Desktop')
             initVideoHover();
     });
+    if (display === 'Desktop')
+        patchRegisterPlugin();
     document.addEventListener('animationend', (e) => {
         const el = e.target;
         if (e.animationName === 'pastedFlash') {
@@ -183,7 +190,7 @@ function openPluginScriptOnClick(e) {
     const filePath = row?.dataset.path ?? '';
     const fileName = row?.dataset.name ?? '';
     const fileMime = row?.dataset.mime ?? '';
-    runPluginScript(script, filePath, fileName, fileMime);
+    runPluginScript(script, filePath, fileName, fileMime, '');
 }
 function openBlankOnClick(e) {
     const el = e.target.closest('[data-action="open-blank"]');
@@ -282,12 +289,12 @@ function initTomlEditors() {
     document.querySelectorAll('textarea.toml-textarea')
         .forEach(initTomlEditor);
 }
-function executeJsPluginToolbarEntry(entry, filePath, fileName, fileMime) {
+function executeJsPluginToolbarEntry(entry, filePath, fileName, fileMime, pluginName) {
     if (typeof entry.script === 'function') {
-        entry.script({ filePath, fileName, mimeType: fileMime }, createPluginUI());
+        entry.script({ filePath, fileName, mimeType: fileMime }, createPluginUI(pluginName));
     }
     else if (typeof entry.script === 'string') {
-        runPluginScript(entry.script, filePath, fileName, fileMime);
+        runPluginScript(entry.script, filePath, fileName, fileMime, pluginName);
     }
     else if (entry.url) {
         const url = entry.url
@@ -320,7 +327,7 @@ function updatePluginToolbarActions() {
             btn.textContent = entry.label;
             btn.addEventListener('click', async () => {
                 if (entry.action.type === 'script') {
-                    runPluginScript(entry.action.value, filePath, fileName, fileMime);
+                    runPluginScript(entry.action.value, filePath, fileName, fileMime, plugin.name);
                     return;
                 }
                 const urlTemplate = entry.action.value;
@@ -374,20 +381,37 @@ function updatePluginToolbarActions() {
             btn.className = 'btn btn-control plugin-toolbar-btn';
             btn.textContent = entry.label ?? plugin.name;
             btn.addEventListener('click', () => {
-                executeJsPluginToolbarEntry(entry, filePath, fileName, fileMime);
+                executeJsPluginToolbarEntry(entry, filePath, fileName, fileMime, plugin.name);
             });
             container.appendChild(btn);
         }
     }
 }
-function runPluginScript(script, filePath, fileName, fileMime) {
+// Wrap window.filehub.registerPlugin so node defs are picked up automatically
+// each time plugins are (re-)registered after an htmx swap.
+function patchRegisterPlugin() {
+    if (!window.filehub)
+        return;
+    const original = window.filehub.registerPlugin.bind(window.filehub);
+    window.filehub.registerPlugin = (def) => {
+        original(def);
+        if (def.node)
+            NodeGraph.registerDef(def.name, def.node);
+    };
+    // Re-register already-loaded plugins in case this runs after the IIFEs
+    for (const p of window.filehub._jsPlugins) {
+        if (p.node)
+            NodeGraph.registerDef(p.name, p.node);
+    }
+}
+function runPluginScript(script, filePath, fileName, fileMime, pluginName) {
     try {
         const run = new Function(script + '\nreturn run;')();
         if (typeof run !== 'function') {
             console.error('Plugin script must define a function named "run"');
             return;
         }
-        run({ filePath, fileName, mimeType: fileMime }, createPluginUI());
+        run({ filePath, fileName, mimeType: fileMime }, createPluginUI(pluginName));
     }
     catch (e) {
         console.error('Plugin script error:', e);

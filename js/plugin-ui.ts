@@ -1,5 +1,5 @@
 import * as Balloon from './balloon.js';
-import { createWindow } from './window.js';
+import * as Workspace from './workspace.js';
 export type { WindowHandle } from './window.js';
 
 declare var htmx: any;
@@ -12,11 +12,11 @@ export interface PluginUI {
   refresh(): void;
 }
 
-export function createPluginUI(): PluginUI {
+export function createPluginUI(pluginName: string): PluginUI {
   return {
 
     window(opts = {}) {
-      return createWindow(opts);
+      return Workspace.openWindow(pluginName, opts);
     },
 
     notify(msg, kind = 'info') {

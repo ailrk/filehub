@@ -15,7 +15,7 @@ import Filehub.ActiveUser.Pool qualified as ActiveUser.Pool
 import Filehub.Auth.Types.OIDC (OIDCAuthProviders(..))
 import Filehub.Auth.Simple qualified as Auth.Simple
 import Filehub.Config (Config(..), TargetConfig (..), Targets(..))
-import Filehub.Plugin.Types (StaticPlugins(..), StaticPlugin)
+import Filehub.Plugin.Types (StaticPlugins(..), StaticPlugin(..))
 import Filehub.Config qualified as Config
 import Filehub.Config.Options (Options(..))
 import Filehub.Config.Options qualified as Config.Options
@@ -94,6 +94,10 @@ main = Log.withColoredStdoutLogger \logger -> do
     logInfo_ [i|verbosity: #{verbosity}|]
     logInfo_ [i|readonly:  #{readOnly}|]
     logInfo_ [i|locale:    #{locale}|]
+    let StaticPlugins ps = plugins
+        pluginNames = [ n | StaticPlugin { name = n } <- ps ]
+    logInfo_ [i|plugins:   #{pluginNames :: [Text]}|]
+    logInfo_ [i|plugin_js: #{pluginJsFilePaths}|]
 #ifdef DEBUG
     logInfo_ [i|debug:     true|]
 #endif
