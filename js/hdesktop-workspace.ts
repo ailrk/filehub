@@ -45,7 +45,7 @@ export interface WorkspaceSaveState {
 export interface CableSaveState {
   fromWindowId: string;
   toWindowId:   string;
-  toSocketName: string;
+  toPortName: string;
 }
 
 export interface ProjectState {

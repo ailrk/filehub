@@ -690,13 +690,13 @@ body.has-taskbar #index {
 
 
 /* -------------------------------------------------------------------------
- * Node graph — sockets
+ * Node graph — ports
  * ---------------------------------------------------------------------- */
 
 /* Output = green triangle-pill; Input = amber circle */
-.node-socket {
+.node-port {
   position: fixed;
-  /* z-index set dynamically to windowZIndex + 1 so sockets always sit
+  /* z-index set dynamically to windowZIndex + 1 so ports always sit
      one slot above their own window and below any window brought to front */
   display: flex;
   align-items: center;
@@ -706,7 +706,7 @@ body.has-taskbar #index {
 }
 
 /* Output socket — filled circle in secondary colour */
-.node-socket-output {
+.node-port-output {
   width:  14px;
   height: 14px;
   border-radius: 50%;
@@ -715,14 +715,14 @@ body.has-taskbar #index {
   cursor: grab;
   transition: box-shadow 100ms var(--ease), transform 100ms var(--ease);
 }
-.node-socket-output:hover,
-.node-socket-output.node-socket-snap {
+.node-port-output:hover,
+.node-port-output.node-port-snap {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--secondary) 35%, transparent);
   transform: scale(1.2);
 }
 
 /* Input socket — hollow circle (background shows through) */
-.node-socket-input {
+.node-port-input {
   width:  14px;
   height: 14px;
   border-radius: 50%;
@@ -732,14 +732,14 @@ body.has-taskbar #index {
   transition: background 100ms var(--ease), box-shadow 100ms var(--ease),
               transform 100ms var(--ease);
 }
-.node-socket-input:hover,
-.node-socket-input.node-socket-snap {
+.node-port-input:hover,
+.node-port-input.node-port-snap {
   background: var(--secondary);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--secondary) 35%, transparent);
   transform: scale(1.2);
 }
 
-.node-socket-label {
+.node-port-label {
   position: absolute;
   font-size: 0.6rem;
   color: var(--muted);
@@ -748,8 +748,8 @@ body.has-taskbar #index {
   top: 50%;
   transform: translateY(-50%);
 }
-.node-socket-output .node-socket-label { right: 18px; }
-.node-socket-input  .node-socket-label { left:  18px; }
+.node-port-output .node-port-label { right: 18px; }
+.node-port-input  .node-port-label { left:  18px; }
 
 /* -------------------------------------------------------------------------
  * Node graph — cables (SVG)

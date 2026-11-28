@@ -1,5 +1,5 @@
 /*
- * Node graph — types, runtime, sockets, cables, and orchestrator.
+ * Node graph — types, runtime, ports, cables, and orchestrator.
  */
 const nodes = new Map();
 const cables = new Map();
@@ -15,12 +15,12 @@ function unregisterNode(windowId) {
         }
     }
 }
-function registerInputHandler(windowId, socketName, handler) {
-    nodes.get(windowId)?.inputHandlers.set(socketName, handler);
+function registerInputHandler(windowId, portName, handler) {
+    nodes.get(windowId)?.inputHandlers.set(portName, handler);
 }
-function connect(fromWindowId, toWindowId, toSocketName) {
+function connect(fromWindowId, toWindowId, toPortName) {
     const id = 'cable-' + (++cableCounter);
-    cables.set(id, { id, fromWindowId, toWindowId, toSocketName });
+    cables.set(id, { id, fromWindowId, toWindowId, toPortName });
     return id;
 }
 function disconnect(cableId) {
@@ -37,7 +37,7 @@ function runtimeEmit(fromWindowId, data) {
         deliver(c, data, new Set([fromWindowId]));
 }
 function deliver(cable, data, visited) {
-    const handler = nodes.get(cable.toWindowId)?.inputHandlers.get(cable.toSocketName);
+    const handler = nodes.get(cable.toWindowId)?.inputHandlers.get(cable.toPortName);
     if (!handler)
         return;
     Promise.resolve(handler(data)).then(result => {
@@ -50,36 +50,36 @@ function deliver(cable, data, visited) {
     });
 }
 // ---------------------------------------------------------------------------
-// Sockets
+// Ports
 // ---------------------------------------------------------------------------
 const TITLEBAR_H = 37;
 const SOCKET_D = 14;
 const INPUT_GAP = 28;
-const socketRegistry = new Map();
-function socketRegisterWindow(windowId, winEl, inputs, hasOutput, onMoved) {
+const portRegistry = new Map();
+function portRegisterWindow(windowId, winEl, inputs, hasOutput, onMoved) {
     const records = [];
     if (hasOutput) {
-        const el = makeSocketEl('output', windowId, '');
+        const el = makePortEl('output', windowId, '');
         document.body.appendChild(el);
-        records.push({ el, windowId, kind: 'output', socketName: '', placed: false });
+        records.push({ el, windowId, kind: 'output', portName: '', placed: false });
     }
     inputs.forEach(def => {
-        const el = makeSocketEl('input', windowId, def.name);
+        const el = makePortEl('input', windowId, def.name);
         document.body.appendChild(el);
-        records.push({ el, windowId, kind: 'input', socketName: def.name, placed: false });
+        records.push({ el, windowId, kind: 'input', portName: def.name, placed: false });
     });
-    socketRegistry.set(windowId, records);
+    portRegistry.set(windowId, records);
     placeAll(windowId, winEl);
     const ro = new ResizeObserver(() => { placeAll(windowId, winEl); onMoved(); });
     ro.observe(winEl);
     winEl.addEventListener('filehub:windowmoved', () => { placeAll(windowId, winEl); onMoved(); });
 }
-function socketUnregisterWindow(windowId) {
-    socketRegistry.get(windowId)?.forEach(r => r.el.remove());
-    socketRegistry.delete(windowId);
+function portUnregisterWindow(windowId) {
+    portRegistry.get(windowId)?.forEach(r => r.el.remove());
+    portRegistry.delete(windowId);
 }
 function placeAll(windowId, winEl) {
-    const recs = socketRegistry.get(windowId);
+    const recs = portRegistry.get(windowId);
     if (!recs)
         return;
     if (winEl.getAnimations().some(a => a.playState === 'running'))
@@ -108,44 +108,44 @@ function placeAll(windowId, winEl) {
         }
     }
 }
-function getCenter(windowId, kind, socketName) {
-    const recs = socketRegistry.get(windowId);
+function getCenter(windowId, kind, portName) {
+    const recs = portRegistry.get(windowId);
     if (!recs)
         return null;
-    const r = recs.find(r => r.kind === kind && (kind === 'output' ? true : r.socketName === socketName));
+    const r = recs.find(r => r.kind === kind && (kind === 'output' ? true : r.portName === portName));
     if (!r)
         return null;
     const rect = r.el.getBoundingClientRect();
     return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
 }
-function getAllInputs() {
+function getAllInputPorts() {
     const out = [];
-    for (const recs of socketRegistry.values()) {
+    for (const recs of portRegistry.values()) {
         for (const r of recs) {
             if (r.kind === 'input')
-                out.push({ windowId: r.windowId, socketName: r.socketName, el: r.el });
+                out.push({ windowId: r.windowId, portName: r.portName, el: r.el });
         }
     }
     return out;
 }
-function socketSetWindowVisible(windowId, visible) {
-    socketRegistry.get(windowId)?.forEach(r => {
+function portSetWindowVisible(windowId, visible) {
+    portRegistry.get(windowId)?.forEach(r => {
         r.el.style.visibility = (visible && r.placed) ? '' : 'hidden';
     });
 }
 function getOutputEl(windowId) {
-    return socketRegistry.get(windowId)?.find(r => r.kind === 'output')?.el ?? null;
+    return portRegistry.get(windowId)?.find(r => r.kind === 'output')?.el ?? null;
 }
-function makeSocketEl(kind, windowId, name) {
+function makePortEl(kind, windowId, name) {
     const el = document.createElement('div');
-    el.className = `node-socket node-socket-${kind}`;
+    el.className = `node-port node-port-${kind}`;
     el.style.visibility = 'hidden';
     el.dataset.windowId = windowId;
-    el.dataset.socketName = name;
-    el.dataset.socketKind = kind;
+    el.dataset.portName = name;
+    el.dataset.portKind = kind;
     if (name) {
         const lbl = document.createElement('span');
-        lbl.className = 'node-socket-label';
+        lbl.className = 'node-port-label';
         lbl.textContent = name;
         el.appendChild(lbl);
     }
@@ -166,7 +166,7 @@ function cableInit() {
     document.addEventListener('mousemove', onCableMove);
     document.addEventListener('mouseup', onCableUp);
 }
-function addCable(cableId, fromWindowId, toWindowId, toSocketName) {
+function addCable(cableId, fromWindowId, toWindowId, toPortName) {
     const path = makeCablePath(false);
     path.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -174,7 +174,7 @@ function addCable(cableId, fromWindowId, toWindowId, toSocketName) {
         removeCable(cableId);
     });
     cableSvg.appendChild(path);
-    cablePaths.set(cableId, { id: cableId, fromWindowId, toWindowId, toSocketName, path });
+    cablePaths.set(cableId, { id: cableId, fromWindowId, toWindowId, toPortName, path });
     redrawCable(cableId);
 }
 function removeCable(cableId) {
@@ -199,7 +199,7 @@ function redrawCable(cableId) {
     if (!c)
         return;
     const from = getCenter(c.fromWindowId, 'output', '');
-    const to = getCenter(c.toWindowId, 'input', c.toSocketName);
+    const to = getCenter(c.toWindowId, 'input', c.toPortName);
     if (!from || !to)
         return;
     c.path.setAttribute('d', bezier(from.x, from.y, to.x, to.y));
@@ -217,24 +217,24 @@ function onCableMove(e) {
         return;
     let tx = e.clientX, ty = e.clientY;
     let snap = null;
-    for (const inp of getAllInputs()) {
+    for (const inp of getAllInputPorts()) {
         if (inp.windowId === drag.fromWindowId)
             continue;
-        const c = getCenter(inp.windowId, 'input', inp.socketName);
+        const c = getCenter(inp.windowId, 'input', inp.portName);
         if (!c)
             continue;
         if (Math.hypot(e.clientX - c.x, e.clientY - c.y) < 28) {
             tx = c.x;
             ty = c.y;
-            snap = { windowId: inp.windowId, socketName: inp.socketName };
-            inp.el.classList.add('node-socket-snap');
+            snap = { windowId: inp.windowId, portName: inp.portName };
+            inp.el.classList.add('node-port-snap');
         }
         else {
-            inp.el.classList.remove('node-socket-snap');
+            inp.el.classList.remove('node-port-snap');
         }
     }
     if (!snap)
-        getAllInputs().forEach(i => i.el.classList.remove('node-socket-snap'));
+        getAllInputPorts().forEach(i => i.el.classList.remove('node-socket-snap'));
     drag.snap = snap;
     drag.ghost.setAttribute('d', bezier(from.x, from.y, tx, ty));
 }
@@ -243,10 +243,10 @@ function onCableUp(_e) {
         return;
     drag.ghost.remove();
     if (drag.snap) {
-        const cableId = connect(drag.fromWindowId, drag.snap.windowId, drag.snap.socketName);
-        addCable(cableId, drag.fromWindowId, drag.snap.windowId, drag.snap.socketName);
+        const cableId = connect(drag.fromWindowId, drag.snap.windowId, drag.snap.portName);
+        addCable(cableId, drag.fromWindowId, drag.snap.windowId, drag.snap.portName);
     }
-    getAllInputs().forEach(i => i.el.classList.remove('node-socket-snap'));
+    getAllInputPorts().forEach(i => i.el.classList.remove('node-port-snap'));
     drag = null;
 }
 function makeCablePath(isDrag) {
@@ -289,12 +289,12 @@ export function preparePorts(pluginName, def) {
     };
     pending.set(pluginName, p);
     const inputs = {
-        on(socketName, handler) {
+        on(portName, handler) {
             if (p.windowIdRef.current !== null) {
-                registerInputHandler(p.windowIdRef.current, socketName, handler);
+                registerInputHandler(p.windowIdRef.current, portName, handler);
             }
             else {
-                p.pendingHandlers.push({ name: socketName, handler });
+                p.pendingHandlers.push({ name: portName, handler });
             }
         },
     };
@@ -318,7 +318,7 @@ export function onWindowCreated(windowId, root, pluginName) {
     for (const { name, handler } of pendingHandlers) {
         registerInputHandler(windowId, name, handler);
     }
-    socketRegisterWindow(windowId, root, def.inputs ?? [], hasOutput, () => redrawForWindow(windowId));
+    portRegisterWindow(windowId, root, def.inputs ?? [], hasOutput, () => redrawForWindow(windowId));
     if (hasOutput) {
         getOutputEl(windowId)?.addEventListener('mousedown', (e) => {
             e.stopPropagation();
@@ -328,7 +328,7 @@ export function onWindowCreated(windowId, root, pluginName) {
     emitter.fn = (data) => runtimeEmit(windowId, data);
 }
 export function onWindowVisible(windowId, visible) {
-    socketSetWindowVisible(windowId, visible);
+    portSetWindowVisible(windowId, visible);
     cableSetWindowVisible(windowId, visible);
 }
 export function onWindowClosed(windowId) {
@@ -336,18 +336,18 @@ export function onWindowClosed(windowId) {
         removeCable(c.id);
     }
     unregisterNode(windowId);
-    socketUnregisterWindow(windowId);
+    portUnregisterWindow(windowId);
 }
 export function getCablesState() {
     return [...cables.values()].map(c => ({
         fromWindowId: c.fromWindowId,
         toWindowId: c.toWindowId,
-        toSocketName: c.toSocketName,
+        toPortName: c.toPortName,
     }));
 }
-export function restoreCable(fromWindowId, toWindowId, toSocketName) {
-    const cableId = connect(fromWindowId, toWindowId, toSocketName);
-    addCable(cableId, fromWindowId, toWindowId, toSocketName);
+export function restoreCable(fromWindowId, toWindowId, toPortName) {
+    const cableId = connect(fromWindowId, toWindowId, toPortName);
+    addCable(cableId, fromWindowId, toWindowId, toPortName);
 }
 export function isNodeWindow(windowId) {
     return getCablesFrom(windowId).length > 0 ||

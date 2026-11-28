@@ -449,7 +449,7 @@ function restoreNodeWindows() {
         const fromId = idMap.get(conn.fromWindowId);
         const toId = idMap.get(conn.toWindowId);
         if (fromId && toId) {
-            NodeGraph.restoreCable(fromId, toId, conn.toSocketName);
+            NodeGraph.restoreCable(fromId, toId, conn.toPortName);
         }
     }
     Workspace.commitBatchRestore();

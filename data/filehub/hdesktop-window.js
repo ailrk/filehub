@@ -7,7 +7,7 @@ let _topZ = 800;
 let _winCounter = 0;
 // Each window occupies a band of Z_BAND z-index slots:
 //   +0  window body
-//   +1  per-window overlays (sockets, etc.)
+//   +1  per-window overlays (ports, etc.)
 const Z_BAND = 10;
 function bringToFront(el) {
     _topZ += Z_BAND;
@@ -126,7 +126,7 @@ export function createWindow(opts = {}) {
             handle.onFocus?.();
             win.dispatchEvent(new CustomEvent('filehub:windowmoved'));
             // zoomIn animation uses transform:scale which skews getBoundingClientRect;
-            // fire again after animation so sockets get the correct final rect.
+            // fire again after animation so ports get the correct final rect.
             win.addEventListener('animationend', () => {
                 win.dispatchEvent(new CustomEvent('filehub:windowmoved'));
             }, { once: true });
@@ -149,7 +149,7 @@ export function createWindow(opts = {}) {
         },
         restore() {
             win.style.display = '';
-            // Force reflow so getBoundingClientRect is accurate when sockets reposition
+            // Force reflow so getBoundingClientRect is accurate when ports reposition
             void win.offsetWidth;
             bringToFront(win);
             handle.onFocus?.();

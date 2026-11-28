@@ -5,13 +5,13 @@ interface JsPluginEntry {
   url?: string;
 }
 
-interface JsPluginNodeSocketDef {
+interface JsPluginNodePortDef {
   name: string;
   accepts?: string[];
 }
 
 interface JsPluginNodeDef {
-  inputs?: JsPluginNodeSocketDef[];
+  inputs?: JsPluginNodePortDef[];
   output?: { produces?: string };
   run(inputs: any, output: any, ui: any): void;
 }
